@@ -1,6 +1,7 @@
 dist: trusty
 
-sudo: required
+services:
+  - docker
 
 language: python
 
@@ -9,8 +10,8 @@ python:
   - 3.6
 
 before_script:
-  # install the egg
-  - pip3 install -e .
+  # install the package
+  - pip3 install .
 
 script:
   # test import
@@ -22,3 +23,7 @@ script:
 
   # run unit tests
   - python3 -m unittest discover -s test -p "test_*" -v
+
+  # check docker build and test inside
+  - docker build -t blueprint:test .
+  - docker run -t blueprint:test python3 -m unittest discover -s test -p "test_*" -v

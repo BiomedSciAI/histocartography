@@ -1,0 +1,24 @@
+dist: trusty
+
+sudo: required
+
+language: python
+
+python:
+  - 3.5
+  - 3.6
+
+before_script:
+  # install the egg
+  - pip3 install -e .
+
+script:
+  # test import
+  - python3 -c "import blueprint"
+
+  # ensure installed commands helps run successfully
+  # (add as required)
+  - salutation -h
+
+  # run unit tests
+  - python3 -m unittest discover -s test -p "test_*" -v

@@ -61,7 +61,7 @@ You can use this script to test other functionalities beyond unit tests.
 ### Continuous Integration using Travis CI
 
 There is a working `.travis.yml` script in the root of the repository.
-Once you activate the Travis CI service `https://travis.ibm.com` for your repository, 
+Once you activate the [IBM Travis CI service](https://travis.ibm.com) for your repository, 
 it will take care of installing the package, running tests and building a docker image 
 using a clean VM.
 
@@ -87,10 +87,17 @@ Docker images can be stored in a docker registry for later use.
 IBM TaaS offers the posibility to create an enterprise docker registry on Artifactory. 
 See [here](https://pages.github.ibm.com/TAAS/tools_guide/artifactory/getting-started.html).
 
-Deployment example:
+### Deployment example on IBM Artifactory
+
+Assuming the following environment variables are set:
+- `DOCKER_USER`: your w3id email.
+- `DOCKER_PASSWORD`: token (obtained from IBM Artifactory).
+- `DOCKER_REGISTRY`: url of Artifactory registry. E.g.: `blueprint-docker-local.artifactory.swg-devops.com`.
+- `DOCKER_IMAGE`: name of the image. 
+- `DOCKER_TAG`: version, tag information. E.g.: `latest`, `test`.
 
 ```sh 
-docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"  "$DOCKER_REGISTRY"
-docker build -t "${DOCKER_REGISTRY}/${DOCKER_TAG}" .
-docker push "${DOCKER_REGISTRY}/${DOCKER_TAG}" 
+docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}  ${DOCKER_REGISTRY}
+docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} .
+docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} 
 ```

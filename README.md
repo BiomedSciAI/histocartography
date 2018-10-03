@@ -62,7 +62,8 @@ You can use this script to test other functionalities beyond unit tests.
 
 There is a working `.travis.yml` script in the root of the repository.
 Once you activate the Travis CI service `https://travis.ibm.com` for your repository, 
-it will take care of installing the package, running the tests and scripts using a clean VM.
+it will take care of installing the package, running tests and building a docker image 
+using a clean VM.
 
 You can enable notifications for build outcomes to a slack channel of your choice:
 
@@ -75,4 +76,21 @@ notifications:
     on_failure: always
 ```
 
-See [Slack documentation](https://docs.travis-ci.com/user/notifications/#configuring-slack-notifications) for more info.
+See [Travis CI documentation](https://docs.travis-ci.com/user/notifications/#configuring-slack-notifications) for more info.
+
+
+## Docker support
+
+The blueprint contains a `Dockerfile` that builds an image containing the python package.
+At the moment, it is based on the image `python:3.6` and this can be adapted to your needs. 
+Docker images can be stored in a docker registry for later use.
+IBM TaaS offers the posibility to create an enterprise docker registry on Artifactory. 
+See [here](https://pages.github.ibm.com/TAAS/tools_guide/artifactory/getting-started.html).
+
+Deployment example:
+
+```sh 
+docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"  "$DOCKER_REGISTRY"
+docker build -t "${DOCKER_REGISTRY}/${DOCKER_TAG}" .
+docker push "${DOCKER_REGISTRY}/${DOCKER_TAG}" 
+```

@@ -8,7 +8,7 @@ import sys
 import os
 
 
-from histocartography.core import hello_world
+from histocartography.core import tumor_classification_pipeline
 
 
 # setup logging

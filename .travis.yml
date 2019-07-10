@@ -27,3 +27,6 @@ script:
   # check docker build and test inside
   - docker build -t histocartography:test .
   - docker run -t histocartography:test python3 -m unittest discover -s test -p "test_*" -v
+
+notifications:
+  slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg

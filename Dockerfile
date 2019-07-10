@@ -1,7 +1,7 @@
 FROM python:3.6
 # setup
 RUN mkdir /app && mkdir /data
-WORKDIR app
+WORKDIR /app
 # install requirements
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt

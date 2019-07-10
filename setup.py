@@ -123,17 +123,17 @@ class develop(_develop):
         _develop.run(self)
 
 
-scripts = ['bin/salutation']
+scripts = ['bin/training_script']
 
 # TODO: Update these values according to the name of the module.
 setup(
-    name='blueprint',
+    name='histocartography',
     version='0.1',
-    description='Installable blueprint package. Modify as needed.',
+    description='Installable histocartography package.',
     long_description=open('README.md').read(),
-    url='https://github.ibm.com/CHCLS/blueprint-python-package',
-    author='Antonio Foncubierta Rodríguez, Matteo Manica',
-    author_email='fra@zurich.ibm.com, tte@zurich.ibm.com',
+    url='https://github.ibm.com/DigitalPathologyZRL/histocartography',
+    author='Antonio Foncubierta Rodríguez',
+    author_email='fra@zurich.ibm.com',
     packages=find_packages('.'),
     zip_safe=False,
     scripts=scripts,

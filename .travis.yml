@@ -15,15 +15,15 @@ before_script:
 
 script:
   # test import
-  - python3 -c "import blueprint"
+  - python3 -c "import histocartography"
 
   # ensure installed commands helps run successfully
   # (add as required)
-  - salutation -h
+  - training_script -h
 
   # run unit tests
   - python3 -m unittest discover -s test -p "test_*" -v
 
   # check docker build and test inside
-  - docker build -t blueprint:test .
-  - docker run -t blueprint:test python3 -m unittest discover -s test -p "test_*" -v
+  - docker build -t histocartography:test .
+  - docker run -t histocartography:test python3 -m unittest discover -s test -p "test_*" -v

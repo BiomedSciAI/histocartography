@@ -1,6 +1,7 @@
 """Whole Slide Image IO module."""
 import logging
 import sys
+import pys3
 
 # setup logging
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -27,3 +28,4 @@ def patch(file=None):
     """TODO. Currently returns method name"""
     log.info("Getting patch from file: {}".format(file))
     return 'Patch'
+

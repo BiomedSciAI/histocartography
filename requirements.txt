@@ -1,4 +1,4 @@
 #pip package names required by the package
 plac==1.0.0
 torch
-
+git+ssh://git@github.ibm.com/SysBio/pys3@1.0

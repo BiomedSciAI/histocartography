@@ -12,6 +12,7 @@ install:
   # install the package
   - pip3 install -U pip
   - pip3 install --progress-bar off -r requirements.txt
+  - pip install pys3
   - pip3 install .
 
 script:

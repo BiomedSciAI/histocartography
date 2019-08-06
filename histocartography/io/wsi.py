@@ -44,7 +44,6 @@ def load(wsi_file=None, desired_level='10x'):
     size = zoom.level_dimensions[level_]  # (width, height)
     log.info(zoom.level_dimensions)
     log.info(zoom.level_dimensions[level_])
-    #print(zoom.level_dimensions[-4])
     log.info(size)
 
     size_0 = zoom.level_dimensions[-1]

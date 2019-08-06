@@ -3,7 +3,7 @@ import unittest
 from histocartography.io.wsi import load
 from histocartography.io.wsi import save
 from histocartography.io.wsi import patch
-
+from histocartography.io.utils import download_file_to_local
 
 
 class CoreTestCase(unittest.TestCase):
@@ -15,8 +15,11 @@ class CoreTestCase(unittest.TestCase):
 
     def test_load(self):
         """Test load()."""
-        image10x = load("test/data/wsi_test.tif")
-        image5x = load("test/data/wsi_test.tif",desired_level="5x")
+
+        filename = download_file_to_local()
+
+        image10x = load(filename)
+        image5x = load(filename,desired_level="5x")
 
         self.assertEqual(image10x.shape[0],2*image5x.shape[0])
 

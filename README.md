@@ -1,4 +1,5 @@
 # histocratography
+[![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=master)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
 
 Histocartography python package. It installs `histocartography` using `pip`.
 

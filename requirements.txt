@@ -5,4 +5,4 @@ lxml
 openslide-python
 numpy
 PIL
-
+boto3

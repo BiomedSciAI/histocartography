@@ -21,6 +21,7 @@ class CoreTestCase(unittest.TestCase):
         image10x = load(filename)
         image5x = load(filename,desired_level="5x")
 
+
         self.assertEqual(image10x.shape[0],2*image5x.shape[0])
 
     def test_save(self):

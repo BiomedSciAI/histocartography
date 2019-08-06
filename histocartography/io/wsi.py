@@ -10,7 +10,7 @@ from openslide import open_slide
 from openslide.deepzoom import DeepZoomGenerator
 #import cv2
 from scipy.stats import mode
-from PIL import Image, ImageDraw
+#from PIL import Image, ImageDraw
 
 # setup logging
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -28,8 +28,6 @@ levels_dict = {
     '5x' : 3
 }
 
-
-
 def load(wsi_file=None, desired_level='10x'):
     """For loading image of a desired resolution(level) from WSI"""
     level = levels_dict[desired_level]
@@ -46,7 +44,6 @@ def load(wsi_file=None, desired_level='10x'):
     size = zoom.level_dimensions[level_]  # (width, height)
     log.info(zoom.level_dimensions)
     log.info(zoom.level_dimensions[level_])
-    #print(zoom.level_dimensions[-4])
     log.info(size)
 
     size_0 = zoom.level_dimensions[-1]

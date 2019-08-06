@@ -6,3 +6,4 @@ openslide-python
 numpy
 Pillow
 boto3
+scipy

@@ -1,7 +1,6 @@
 """Whole Slide Image IO module."""
 import logging
 import sys
-import pys3
 
 # setup logging
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)

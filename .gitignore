@@ -105,3 +105,5 @@ venv.bak/
 
 #vscode
 .vscode/
+test_tmp.svs
+tmp.svs

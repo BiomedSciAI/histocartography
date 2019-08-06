@@ -1,4 +1,9 @@
 #pip package names required by the package
 plac==1.0.0
 torch
+lxml
+openslide-python
+numpy
+Pillow
 boto3
+scipy

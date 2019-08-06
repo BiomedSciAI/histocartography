@@ -28,8 +28,6 @@ levels_dict = {
     '5x' : 3
 }
 
-
-
 def load(wsi_file=None, desired_level='10x'):
     """For loading image of a desired resolution(level) from WSI"""
     level = levels_dict[desired_level]

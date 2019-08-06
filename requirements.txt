@@ -4,5 +4,3 @@ torch
 lxml
 openslide-python
 numpy
-PIL
-

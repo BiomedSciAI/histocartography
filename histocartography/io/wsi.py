@@ -10,7 +10,7 @@ from openslide import open_slide
 from openslide.deepzoom import DeepZoomGenerator
 #import cv2
 from scipy.stats import mode
-from PIL import Image, ImageDraw
+#from PIL import Image, ImageDraw
 
 # setup logging
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)

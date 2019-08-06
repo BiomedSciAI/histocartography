@@ -12,6 +12,7 @@ class CoreTestCase(unittest.TestCase):
 
     def setUp(self):
         """Setting up the test."""
+
         self.s3 = get_s3()
         pass
 
@@ -26,6 +27,4 @@ class CoreTestCase(unittest.TestCase):
 
     def tearDown(self):
         """Tear down the tests."""
-        self.s3 = None
-        
         pass

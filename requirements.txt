@@ -2,8 +2,7 @@
 plac==1.0.0
 torch
 lxml
-openslide
-cv2
+openslide-python
 numpy
 PIL
 

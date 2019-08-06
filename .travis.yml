@@ -1,34 +1,19 @@
 dist: trusty
-
 services:
-  - docker
-
+- docker
 language: python
-
 python:
-  - 3.5
-
+- 3.5
 install:
-  # install the package
-  - pip3 install -U pip
-  - pip3 install --progress-bar off -r requirements.txt
-  - pip install pys3
-  - pip3 install .
-
+- pip3 install -U pip
+- pip3 install --progress-bar off -r requirements.txt
+- pip install pys3
+- pip3 install .
 script:
-  # test import
-  - python3 -c "import histocartography"
-
-  # ensure installed commands helps run successfully
-  # (add as required)
-  - training_script -h
-
-  # run unit tests
-  - python3 -m unittest discover  -v
-
-  # check docker build and test inside
-  - docker build -t histocartography:test .
-  - docker run -t histocartography:test python3 -m unittest discover  -v
-
+- python3 -c "import histocartography"
+- training_script -h
+- python3 -m unittest discover  -v
+- docker build -t histocartography:test .
+- docker run -t histocartography:test python3 -m unittest discover  -v
 notifications:
   slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg

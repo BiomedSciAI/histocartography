@@ -15,7 +15,10 @@ class CoreTestCase(unittest.TestCase):
 
     def test_load(self):
         """Test load()."""
-        self.assertEqual(load(), 'Load')
+        image10x = load("test/data/wsi_test.tif")
+        image5x = load("test/data/wsi_test.tif",desired_level="5x")
+
+        self.assertEqual(image10x.shape[0],2*image5x.shape[0])
 
     def test_save(self):
         """Test save()."""

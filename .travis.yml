@@ -7,13 +7,12 @@ python:
 install:
 - pip3 install -U pip
 - pip3 install --progress-bar off -r requirements.txt
-- pip install pys3
 - pip3 install .
 script:
 - python3 -c "import histocartography"
 - training_script -h
 - python3 -m unittest discover  -v
 - docker build -t histocartography:test .
-- docker run -t histocartography:test python3 -m unittest discover  -v
+- docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
 notifications:
   slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg

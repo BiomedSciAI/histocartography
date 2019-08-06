@@ -27,3 +27,5 @@ def patch(file=None):
     """TODO. Currently returns method name"""
     log.info("Getting patch from file: {}".format(file))
     return 'Patch'
+
+

@@ -28,15 +28,40 @@ levels_dict = {
     '5x' : 3
 }
 
+# mapping of the magnification property used by the vendor
+# usage:
+# if Stack.properties['openslide.vendor'] not in ['phillips', 'generic-tiff']:
+    # magnification = Stack.properties[magn_tag[Stack.properties['openslide.vendor']]]
+    # magnification = Stack.properties['openslide.objective-power']
+# Stack.properties[magn_tag[Stack.properties['openslide.vendor']]]
+# 
+magn_tag = {
+    'aperio': 'aperio.AppMag', # maps to openslide.objective-power
+    'hamamatsu': 'hamamatsu.SourceLens', # maps to openslide.objective-power
+    'leica': 'leica.objective', # maps to openslide.objective-power
+    'mirax': 'mirax.GENERAL.OBJECTIVE_MAGNIFICATION', # maps to openslide.objective-power
+    'phillips': '', # NO MAPPING TO objective-power. Have to use mpp-x and mpp-y values
+    'sakura': 'sakura.NominalLensMagnification', # maps to openslide.objective-power
+    'trestle': 'trestle.Objective Power', # OFTEN INCORRECT. maps to openslide.objective-power
+    'ventana': 'ventana.Magnification', # maps to openslide.objective-power
+    'generic-tiff': '' # NO MAPPING TO objective-power.
+}
+
 def load(wsi_file=None, desired_level='10x'):
     """For loading image of a desired resolution(level) from WSI"""
     level = levels_dict[desired_level]
 
     log.info(os.path.isfile(wsi_file))
     Stack = open_slide(wsi_file)
-    log.info(Stack.properties)
-    log.info(Stack.level_count)
-    log.info(Stack.level_downsamples)
+    
+    # magnification = Stack.properties['openslide.objective-power']
+    if Stack.properties['openslide.vendor'] not in ['phillips', 'generic-tiff']:
+        magnification = Stack.properties[magn_tag[Stack.properties['openslide.vendor']]]
+    else:
+        magnification = None
+    log.info('Original magnification: {}'.format(magnification))
+    log.info('Levels: {}'.format(Stack.level_count))
+    log.info('Downsamples: {}'.format(Stack.level_downsamples))
 
     zoom = DeepZoomGenerator(Stack, 1024, 0, False)
 

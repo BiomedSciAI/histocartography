@@ -24,7 +24,11 @@ pip3 install -e .
 ```
 
 ## Testing and Continuous Integration
-
+Add these environment variables to have access to the [Object Storage](http://data.digital-pathology.zc2.ibm.com:9000)
+```
+export AWS_ACCESS_KEY_ID=" "
+export AWS_SECRET_ACCESS_KEY=" "
+```
 ### Training
 
 There is a sample executable script in the `bin/` folder that can be used 

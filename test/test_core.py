@@ -19,11 +19,11 @@ class ModuleTestCase(unittest.TestCase):
         
         s3_resource = get_s3()
         filename = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
-                                        s3file= 'prostate/biopsy_data_all/120/120.tif',
+                                        s3file= 'prostate/biopsy_data_all/17/17.tif',
                                         local_name='tmp.tif'
                                         )
         annotation_file = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
-                                        s3file= 'prostate/biopsy_data_all/120/120.xml',
+                                        s3file= 'prostate/biopsy_data_all/17/17.xml',
                                         local_name='tmp.xml'
                                         )
         

@@ -118,10 +118,10 @@ def load(wsi_file=None, desired_level='10x'):
         image = image.convert("RGB")
         image = np.asarray(image)
 
-    wMax, hMax = Stack.level_dimensions[0]
-    wSel, hSel = Stack.level_dimensions[level]
-    global scale
-    scale = wMax / wSel
+    # wMax, hMax = Stack.level_dimensions[0]
+    # wSel, hSel = Stack.level_dimensions[level]
+    # global scale
+    # scale = wMax / wSel
 
     log.info('Image size..........{}'.format(image.shape))
     return image

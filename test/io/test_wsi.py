@@ -18,11 +18,12 @@ class CoreTestCase(unittest.TestCase):
 
         filename = download_file_to_local()
 
-        image10x = load(filename)
-        image5x = load(filename,desired_level="5x")
+        image10x, scale_factor_10x = load(filename)
+        image5x, scale_factor_5x = load(filename,desired_level="5x")
 
 
-        self.assertEqual(image10x.shape[0],2*image5x.shape[0])
+        self.assertAlmostEqual(image10x.shape[0], 2*image5x.shape[0])
+        self.assertAlmostEqual(scale_factor_10x*2 , scale_factor_5x, places=1)
 
     def test_save(self):
         """Test save()."""

@@ -48,7 +48,21 @@ magn_tag = {
 }
 
 def load(wsi_file=None, desired_level='10x'):
-    """For loading image of a desired resolution(level) from WSI"""
+    """Loads a Whole Slide Image file at the desired magnification level
+
+    Parameters
+    ----------
+    wsi_file : str
+        The file containing the slide
+    desired_level : str, default is '10x'
+        Desired magnification level {5x, 10x, 20x, 40x}
+
+    Returns
+    -------
+    Numpy Array Image
+        The WSI at the desired level as a Numpy array
+    """
+    
     level = levels_dict[desired_level]
 
     log.info(os.path.isfile(wsi_file))

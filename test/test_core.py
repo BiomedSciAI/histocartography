@@ -1,7 +1,10 @@
 """Unit test for module."""
 import unittest
-from histocartography.core import tumor_classification_pipeline
-from histocartography.ml.tumor_slide_classification import TumorSlideClassifier
+from PIL import Image
+from histocartography.io.wsi import load
+from histocartography.io.utils import download_file_to_local
+from histocartography.preprocessing.normalization import staining_normalization
+from histocartography.preprocessing.normalization import get_mask
 
 class ModuleTestCase(unittest.TestCase):
     """ModuleTestCase class."""
@@ -10,13 +13,19 @@ class ModuleTestCase(unittest.TestCase):
         """Setting up the test."""
         pass
 
-    def test_tumor_classification_pipeline(self):
-        """Test tumor_classification_pipeline()."""
-        files = [1, 2, 3]
-        classifier = TumorSlideClassifier()
-        #DUMMY TEST, DOESN'T TEST ANYTHING
-        # TODO when the tumor classification pipeline works.
-        self.assertEqual('tumor', 'tumor')
+    def test_small_pipeline(self):
+        """Test small pipeline combining IO and Preprocessing."""
+        filename = download_file_to_local()
+        image = load(wsi_file= filename, desired_level='5x')
+        normalized_image = staining_normalization(image)
+        mask = get_mask(normalized_image)
+
+        self.assertEqual(image.shape[0], normalized_image.shape[0])
+        self.assertEqual(image.shape[1], normalized_image.shape[1])
+        self.assertEqual(image.shape[0], mask.shape[0])
+        self.assertEqual(image.shape[1], mask.shape[1])
+        
+        
 
     def tearDown(self):
         """Tear down the tests."""

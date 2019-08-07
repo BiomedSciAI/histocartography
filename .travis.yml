@@ -6,7 +6,7 @@ python:
 - 3.5
 before_install:
 - sudo apt-get install openslide-tools
-- sudo apt-get python-opencv
+- sudo apt-get install python-opencv
 - sudo apt-get install python3-openslide
 install:
 - pip3 install -U pip

@@ -31,8 +31,11 @@ def staining_normalization(image, method='default'):
     -------
     Numpy Array
         Stain-normalized Numpy Array
+
+    TODO Add documentation on the specifics of this method. A link to a paper or similar.
     """
-    #TODO: Add documentation link on this method. 
+    
+    
 
     log.info('Input Image size is {}'.format(image.shape))
 
@@ -46,6 +49,12 @@ def staining_normalization(image, method='default'):
     h = image.shape[0]
     w = image.shape[1]
     image = image.reshape([w * h, 3])
+    ''' TODO: Fix this warning
+        PendingDeprecationWarning: the matrix subclass is not the recommended way to represent 
+        matrices or deal with linear algebra 
+        (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). 
+        Please adjust your code to use regular ndarray.
+    '''
     image = np.matrix(image)
     OD = -np.log((image + 1) / Io).astype(np.float32)
     ValidIds = np.where(np.logical_or(np.logical_or(OD[:, 0] < beta, OD[:, 1] < beta), OD[:, 2] < beta) == False)[0]
@@ -68,6 +77,12 @@ def staining_normalization(image, method='default'):
             HE = np.column_stack((vMax, vMin))
         HE = HE.astype(np.float32)
         OD = OD.astype(np.float32)
+        ''' TODO: Fix this warning
+        PendingDeprecationWarning: the matrix subclass is not the recommended way to represent 
+        matrices or deal with linear algebra 
+        (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). 
+        Please adjust your code to use regular ndarray.
+        '''
         C = np.matrix(np.linalg.lstsq(HE, OD.T, rcond=-1)[0]).T
         maxC = np.percentile(C, 99, 0)
         C[:, 0] = C[:, 0] * maxCRef[0] / maxC[0]

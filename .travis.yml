@@ -6,6 +6,7 @@ python:
 - 3.5
 before_install:
 - sudo apt-get install openslide-tools
+- sudo apt-get python-opencv
 - sudo apt-get install python3-openslide
 install:
 - pip3 install -U pip
@@ -13,6 +14,7 @@ install:
 - pip3 install .
 script:
 - python3 -c "import histocartography"
+- python3 -c "import cv2 as cv"
 - training_script -h
 - python3 -m unittest discover  -v
 - docker build -t histocartography:test .

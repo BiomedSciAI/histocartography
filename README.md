@@ -1,4 +1,4 @@
-# histocratography
+# histocartography
 [![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=master)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
 
 Histocartography python package. It installs `histocartography` using `pip`.
@@ -28,7 +28,7 @@ pip3 install -e .
 ### Training
 
 There is a sample executable script in the `bin/` folder that can be used 
-for training Histocartography.
+for training Histocartography machine learning pipelines.
 
 ### Unit Tests
 

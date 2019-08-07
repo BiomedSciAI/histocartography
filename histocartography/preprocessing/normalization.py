@@ -32,7 +32,10 @@ def staining_normalization(image, method='default'):
     Numpy Array
         Stain-normalized Numpy Array
 
-    TODO Add documentation on the specifics of this method. A link to a paper or similar.
+    The code is an implementation of paper :
+    Macenko, Marc, et al. A method for normalizing histology slides for quantitative analysis. 
+    2009 IEEE International Symposium on Biomedical Imaging: From Nano to Macro. IEEE, 2009., 
+    link for paper : http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
     """
     
     

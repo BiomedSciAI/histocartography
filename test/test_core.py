@@ -1,7 +1,11 @@
 """Unit test for module."""
 import unittest
-from histocartography.core import tumor_classification_pipeline
-from histocartography.ml.tumor_slide_classification import TumorSlideClassifier
+from PIL import Image
+from histocartography.io.wsi import load
+from histocartography.io.utils import get_s3
+from histocartography.io.utils import download_file_to_local
+from histocartography.preprocessing.normalization import staining_normalization
+from histocartography.io.annotations import get_annotation_mask
 
 class ModuleTestCase(unittest.TestCase):
     """ModuleTestCase class."""
@@ -10,13 +14,31 @@ class ModuleTestCase(unittest.TestCase):
         """Setting up the test."""
         pass
 
-    def test_tumor_classification_pipeline(self):
-        """Test tumor_classification_pipeline()."""
-        files = [1, 2, 3]
-        classifier = TumorSlideClassifier()
-        #DUMMY TEST, DOESN'T TEST ANYTHING
-        # TODO when the tumor classification pipeline works.
-        self.assertEqual('tumor', 'tumor')
+    def test_small_pipeline(self):
+        """Test small pipeline combining IO and Preprocessing."""
+        
+        s3_resource = get_s3()
+        filename = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
+                                        s3file= 'prostate/biopsy_data_all/17/17.tif',
+                                        local_name='tmp.tif'
+                                        )
+        annotation_file = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
+                                        s3file= 'prostate/biopsy_data_all/17/17.xml',
+                                        local_name='tmp.xml'
+                                        )
+        
+        image, scale_factor = load(wsi_file= filename, desired_level='5x')
+        
+        normalized_image = staining_normalization(image)
+        
+        raw_mask, mask = get_annotation_mask(annotation_file= annotation_file, 
+                            image_shape= image.shape,
+                            scale_factor= scale_factor
+                            )
+        
+        Image.fromarray(normalized_image).save("tmp_slide.png")
+        Image.fromarray(mask).save("tmp_labels.png")
+            
 
     def tearDown(self):
         """Tear down the tests."""

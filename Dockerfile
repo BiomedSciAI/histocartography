@@ -3,7 +3,7 @@ FROM python:3.6
 RUN mkdir /app && mkdir /data
 WORKDIR /app
 # install requirements
-RUN apt-get update && apt-get install -y openslide-tools python3-openslide
+RUN apt-get update && apt-get install -y openslide-tools python3-openslide libopencv-dev python-opencv
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 # install app

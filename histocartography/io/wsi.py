@@ -16,7 +16,7 @@ from scipy.stats import mode
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('Histocartography::IO::WSI')
 h1 = logging.StreamHandler(sys.stdout)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 h1.setFormatter(formatter)
 log.addHandler(h1)
@@ -48,10 +48,26 @@ magn_tag = {
 }
 
 def load(wsi_file=None, desired_level='10x'):
-    """For loading image of a desired resolution(level) from WSI"""
+    """Loads a Whole Slide Image file at the desired magnification level
+
+    Parameters
+    ----------
+    wsi_file : str
+        The file containing the slide
+    desired_level : str, default is '10x'
+        Desired magnification level {5x, 10x, 20x, 40x}
+
+    Returns
+    -------
+    Numpy Array image
+        The WSI at the desired level as a Numpy array
+    Double scale_factor
+        The scale factor applied to extract the desired magnification level
+    """
+    
     level = levels_dict[desired_level]
 
-    log.info(os.path.isfile(wsi_file))
+    log.debug(os.path.isfile(wsi_file))
     Stack = open_slide(wsi_file)
     
     # magnification = Stack.properties['openslide.objective-power']
@@ -59,17 +75,17 @@ def load(wsi_file=None, desired_level='10x'):
         magnification = Stack.properties[magn_tag[Stack.properties['openslide.vendor']]]
     else:
         magnification = None
-    log.info('Original magnification: {}'.format(magnification))
-    log.info('Levels: {}'.format(Stack.level_count))
-    log.info('Downsamples: {}'.format(Stack.level_downsamples))
+    log.debug('Original magnification: {}'.format(magnification))
+    log.debug('Levels: {}'.format(Stack.level_count))
+    log.debug('Downsamples: {}'.format(Stack.level_downsamples))
 
     zoom = DeepZoomGenerator(Stack, 1024, 0, False)
 
     level_ = -(level + 1)
     size = zoom.level_dimensions[level_]  # (width, height)
-    log.info(zoom.level_dimensions)
-    log.info(zoom.level_dimensions[level_])
-    log.info(size)
+    log.debug(zoom.level_dimensions)
+    log.debug(zoom.level_dimensions[level_])
+    log.debug(size)
 
     size_0 = zoom.level_dimensions[-1]
 
@@ -78,7 +94,7 @@ def load(wsi_file=None, desired_level='10x'):
     if (level <= 2):
         x = size[0]
         y = size[1]
-        log.info('Expected size of image: {},{}'.format(x, y))
+        log.debug('Expected size of image: {},{}'.format(x, y))
         image = np.empty([y, x, 3], dtype=np.uint8)
         x_13_0 = int(size_0[0] / 3)
         y_13_0 = int(size_0[1] / 3)
@@ -120,21 +136,20 @@ def load(wsi_file=None, desired_level='10x'):
 
     wMax, hMax = Stack.level_dimensions[0]
     wSel, hSel = Stack.level_dimensions[level]
-    global scale
-    scale = wMax / wSel
+    scale_factor = wMax / wSel
 
-    log.info('Image size..........{}'.format(image.shape))
-    return image
-
+    log.debug('Scale factor: {}'.format(scale_factor))
+    return image, scale_factor
+    
 
 def save(file=None):
     """TODO. Currently returns method name"""
-    log.info("Saving file: {}".format(file))
+    log.debug("Saving file: {}".format(file))
     return 'Save'
 
 def patch(file=None):
     """TODO. Currently returns method name"""
-    log.info("Getting patch from file: {}".format(file))
+    log.debug("Getting patch from file: {}".format(file))
     return 'Patch'
 
 

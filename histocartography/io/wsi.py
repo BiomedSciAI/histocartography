@@ -95,6 +95,17 @@ def load(wsi_file=None, desired_level='10x'):
     possible_resolutions = np.asarray(possible_resolutions)
 
     level = np.where(possible_resolutions == desired_level)[0][0]
+
+    '''
+    # include condition for when the desired resolution doesnot exist
+    try :
+        level = np.where(possible_resolutions == desired_level)[0][0]
+
+    except IndexError:
+        log.debug('Level for desired resolution doesnot exist in the stack : {}'.format(desired_level))
+        return # fix this
+    '''
+
     log.debug('Level for desired resolution : {}'.format(level))
 
     size_0 = Stack.level_dimensions[0]
@@ -104,7 +115,7 @@ def load(wsi_file=None, desired_level='10x'):
     if (level <= 2):
         x = size[0]
         y = size[1]
-        log.debug('Expected size of image: {},{}'.format(x, y))
+        log.debug('Expected size of image: {},{}'.format(y, x))
         image = np.empty([y, x, 3], dtype=np.uint8)
         x_13_0 = int(size_0[0] / 3)
         y_13_0 = int(size_0[1] / 3)
@@ -144,12 +155,12 @@ def load(wsi_file=None, desired_level='10x'):
         image = image.convert("RGB")
         image = np.asarray(image)
 
+    log.debug('Image shape after loading : {}'.format(image.shape))
     wSel, hSel = Stack.level_dimensions[level]
     wlower, hlower = Stack.level_dimensions[level+1]
 
 
     scale_factor = int(round(wSel / wlower))
-
     next_lower_resolution = possible_resolutions[level+1]
     log.debug('Next lower resolution: {}'.format(next_lower_resolution))
     log.debug('scale_factor: {}'.format(scale_factor))

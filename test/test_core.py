@@ -6,6 +6,8 @@ from histocartography.io.utils import get_s3
 from histocartography.io.utils import download_file_to_local
 from histocartography.preprocessing.normalization import staining_normalization
 from histocartography.io.annotations import get_annotation_mask
+from histocartography.preprocessing.tissue_mask import get_tissue_mask
+
 
 class ModuleTestCase(unittest.TestCase):
     """ModuleTestCase class."""
@@ -38,7 +40,19 @@ class ModuleTestCase(unittest.TestCase):
         
         Image.fromarray(normalized_image).save("tmp_slide.png")
         Image.fromarray(mask).save("tmp_labels.png")
-            
+
+        filename = download_file_to_local()
+
+        image, _, scale_factor = load(wsi_file= filename, desired_level='10x')
+        tissue_mask = get_tissue_mask(image)
+        Image.fromarray(image).save("s3_img.png")
+        Image.fromarray(tissue_mask).save("s3_tissue_mask.png")
+
+        self.assertEqual(image.shape[0:2], tissue_mask.shape)
+
+
+
+
 
     def tearDown(self):
         """Tear down the tests."""

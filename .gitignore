@@ -107,3 +107,6 @@ venv.bak/
 .vscode/
 test_tmp.svs
 tmp.svs
+*.tif
+*.xml
+*.png

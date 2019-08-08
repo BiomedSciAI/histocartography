@@ -8,7 +8,7 @@ import glob, os
 import csv
 from openslide import open_slide
 from openslide.deepzoom import DeepZoomGenerator
-#import cv2
+import cv2
 from scipy.stats import mode
 #from PIL import Image, ImageDraw
 
@@ -22,11 +22,19 @@ h1.setFormatter(formatter)
 log.addHandler(h1)
 
 levels_dict = {
-    '40x': 0,
-    '20x': 1,
-    '10x': 2,
-    '5x' : 3
+    1 : '40x',
+    2 : '20x',
+    4 : '10x',
+    8 : '5x',
+    16 : '2.5x',
+    32 : '1x',
+    64 : '0.5x',
+    128 : '0.25x',
+    256 : '0.125x',
+    512 : '0.625',
+    1024 : '0.375'
 }
+
 
 # mapping of the magnification property used by the vendor
 # usage:
@@ -64,12 +72,12 @@ def load(wsi_file=None, desired_level='10x'):
     Double scale_factor
         The scale factor applied to extract the desired magnification level
     """
-    
-    level = levels_dict[desired_level]
 
+    log.debug('wsi_file : {}'.format(wsi_file))
     log.debug(os.path.isfile(wsi_file))
+
     Stack = open_slide(wsi_file)
-    
+
     # magnification = Stack.properties['openslide.objective-power']
     if Stack.properties['openslide.vendor'] not in ['phillips', 'generic-tiff']:
         magnification = Stack.properties[magn_tag[Stack.properties['openslide.vendor']]]
@@ -77,19 +85,21 @@ def load(wsi_file=None, desired_level='10x'):
         magnification = None
     log.debug('Original magnification: {}'.format(magnification))
     log.debug('Levels: {}'.format(Stack.level_count))
-    log.debug('Downsamples: {}'.format(Stack.level_downsamples))
+    log.debug('Level dimensions in stack: {}'.format(Stack.level_dimensions))
 
-    zoom = DeepZoomGenerator(Stack, 1024, 0, False)
+    downsamples = np.rint(np.asarray(Stack.level_downsamples)).astype(int)
+    log.debug('Downsamples: {}'.format(downsamples))
 
-    level_ = -(level + 1)
-    size = zoom.level_dimensions[level_]  # (width, height)
-    log.debug(zoom.level_dimensions)
-    log.debug(zoom.level_dimensions[level_])
-    log.debug(size)
+    possible_resolutions  = [levels_dict.get(key) for key in downsamples]
+    log.debug('Possible resolutions: {}'.format(possible_resolutions))
+    possible_resolutions = np.asarray(possible_resolutions)
 
-    size_0 = zoom.level_dimensions[-1]
+    level = np.where(possible_resolutions == desired_level)[0][0]
+    log.debug('Level for desired resolution : {}'.format(level))
 
-    del zoom  # ###
+    size_0 = Stack.level_dimensions[0]
+    size = Stack.level_dimensions[level]
+
 
     if (level <= 2):
         x = size[0]
@@ -134,12 +144,17 @@ def load(wsi_file=None, desired_level='10x'):
         image = image.convert("RGB")
         image = np.asarray(image)
 
-    wMax, hMax = Stack.level_dimensions[0]
     wSel, hSel = Stack.level_dimensions[level]
-    scale_factor = wMax / wSel
+    wlower, hlower = Stack.level_dimensions[level+1]
 
-    log.debug('Scale factor: {}'.format(scale_factor))
-    return image, scale_factor
+
+    scale_factor = int(round(wSel / wlower))
+
+    next_lower_resolution = possible_resolutions[level+1]
+    log.debug('Next lower resolution: {}'.format(next_lower_resolution))
+    log.debug('scale_factor: {}'.format(scale_factor))
+
+    return image, next_lower_resolution, scale_factor
     
 
 def save(file=None):

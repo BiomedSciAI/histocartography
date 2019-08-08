@@ -27,7 +27,7 @@ class ModuleTestCase(unittest.TestCase):
                                         local_name='tmp.xml'
                                         )
         
-        image, scale_factor = load(wsi_file= filename, desired_level='5x')
+        image, _, scale_factor = load(wsi_file= filename, desired_level='5x')
         
         normalized_image = staining_normalization(image)
         

@@ -41,15 +41,11 @@ def get_tissue_mask(image=None):
         The tissue mask of the input image, dimensions same as that of image
     """
 
-    remove_blob_size = 5000
-
-    # ---- Create mask for the image to get only tissue content
-
     img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     img_inv = (255 - img_gray)  # invert the image intensity
     val_thr_stained, mask_ = cv2.threshold(img_inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    _, contour, _ = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    contour, _ = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
     for cnt in contour:
         cv2.drawContours(mask_, [cnt], 0, 255, -1)
@@ -58,10 +54,10 @@ def get_tissue_mask(image=None):
     nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(mask_, connectivity=8)
     sizes = stats[1:, -1]
     nb_components = nb_components - 1
-    # minimum size of particles we want to keep (number of pixels)
 
     mask_remove_small = np.zeros((output.shape))
-    # for every component in the image, you keep it only if it's above remove_blob_size
+    remove_blob_size = 5000 #
+
     for i in range(0, nb_components):
         if sizes[i] >= remove_blob_size:
             mask_remove_small[output == i + 1] = 255

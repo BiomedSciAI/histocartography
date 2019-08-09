@@ -69,7 +69,7 @@ def get_patches(image_id, image=None, patch_size=None, visualize=1):
 
             if (tissue_percent_in_patch >= 50):  # if atleast 50 percent of the patch area contains tissue
                 patch_counter += 1
-                patch_info_coordinates.append([patch_counter, y_0, x_0, y_0 + patch_size, x_0 + patch_size])
+                patch_info_coordinates.append([patch_counter, x_0, y_0, x_0 + patch_size, y_0 + patch_size])
                 patch_info_coordinates_visualize.append([patch_counter, int(y_0/downsample_factor), int(x_0/downsample_factor), int((y_0 + patch_size)/downsample_factor), int((x_0 + patch_size)/downsample_factor)])
 
             y_0 += stride

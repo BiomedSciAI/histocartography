@@ -1,4 +1,4 @@
-"""Whole Slide Image IO module."""
+"""Get Tissue Mask from Whole Slide Image."""
 import logging
 import sys
 
@@ -12,9 +12,6 @@ import cv2
 from PIL import Image
 
 from histocartography.io.wsi import load
-
-
-# from PIL import Image, ImageDraw
 
 # setup logging
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -45,7 +42,14 @@ def get_tissue_mask(image=None):
     img_inv = (255 - img_gray)  # invert the image intensity
     val_thr_stained, mask_ = cv2.threshold(img_inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    contour, _ = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    #contour, _ = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    result = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(result)==2:
+        contour = result[0]
+    elif len(result)==3:
+        contour = result[1]
+
 
     for cnt in contour:
         cv2.drawContours(mask_, [cnt], 0, 255, -1)

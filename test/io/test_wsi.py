@@ -16,6 +16,7 @@ class CoreTestCase(unittest.TestCase):
     def test_load(self):
         """Test load()."""
 
+
         filename = download_file_to_local()
 
         image10x, next_lower_resolution, scale_factor = load(filename)
@@ -24,7 +25,7 @@ class CoreTestCase(unittest.TestCase):
         self.assertAlmostEqual(image10x.shape[0], scale_factor*image5x.shape[0])
         #self.assertAlmostEqual(image10x.shape[1], scale_factor*image5x.shape[1])
 
-
+        
     def test_save(self):
         """Test save()."""
         self.assertEqual(save(), 'Save')

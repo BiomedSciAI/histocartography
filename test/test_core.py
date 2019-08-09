@@ -9,6 +9,7 @@ from histocartography.preprocessing.normalization import staining_normalization
 from histocartography.io.annotations import get_annotation_mask
 from histocartography.preprocessing.tissue_mask import get_tissue_mask
 from histocartography.preprocessing.patch_extraction import get_patches
+from histocartography.ml.tumor_slide_prediction import predict_for_image
 
 
 class ModuleTestCase(unittest.TestCase):
@@ -20,7 +21,7 @@ class ModuleTestCase(unittest.TestCase):
 
     def test_small_pipeline(self):
         """Test small pipeline combining IO and Preprocessing."""
-
+        
         s3_resource = get_s3()
         filename = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
                                         s3file= 'prostate/biopsy_data_all/17/17.tif',
@@ -54,10 +55,11 @@ class ModuleTestCase(unittest.TestCase):
 
         patch_info_coordinates = get_patches(image_id='s3_img', image=image, patch_size=256, visualize=1)
 
+        len_all_patches = predict_for_image(patch_info_coordinates, image)
+
 
         self.assertEqual(image.shape[0:2], tissue_mask.shape)
-
-
+        self.assertEqual(len_all_patches, len(patch_info_coordinates))
 
 
     def tearDown(self):

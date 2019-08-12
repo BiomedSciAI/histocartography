@@ -110,3 +110,5 @@ tmp.svs
 *.tif
 *.xml
 *.png
+*.hdf5
+*.json

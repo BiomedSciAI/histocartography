@@ -8,4 +8,5 @@ Pillow
 plac==1.0.0
 scipy
 torch
-
+tensorflow
+keras

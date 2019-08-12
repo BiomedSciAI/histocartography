@@ -53,10 +53,10 @@ class ModuleTestCase(unittest.TestCase):
         Image.fromarray(image).save("s3_img.png")
         Image.fromarray(tissue_mask).save("s3_tissue_mask.png")
 
+
         patch_info_coordinates = get_patches(image_id='s3_img', image=image, patch_size=256, visualize=1)
 
         len_all_patches = predict_for_image(patch_info_coordinates, image)
-
 
         self.assertEqual(image.shape[0:2], tissue_mask.shape)
         self.assertEqual(len_all_patches, len(patch_info_coordinates))

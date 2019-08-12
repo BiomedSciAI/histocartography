@@ -54,12 +54,15 @@ class ModuleTestCase(unittest.TestCase):
         Image.fromarray(tissue_mask).save("s3_tissue_mask.png")
 
 
-        patch_info_coordinates = get_patches(image_id='s3_img', image=image, patch_size=256, visualize=1)
+        model_json = download_file_to_local(bucket_name='models', s3file='model.json', local_name='model_json.json')
+        model_weights = download_file_to_local(bucket_name='models', s3file='model_weights.hdf5', local_name='model_weights.hdf5')
 
-        len_all_patches = predict_for_image(patch_info_coordinates, image)
+        patch_info_coordinates = get_patches(image_id='s3_img', image=image, patch_size=128, visualize=1)
+
+        y_pred = predict_for_image(patch_info_coordinates, image, model_json, model_weights, 1)
 
         self.assertEqual(image.shape[0:2], tissue_mask.shape)
-        self.assertEqual(len_all_patches, len(patch_info_coordinates))
+        self.assertEqual(len(y_pred), len(patch_info_coordinates))
 
 
     def tearDown(self):

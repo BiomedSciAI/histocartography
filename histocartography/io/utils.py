@@ -8,7 +8,7 @@ import boto3
 #logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('Histocartography::IO::UTILS')
 h1 = logging.StreamHandler(sys.stdout)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 h1.setFormatter(formatter)
 log.addHandler(h1)
@@ -52,3 +52,13 @@ def download_file_to_local(s3=None, bucket_name= 'test-data',
     
     return local_name
     
+def save_local_file(local_file, s3=None, bucket_name=None, s3file=None):
+    if s3 is None:
+        s3 = get_s3()
+    
+    try:
+        s3.meta.client.upload_file(Filename=local_file,Bucket=bucket_name,Key=s3file)
+        log.debug("{} saved to {}/{} as {}".format(local_file, s3, bucket_name, s3file))
+    except Exception as e:
+        log.error("Error saving {} to {}/{} as {}".format(local_file, s3, bucket_name, s3file))
+        log.error(str(e))

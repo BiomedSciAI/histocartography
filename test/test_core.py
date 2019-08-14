@@ -54,8 +54,16 @@ class ModuleTestCase(unittest.TestCase):
         Image.fromarray(tissue_mask).save("s3_tissue_mask.png")
 
 
-        model_json = download_file_to_local(bucket_name='models', s3file='model.json', local_name='model_json.json')
-        model_weights = download_file_to_local(bucket_name='models', s3file='model_weights.hdf5', local_name='model_weights.hdf5')
+        model_json = download_file_to_local(
+                                            bucket_name='models', 
+                                            s3file='tumor-stratification/keras/patch/model_definition.json', 
+                                            local_name='model_json.json'
+                                            )
+        model_weights = download_file_to_local(
+                                            bucket_name='models', 
+                                            s3file='tumor-stratification/keras/patch/model_weights.hdf5', 
+                                            local_name='model_weights.hdf5'
+                                            )
 
         patch_info_coordinates = get_patches(image_id='s3_img', image=image, patch_size=128, visualize=1)
 

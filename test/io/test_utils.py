@@ -1,6 +1,7 @@
 """Unit test for complex_module.core."""
 import unittest
 from histocartography.io.utils import download_file_to_local
+from histocartography.io.utils import save_local_file
 from histocartography.io.utils import get_s3
 
 
@@ -22,6 +23,15 @@ class CoreTestCase(unittest.TestCase):
         desired_name = 'tmp/tmp.svs'
         saved_name = download_file_to_local(s3=self.s3, local_name=desired_name)
 
+
+        self.assertEqual(saved_name, desired_name)
+
+    def test_save_local_file(self):
+        """Test save_local_file()."""
+
+        desired_name = 'tmp/tmp.svs'
+        saved_name = download_file_to_local(s3=self.s3, local_name=desired_name)
+        save_local_file(saved_name, "test-data", "upload.svs")
 
         self.assertEqual(saved_name, desired_name)
 

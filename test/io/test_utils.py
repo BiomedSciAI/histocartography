@@ -19,7 +19,7 @@ class CoreTestCase(unittest.TestCase):
     def test_download_file_to_local(self):
         """Test download_file_to_local()."""
 
-        desired_name = 'tmp.svs'
+        desired_name = 'tmp/tmp.svs'
         saved_name = download_file_to_local(s3=self.s3, local_name=desired_name)
 
 

@@ -27,7 +27,7 @@ h1.setFormatter(formatter)
 log.addHandler(h1)
 
 
-def get_patches(image_id, image=None, patch_size=None, visualize=1):
+def get_patches(image_id, image=None, patch_size=None, visualize=1, image_tissue_mask=None):
 
 
     """For generating patches from an already loaded image from WSI stack
@@ -56,7 +56,8 @@ def get_patches(image_id, image=None, patch_size=None, visualize=1):
     patch_info_coordinates = []
     patch_info_coordinates_visualize = []
 
-    image_tissue_mask = get_tissue_mask(image) # pixel value of 255 where tissue present
+    if image_tissue_mask is None:
+        image_tissue_mask = get_tissue_mask(image) # pixel value of 255 where tissue present
     binary_tissue_mask = np.zeros((image_tissue_mask.shape), np.uint8)
     binary_tissue_mask[image_tissue_mask == 255] = labels[1] # pixel value of 1 where tissue present
 

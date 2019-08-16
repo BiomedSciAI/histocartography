@@ -28,11 +28,11 @@ class CoreTestCase(unittest.TestCase):
         """Test image_at."""
 
 
-        image5x = self.wsi.image_at(5)
-        self.assertAlmostEqual(5, self.wsi.current_magnification)
+        self.wsi.image_at(5)
+        self.assertAlmostEqual(5, self.wsi.current_mag)
         
         image2_5x = self.wsi.image_at(2.5)
-        self.assertAlmostEqual(2.5, self.wsi.current_magnification)
+        self.assertAlmostEqual(2.5, self.wsi.current_mag)
         Image.fromarray(image2_5x).save("tmp/02_biopsy_2.5x.png")
 
     def test_tissue_mask(self):

@@ -11,7 +11,11 @@ python:
 - 3.6
 before_install:
 - sudo apt update
-- sudo apt-get install openslide-tools libtiff-tools
+#- sudo apt-get install openslide-tools libtiff-tools
+- wget https://github.com/openslide/openslide/releases/download/v3.4.1/openslide-3.4.1.tar.gz
+- tar xvf openslide-3.4.1.tar.gz
+- cd openslide-3.4.1
+- ./configure && make && sudo make install
 - sudo apt-get install libopencv-dev python-opencv
 - sudo apt-get install python3-openslide
 install:

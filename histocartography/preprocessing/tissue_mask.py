@@ -1,30 +1,21 @@
 """Get Tissue Mask from Whole Slide Image."""
 import logging
 import sys
-
 import numpy as np
-from lxml import etree
-import glob, os
-import csv
-from openslide import open_slide
-from openslide.deepzoom import DeepZoomGenerator
 import cv2
-from PIL import Image
-
-from histocartography.io.wsi import load
 
 # setup logging
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('Histocartography::PREPROCESING::TISSUE_MASK')
 h1 = logging.StreamHandler(sys.stdout)
 log.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 h1.setFormatter(formatter)
 log.addHandler(h1)
 
 
 def get_tissue_mask(image=None):
-
     """For generating mask to get only tissue content from the image
 
     Parameters
@@ -40,27 +31,27 @@ def get_tissue_mask(image=None):
 
     img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     img_inv = (255 - img_gray)  # invert the image intensity
-    val_thr_stained, mask_ = cv2.threshold(img_inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    val_thr_stained, mask_ = cv2.threshold(img_inv, 0, 255,
+                                           cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    #contour, _ = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     result = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
-    if len(result)==2:
+    if len(result) == 2:
         contour = result[0]
-    elif len(result)==3:
+    elif len(result) == 3:
         contour = result[1]
-
 
     for cnt in contour:
         cv2.drawContours(mask_, [cnt], 0, 255, -1)
 
     # --- removing small connected components ---
-    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(mask_, connectivity=8)
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(
+        mask_, connectivity=8)
     sizes = stats[1:, -1]
     nb_components = nb_components - 1
 
     mask_remove_small = np.zeros((output.shape))
-    remove_blob_size = 5000 #
+    remove_blob_size = 5000  #
 
     for i in range(0, nb_components):
         if sizes[i] >= remove_blob_size:
@@ -73,6 +64,5 @@ def get_tissue_mask(image=None):
     mask[mask_remove_small == 255] = 255  # NROI
 
     log.debug('tissue mask generated')
-
 
     return mask

@@ -18,15 +18,17 @@ class CoreTestCase(unittest.TestCase):
         """Test image_at."""
         os.makedirs("tmp", exist_ok=True)
         s3_resource = get_s3()
-        filename = download_file_to_local(s3=s3_resource, bucket_name='datasets',
-                                          s3file='prostate/biopsy_data_all/17/17.tif',
-                                          local_name='tmp/00_biopsy.tif'
-                                          )
+        filename = download_file_to_local(
+            s3=s3_resource,
+            bucket_name='datasets',
+            s3file='prostate/biopsy_data_all/17/17.tif',
+            local_name='tmp/00_biopsy.tif')
 
-        annotation_file = download_file_to_local(s3=s3_resource, bucket_name='datasets',
-                                                 s3file='prostate/biopsy_data_all/17/17.xml',
-                                                 local_name='tmp/01_biopsy.xml'
-                                                 )
+        annotation_file = download_file_to_local(
+            s3=s3_resource,
+            bucket_name='datasets',
+            s3file='prostate/biopsy_data_all/17/17.xml',
+            local_name='tmp/01_biopsy.xml')
 
         wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
 
@@ -41,15 +43,17 @@ class CoreTestCase(unittest.TestCase):
         """Test tissue_mask_at."""
         os.makedirs("tmp", exist_ok=True)
         s3_resource = get_s3()
-        filename = download_file_to_local(s3=s3_resource, bucket_name='datasets',
-                                          s3file='prostate/biopsy_data_all/17/17.tif',
-                                          local_name='tmp/00_biopsy.tif'
-                                          )
+        filename = download_file_to_local(
+            s3=s3_resource,
+            bucket_name='datasets',
+            s3file='prostate/biopsy_data_all/17/17.tif',
+            local_name='tmp/00_biopsy.tif')
 
-        annotation_file = download_file_to_local(s3=s3_resource, bucket_name='datasets',
-                                                 s3file='prostate/biopsy_data_all/17/17.xml',
-                                                 local_name='tmp/01_biopsy.xml'
-                                                 )
+        annotation_file = download_file_to_local(
+            s3=s3_resource,
+            bucket_name='datasets',
+            s3file='prostate/biopsy_data_all/17/17.xml',
+            local_name='tmp/01_biopsy.xml')
 
         wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
 
@@ -60,24 +64,25 @@ class CoreTestCase(unittest.TestCase):
         """Test annotation_mask_at."""
         os.makedirs("tmp", exist_ok=True)
         s3_resource = get_s3()
-        filename = download_file_to_local(s3=s3_resource, bucket_name='datasets',
-                                          s3file='prostate/biopsy_data_all/17/17.tif',
-                                          local_name='tmp/00_biopsy.tif'
-                                          )
+        filename = download_file_to_local(
+            s3=s3_resource,
+            bucket_name='datasets',
+            s3file='prostate/biopsy_data_all/17/17.tif',
+            local_name='tmp/00_biopsy.tif')
 
-        annotation_file = download_file_to_local(s3=s3_resource, bucket_name='datasets',
-                                                 s3file='prostate/biopsy_data_all/17/17.xml',
-                                                 local_name='tmp/01_biopsy.xml'
-                                                 )
+        annotation_file = download_file_to_local(
+            s3=s3_resource,
+            bucket_name='datasets',
+            s3file='prostate/biopsy_data_all/17/17.xml',
+            local_name='tmp/01_biopsy.xml')
 
         wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
 
         annotation_mask = wsi.annotation_mask_at(2.5)
-        annotation_mask = np.uint8(
-            annotation_mask*255 / np.max(annotation_mask))
+        annotation_mask = np.uint8(annotation_mask * 255 /
+                                   np.max(annotation_mask))
 
-        Image.fromarray(annotation_mask).save(
-            "tmp/04_annotation_mask_2.5x.png")
+        Image.fromarray(annotation_mask).save("tmp/04_annotation_mask_2.5x.png")
 
     def tearDown(self):
         """Tear down the tests."""

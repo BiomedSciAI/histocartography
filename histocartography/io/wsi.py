@@ -23,14 +23,13 @@ FORMATTER = logging.Formatter(
 H1.setFormatter(FORMATTER)
 LOG.addHandler(H1)
 
-
 SAFE_VENDORS = ['aperio', 'hamamatsu', 'leica', 'mirax', 'sakura', 'ventana']
 # mapping of the mag property used by the vendor
 # usage:
 # if self.stack.properties['openslide.vendor'] in self.SAFE_VENDORS :
 # mag = self.stack.properties[
-#                                       self.MAGNIFICATION_TAG[
-#                                       self.stack.properties['openslide.vendor']]]
+#  self.MAGNIFICATION_TAG[
+#  self.stack.properties['openslide.vendor']]]
 # mag = self.stack.properties['openslide.objective-power']
 # self.stack.properties[magn_tag[self.stack.properties['openslide.vendor']]]
 #
@@ -41,8 +40,10 @@ MAGNIFICATION_TAG = {
     'leica': 'leica.objective',  # maps to openslide.objective-power
     # maps to openslide.objective-power
     'mirax': 'mirax.GENERAL.OBJECTIVE_MAGNIFICATION',
-    'phillips': '',  # NO MAPPING TO objective-power. Have to use mpp-x and mpp-y values
-    'sakura': 'sakura.NominalLensMagnification',  # maps to openslide.objective-power
+    'phillips':
+        '',  # NO MAPPING TO objective-power. Have to use mpp-x and mpp-y values
+    'sakura':
+        'sakura.NominalLensMagnification',  # maps to openslide.objective-power
     # OFTEN INCORRECT. maps to openslide.objective-power
     'trestle': 'trestle.Objective Power',
     'ventana': 'ventana.Magnification',  # maps to openslide.objective-power
@@ -58,7 +59,10 @@ class WSI:
     Whole Slide Image Class
     """
 
-    def __init__(self, wsi_file, annotation_file=None, annotation_labels=DEFAULT_LABELS):
+    def __init__(self,
+                 wsi_file,
+                 annotation_file=None,
+                 annotation_labels=DEFAULT_LABELS):
         """Constructs a WSI object with a given wsi_file
 
         Parameters
@@ -93,7 +97,8 @@ class WSI:
             self.mag = None
         self.downsamples = np.rint(self.stack.level_downsamples).astype(int)
         self.available_mags = [
-            self.mag/np.rint(downsample) for downsample in self.downsamples]
+            self.mag / np.rint(downsample) for downsample in self.downsamples
+        ]
 
         LOG.debug('Original mag: %s', self.vendor_mag)
         LOG.debug('Original mag (openslide): %s', self.openslide_mag)
@@ -119,8 +124,8 @@ class WSI:
             full_height = size[1]
             default_width = int(size[0] / 3)
             default_height = int(size[1] / 3)
-            LOG.debug('Expected size of image: %s %s',
-                      full_height, full_height)
+            LOG.debug('Expected size of image: %s %s', full_height,
+                      full_height)
             image = np.empty([full_height, full_width, 3], dtype=np.uint8)
 
             for col in range(3):
@@ -137,16 +142,14 @@ class WSI:
                     else:
                         target_height = full_height - 2 * default_height
                     region = self.stack.read_region(
-                        (original_x_pos, original_y_pos),
-                        level,
-                        (target_width, target_height)
-                    )
+                        (original_x_pos, original_y_pos), level,
+                        (target_width, target_height))
 
                     region = np.asarray(region.convert("RGB"))
-                    row_pos = row*default_height
-                    col_pos = col*default_width
-                    image[row_pos:row_pos + target_height,
-                          col_pos:col_pos + target_width] = region
+                    row_pos = row * default_height
+                    col_pos = col * default_width
+                    image[row_pos:row_pos + target_height, col_pos:col_pos +
+                          target_width] = region
 
         else:
             image = self.stack.read_region((0, 0), level, (size[0], size[1]))
@@ -172,12 +175,11 @@ class WSI:
 
         img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         img_inv = (255 - img_gray)  # invert the image intensity
-        _, mask_ = cv2.threshold(
-            img_inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, mask_ = cv2.threshold(img_inv, 0, 255,
+                                 cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        # contour, _ = cv2.findContours(mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-        result = cv2.findContours(
-            mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        result = cv2.findContours(mask_, cv2.RETR_CCOMP,
+                                  cv2.CHAIN_APPROX_SIMPLE)
 
         if len(result) == 2:
             contour = result[0]
@@ -211,10 +213,11 @@ class WSI:
         return mask
 
     def annotation_mask_at(self, mag=5):
-        """For generating annotated mask from the xml_annotations csv or xml file"""
+        """For generating annotated mask from the xml_annotations csv or xml """
 
-        labels = np.linspace(0, len(self.annotation_labels) -
-                             1, len(self.annotation_labels))
+        labels = np.linspace(0,
+                             len(self.annotation_labels) - 1,
+                             len(self.annotation_labels))
 
         if self.current_mag == mag and self.current_image is not None:
             image = self.current_image
@@ -250,11 +253,9 @@ class WSI:
                 ann_coordinates = ann_coordinates.astype(int)
 
                 mask_annotated = cv2.drawContours(
-                    mask_annotated,
-                    [ann_coordinates],
-                    0,
-                    int(labels[np.where(label == self.annotation_labels)]), -1
-                )  # filled with pixel corresponding to roi region
+                    mask_annotated, [ann_coordinates], 0,
+                    int(labels[np.where(label == self.annotation_labels)]),
+                    -1)  # filled with pixel corresponding to roi region
 
         elif self.annotation_file.endswith('.csv'):
 
@@ -263,7 +264,7 @@ class WSI:
                 for row in reader:
                     row = np.asarray(row)
                     label = str(row[0])
-                    if label not in self.annotation_labels:  # say if label is empty, the leave it
+                    if label not in self.annotation_labels:
                         LOG.debug('%s was continued', label)
                         continue
                     LOG.debug('label : %s', label)
@@ -271,14 +272,14 @@ class WSI:
                     ann_coordinates = ann_coordinates.astype(float)
                     ann_coordinates = ann_coordinates.astype(int)
                     ann_coordinates = np.reshape(
-                        ann_coordinates, (int(len(ann_coordinates)/2), 2))
-                    ann_coordinates = (
-                        ann_coordinates/self.current_downsample).astype(int)
+                        ann_coordinates, (int(len(ann_coordinates) / 2), 2))
+                    ann_coordinates = (ann_coordinates /
+                                       self.current_downsample).astype(int)
 
                     mask_annotated = cv2.drawContours(
                         mask_annotated, [ann_coordinates], 0,
-                        int(labels[np.where(label == self.annotation_labels)]), -1
-                    )
+                        int(labels[np.where(label == self.annotation_labels)]),
+                        -1)
                     # filled with pixel corresponding to roi region
 
         return mask_annotated

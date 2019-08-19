@@ -1,4 +1,5 @@
 """Unit test for complex_module.core."""
+import os
 import unittest
 import numpy as np
 from PIL import Image
@@ -11,6 +12,7 @@ class CoreTestCase(unittest.TestCase):
 
     def setUp(self):
         """Setting up the test."""
+        os.makedirs("tmp", exist_ok=True)
         s3_resource = get_s3()
         filename = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
             s3file= 'prostate/biopsy_data_all/17/17.tif',

@@ -28,10 +28,10 @@ def get_s3(endpoint_url='http://data.digital-pathology.zc2.ibm.com:9000',
 
     
     s3 = boto3.resource('s3',
-                    endpoint_url=endpoint_url,
-                    aws_access_key_id=aws_access_key_id,
-                    aws_secret_access_key=aws_secret_access_key
-                    )
+        endpoint_url=endpoint_url,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key
+        )
 
     return s3
 
@@ -42,10 +42,9 @@ def download_file_to_local(s3=None, bucket_name= 'test-data',
     try:
         if s3 is None:
             s3 = get_s3()
-        
-        bucket = s3.Bucket(bucket_name)
-    
-        bucket.download_file(s3file,local_name)
+        with open(local_name, "wb") as file:
+            s3.meta.client.download_fileobj(bucket_name, s3file, file)
+
     except Exception as error:
         log.error("%s could not be downloaded to %s", s3file, local_name)
         log.error(error)

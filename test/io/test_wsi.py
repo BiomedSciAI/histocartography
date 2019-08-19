@@ -27,14 +27,14 @@ class CoreTestCase(unittest.TestCase):
             s3file= 'prostate/biopsy_data_all/17/17.xml',
             local_name='tmp/01_biopsy.xml'
             )
-        self.wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
+        wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
         print(os.listdir("tmp"))
 
-        self.wsi.image_at(5)
-        self.assertAlmostEqual(5, self.wsi.current_mag)
+        wsi.image_at(5)
+        self.assertAlmostEqual(5, wsi.current_mag)
         
-        image2_5x = self.wsi.image_at(2.5)
-        self.assertAlmostEqual(2.5, self.wsi.current_mag)
+        image2_5x = wsi.image_at(2.5)
+        self.assertAlmostEqual(2.5, wsi.current_mag)
         Image.fromarray(image2_5x).save("tmp/02_biopsy_2.5x.png")
 
     def test_tissue_mask(self):
@@ -49,10 +49,10 @@ class CoreTestCase(unittest.TestCase):
             s3file= 'prostate/biopsy_data_all/17/17.xml',
             local_name='tmp/01_biopsy.xml'
             )
-        self.wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
+        wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
         print(os.listdir("tmp"))
 
-        tissue_mask = self.wsi.tissue_mask_at(2.5)
+        tissue_mask = wsi.tissue_mask_at(2.5)
         Image.fromarray(tissue_mask).save("tmp/03_tissue_mask_2.5x.png")
 
     def test_annotation_mask(self):
@@ -67,15 +67,15 @@ class CoreTestCase(unittest.TestCase):
             s3file= 'prostate/biopsy_data_all/17/17.xml',
             local_name='tmp/01_biopsy.xml'
             )
-        self.wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
+        wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
         print(os.listdir("tmp"))
 
-        annotation_mask = self.wsi.annotation_mask_at(2.5)
+        annotation_mask = wsi.annotation_mask_at(2.5)
         annotation_mask = np.uint8(annotation_mask*255 / np.max(annotation_mask))
 
         Image.fromarray(annotation_mask).save("tmp/04_annotation_mask_2.5x.png")
 
     def tearDown(self):
         """Tear down the tests."""
-        self.wsi.stack.close()
+        pass
         

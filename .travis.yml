@@ -16,6 +16,7 @@ before_install:
 - tar xvf openslide-3.4.1.tar.gz
 - cd openslide-3.4.1
 - ./configure && make && sudo make install
+- cd ..
 - sudo apt-get install libopencv-dev python-opencv
 - sudo apt-get install python3-openslide
 install:

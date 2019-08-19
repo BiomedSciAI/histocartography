@@ -23,6 +23,7 @@ class CoreTestCase(unittest.TestCase):
             local_name='tmp/01_biopsy.xml'
             )
         self.wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
+        print(os.listdir("tmp"))
         
 
     def test_image_at(self):

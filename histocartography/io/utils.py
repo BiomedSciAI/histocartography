@@ -46,8 +46,9 @@ def download_file_to_local(s3=None, bucket_name= 'test-data',
         bucket = s3.Bucket(bucket_name)
     
         bucket.download_file(s3file,local_name)
-    except:
-        log.error("{} could not be downloaded to {}".format(s3file, local_name))
+    except Exception as error:
+        log.error("%s could not be downloaded to %s", s3file, local_name)
+        log.error(error)
         local_name = None
     
     return local_name

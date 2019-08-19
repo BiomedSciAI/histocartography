@@ -1,11 +1,22 @@
 dist: xenial
+env:
+  global:
+  # do not load /etc/boto.cfg with Python 3 incompatible plugin
+  # https://github.com/travis-ci/travis-ci/issues/5246#issuecomment-166460882
+  - BOTO_CONFIG=/doesnotexist
 services:
 - docker
 language: python
 python:
 - 3.6
 before_install:
-- sudo apt-get install openslide-tools
+- sudo apt update
+- sudo apt-get install libopenjpeg5 libtiff-tools libopenjpeg-dev #openslide-tools
+- wget https://github.com/openslide/openslide/releases/download/v3.4.1/openslide-3.4.1.tar.gz
+- tar xvf openslide-3.4.1.tar.gz
+- cd openslide-3.4.1
+- ./configure && make && sudo make install
+- cd ..
 - sudo apt-get install libopencv-dev python-opencv
 - sudo apt-get install python3-openslide
 install:
@@ -13,10 +24,10 @@ install:
 - pip3 install --progress-bar off -r requirements.txt
 - pip3 install .
 script:
-#- python3 -c "import histocartography"
-#- python3 -c "import cv2 as cv"
-#- training_script -h
-#- python3 -m unittest discover  -v
+- python3 -c "import histocartography"
+- python3 -c "import cv2 as cv"
+- bin/training_script -h
+- python3 -m unittest discover  -v
 - docker build -t histocartography:test .
 - docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
 notifications:

@@ -4,7 +4,7 @@ import logging
 import sys
 
 from .ml.tumor_slide_classification import TumorSlideClassifier
-from .io.wsi import load
+from .io.wsi import WSI
 from .preprocessing.normalization import local_normalization
 
 # setup logging
@@ -26,13 +26,6 @@ def tumor_classification_pipeline(input_files=None, classifier=None):
 
    log.info(classifier)
 
-
-   #TODO Predicts based on the loaded files
-   for slide in input_files:
-      log.info(slide)
-      normalized = local_normalization(load(slide)) 
- 
-      # return classifier(normalized)
 
    return 'tumor'
 

@@ -1,11 +1,10 @@
 """Unit test for complex_module.core."""
 import unittest
+import numpy as np
+from PIL import Image
 from histocartography.io.wsi import WSI
 from histocartography.io.utils import get_s3
 from histocartography.io.utils import download_file_to_local
-from PIL import Image
-import numpy as np
-
 
 class CoreTestCase(unittest.TestCase):
     """CoreTestCase class."""
@@ -14,15 +13,15 @@ class CoreTestCase(unittest.TestCase):
         """Setting up the test."""
         s3_resource = get_s3()
         filename = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
-                                        s3file= 'prostate/biopsy_data_all/17/17.tif',
-                                        local_name='tmp/00_biopsy.tif'
-                                        )
+            s3file= 'prostate/biopsy_data_all/17/17.tif',
+            local_name='tmp/00_biopsy.tif'
+            )
         annotation_file = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
-                                        s3file= 'prostate/biopsy_data_all/17/17.xml',
-                                        local_name='tmp/01_biopsy.xml'
-                                        )
+            s3file= 'prostate/biopsy_data_all/17/17.xml',
+            local_name='tmp/01_biopsy.xml'
+            )
         self.wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
-        pass
+        
 
     def test_image_at(self):
         """Test image_at."""
@@ -52,4 +51,4 @@ class CoreTestCase(unittest.TestCase):
     def tearDown(self):
         """Tear down the tests."""
         self.wsi.stack.close()
-        pass
+        

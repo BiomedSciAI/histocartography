@@ -3,6 +3,10 @@
 
 Histocartography python package. It installs `histocartography` using `pip`.
 
+## Required libraries:
+- OpenSlide >= 3.4.1 [Source](https://github.com/openslide/openslide/releases/download/v3.4.1/openslide-3.4.1.tar.gz). Version 3.4.0 DOESN'T READ TIFFs properly.
+- OpenCV >= 2.4
+
 ## Suggested setup for development
 
 Create a `virtualenv`:

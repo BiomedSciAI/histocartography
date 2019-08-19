@@ -15,7 +15,7 @@ class CoreTestCase(unittest.TestCase):
         """Setting up the test."""
 
         self.s3 = get_s3()
-        pass
+        
 
     def test_download_file_to_local(self):
         """Test download_file_to_local()."""
@@ -31,7 +31,7 @@ class CoreTestCase(unittest.TestCase):
 
         desired_name = 'tmp/tmp.svs'
         saved_name = download_file_to_local(s3=self.s3, local_name=desired_name)
-        save_local_file(saved_name, "test-data", "upload.svs")
+        save_local_file(saved_name, s3=self.s3 , bucket_name="test-data", s3file="upload.svs")
 
         self.assertEqual(saved_name, desired_name)
 

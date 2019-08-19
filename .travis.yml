@@ -16,7 +16,7 @@ install:
 script:
 - python3 -c "import histocartography"
 - python3 -c "import cv2 as cv"
-- training_script -h
+- bin/training_script -h
 - python3 -m unittest discover  -v
 - docker build -t histocartography:test .
 - docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v

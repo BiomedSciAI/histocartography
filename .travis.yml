@@ -11,7 +11,7 @@ python:
 - 3.6
 before_install:
 - sudo apt update
-- sudo apt-get install libopenjpeg5 libtiff-tools #openslide-tools
+- sudo apt-get install libopenjpeg5 libtiff-tools libopenjpeg-dev #openslide-tools
 - wget https://github.com/openslide/openslide/releases/download/v3.4.1/openslide-3.4.1.tar.gz
 - tar xvf openslide-3.4.1.tar.gz
 - cd openslide-3.4.1

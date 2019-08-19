@@ -45,11 +45,15 @@ def download_file_to_local(s3=None, bucket_name= 'test-data',
         s3 = get_s3()
     try:
         with open(local_name, "wb") as file:
+            filepath = os.path.abspath(file.name)
+            dirname = os.path.dirname(file.name)
+            log.debug('Downloading %s to %s', local_name, filepath)
+            log.debug('Currently contains: %s', os.listdir(dirname))
             s3.meta.client.download_fileobj(bucket_name, s3file, file)
 
     except Exception as error:
         log.error("%s could not be downloaded to %s", s3file, local_name)
-        log.error(error)
+        log.error(str(error))
         local_name = None
     
     return local_name

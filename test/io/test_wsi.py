@@ -14,6 +14,7 @@ class CoreTestCase(unittest.TestCase):
         """Setting up the test."""
         
         
+        
 
     def test_image_at(self):
         """Test image_at."""
@@ -23,12 +24,14 @@ class CoreTestCase(unittest.TestCase):
             s3file= 'prostate/biopsy_data_all/17/17.tif',
             local_name='tmp/00_biopsy.tif'
             )
+        
         annotation_file = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
             s3file= 'prostate/biopsy_data_all/17/17.xml',
             local_name='tmp/01_biopsy.xml'
             )
+        
         wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
-        print(os.listdir("tmp"))
+        
 
         wsi.image_at(5)
         self.assertAlmostEqual(5, wsi.current_mag)
@@ -45,12 +48,14 @@ class CoreTestCase(unittest.TestCase):
             s3file= 'prostate/biopsy_data_all/17/17.tif',
             local_name='tmp/00_biopsy.tif'
             )
+        
         annotation_file = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
             s3file= 'prostate/biopsy_data_all/17/17.xml',
             local_name='tmp/01_biopsy.xml'
             )
+        
         wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
-        print(os.listdir("tmp"))
+        
 
         tissue_mask = wsi.tissue_mask_at(2.5)
         Image.fromarray(tissue_mask).save("tmp/03_tissue_mask_2.5x.png")
@@ -63,12 +68,13 @@ class CoreTestCase(unittest.TestCase):
             s3file= 'prostate/biopsy_data_all/17/17.tif',
             local_name='tmp/00_biopsy.tif'
             )
+        
         annotation_file = download_file_to_local(s3= s3_resource, bucket_name= 'datasets', 
             s3file= 'prostate/biopsy_data_all/17/17.xml',
             local_name='tmp/01_biopsy.xml'
             )
+        
         wsi = WSI(wsi_file=filename, annotation_file=annotation_file)
-        print(os.listdir("tmp"))
 
         annotation_mask = wsi.annotation_mask_at(2.5)
         annotation_mask = np.uint8(annotation_mask*255 / np.max(annotation_mask))
@@ -78,4 +84,3 @@ class CoreTestCase(unittest.TestCase):
     def tearDown(self):
         """Tear down the tests."""
         pass
-        

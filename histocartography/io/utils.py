@@ -32,6 +32,8 @@ def get_s3(endpoint_url='http://data.digital-pathology.zc2.ibm.com:9000',
         aws_access_key_id=aws_access_key_id,
         aws_secret_access_key=aws_secret_access_key
         )
+    
+    log.debug("S3 Connection established")
 
     return s3
 
@@ -39,9 +41,9 @@ def download_file_to_local(s3=None, bucket_name= 'test-data',
                             s3file= 'test_wsi.svs',
                             local_name= 'tmp.svs'):
     
+    if s3 is None:
+        s3 = get_s3()
     try:
-        if s3 is None:
-            s3 = get_s3()
         with open(local_name, "wb") as file:
             s3.meta.client.download_fileobj(bucket_name, s3file, file)
 

@@ -33,4 +33,6 @@ script:
 notifications:
   slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg
     template:
-      - "%{author} just triggered build <%{build_url}|#%{build_number}> (<%{compare_url}|%{commit}> : %{commit_message}) of %{repository_slug}@%{branch}. %{result} in %{duration}"
+      - "%{author} triggered build <%{build_url}|#%{build_number}> of %{repository_slug} on branch: %{branch}."
+      - "Commit <%{compare_url}|%{commit}> : %{commit_message}"
+      - "Result: %{result} in %{duration}"

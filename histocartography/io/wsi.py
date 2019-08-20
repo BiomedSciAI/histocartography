@@ -3,9 +3,8 @@ import logging
 import sys
 import os
 import csv
-
 import cv2
-
+import itertools
 import numpy as np
 
 from lxml import etree
@@ -283,3 +282,24 @@ class WSI:
                     # filled with pixel corresponding to roi region
 
         return mask_annotated
+
+    def patches(
+            self, size=(128, 128), stride=(128, 128), mag=5, shuffle=False):
+        """
+        Patches generator. It initializes with shape and stride for a given
+        magnification, and will produce new patches as it is called with
+        next()
+        """
+        full_width = self.stack.level_dimensions[0][0]
+        full_height = self.stack.level_dimensions[0][1]
+        level = self.stack.get_best_level_for_downsample(self.mag / mag)
+
+        patch_x_positions = np.arange(0, full_width, stride[0])
+        patch_y_positions = np.arange(0, full_height, stride[1])
+
+        if shuffle:
+            patch_x_positions = np.random.shuffle(patch_x_positions)
+            patch_y_positions = np.random.shuffle(patch_y_positions)
+
+        for x, y in itertools.product(patch_x_positions, patch_y_positions):
+            yield (x, y, self.stack.read_region((x, y), level, size))

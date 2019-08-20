@@ -32,5 +32,5 @@ script:
 - docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
 notifications:
   slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg
-  template:
-    - "%{author} just triggered build <%{build_url}|#%{build_number}> (<%{compare_url}|%{commit}> : %{commit_message}) of %{repository_slug}@%{branch}. %{result} in %{duration}"
+    template:
+      - "%{author} just triggered build <%{build_url}|#%{build_number}> (<%{compare_url}|%{commit}> : %{commit_message}) of %{repository_slug}@%{branch}. %{result} in %{duration}"

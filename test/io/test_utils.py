@@ -1,6 +1,7 @@
 """Unit test for complex_module.core."""
 import os
 import unittest
+import warnings
 from histocartography.io.utils import download_file_to_local
 from histocartography.io.utils import save_local_file
 from histocartography.io.utils import get_s3
@@ -11,6 +12,7 @@ class CoreTestCase(unittest.TestCase):
 
     def setUp(self):
         """Setting up the test."""
+        warnings.simplefilter("ignore", ResourceWarning)
         os.makedirs("tmp", exist_ok=True)
         self.s3 = get_s3()
 

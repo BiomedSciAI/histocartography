@@ -1,5 +1,6 @@
 """Unit test for module."""
 import unittest
+import warnings
 # from PIL import Image
 # import os
 
@@ -9,6 +10,7 @@ class ModuleTestCase(unittest.TestCase):
 
     def setUp(self):
         """Setting up the test."""
+        warnings.simplefilter("ignore", ResourceWarning)
         pass
 
     def test_small_pipeline(self):

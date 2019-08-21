@@ -49,8 +49,6 @@ def download_file_to_local(s3=None,
         with open(local_name, "wb") as file:
             filepath = os.path.abspath(file.name)
             dirname = os.path.dirname(file.name)
-            log.debug('Downloading %s to %s', local_name, filepath)
-            log.debug('Currently contains: %s', os.listdir(dirname))
             s3.meta.client.download_fileobj(bucket_name, s3file, file)
 
     except Exception as error:

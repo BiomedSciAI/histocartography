@@ -386,26 +386,28 @@ class WSI:
             patch_y_positions = np.random.shuffle(patch_y_positions)
 
         for x, y in itertools.product(patch_x_positions, patch_y_positions):
-
-            log.debug(self.annotations)
             patch_labels = np.zeros(size, dtype=np.uint8)
             if annotations:
+
                 valid_annotations_x = np.where(
-                    np.isin(self.annotations[:, 0],
-                            range(x, x + int(size[0] / selected_downsample))))
-                log.debug(valid_annotations_x)
+                    np.isin(
+                        self.annotations[:, 0],
+                        range(x, x + int(size[0] * selected_downsample)),
+                        assume_unique=False))
+
                 valid_annotations_y = np.where(
-                    np.isin(self.annotations[:, 1],
-                            range(y, y + int(size[1] / selected_downsample))))
-                log.debug(valid_annotations_y)
+                    np.isin(
+                        self.annotations[:, 1],
+                        range(y, y + int(size[1] * selected_downsample)),
+                        assume_unique=False))
+
                 valid_annotations = self.annotations[np.intersect1d(
                     valid_annotations_x, valid_annotations_y), :]
-                log.debug(valid_annotations)
 
-                valid_annotations[:, 0] = valid_annotations[:, 0] - x
-                valid_annotations[:, 1] = valid_annotations[:, 1] - y
-                
-                log.debug(valid_annotations)
+                valid_annotations[:, 0] = (valid_annotations[:, 0] - x) / selected_downsample
+                valid_annotations[:, 1] = (valid_annotations[:, 1] - y) / selected_downsample
+
+                valid_annotations = valid_annotations.astype(int)
 
                 patch_labels[valid_annotations[:, 1],
                              valid_annotations[:, 0]] = valid_annotations[:, 2]

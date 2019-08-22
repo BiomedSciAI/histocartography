@@ -308,6 +308,7 @@ class WSI:
             origin_shift = np.amin(v_coords, axis=0)
             region_size = np.amax(v_coords, axis=0) - origin_shift
             normalized_coords = v_coords - origin_shift
+
             log.debug('Region Size %s', region_size)
 
             if len(normalized_coords) > 2:
@@ -318,11 +319,9 @@ class WSI:
 
                 region_pixels = np.array([[
                     x, y, value
-                ] for x, y, value in zip(sparse_region.col + origin_shift[0],
-                                         sparse_region.row + origin_shift[1],
-                                         sparse_region.data)])
-                log.debug('Region Pixels: %s', region_pixels.shape)
-                log.debug('Region Pixels starts: %s', region_pixels[:5])
+                ] for x, y, value in zip(sparse_region.row +
+                                         origin_shift[0], sparse_region.col +
+                                         origin_shift[1], sparse_region.data)])
 
         else:
             # skips regions with no valid label
@@ -368,14 +367,19 @@ class WSI:
         magnification, and will produce new patches as it is called with
         next()
         """
-
         full_width = self.stack.level_dimensions[0][0]
         full_height = self.stack.level_dimensions[0][1]
-        level = self.stack.get_best_level_for_downsample(self.mag / mag)
-        horiz_step = int(stride[0] * mag / self.mag)
-        vert_step = int(stride[1] * mag / self.mag)
+        selected_downsample = self.mag / mag
+        level = self.stack.get_best_level_for_downsample(selected_downsample)
+        horiz_step = int(stride[0] * selected_downsample)
+        vert_step = int(stride[1] * selected_downsample)
         patch_x_positions = np.arange(origin[0], full_width, horiz_step)
         patch_y_positions = np.arange(origin[1], full_height, vert_step)
+
+        log.debug('Level for desired resolution : %s', level)
+        log.debug('Step size : %s %s', horiz_step, vert_step)
+        log.debug('Num Patches : %s %s', len(patch_x_positions),
+                  len(patch_y_positions))
 
         if shuffle:
             patch_x_positions = np.random.shuffle(patch_x_positions)
@@ -383,7 +387,27 @@ class WSI:
 
         for x, y in itertools.product(patch_x_positions, patch_y_positions):
 
+            log.debug(self.annotations)
+            patch_labels = np.zeros(size, dtype=np.uint8)
             if annotations:
-                patch_labels = None
+                valid_annotations_x = np.where(
+                    np.isin(self.annotations[:, 0],
+                            range(x, x + int(size[0] / selected_downsample))))
+                log.debug(valid_annotations_x)
+                valid_annotations_y = np.where(
+                    np.isin(self.annotations[:, 1],
+                            range(y, y + int(size[1] / selected_downsample))))
+                log.debug(valid_annotations_y)
+                valid_annotations = self.annotations[np.intersect1d(
+                    valid_annotations_x, valid_annotations_y), :]
+                log.debug(valid_annotations)
+
+                valid_annotations[:, 0] = valid_annotations[:, 0] - x
+                valid_annotations[:, 1] = valid_annotations[:, 1] - y
+                
+                log.debug(valid_annotations)
+
+                patch_labels[valid_annotations[:, 1],
+                             valid_annotations[:, 0]] = valid_annotations[:, 2]
             yield (x, y, full_width, full_height,
-                   self.stack.read_region((x, y), level, size))
+                   self.stack.read_region((x, y), level, size), patch_labels)

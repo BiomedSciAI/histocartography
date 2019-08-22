@@ -16,17 +16,18 @@ class CoreTestCase(unittest.TestCase):
         """Setting up test."""
         warnings.simplefilter("ignore", ResourceWarning)
         os.makedirs("tmp", exist_ok=True)
+        os.makedirs("tmp/patches", exist_ok=True)
         self.s3_resource = get_s3()
         self.filename = download_file_to_local(
             s3=self.s3_resource,
             bucket_name='datasets',
-            s3file='prostate/biopsy_data_all/17/17.tif',
+            s3file='prostate/biopsy_data_all/77/77.tif',
             local_name='tmp/00_biopsy.tif')
 
         self.annotation_file = download_file_to_local(
             s3=self.s3_resource,
             bucket_name='datasets',
-            s3file='prostate/biopsy_data_all/17/17.xml',
+            s3file='prostate/biopsy_data_all/77/77.xml',
             local_name='tmp/01_biopsy.xml')
 
         self.wsi = WSI(self.filename, self.annotation_file)
@@ -51,11 +52,24 @@ class CoreTestCase(unittest.TestCase):
         annotation_mask = np.uint8(annotation_mask * 255 /
                                    np.max(annotation_mask))
 
-        Image.fromarray(annotation_mask).save("tmp/04_annotation_mask_2.5x.png")
+        Image.fromarray(annotation_mask).save(
+            "tmp/04_annotation_mask_2.5x.png")
 
-    def test_annotated_pixels(self):
-        """Test annotated_pixels"""
-        self.wsi.annotated_pixels()
+    def test_patches(self):
+        """Test patches"""
+        patch_generator = self.wsi.patches(
+            size=(2800, 2800), stride=(2800, 2800), annotations=True, mag=2.5)
+
+        for patch_info in patch_generator:
+            loc_x, loc_y, full_x, full_y, image, labels = patch_info
+            print("Max value from labels: {}".format(np.max(labels)))
+            if np.max(labels) > 0:
+                labels = np.uint8(labels * 255 / np.max(labels))
+
+            imagename = "tmp/patches/_{}x{}_image.png".format(loc_x, loc_y)
+            labelname = "tmp/patches/_{}x{}_labels.png".format(loc_x, loc_y)
+            image.save(imagename)
+            Image.fromarray(labels).save(labelname)
 
     def tearDown(self):
         """Tear down the tests."""

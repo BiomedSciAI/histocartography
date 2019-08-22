@@ -10,8 +10,7 @@ from scipy.sparse import coo_matrix
 
 from lxml import etree
 from openslide import open_slide
-from openslide import ImageSlide
-from PIL import Image
+
 
 # from PIL import Image, ImageDraw
 
@@ -404,8 +403,10 @@ class WSI:
                 valid_annotations = self.annotations[np.intersect1d(
                     valid_annotations_x, valid_annotations_y), :]
 
-                valid_annotations[:, 0] = (valid_annotations[:, 0] - x) / selected_downsample
-                valid_annotations[:, 1] = (valid_annotations[:, 1] - y) / selected_downsample
+                valid_annotations[:, 0] = (valid_annotations[:, 0] -
+                                           x) / selected_downsample
+                valid_annotations[:, 1] = (valid_annotations[:, 1] -
+                                           y) / selected_downsample
 
                 valid_annotations = valid_annotations.astype(int)
 

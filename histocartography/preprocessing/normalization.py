@@ -2,21 +2,22 @@
 import logging
 import sys
 import numpy as np
-from PIL import Image
-
 
 # setup logging
-#logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+# logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('Histocartography::preprocessing::Normalization')
 h1 = logging.StreamHandler(sys.stdout)
 log.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 h1.setFormatter(formatter)
 log.addHandler(h1)
+
 
 def local_normalization(x):
 
     return x
+
 
 def staining_normalization(image, method='default'):
     """Staining normalization using default method
@@ -33,12 +34,13 @@ def staining_normalization(image, method='default'):
         Stain-normalized Numpy Array
 
     The code is an implementation of paper :
-    Macenko, Marc, et al. A method for normalizing histology slides for quantitative analysis. 
-    2009 IEEE International Symposium on Biomedical Imaging: From Nano to Macro. IEEE, 2009., 
-    link for paper : http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
+    Macenko, Marc, et al. A method for normalizing histology slides for
+    quantitative analysis.
+    2009 IEEE International Symposium on Biomedical Imaging: From Nano to Macro.
+    IEEE, 2009.,
+    link for paper :
+    http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
     """
-    
-    
 
     log.info('Input Image size is {}'.format(image.shape))
 
@@ -46,21 +48,25 @@ def staining_normalization(image, method='default'):
     beta = 0.15
     alpha = 1
     maxCRef = np.array([1.9705, 1.0308])
-    HERef = np.column_stack(([0.5626, 0.7201, 0.4062], [0.2159, 0.8012, 0.5581]))
+    HERef = np.column_stack(([0.5626, 0.7201,
+                              0.4062], [0.2159, 0.8012, 0.5581]))
     HERef = HERef.astype(np.float32)
     image = image.astype(np.float32)
     h = image.shape[0]
     w = image.shape[1]
     image = image.reshape([w * h, 3])
     ''' TODO: Fix this warning
-        PendingDeprecationWarning: the matrix subclass is not the recommended way to represent 
-        matrices or deal with linear algebra 
-        (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). 
+        PendingDeprecationWarning: the matrix subclass is not the recommended
+        way to represent matrices or deal with linear algebra
+        (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html).
         Please adjust your code to use regular ndarray.
     '''
     image = np.matrix(image)
     OD = -np.log((image + 1) / Io).astype(np.float32)
-    ValidIds = np.where(np.logical_or(np.logical_or(OD[:, 0] < beta, OD[:, 1] < beta), OD[:, 2] < beta) == False)[0]
+    ValidIds = np.where(
+        np.logical_or(
+            np.logical_or(OD[:, 0] < beta, OD[:, 1] < beta), OD[:, 2] < beta)
+        is False)[0]
     ODhat = OD[ValidIds, :]
     D, V = np.linalg.eigh(np.cov(np.transpose(ODhat)))
     ids = sorted(range(len(D)), key=lambda k: D[k])
@@ -81,11 +87,11 @@ def staining_normalization(image, method='default'):
         HE = HE.astype(np.float32)
         OD = OD.astype(np.float32)
         ''' TODO: Fix this warning
-        PendingDeprecationWarning: the matrix subclass is not the recommended way to represent 
-        matrices or deal with linear algebra 
-        (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). 
+        PendingDeprecationWarning: the matrix subclass is not the recommended
+        way to represent matrices or deal with linear algebra
+        (see https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html).
         Please adjust your code to use regular ndarray.
-        '''
+    '''
         C = np.matrix(np.linalg.lstsq(HE, OD.T, rcond=-1)[0]).T
         maxC = np.percentile(C, 99, 0)
         C[:, 0] = C[:, 0] * maxCRef[0] / maxC[0]
@@ -93,11 +99,11 @@ def staining_normalization(image, method='default'):
         inorm = (Io * np.exp(-np.dot(HERef, C.T))).T
         inorm[inorm > 255] = 255
         inorm = np.array(inorm).reshape(h, w, 3).astype(np.uint8)
-    #endif
+        # endif
         log.info('Normalized Image size is {}'.format(inorm.shape))
 
     return inorm
-    
+
 
 def get_mask(image, method='default'):
     """Extracts a mask of the non-white region of the image

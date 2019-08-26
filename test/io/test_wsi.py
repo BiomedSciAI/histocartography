@@ -58,18 +58,20 @@ class CoreTestCase(unittest.TestCase):
     def test_patches(self):
         """Test patches"""
         patch_generator = self.wsi.patches(
-            size=(2800, 2800), stride=(2800, 2800), annotations=True, mag=2.5)
-
+            size=(256, 256), stride=(256, 256), annotations=True, mag=2.5)
+        num_patches = 0
         for patch_info in patch_generator:
             loc_x, loc_y, full_x, full_y, image, labels = patch_info
-            print("Max value from labels: {}".format(np.max(labels)))
             if np.max(labels) > 0:
                 labels = np.uint8(labels * 255 / np.max(labels))
 
             imagename = "tmp/patches/_{}x{}_image.png".format(loc_x, loc_y)
             labelname = "tmp/patches/_{}x{}_labels.png".format(loc_x, loc_y)
-            image.save(imagename)
+            Image.fromarray(image).save(imagename)
             Image.fromarray(labels).save(labelname)
+            num_patches += 1
+
+        print("Total number of patches: {}".format(num_patches))
 
     def tearDown(self):
         """Tear down the tests."""

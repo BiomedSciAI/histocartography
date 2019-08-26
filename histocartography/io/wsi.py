@@ -11,7 +11,6 @@ from scipy.sparse import coo_matrix
 from lxml import etree
 from openslide import open_slide
 
-
 # from PIL import Image, ImageDraw
 
 # setup logging
@@ -64,7 +63,8 @@ class WSI:
     def __init__(self,
                  wsi_file,
                  annotation_file=None,
-                 annotation_labels=DEFAULT_LABELS):
+                 annotation_labels=DEFAULT_LABELS,
+                 minimum_tissue_content=0.25):
         """Constructs a WSI object with a given wsi_file
 
         Parameters
@@ -81,6 +81,7 @@ class WSI:
         self.current_image = None
         self.current_mag = None
         self.current_downsample = None
+        self.minimum_tissue_content = minimum_tissue_content
 
         log.debug('wsi_file : %s', self.wsi_file)
 
@@ -171,6 +172,16 @@ class WSI:
 
         return image
 
+    def tissue_threshold(self):
+
+        image = self.image_at(self.mag / 32)
+        img_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        img_inv = (255 - img_gray)  # invert the image intensity
+        threshold, mask_ = cv2.threshold(img_inv, 0, 255,
+                                         cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        return threshold
+
     def tissue_mask_at(self, mag=5):
         """gets the tissue mask at a desired mag level
         """
@@ -180,7 +191,7 @@ class WSI:
         else:
             image = self.image_at(mag)
 
-        img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        img_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         img_inv = (255 - img_gray)  # invert the image intensity
         _, mask_ = cv2.threshold(img_inv, 0, 255,
                                  cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -237,10 +248,10 @@ class WSI:
 
             for annotation in xml_annotations:
                 label = annotation.find('Regions/Region/Text').attrib['Value']
-                log.debug('label : %s', label)
+                # log.debug('label : %s', label)
                 if label not in self.annotation_labels:
                     # say if label is empty, then leave it or 3+2 kind
-                    log.debug('%s was continued', label)
+                    # log.debug('%s was continued', label)
                     continue
                 else:
                     label_index = self.annotation_labels.index(label)
@@ -270,12 +281,12 @@ class WSI:
                     row = np.asarray(row)
                     label = str(row[0])
                     if label not in self.annotation_labels:
-                        log.debug('%s was continued', label)
+                        # log.debug('%s was continued', label)
                         continue
                     else:
                         label_index = self.annotation_labels.index(label)
 
-                    log.debug('label : %s', label)
+                    # log.debug('label : %s', label)
                     ann_coordinates = row[1:]
                     ann_coordinates = ann_coordinates.astype(float)
                     ann_coordinates = ann_coordinates.astype(int)
@@ -337,7 +348,6 @@ class WSI:
             log.debug('xml file path : %s', self.annotation_file)
             dom = etree.parse(self.annotation_file)
             xml_annotations = dom.findall('Annotation')
-            log.debug('%s', xml_annotations)
             _get_region_pixels = self.get_region_pixels_from_xml
 
             # For every annotation on the XML file, extract the coordinates of
@@ -374,6 +384,8 @@ class WSI:
         vert_step = int(stride[1] * selected_downsample)
         patch_x_positions = np.arange(origin[0], full_width, horiz_step)
         patch_y_positions = np.arange(origin[1], full_height, vert_step)
+
+        tissue_threshold = self.tissue_threshold()
 
         log.debug('Level for desired resolution : %s', level)
         log.debug('Step size : %s %s', horiz_step, vert_step)
@@ -412,5 +424,10 @@ class WSI:
 
                 patch_labels[valid_annotations[:, 1],
                              valid_annotations[:, 0]] = valid_annotations[:, 2]
-            yield (x, y, full_width, full_height,
-                   self.stack.read_region((x, y), level, size), patch_labels)
+            region = np.array(self.stack.read_region((x, y), level, size))
+            gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
+            tissue_pixels = np.sum(np.where(gray < tissue_threshold))
+            # log.debug("Region %s,%s has %s pixels ratio", x, y,
+            #           tissue_pixels / region.size)
+            if tissue_pixels > self.minimum_tissue_content:
+                yield (x, y, full_width, full_height, region, patch_labels)

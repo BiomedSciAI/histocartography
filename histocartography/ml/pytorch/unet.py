@@ -28,15 +28,15 @@ class UNet(nn.Module):
         """
         super(UNet, self).__init__()
 
-        input_channels = params['input_channels']
-        depth = params['depth']
-        num_filters = params['num_filters']
-        output_channels = params['output_channels']
+        input_channels = params.get('input_channels',3)
+        depth = params.get('depth',3)
+        num_filters = params.get('num_filters',[32, 64, 128])
+        output_channels = params.get('output_channels',1)
         activation_fn = params.get('activation_fn', 'relu')
         dropout = params.get('dropout', 0.0)
         batch_norm = params.get('batch_norm', True)
         self.pos_weight = params.get('pos_weight', 1)
-        self.reconstruction_loss = params.get('reconstruction_loss', 'mse')
+        self.reconstruction_loss = params.get('reconstruction_loss', 'bce')
 
         log.debug("Parameters : %s", params)
 

@@ -246,6 +246,16 @@ class WSI:
         Patches generator. It initializes with shape and stride for a given
         magnification, and will produce new patches as it is called with
         next()
+        origin (tuple): Origin of the patch extraction. Defaults to 0,0.
+        size(tuple): size of the patches. Defaults to 128 ,128
+        stride(tuple): stride to extract patches consecutively
+            Defaults to 128 ,128
+        mag (float): magnification at which the patches will be extracted.
+            Defaults to 5 (5x)
+        shuffle (bool): whether to shuffle patches before start the generator
+        annotations(bool): whether to compute the annotations or not.
+            If False (default) a patch of zeroes will be returned
+
         """
         full_width = self.stack.level_dimensions[0][0]
         full_height = self.stack.level_dimensions[0][1]
@@ -270,7 +280,7 @@ class WSI:
             patch_y_positions = np.random.shuffle(patch_y_positions)
 
         for x, y in itertools.product(patch_x_positions, patch_y_positions):
-            if self.annotations is None:
+            if annotations is False or self.annotations is None:
                 patch_labels = np.zeros(size, dtype=np.uint8)
             else:
                 patch_labels = self.annotations.mask(

@@ -11,6 +11,7 @@ from scipy.sparse import coo_matrix
 from lxml import etree
 from openslide import open_slide
 
+from .annotations import XMLAnnotation
 
 # from PIL import Image, ImageDraw
 
@@ -20,7 +21,8 @@ log = logging.getLogger('Histocartography::IO::WSI')
 h1 = logging.StreamHandler(sys.stdout)
 log.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 h1.setFormatter(formatter)
 log.addHandler(h1)
 
@@ -42,7 +44,7 @@ MAGNIFICATION_TAG = {
     # maps to openslide.objective-power
     'mirax': 'mirax.GENERAL.OBJECTIVE_MAGNIFICATION',
     'phillips':
-        '',  # NO MAPPING TO objective-power. Have to use mpp-x and mpp-y values
+        '',  # NO MAPPING TO objective-power. Have to use mpp-x and mpp-y value
     'sakura':
         'sakura.NominalLensMagnification',  # maps to openslide.objective-power
     # OFTEN INCORRECT. maps to openslide.objective-power
@@ -61,10 +63,9 @@ class WSI:
     Whole Slide Image Class
     """
 
-    def __init__(self,
-                 wsi_file,
-                 annotation_file=None,
-                 annotation_labels=DEFAULT_LABELS):
+    def __init__(
+        self, wsi_file, annotations=None, minimum_tissue_content=0.25
+    ):
         """Constructs a WSI object with a given wsi_file
 
         Parameters
@@ -76,33 +77,31 @@ class WSI:
         """
 
         self.wsi_file = wsi_file
-        self.annotation_file = annotation_file
-        self.annotation_labels = annotation_labels
         self.current_image = None
         self.current_mag = None
         self.current_downsample = None
+        self.minimum_tissue_content = minimum_tissue_content
+        self.annotations = annotations
 
         log.debug('wsi_file : %s', self.wsi_file)
 
         if os.path.isfile(self.wsi_file):
             self.stack = open_slide(self.wsi_file)
             properties = self.stack.properties
-            self.vendor = properties['openslide.vendor']
+            self.vendor = properties.get('openslide.vendor', 'NONE')
         else:
             log.error('File does not exist')
 
-        if os.path.isfile(self.annotation_file):
-            self.annotations = self.annotated_pixels()
-        else:
-            log.error('File does not exist')
-
-        if self.stack.properties['openslide.vendor'] in SAFE_VENDORS:
+        if self.vendor in SAFE_VENDORS:
             self.vendor_mag = properties[MAGNIFICATION_TAG[self.vendor]]
             self.openslide_mag = properties['openslide.objective-power']
             self.mag = float(self.openslide_mag)
+            self.downsamples = np.rint(self.stack.level_downsamples
+                                       ).astype(int)
         else:
-            self.mag = None
-        self.downsamples = np.rint(self.stack.level_downsamples).astype(int)
+            self.mag = 1
+            self.vendor_mag = 1
+            self.downsamples = np.asarray([1])
         self.available_mags = [
             self.mag / np.rint(downsample) for downsample in self.downsamples
         ]
@@ -150,7 +149,8 @@ class WSI:
                         target_height = full_height - 2 * default_height
                     region = self.stack.read_region(
                         (original_x_pos, original_y_pos), level,
-                        (target_width, target_height))
+                        (target_width, target_height)
+                    )
 
                     region = np.asarray(region.convert("RGB"))
                     row_pos = row * default_height
@@ -171,6 +171,17 @@ class WSI:
 
         return image
 
+    def tissue_threshold(self):
+
+        image = self.image_at(self.mag / 32)
+        img_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        img_inv = (255 - img_gray)  # invert the image intensity
+        threshold, mask_ = cv2.threshold(
+            img_inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+
+        return threshold
+
     def tissue_mask_at(self, mag=5):
         """gets the tissue mask at a desired mag level
         """
@@ -180,13 +191,15 @@ class WSI:
         else:
             image = self.image_at(mag)
 
-        img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        img_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         img_inv = (255 - img_gray)  # invert the image intensity
-        _, mask_ = cv2.threshold(img_inv, 0, 255,
-                                 cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, mask_ = cv2.threshold(
+            img_inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
 
-        result = cv2.findContours(mask_, cv2.RETR_CCOMP,
-                                  cv2.CHAIN_APPROX_SIMPLE)
+        result = cv2.findContours(
+            mask_, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
+        )
 
         if len(result) == 2:
             contour = result[0]
@@ -198,7 +211,8 @@ class WSI:
 
         # --- removing small connected components ---
         nb_components, output, stats, _ = cv2.connectedComponentsWithStats(
-            mask_, connectivity=8)
+            mask_, connectivity=8
+        )
         sizes = stats[1:, -1]
         nb_components = nb_components - 1
 
@@ -219,148 +233,15 @@ class WSI:
 
         return mask
 
-    def annotation_mask_at(self, mag=5):
-        """For generating annotated mask from the xml_annotations csv or xml """
-
-        if self.current_mag == mag and self.current_image is not None:
-            image = self.current_image
-        else:
-            image = self.image_at(mag)
-
-        image_shape = image.shape
-        mask_annotated = np.zeros((image_shape[0], image_shape[1]), np.uint8)
-
-        if self.annotation_file.endswith('.xml'):
-            log.debug('xml file path : %s', self.annotation_file)
-            dom = etree.parse(self.annotation_file)
-            xml_annotations = dom.findall('Annotation')
-
-            for annotation in xml_annotations:
-                label = annotation.find('Regions/Region/Text').attrib['Value']
-                log.debug('label : %s', label)
-                if label not in self.annotation_labels:
-                    # say if label is empty, then leave it or 3+2 kind
-                    log.debug('%s was continued', label)
-                    continue
-                else:
-                    label_index = self.annotation_labels.index(label)
-
-                vertices = annotation.findall('Regions/Region/Vertices/Vertex')
-                loc_temp = []
-                for _, vertex in enumerate(vertices):
-                    loc_x = int(vertex.attrib['X'])
-                    loc_y = int(vertex.attrib['Y'])
-                    loc_temp.append([loc_x, loc_y])
-
-                ann_coordinates = loc_temp
-                ann_coordinates = np.asarray(ann_coordinates)
-                ann_coordinates = ann_coordinates / self.current_downsample
-                ann_coordinates = ann_coordinates.astype(int)
-
-                mask_annotated = cv2.drawContours(mask_annotated,
-                                                  [ann_coordinates], 0,
-                                                  label_index, -1)
-                # filled with pixel corresponding to roi region
-
-        elif self.annotation_file.endswith('.csv'):
-
-            with open(self.annotation_file, 'r') as csv_file:
-                reader = csv.reader(csv_file)
-                for row in reader:
-                    row = np.asarray(row)
-                    label = str(row[0])
-                    if label not in self.annotation_labels:
-                        log.debug('%s was continued', label)
-                        continue
-                    else:
-                        label_index = self.annotation_labels.index(label)
-
-                    log.debug('label : %s', label)
-                    ann_coordinates = row[1:]
-                    ann_coordinates = ann_coordinates.astype(float)
-                    ann_coordinates = ann_coordinates.astype(int)
-                    ann_coordinates = np.reshape(
-                        ann_coordinates, (int(len(ann_coordinates) / 2), 2))
-                    ann_coordinates = (ann_coordinates /
-                                       self.current_downsample).astype(int)
-
-                    mask_annotated = cv2.drawContours(mask_annotated,
-                                                      [ann_coordinates], 0,
-                                                      label_index, -1)
-                    # filled with pixel corresponding to roi region
-
-        return mask_annotated
-
-    def get_region_pixels_from_xml(self, annotation):
-        region_pixels = None
-        label_name = annotation.find('Regions/Region/Text').attrib['Value']
-        log.debug('label_name : %s', label_name)
-        if label_name in self.annotation_labels:
-            label_index = self.annotation_labels.index(label_name)
-
-            vertices = annotation.findall('Regions/Region/Vertices/Vertex')
-            v_coords = np.ndarray((len(vertices), 2), dtype=int)
-
-            for vertex_i, vertex in enumerate(vertices):
-                v_coords[vertex_i, 0] = int(vertex.attrib['X'])
-                v_coords[vertex_i, 1] = int(vertex.attrib['Y'])
-            origin_shift = np.amin(v_coords, axis=0)
-            region_size = np.amax(v_coords, axis=0) - origin_shift
-            normalized_coords = v_coords - origin_shift
-
-            log.debug('Region Size %s', region_size)
-
-            if len(normalized_coords) > 2:
-                region = np.zeros((region_size[0], region_size[1]), np.uint8)
-                region = cv2.drawContours(region, [normalized_coords], -1,
-                                          label_index, -1)
-                sparse_region = coo_matrix(region)
-
-                region_pixels = np.array([[
-                    x, y, value
-                ] for x, y, value in zip(sparse_region.row +
-                                         origin_shift[0], sparse_region.col +
-                                         origin_shift[1], sparse_region.data)])
-
-        else:
-            # skips regions with no valid label
-            log.debug('%s was skipped', label_name)
-
-        return region_pixels
-
-    def annotated_pixels(self):
-        """
-        Sparse annotation mask, to save memory.
-        Returns a list of pixels and their corresponding non zero label.
-        """
-        if self.annotation_file.endswith('.xml'):
-            log.debug('xml file path : %s', self.annotation_file)
-            dom = etree.parse(self.annotation_file)
-            xml_annotations = dom.findall('Annotation')
-            log.debug('%s', xml_annotations)
-            _get_region_pixels = self.get_region_pixels_from_xml
-
-            # For every annotation on the XML file, extract the coordinates of
-            # the vertices, and create a region mask that contains it.
-            # Pixels contained within the region are given as a list
-
-        annotated_region_generator = (
-            _get_region_pixels(annotation) for annotation in xml_annotations)
-        pixels = np.vstack([
-            annotated_region for annotated_region in annotated_region_generator
-            if annotated_region is not None
-        ])
-
-        log.debug('Pixels: %s', pixels.shape)
-        return pixels
-
-    def patches(self,
-                origin=(0, 0),
-                size=(128, 128),
-                stride=(128, 128),
-                mag=5,
-                shuffle=False,
-                annotations=False):
+    def patches(
+        self,
+        origin=(0, 0),
+        size=(128, 128),
+        stride=(128, 128),
+        mag=5,
+        shuffle=False,
+        annotations=False
+    ):
         """
         Patches generator. It initializes with shape and stride for a given
         magnification, and will produce new patches as it is called with
@@ -375,42 +256,36 @@ class WSI:
         patch_x_positions = np.arange(origin[0], full_width, horiz_step)
         patch_y_positions = np.arange(origin[1], full_height, vert_step)
 
+        tissue_threshold = self.tissue_threshold()
+
         log.debug('Level for desired resolution : %s', level)
         log.debug('Step size : %s %s', horiz_step, vert_step)
-        log.debug('Num Patches : %s %s', len(patch_x_positions),
-                  len(patch_y_positions))
+        log.debug(
+            'Num Patches : %s %s', len(patch_x_positions),
+            len(patch_y_positions)
+        )
 
         if shuffle:
             patch_x_positions = np.random.shuffle(patch_x_positions)
             patch_y_positions = np.random.shuffle(patch_y_positions)
 
         for x, y in itertools.product(patch_x_positions, patch_y_positions):
-            patch_labels = np.zeros(size, dtype=np.uint8)
-            if annotations:
+            if self.annotations is None:
+                patch_labels = np.zeros(size, dtype=np.uint8)
+            else:
+                patch_labels = self.annotations.mask(
+                    size, (x, y), selected_downsample
+                )
+            x_mag = int(x / selected_downsample)
+            y_mag = int(y / selected_downsample)
 
-                valid_annotations_x = np.where(
-                    np.isin(
-                        self.annotations[:, 0],
-                        range(x, x + int(size[0] * selected_downsample)),
-                        assume_unique=False))
-
-                valid_annotations_y = np.where(
-                    np.isin(
-                        self.annotations[:, 1],
-                        range(y, y + int(size[1] * selected_downsample)),
-                        assume_unique=False))
-
-                valid_annotations = self.annotations[np.intersect1d(
-                    valid_annotations_x, valid_annotations_y), :]
-
-                valid_annotations[:, 0] = (valid_annotations[:, 0] -
-                                           x) / selected_downsample
-                valid_annotations[:, 1] = (valid_annotations[:, 1] -
-                                           y) / selected_downsample
-
-                valid_annotations = valid_annotations.astype(int)
-
-                patch_labels[valid_annotations[:, 1],
-                             valid_annotations[:, 0]] = valid_annotations[:, 2]
-            yield (x, y, full_width, full_height,
-                   self.stack.read_region((x, y), level, size), patch_labels)
+            region = np.array(self.stack.read_region((x, y), level, size))
+            gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
+            tissue_pixels = np.sum(np.where(gray < tissue_threshold))
+            # log.debug("Region %s,%s has %s pixels ratio", x, y,
+            #           tissue_pixels / region.size)
+            if tissue_pixels > self.minimum_tissue_content:
+                yield (
+                    x, y, full_width, full_height, x_mag, y_mag, region,
+                    patch_labels
+                )

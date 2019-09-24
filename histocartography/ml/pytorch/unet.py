@@ -12,14 +12,15 @@ log = logging.getLogger('Histocartography::ML::Pytorch::UNET')
 h1 = logging.StreamHandler(sys.stdout)
 log.setLevel(logging.INFO)
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 h1.setFormatter(formatter)
 log.addHandler(h1)
 
 
 class UNet(nn.Module):
 
-    def __init__(self, params, *args, **kwargs):
+    def __init__(self, params={}, *args, **kwargs):
         """
         Implementation of
         U-Net: Convolutional Networks for Biomedical Image Segmentation
@@ -28,25 +29,45 @@ class UNet(nn.Module):
         """
         super(UNet, self).__init__()
 
-        input_channels = params.get('input_channels',3)
-        depth = params.get('depth',3)
-        num_filters = params.get('num_filters',[32, 64, 128])
-        output_channels = params.get('output_channels',1)
+        log.debug("Parameters : %s", params)
+        if 'input_channels' not in params:
+            params['input_channels'] = 3
+        if 'depth' not in params:
+            params['depth'] = 3
+        if 'num_filters' not in params:
+            params['num_filters'] = [32, 64, 128]
+        if 'output_channels' not in params:
+            params['output_channels'] = 1
+        if 'dropout' not in params:
+            params['dropout'] = 0
+        if 'batch_norm' not in params:
+            params['batch_norm'] = True
+        if 'reconstruction_loss' not in params:
+            params['reconstruction_loss'] = 'bce'
+
+        input_channels = params.get('input_channels', 3)
+        depth = params.get('depth', 3)
+        num_filters = params.get('num_filters', [32, 64, 128])
+        output_channels = params.get('output_channels', 1)
         activation_fn = params.get('activation_fn', 'relu')
         dropout = params.get('dropout', 0.0)
         batch_norm = params.get('batch_norm', True)
-        self.pos_weight = params.get('pos_weight', 1)
         self.reconstruction_loss = params.get('reconstruction_loss', 'bce')
 
-        log.debug("Parameters : %s", params)
+        self.params = params
+
+        log.debug("Parameters : %s", self.params)
 
         prev_channels = input_channels
         self.down_path = nn.ModuleList()
         for i in range(depth):
             next_channels = num_filters[i]
             self.down_path.append(
-                UNetConvBlock(prev_channels, next_channels, activation_fn,
-                              dropout, batch_norm))
+                UNetConvBlock(
+                    prev_channels, next_channels, activation_fn, dropout,
+                    batch_norm
+                )
+            )
             prev_channels = num_filters[i]
 
         self.up_path = nn.ModuleList()
@@ -54,13 +75,17 @@ class UNet(nn.Module):
         for i in reversed(range(depth - 1)):
             next_channels = num_filters[i]
             self.up_path.append(
-                UNetUpBlock(prev_channels, next_channels, activation_fn,
-                            dropout, batch_norm))
+                UNetUpBlock(
+                    prev_channels, next_channels, activation_fn, dropout,
+                    batch_norm
+                )
+            )
             prev_channels = num_filters[i]
 
         self.last = nn.Sequential(
             nn.Conv2d(prev_channels, output_channels, kernel_size=1),
-            nn.Sigmoid())
+            nn.Sigmoid()
+        )
 
     def forward(self, x):
         blocks = []
@@ -83,7 +108,8 @@ class UNetConvBlock(nn.Module):
         block = []
 
         block.append(
-            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1, bias=False))
+            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1, bias=False)
+        )
         block.append(ACTIVATION_FN_FACTORY[activation_fn])
 
         if batch_norm:
@@ -106,18 +132,19 @@ class UNetUpBlock(nn.Module):
         self.up = nn.Sequential(
             # Evaluate if it's better to upsample using a transposed convolution
             nn.Upsample(mode='bilinear', scale_factor=2, align_corners=False),
-            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1, bias=False))
+            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1, bias=False)
+        )
         in_size = 2 * out_size
-        self.conv_block = UNetConvBlock(in_size, out_size, activation_fn,
-                                        dropout, batch_norm)
+        self.conv_block = UNetConvBlock(
+            in_size, out_size, activation_fn, dropout, batch_norm
+        )
 
     def center_crop(self, layer, target_size):
         _, _, layer_height, layer_width = layer.size()
         diff_y = (layer_height - target_size[0]) // 2
         diff_x = (layer_width - target_size[1]) // 2
-        return layer[:, :, diff_y:(diff_y +
-                                   target_size[0]), diff_x:(diff_x +
-                                                            target_size[1])]
+        return layer[:, :, diff_y:(diff_y + target_size[0]
+                                   ), diff_x:(diff_x + target_size[1])]
 
     def forward(self, x, bridge):
         up = self.up(x)

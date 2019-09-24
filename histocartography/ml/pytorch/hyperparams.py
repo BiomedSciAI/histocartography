@@ -1,8 +1,6 @@
 """ Model Parameters Module """
-import torch
 import torch.optim as optim
 import torch.nn as nn
-from .utils import gaussian_mixture, kl_divergence_loss, WeightedBCELoss
 
 OPTIMIZER_FACTORY = {
     'Adadelta': optim.Adadelta,
@@ -27,13 +25,5 @@ LOSS_FN_FACTORY = {
     'mse_sum': nn.MSELoss(reduction='sum'),
     'l1_sum': nn.L1Loss(reduction='sum'),
     'binary_cross_entropy': nn.BCELoss(),
-    'bce_logits': nn.BCEWithLogitsLoss(),
-    'kld': kl_divergence_loss,
-    'weighted_bce': WeightedBCELoss
-}
-
-AAE_DISTRIBUTION_FACTORY = {
-    'Gaussian': torch.randn,
-    'Uniform': torch.rand,
-    'Gaussian_Mixture': gaussian_mixture
+    'bce_logits': nn.BCEWithLogitsLoss()
 }

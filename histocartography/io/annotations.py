@@ -232,6 +232,10 @@ class ImageAnnotation(Annotation):
                                      original_size[0], origin[1]:origin[1] +
                                      original_size[1]]
 
-        mask = cv2.resize(region, (size[0], size[1]))
+        try:
+            mask = cv2.resize(region, (size[0], size[1]))
+        except:
+            log.warning('Could not resize patch')
+            mask = np.zeros(size)
 
         return mask

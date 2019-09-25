@@ -123,7 +123,6 @@ class WSIPatchSegmentationDataset(Dataset):
             (0, 0), patch_size, stride, mag
         )
 
-        log.debug(self.patches_info)
 
     def __getitem__(self, index):
 
@@ -140,8 +139,8 @@ class WSIPatchSegmentationDataset(Dataset):
             patch = self.input_fn(patch)
 
 
-
-        return torch.from_numpy(patch), torch.from_numpy(labels)
+        # RGBA to RGB and channels first
+        return torch.from_numpy(patch[:,:,0:3]).permute(2,0,1).float(), torch.from_numpy(labels).float().unsqueeze(0)
 
     def __len__(self):
 

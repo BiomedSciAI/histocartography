@@ -8,7 +8,7 @@ class UNet(nn.Module):
 
     def __init__(
         self,
-        input_channels=1,
+        input_channels=3,
         output_channels=1,
         number_of_filters=[2, 4, 8, 16, 32],
         activation_fn=nn.ReLU(),

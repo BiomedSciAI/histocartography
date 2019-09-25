@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('Histocartography::IO::Annotations')
 h1 = logging.StreamHandler(sys.stdout)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )

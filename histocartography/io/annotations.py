@@ -21,6 +21,11 @@ formatter = logging.Formatter(
 h1.setFormatter(formatter)
 log.addHandler(h1)
 
+DEFAULT_LABELS = [
+    'background', 'NROI', '3+3', '3+4', '4+3', '4+4', '4+5', '5+5'
+]
+
+
 
 class Annotation(ABC):
 
@@ -34,7 +39,7 @@ class Annotation(ABC):
 
 class XMLAnnotation(Annotation):
 
-    def __init__(self, annotation_file, annotation_labels):
+    def __init__(self, annotation_file, annotation_labels=DEFAULT_LABELS):
         """
             annotation_file (path): path to XML annotation file
             annotation_labels (list): list of label names
@@ -153,7 +158,7 @@ class XMLAnnotation(Annotation):
 
 class CSVAnnotation(XMLAnnotation):
 
-    def __init__(self, annotation_file, annotation_labels):
+    def __init__(self, annotation_file, annotation_labels=DEFAULT_LABELS):
         """
             annotation_file (path): path to CSV annotation file
             annotation_labels (list): list of label names
@@ -206,7 +211,7 @@ class CSVAnnotation(XMLAnnotation):
 
 class ImageAnnotation(Annotation):
 
-    def __init__(self, annotation_file, annotation_labels):
+    def __init__(self, annotation_file, annotation_labels=DEFAULT_LABELS):
         super().__init__()
         self.annotation_file = annotation_file
         self.annotation_labels = annotation_labels

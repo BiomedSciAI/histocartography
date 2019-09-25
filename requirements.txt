@@ -7,6 +7,6 @@ opencv-python
 Pillow
 plac==1.0.0
 scipy
-torch
+torch>=1.2.0
 tensorflow
 keras

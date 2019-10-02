@@ -55,3 +55,6 @@ and then, start your runs with your parameters
 ```sh
  mlflow run fra_gleason2019/ -P batch_size=10 -P epochs=1 
 ```
+
+Check your live(!) results at: 
+[http://experiments.traduce.zc2.ibm.com:5000/#/](http://experiments.traduce.zc2.ibm.com:5000/#/)

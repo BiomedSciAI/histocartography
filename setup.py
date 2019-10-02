@@ -123,7 +123,7 @@ class develop(_develop):
         _develop.run(self)
 
 
-scripts = ['bin/training_script']
+scripts = []
 
 # TODO: Update these values according to the name of the module.
 setup(

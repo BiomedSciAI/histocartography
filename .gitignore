@@ -105,6 +105,10 @@ venv.bak/
 
 #vscode
 .vscode/
+
+#data and tests
+data/
+mlruns/
 tmp/
 *.tif
 *.xml

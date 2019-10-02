@@ -40,8 +40,6 @@ For example:
 ```
 name: fra_gleason2019 project
 
-conda_env: conda.yml
-
 entry_points:
   main:
     parameters:

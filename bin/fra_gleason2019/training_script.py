@@ -194,12 +194,12 @@ def main(arguments):
     # mlflow set a tag
     mlflow.set_tag('label_folder', label_folder)
     # mlflow log parameters
-    mlflow.log_params({
-        'number_of_workers': NUMBER_OF_WORKERS,
-        'seed': SEED,
-        'batch_size': BATCH_SIZE,
-        'learning_rate': LEARNING_RATE
-    })
+    # mlflow.log_params({
+    #     'number_of_workers': NUMBER_OF_WORKERS,
+    #     'seed': SEED,
+    #     'batch_size': BATCH_SIZE,
+    #     'learning_rate': LEARNING_RATE
+    # })
 
     # brontes model is initialized with base_model, optimizer, loss,
     # data_loaders. Optionally a dict of metrics functions and a

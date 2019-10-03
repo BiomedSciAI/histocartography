@@ -236,6 +236,13 @@ class ImageAnnotation(Annotation):
             mask = cv2.resize(region, (size[0], size[1]))
         except:
             log.warning('Could not resize patch')
+            log.debug(f'FILE: {self.annotation_file}')
+            log.debug(f'FULL SIZE: {self.mask_annotated.shape}')
+            log.debug(f'REGION SHAPE: {region.shape}')
+            log.debug(f'SIZE: {size}')
+            log.debug(f'ORIGIN: {origin}')
+            log.debug(f'ORIGINAL SIZE: {original_size}')
+            log.debug(f'SELECTED_DOWNSAMPLE: {selected_downsample}')
             mask = np.zeros(size)
 
         return mask

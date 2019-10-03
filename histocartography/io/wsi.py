@@ -311,8 +311,8 @@ class WSI:
         level = self.stack.get_best_level_for_downsample(downsample)
         horiz_step = int(stride[0] * downsample)
         vert_step = int(stride[1] * downsample)
-        x_positions = np.arange(origin[0], full_width, horiz_step)
-        y_positions = np.arange(origin[1], full_height, vert_step)
+        x_positions = np.arange(origin[0], full_height, horiz_step)
+        y_positions = np.arange(origin[1], full_width, vert_step)
 
         log.debug('Level for desired resolution : %s', level)
         log.debug('Step size : %s %s', horiz_step, vert_step)

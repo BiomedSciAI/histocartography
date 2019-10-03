@@ -290,8 +290,14 @@ class WSI:
         patch_labels = np.zeros(size, dtype=np.uint8)
         if self.annotations is not None:
             patch_labels = self.annotations.mask(size, (x, y), downsample)
+        try:
+            region = np.array(self.stack.read_region((x, y), level, size))
+        except OSError:
+            log.warning(
+                f'Patch error at {x},{y} of size {size} from {self.wsi_file}'
+            )
+            region = np.zeros((size[0], size[1], 3), dtype=np.uint8)
 
-        region = np.array(self.stack.read_region((x, y), level, size))
         patch_labels = self.annotations.mask(size, (x, y), downsample)
         return region, patch_labels
 

@@ -49,6 +49,13 @@ parser.add_argument(
     required=False
 )
 parser.add_argument(
+    '--bucket',
+    type=str,
+    help='s3 bucket',
+    default='test-data',
+    required=False
+)
+parser.add_argument(
     '-p',
     '--number_of_workers',
     type=int,
@@ -101,6 +108,7 @@ def main(arguments):
     """
     # create aliases
     DATA_PATH = arguments.data_path
+    BUCKET = arguments.bucket
     DATASET = arguments.dataset
     NUMBER_OF_WORKERS = arguments.number_of_workers
     MODEL_NAME = arguments.model_name
@@ -119,7 +127,7 @@ def main(arguments):
 
     # data loaders for the GLEASON 2019 dataset
     utils.download_s3_dataset(
-        utils.get_s3(), 'curated-datasets', DATASET, DATA_PATH
+        utils.get_s3(), BUCKET, DATASET, DATA_PATH
     )
     # Get a list of all images
     all_img_files = glob.glob(

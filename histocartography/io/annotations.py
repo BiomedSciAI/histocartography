@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('Histocartography::IO::Annotations')
 h1 = logging.StreamHandler(sys.stdout)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
@@ -232,6 +232,17 @@ class ImageAnnotation(Annotation):
                                      original_size[0], origin[1]:origin[1] +
                                      original_size[1]]
 
-        mask = cv2.resize(region, (size[0], size[1]))
+        try:
+            mask = cv2.resize(region, (size[0], size[1]))
+        except:
+            log.warning('Could not resize patch')
+            log.debug(f'FILE: {self.annotation_file}')
+            log.debug(f'FULL SIZE: {self.mask_annotated.shape}')
+            log.debug(f'REGION SHAPE: {region.shape}')
+            log.debug(f'SIZE: {size}')
+            log.debug(f'ORIGIN: {origin}')
+            log.debug(f'ORIGINAL SIZE: {original_size}')
+            log.debug(f'SELECTED_DOWNSAMPLE: {selected_downsample}')
+            mask = np.zeros(size)
 
         return mask

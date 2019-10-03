@@ -19,6 +19,21 @@ before_install:
 - cd ..
 - sudo apt-get install libopencv-dev python-opencv
 - sudo apt-get install python3-openslide
+- sudo apt-get update
+# We do this conditionally because it saves us some downloading if the
+# version is the same.
+- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+    wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+  else
+    wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  fi
+- bash miniconda.sh -b -p $HOME/miniconda
+- source "$HOME/miniconda/etc/profile.d/conda.sh"
+- hash -r
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+# Useful for debugging any issues with conda
+- conda info -a
 install:
 - pip3 install -U pip
 - pip3 install --progress-bar off -r requirements.txt
@@ -26,9 +41,12 @@ install:
 script:
 - python3 -c "import histocartography"
 - python3 -c "import cv2 as cv"
-- bin/training_script -h
 - python3 -m unittest discover  -v
-- docker build -t histocartography:test .
-- docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
+# And now, make travis train
+- export MLFLOW_TRACKING_URI=http://experiments.traduce.zc2.ibm.com:5000                
+- export MLFLOW_S3_ENDPOINT_URL=http://data.digital-pathology.zc2.ibm.com:9000
+- mlflow run bin/fra_gleason2019
+#- docker build -t histocartography:test .
+#- docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
 notifications:
   slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg

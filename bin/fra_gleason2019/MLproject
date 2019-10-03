@@ -1,0 +1,11 @@
+name: fra_gleason2019 project
+
+conda_env: conda.yml
+
+entry_points:
+  main:
+    parameters:
+      batch_size: {type: int, default: 25}
+      epochs: {type: int, default: 1}
+      learning_rate: {type: float, default: 1e-5}
+    command: "python3 training_script.py -b {batch_size} -l {learning_rate} --epochs {epochs}"

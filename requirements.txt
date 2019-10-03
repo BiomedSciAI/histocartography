@@ -7,6 +7,9 @@ opencv-python
 Pillow
 plac==1.0.0
 scipy
-torch>=1.2.0
+torch
 tensorflow
 keras
+mlflow
+pytorch-lightning==0.4.8
+brontes

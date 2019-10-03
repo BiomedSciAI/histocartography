@@ -257,39 +257,24 @@ class WSI:
             If False (default) a patch of zeroes will be returned
 
         """
+
         full_width = self.stack.level_dimensions[0][0]
         full_height = self.stack.level_dimensions[0][1]
-        selected_downsample = self.mag / mag
-        level = self.stack.get_best_level_for_downsample(selected_downsample)
-        horiz_step = int(stride[0] * selected_downsample)
-        vert_step = int(stride[1] * selected_downsample)
-        patch_x_positions = np.arange(origin[0], full_width, horiz_step)
-        patch_y_positions = np.arange(origin[1], full_height, vert_step)
+
+        downsample, level, xy_positions = self.patch_positions(
+            origin, size, stride, mag
+        )
 
         tissue_threshold = self.tissue_threshold()
 
-        log.debug('Level for desired resolution : %s', level)
-        log.debug('Step size : %s %s', horiz_step, vert_step)
-        log.debug(
-            'Num Patches : %s %s', len(patch_x_positions),
-            len(patch_y_positions)
-        )
+        for x, y in xy_positions:
 
-        if shuffle:
-            patch_x_positions = np.random.shuffle(patch_x_positions)
-            patch_y_positions = np.random.shuffle(patch_y_positions)
+            x_mag = int(x / downsample)
+            y_mag = int(y / downsample)
 
-        for x, y in itertools.product(patch_x_positions, patch_y_positions):
-            if annotations is False or self.annotations is None:
-                patch_labels = np.zeros(size, dtype=np.uint8)
-            else:
-                patch_labels = self.annotations.mask(
-                    size, (x, y), selected_downsample
-                )
-            x_mag = int(x / selected_downsample)
-            y_mag = int(y / selected_downsample)
-
-            region = np.array(self.stack.read_region((x, y), level, size))
+            region, patch_labels = self.get_patch_with_labels(
+                downsample, level, (x, y), size
+            )
             gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
             tissue_pixels = np.sum(np.where(gray < tissue_threshold))
             # log.debug("Region %s,%s has %s pixels ratio", x, y,
@@ -299,3 +284,40 @@ class WSI:
                     x, y, full_width, full_height, x_mag, y_mag, region,
                     patch_labels
                 )
+
+    def get_patch_with_labels(self, downsample, level, xy_position, size):
+        x, y = xy_position
+        patch_labels = np.zeros(size, dtype=np.uint8)
+        if self.annotations is not None:
+            patch_labels = self.annotations.mask(size, (x, y), downsample)
+        try:
+            region = np.array(self.stack.read_region((x, y), level, size))
+        except OSError:
+            log.warning(
+                f'Patch error at {x},{y} of size {size} from {self.wsi_file}'
+            )
+            region = np.zeros((size[0], size[1], 3), dtype=np.uint8)
+
+        patch_labels = self.annotations.mask(size, (x, y), downsample)
+        return region, patch_labels
+
+    def patch_positions(
+        self, origin=(0, 0), size=(128, 128), stride=(128, 128), mag=5
+    ):
+
+        full_width = self.stack.level_dimensions[0][0]
+        full_height = self.stack.level_dimensions[0][1]
+        downsample = self.mag / mag
+        level = self.stack.get_best_level_for_downsample(downsample)
+        horiz_step = int(stride[0] * downsample)
+        vert_step = int(stride[1] * downsample)
+        x_positions = np.arange(origin[0], full_height, horiz_step)
+        y_positions = np.arange(origin[1], full_width, vert_step)
+
+        log.debug('Level for desired resolution : %s', level)
+        log.debug('Step size : %s %s', horiz_step, vert_step)
+        log.debug('Num Patches : %s %s', len(x_positions), len(y_positions))
+
+        xy_positions = list(itertools.product(x_positions, y_positions))
+
+        return downsample, level, xy_positions

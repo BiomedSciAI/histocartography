@@ -99,6 +99,29 @@ parser.add_argument(
     required=False
 )
 
+parser.add_argument(
+    '--unet_depth',
+    type=int,
+    help='depth of UNet',
+    default=5,
+    required=False
+)
+
+parser.add_argument(
+    '--filters',
+    type=int,
+    help='initial number of filters for UNet',
+    default=16,
+    required=False
+)
+
+parser.add_argument(
+    '--patch_size',
+    type=int,
+    help='Patch Size',
+    default=128,
+    required=False
+)
 
 def main(arguments):
     """
@@ -116,6 +139,9 @@ def main(arguments):
     BATCH_SIZE = arguments.batch_size
     EPOCHS = arguments.epochs
     LEARNING_RATE = arguments.learning_rate
+    UNET_DEPTH = arguments.unet_depth
+    FILTERS = arguments.filters
+    PATCH_SIZE = arguments.patch_size
 
     # make sure the data folder exists
     os.makedirs(DATA_PATH, exist_ok=True)
@@ -163,7 +189,7 @@ def main(arguments):
 
     full_dataset = torch.utils.data.ConcatDataset(
         [
-            WSIPatchSegmentationDataset(image, label, (128, 128), (128, 128))
+            WSIPatchSegmentationDataset(image, label, (PATCH_SIZE, PATCH_SIZE), (PATCH_SIZE, PATCH_SIZE))
             for label, image in pairs
         ]
     )
@@ -191,7 +217,8 @@ def main(arguments):
     }
 
     # definition of base model
-    base_model = UNet()
+    number_of_filters = [FILTERS * pow(2,level) for level in range(DEPTH) ]
+    base_model = UNet(number_of_filters=number_of_filters)
 
     optimizer = torch.optim.Adam(
         base_model.parameters(),

@@ -193,7 +193,7 @@ def main(arguments):
     # definition of base model
     base_model = UNet()
 
-    optimizer = torch.optim.SGD(
+    optimizer = torch.optim.Adam(
         base_model.parameters(),
         lr=LEARNING_RATE
     )
@@ -221,7 +221,8 @@ def main(arguments):
     )
 
     # finally, train the model
-    trainer = pl.Trainer(max_nb_epochs=EPOCHS)
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    trainer = pl.Trainer(gpus=[0], max_nb_epochs=EPOCHS)
     trainer.fit(brontes_model)
 
     # save the model to tmp and log it as an mlflow artifact

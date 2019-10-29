@@ -217,7 +217,7 @@ def main(arguments):
     }
 
     # definition of base model
-    number_of_filters = [FILTERS * pow(2,level) for level in range(DEPTH) ]
+    number_of_filters = [FILTERS * pow(2,level) for level in range(UNET_DEPTH) ]
     base_model = UNet(number_of_filters=number_of_filters)
 
     optimizer = torch.optim.Adam(

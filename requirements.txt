@@ -3,7 +3,7 @@ boto3
 lxml
 numpy
 openslide-python
-opencv-python
+#opencv-python
 Pillow
 plac==1.0.0
 scipy
@@ -11,5 +11,5 @@ torch
 tensorflow
 keras
 mlflow
-pytorch-lightning==0.4.8
+pytorch-lightning==0.4.0
 brontes

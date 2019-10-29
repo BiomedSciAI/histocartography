@@ -193,10 +193,9 @@ def main(arguments):
     # definition of base model
     base_model = UNet()
 
-    optimizer = torch.optim.Adam(
+    optimizer = torch.optim.SGD(
         base_model.parameters(),
-        lr=LEARNING_RATE,
-        weight_decay=1e-5  # standard value
+        lr=LEARNING_RATE
     )
 
     # mlflow set a tag

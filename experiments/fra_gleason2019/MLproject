@@ -5,7 +5,13 @@ conda_env: conda.yml
 entry_points:
   main:
     parameters:
+      data_path: {type: string, default: data/}
+      dataset: {type: string, default: prostate/TMA/gleason2019}
+      bucket: {type: string, default: test-data}
+      number_of_workers: {type: int, default: 1}
+      model_name: {type string, default: model}
+      seed: {type: int, default: 42}
       batch_size: {type: int, default: 25}
       epochs: {type: int, default: 1}
       learning_rate: {type: float, default: 1e-5}
-    command: "python3 training_script.py -b {batch_size} -l {learning_rate} --epochs {epochs}"
+    command: "python3 training_script.py --bucket {bucket} -t {dataset} -d {data_path} --number_of_workers {number_of_workers} -n {model_name} -s {seed} -b {batch_size} -l {learning_rate} --epochs {epochs}"

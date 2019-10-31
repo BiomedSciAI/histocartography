@@ -275,11 +275,13 @@ class WSI:
             region, patch_labels = self.get_patch_with_labels(
                 downsample, level, (x, y), size
             )
+            num_pixels = size[0]*size[1]
             gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
-            tissue_pixels = np.sum(np.where(gray < tissue_threshold))
-            # log.debug("Region %s,%s has %s pixels ratio", x, y,
-            #           tissue_pixels / region.size)
-            if tissue_pixels > self.minimum_tissue_content:
+            tissue_pixels = np.count_nonzero(np.where(gray < tissue_threshold))
+            log.debug(f'THRESHOLD: {tissue_threshold}  -- Darkest: {np.min(gray)}, Brightest: {np.max(gray)}, Average: {np.mean(gray)}')
+
+            log.debug("Region %s,%s has %s pixels ratio", x, y, tissue_pixels / num_pixels)
+            if tissue_pixels/num_pixels > self.minimum_tissue_content:
                 yield (
                     x, y, full_width, full_height, x_mag, y_mag, region,
                     patch_labels

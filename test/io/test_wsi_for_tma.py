@@ -66,7 +66,7 @@ class CoreTestCase(unittest.TestCase):
     def test_patches(self):
         """Test patches"""
         patch_generator = self.wsi.patches(
-            size=(1024, 1024), stride=(512, 512), annotations=False, mag=1
+            size=(512, 512), stride=(512, 512), annotations=False, mag=1
         )
         num_patches = 0
         for patch in patch_generator:

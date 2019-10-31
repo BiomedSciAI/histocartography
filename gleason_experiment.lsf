@@ -1,4 +1,4 @@
-#BSUB -q prod.short
+#BSUB -q prod.long
 #BSUB -n 1
 #BSUB -R "rusage [ngpus_excl_p=1] select[hname != zhcc015]"
 #BSUB -J "gleason"
@@ -16,12 +16,12 @@ DATASET=prostate/TMA/gleason2019
 NUMBER_OF_WORKERS=8
 MODEL_NAME=default
 SEED=42
-BATCH_SIZE=5
-EPOCHS=10
-LEARNING_RATE=1e-3
-UNET_DEPTH=5
-FILTERS=32
-PATCH_SIZE=128
+BATCH_SIZE=10
+EPOCHS=20
+LEARNING_RATE=1e-6
+UNET_DEPTH=4
+FILTERS=16
+PATCH_SIZE=512
 
 source /u/fra/.set_environment_variables
 

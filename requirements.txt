@@ -3,7 +3,7 @@ boto3
 lxml
 numpy
 openslide-python
-#opencv-python
+opencv-python
 Pillow
 plac==1.0.0
 scipy

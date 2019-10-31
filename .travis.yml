@@ -37,6 +37,7 @@ before_install:
 install:
 - pip3 install -U pip
 - pip3 install --progress-bar off --no-deps pytorch_lightning==0.4.8
+- pip3 install --progress-bar off boto3
 - pip3 install --progress-bar off -r requirements.txt
 - pip3 install .
 script:

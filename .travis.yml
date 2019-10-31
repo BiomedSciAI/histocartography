@@ -36,6 +36,8 @@ before_install:
 - conda info -a
 install:
 - pip3 install -U pip
+- pip3 install --progress-bar off --no-deps pytorch_lightning==0.4.8
+- pip3 install --progress-bar off boto3 tqdm>=4.35.0 
 - pip3 install --progress-bar off -r requirements.txt
 - pip3 install .
 script:
@@ -45,7 +47,7 @@ script:
 # And now, make travis train
 - export MLFLOW_TRACKING_URI=http://experiments.traduce.zc2.ibm.com:5000                
 - export MLFLOW_S3_ENDPOINT_URL=http://data.digital-pathology.zc2.ibm.com:9000
-- mlflow run experiments/fra_gleason2019
+- mlflow run --no-conda experiments/fra_gleason2019 -P bucket=test-data -P epochs=1
 #- docker build -t histocartography:test .
 #- docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
 notifications:

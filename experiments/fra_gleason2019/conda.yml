@@ -5,10 +5,8 @@ dependencies:
   - pip:
     - torch>=1.1.0
     - torchvision>=0.2.2
-    - pytorch-lightning==0.4.8
+    - pytorch-lightning==0.4.8 --no-deps
     - mlflow>=1.2.0
     - tqdm>=4.35.0
-    - flake8>=3.7.8
-    - yapf>=0.28.0
     - boto3
     - -e ../../ # install histocartography in editable mode

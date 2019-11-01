@@ -98,7 +98,16 @@ class WSI:
             self.mag = float(self.openslide_mag)
             self.downsamples = np.rint(self.stack.level_downsamples
                                        ).astype(int)
+        elif self.vendor == 'phillips' or self.vendor == 'philips':
+            log.warning('Phillips WSI. Magnification might be incorrect')
+            magnification_x = 40 * float(properties['openslide.mpp-x']) / 0.25
+            magnification_y = 40 * float(properties['openslide.mpp-y']) / 0.25
+            self.mag = np.mean([magnification_x, magnification_y])
+            self.vendor_mag = self.mag
+            self.downsamples = np.rint(self.stack.level_downsamples
+                                       ).astype(int)
         else:
+            log.warning('NOT SAFE VENDOR. Magnification might be incorrect')
             self.mag = 1
             self.vendor_mag = 1
             self.downsamples = np.asarray([1])
@@ -275,13 +284,18 @@ class WSI:
             region, patch_labels = self.get_patch_with_labels(
                 downsample, level, (x, y), size
             )
-            num_pixels = size[0]*size[1]
+            num_pixels = size[0] * size[1]
             gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
-            tissue_pixels = np.count_nonzero(np.where(gray < tissue_threshold))
-            log.debug(f'THRESHOLD: {tissue_threshold}  -- Darkest: {np.min(gray)}, Brightest: {np.max(gray)}, Average: {np.mean(gray)}')
+            tissue_pixels = np.sum(gray < tissue_threshold)
+            # log.debug(
+            #     f'THRESHOLD: {tissue_threshold}  -- Darkest: {np.min(gray)}, Brightest: {np.max(gray)}, Average: {np.mean(gray)}'
+            # )
 
-            log.debug("Region %s,%s has %s pixels ratio", x, y, tissue_pixels / num_pixels)
-            if tissue_pixels/num_pixels > self.minimum_tissue_content:
+            log.debug(
+                "Region %s,%s has %s pixels ratio", x, y,
+                tissue_pixels / num_pixels
+            )
+            if tissue_pixels / num_pixels >= self.minimum_tissue_content:
                 yield (
                     x, y, full_width, full_height, x_mag, y_mag, region,
                     patch_labels
@@ -293,14 +307,17 @@ class WSI:
         if self.annotations is not None:
             patch_labels = self.annotations.mask(size, (x, y), downsample)
         try:
-            region = np.array(self.stack.read_region((x, y), level, size))
+            region = np.array(
+                self.stack.read_region((x, y), level, size).convert("RGB")
+            )
+            #region = cv2.cvtColor(region, cv2.COLOR_RGBA2RGB)
         except OSError:
             log.warning(
                 f'Patch error at {x},{y} of size {size} from {self.wsi_file}'
             )
             region = np.zeros((size[0], size[1], 3), dtype=np.uint8)
 
-        patch_labels = self.annotations.mask(size, (x, y), downsample)
+        #patch_labels = self.annotations.mask(size, (x, y), downsample)
         return region, patch_labels
 
     def patch_positions(
@@ -310,16 +327,26 @@ class WSI:
         full_width = self.stack.level_dimensions[0][0]
         full_height = self.stack.level_dimensions[0][1]
         downsample = self.mag / mag
+        log.debug(f'Desired Magnification is: {mag}')
+        log.debug(f'Downsample required would  be: {downsample}')
         level = self.stack.get_best_level_for_downsample(downsample)
+        downsample = self.downsamples[level]
+        log.debug(f'Actual Magnification is: {self.available_mags[level]}')
+        log.debug(f'Downsample required would  be: {downsample}')
+
+        if (origin[0] % downsample != 0) or (origin[1] % downsample != 0):
+            log.warning(f'Origin {origin} is not a multiple of {downsample}!!')
+
         horiz_step = int(stride[0] * downsample)
         vert_step = int(stride[1] * downsample)
-        x_positions = np.arange(origin[0], full_height, horiz_step)
-        y_positions = np.arange(origin[1], full_width, vert_step)
+        x_positions = np.arange(origin[0], full_width, horiz_step)
+        y_positions = np.arange(origin[1], full_height, vert_step)
+        xy_positions = list(itertools.product(x_positions, y_positions))
 
         log.debug('Level for desired resolution : %s', level)
         log.debug('Step size : %s %s', horiz_step, vert_step)
         log.debug('Num Patches : %s %s', len(x_positions), len(y_positions))
+        log.debug(f'Positions: {xy_positions}')
 
-        xy_positions = list(itertools.product(x_positions, y_positions))
 
         return downsample, level, xy_positions

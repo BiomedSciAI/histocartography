@@ -21,24 +21,12 @@ class CoreTestCase(unittest.TestCase):
         self.s3_resource = get_s3()
         self.filename = download_file_to_local(
             s3=self.s3_resource,
-            bucket_name='datasets',
-            s3file='prostate/biopsy_data_all/77/77.tif',
-            local_name='tmp/00_biopsy.tif'
+            bucket_name='test-data',
+            s3file='tumor_105.tif',
+            local_name='tmp/philips_00_biopsy.tif'
         )
-
-        self.annotation_file = download_file_to_local(
-            s3=self.s3_resource,
-            bucket_name='datasets',
-            s3file='prostate/biopsy_data_all/77/77.xml',
-            local_name='tmp/01_biopsy.xml'
-        )
-        annotations = XMLAnnotation(
-            self.annotation_file,
-            ['background', 'NROI', '3+3', '3+4', '4+3', '4+4', '4+5', '5+5']
-        )
-
-        self.wsi = WSI(self.filename, annotations)
-        #self.wsi = WSI('/Users/fra/Downloads/tumor_105.tif', annotations, minimum_tissue_content=-100)
+        self.wsi = WSI(self.filename, minimum_tissue_content=0)
+        
     def test_image_at(self):
         """Test image_at."""
         self.wsi.image_at(1)
@@ -46,17 +34,17 @@ class CoreTestCase(unittest.TestCase):
 
         image2_5x = self.wsi.image_at(0.5)
         self.assertAlmostEqual(0.5, self.wsi.current_mag)
-        Image.fromarray(image2_5x).save("tmp/02_biopsy_0.5x.png")
+        Image.fromarray(image2_5x).save("tmp/philips_02_biopsy_0.5x.png")
 
     def test_tissue_mask(self):
         """Test tissue_mask_at."""
         tissue_mask = self.wsi.tissue_mask_at(0.5)
-        Image.fromarray(tissue_mask).save("tmp/03_tissue_mask_0.5x.png")
+        Image.fromarray(tissue_mask).save("tmp/philips_03_tissue_mask_0.5x.png")
 
     def test_patches(self):
         """Test patches"""
         patch_generator = self.wsi.patches(
-            size=(256, 256), stride=(256, 256), annotations=True, mag=1
+            size=(256, 256), stride=(256, 256), annotations=False, mag=1
         )
         num_patches = 0
         for patch in patch_generator:
@@ -64,10 +52,8 @@ class CoreTestCase(unittest.TestCase):
             if np.max(labels) > 0:
                 labels = np.uint8(labels * 255 / np.max(labels))
 
-            imagename = "tmp/patches/_{}x{}_image.png".format(loc_x, loc_y)
-            labelname = "tmp/patches/_{}x{}_labels.png".format(loc_x, loc_y)
+            imagename = "tmp/patches/philips_{}x{}_image.png".format(loc_x, loc_y)
             Image.fromarray(image).save(imagename)
-            Image.fromarray(labels).save(labelname)
             num_patches += 1
 
         print("Total number of patches: {}".format(num_patches))

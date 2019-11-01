@@ -275,7 +275,7 @@ class WSI:
         )
 
         tissue_threshold = self.tissue_threshold()
-
+        num_pixels = size[0] * size[1]
         for x, y in xy_positions:
 
             x_mag = int(x / downsample)
@@ -284,22 +284,31 @@ class WSI:
             region, patch_labels = self.get_patch_with_labels(
                 downsample, level, (x, y), size
             )
-            num_pixels = size[0] * size[1]
-            gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
-            tissue_pixels = np.sum(gray < tissue_threshold)
             # log.debug(
             #     f'THRESHOLD: {tissue_threshold}  -- Darkest: {np.min(gray)}, Brightest: {np.max(gray)}, Average: {np.mean(gray)}'
             # )
+            tissue_ratio = self._calculate_tissue_ratio(region, tissue_threshold, num_pixels)
+            #log.debug(
+            #    "Region {},{} has {:.2f} pixels ratio".format(x, y,
+            #    tissue_ratio
+            #))
 
-            log.debug(
-                "Region %s,%s has %s pixels ratio", x, y,
-                tissue_pixels / num_pixels
-            )
-            if tissue_pixels / num_pixels >= self.minimum_tissue_content:
+            #if tissue_pixels / num_pixels >= self.minimum_tissue_content:
+            if  tissue_ratio >= self.minimum_tissue_content:
                 yield (
                     x, y, full_width, full_height, x_mag, y_mag, region,
                     patch_labels
                 )
+    def _calculate_tissue_ratio(self, region, tissue_threshold, num_pixels):
+        kernel = np.ones((7,7),np.uint8)
+        gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
+        th, thresholded = cv2.threshold(gray,
+                                        tissue_threshold,
+                                        255,
+                                        cv2.THRESH_BINARY)
+        closed_region = cv2.morphologyEx(thresholded, cv2.MORPH_OPEN, kernel)
+        tissue_pixels = np.sum(closed_region < tissue_threshold)
+        return tissue_pixels / num_pixels
 
     def get_patch_with_labels(self, downsample, level, xy_position, size):
         x, y = xy_position
@@ -316,7 +325,7 @@ class WSI:
                 f'Patch error at {x},{y} of size {size} from {self.wsi_file}'
             )
             region = np.zeros((size[0], size[1], 3), dtype=np.uint8)
-
+        region[np.all(region == [0, 0, 0], axis=-1)] = 255
         #patch_labels = self.annotations.mask(size, (x, y), downsample)
         return region, patch_labels
 
@@ -346,7 +355,7 @@ class WSI:
         log.debug('Level for desired resolution : %s', level)
         log.debug('Step size : %s %s', horiz_step, vert_step)
         log.debug('Num Patches : %s %s', len(x_positions), len(y_positions))
-        log.debug(f'Positions: {xy_positions}')
+        #log.debug(f'Positions: {xy_positions}')
 
 
         return downsample, level, xy_positions

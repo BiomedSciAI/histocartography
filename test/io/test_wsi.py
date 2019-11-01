@@ -37,8 +37,8 @@ class CoreTestCase(unittest.TestCase):
             ['background', 'NROI', '3+3', '3+4', '4+3', '4+4', '4+5', '5+5']
         )
 
-        self.wsi = WSI(self.filename, annotations)
-
+        #self.wsi = WSI(self.filename, annotations)
+        self.wsi = WSI('/Users/fra/Downloads/tumor_105.tif', annotations)
     def test_image_at(self):
         """Test image_at."""
         self.wsi.image_at(5)

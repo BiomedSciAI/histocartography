@@ -98,7 +98,16 @@ class WSI:
             self.mag = float(self.openslide_mag)
             self.downsamples = np.rint(self.stack.level_downsamples
                                        ).astype(int)
+        elif self.vendor == 'phillips' or self.vendor == 'philips':
+            log.warning('Phillips WSI. Magnification might be incorrect')
+            magnification_x = 40 * float(properties['openslide.mpp-x']) / 0.25
+            magnification_y = 40 * float(properties['openslide.mpp-y']) / 0.25
+            self.mag = np.mean([magnification_x, magnification_y])
+            self.vendor_mag = self.mag
+            self.downsamples = np.rint(self.stack.level_downsamples
+                                       ).astype(int)
         else:
+            log.warning('NOT SAFE VENDOR. Magnification might be incorrect')
             self.mag = 1
             self.vendor_mag = 1
             self.downsamples = np.asarray([1])
@@ -275,13 +284,18 @@ class WSI:
             region, patch_labels = self.get_patch_with_labels(
                 downsample, level, (x, y), size
             )
-            num_pixels = size[0]*size[1]
+            num_pixels = size[0] * size[1]
             gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
-            tissue_pixels = np.count_nonzero(np.where(gray < tissue_threshold))
-            log.debug(f'THRESHOLD: {tissue_threshold}  -- Darkest: {np.min(gray)}, Brightest: {np.max(gray)}, Average: {np.mean(gray)}')
+            tissue_pixels = np.sum(gray < tissue_threshold)
+            log.debug(
+                f'THRESHOLD: {tissue_threshold}  -- Darkest: {np.min(gray)}, Brightest: {np.max(gray)}, Average: {np.mean(gray)}'
+            )
 
-            log.debug("Region %s,%s has %s pixels ratio", x, y, tissue_pixels / num_pixels)
-            if tissue_pixels/num_pixels > self.minimum_tissue_content:
+            log.debug(
+                "Region %s,%s has %s pixels ratio", x, y,
+                tissue_pixels / num_pixels
+            )
+            if tissue_pixels / num_pixels > self.minimum_tissue_content:
                 yield (
                     x, y, full_width, full_height, x_mag, y_mag, region,
                     patch_labels
@@ -293,14 +307,15 @@ class WSI:
         if self.annotations is not None:
             patch_labels = self.annotations.mask(size, (x, y), downsample)
         try:
-            region = np.array(self.stack.read_region((x, y), level, size))
+            region = np.array(self.stack.read_region((x, y), level, size).convert("RGB"))
+            #region = cv2.cvtColor(region, cv2.COLOR_RGBA2RGB)
         except OSError:
             log.warning(
                 f'Patch error at {x},{y} of size {size} from {self.wsi_file}'
             )
             region = np.zeros((size[0], size[1], 3), dtype=np.uint8)
 
-        patch_labels = self.annotations.mask(size, (x, y), downsample)
+        #patch_labels = self.annotations.mask(size, (x, y), downsample)
         return region, patch_labels
 
     def patch_positions(

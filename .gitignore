@@ -115,3 +115,4 @@ tmp/
 *.png
 *.hdf5
 *.json
+.DS_Store

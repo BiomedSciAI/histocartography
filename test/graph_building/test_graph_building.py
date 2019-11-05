@@ -21,7 +21,6 @@ class GNNTestCase(unittest.TestCase):
 
         graph_builder_type = config[GRAPH_BUILDING_TYPE]
         if graph_builder_type in list(AVAILABLE_GRAPH_BUILDERS.keys()):
-            print('sdfadf', GRAPH_BUILDING_MODULE.format(graph_builder_type))
             module = importlib.import_module(
                 GRAPH_BUILDING_MODULE.format(graph_builder_type)
             )

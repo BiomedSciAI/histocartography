@@ -8,7 +8,7 @@ class KNNGraphBuilder(BaseGraphBuilder):
 
     def __init__(self, config, cuda=False, verbose=False):
         """
-        Base Graph Builder constructor.
+        k-NN Graph Builder constructor.
 
         Args:
             config: list of required params to build a graph

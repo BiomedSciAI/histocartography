@@ -6,13 +6,13 @@ from histocartography.ml.layers.gnn import GINLayer
 
 
 class GNNTestCase(unittest.TestCase):
-    """CoreTestCase class."""
+    """GNNTestCase class."""
 
     def setUp(self):
         """Setting up the test."""
 
-    def test_download_file_to_local(self):
-        """Test download_file_to_local()."""
+    def test_gnn(self):
+        """Test gnn."""
         gnn_model = GINLayer(
             16,
             32,

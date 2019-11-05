@@ -6,13 +6,13 @@ from histocartography.ml.layers.mlp import MLP
 
 
 class MLPTestCase(unittest.TestCase):
-    """CoreTestCase class."""
+    """MLPTestCase class."""
 
     def setUp(self):
         """Setting up the test."""
 
-    def test_download_file_to_local(self):
-        """Test download_file_to_local()."""
+    def test_mlp(self):
+        """Test mlp."""
         in_dim = 16
         h_dim = 32
         out_dim = 10

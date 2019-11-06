@@ -5,3 +5,7 @@ GRAPH_BUILDING_MODULE = 'histocartography.graph_building.{}'
 AVAILABLE_GRAPH_BUILDERS = {
     'knn_graph_builder': 'KNNGraphBuilder'
 }
+
+BOX = 'box'
+LABEL = 'label'
+VISUAL = 'visual'

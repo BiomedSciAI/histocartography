@@ -29,4 +29,4 @@ def compute_edge_weight(dist):
         :param dist: normalised distance
     """
     # @TODO check what is the best dist to edge weight normalization.
-    return math.exp(dist)
+    return math.exp(-dist)

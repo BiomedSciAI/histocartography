@@ -3,8 +3,8 @@ import torch
 import dgl
 
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
-from histocartography.graph_building.constants import LABEL, VISUAL, BOX
-from histocartography.utils.vector import compute_box_centroid, compute_l2_distance, compute_edge_weight
+from histocartography.graph_building.constants import LABEL, VISUAL, CENTROID
+from histocartography.utils.vector import compute_l2_distance, compute_edge_weight
 
 
 class KNNGraphBuilder(BaseGraphBuilder):
@@ -29,7 +29,7 @@ class KNNGraphBuilder(BaseGraphBuilder):
         self.config = config
         self.cuda = cuda
 
-    def __call__(self, objects):
+    def __call__(self, objects, image_size):
         """
         Build graph
         Args:
@@ -37,6 +37,7 @@ class KNNGraphBuilder(BaseGraphBuilder):
                 - bbox
                 - label
                 - visual descriptor
+            image_size: (list) weight and height of the image
         """
         num_objects = len(objects)
         graph = dgl.DGLGraph()
@@ -51,9 +52,9 @@ class KNNGraphBuilder(BaseGraphBuilder):
         """
         Build node embeddings
         """
-        graph.ndata[BOX] = torch.LongTensor([obj[BOX] for obj in objects])  # @TODO do box normalization ?
+        graph.ndata[CENTROID] = torch.LongTensor([obj[CENTROID] for obj in objects])
         graph.ndata[LABEL] = torch.LongTensor([obj[LABEL] for obj in objects])
-        graph.ndata[VISUAL] = torch.LongTensor([obj[VISUAL] for obj in objects])
+        # graph.ndata[VISUAL] = torch.LongTensor([obj[VISUAL] for obj in objects])
 
     def _set_edge_embeddings(self, objects, graph):
         """
@@ -65,11 +66,10 @@ class KNNGraphBuilder(BaseGraphBuilder):
         Build topology
         """
         num_objects = len(objects)
-        boxes = [obj[BOX] for obj in objects]
-        centroid = [compute_box_centroid(box) for box in boxes]
+        centroid = [obj[CENTROID] for obj in objects]
         edge_list = []
-        for pair in itertools.combination(range(num_objects), 2):
-            dist = compute_l2_distance(centroid[pair[0], pair[1]])
+        for pair in itertools.combinations(range(num_objects), 2):
+            dist = compute_l2_distance(centroid[pair[0]], centroid[pair[1]])
             edge_weight = compute_edge_weight(dist)
             if edge_weight > self.config['edge_threshold']:
                 edge_list.append(pair)

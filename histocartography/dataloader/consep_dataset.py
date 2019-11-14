@@ -12,7 +12,6 @@ from histocartography.graph_building.constants import (
 )
 
 
-
 class ConsepDataset(BaseDataset):
     """Consep data loader."""
 
@@ -33,9 +32,6 @@ class ConsepDataset(BaseDataset):
         self.is_train = is_train
         self._load_dataset(path)
         self._build_graph_builder(config[GRAPH_BUILDING])
-
-        # check how the data are organised.
-        print(self.segmentation_annotations[0].keys())
 
     def _build_graph_builder(self, config):
         """
@@ -83,9 +79,6 @@ class ConsepDataset(BaseDataset):
                     self.segmentation_annotations[index]['instance_types']))
                ]
         image_size = self.segmentation_annotations[index]['image_dimension']
-
-        print('Annotation:', ann)
-        print('Image size:', image_size)
 
         g = self.graph_builder(ann, image_size)
         image = self.images[index]

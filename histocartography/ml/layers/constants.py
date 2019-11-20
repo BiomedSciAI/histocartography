@@ -13,3 +13,10 @@ GNN_NODE_FEAT_IN = 'feat'
 GNN_NODE_FEAT_OUT = 'gnn_node_feat_out'
 GNN_AGG_MSG = 'gnn_agg_msg'
 GNN_EDGE_WEIGHT = 'gnn_edge_weight'
+
+AVAILABLE_LAYER_TYPES = {
+    'gin_layer': 'GINLayer',
+}
+
+GNN_MODULE = 'histocartography.ml.layers.{}'
+

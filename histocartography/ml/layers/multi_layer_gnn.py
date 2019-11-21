@@ -1,7 +1,8 @@
+import torch
 import torch.nn as nn
 import importlib
 
-from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE
+from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE, GNN_NODE_FEAT_IN
 
 
 class MultiLayerGNN(nn.Module):
@@ -24,10 +25,10 @@ class MultiLayerGNN(nn.Module):
                 )
             )
 
-        in_dim = config['in_dim']
+        in_dim = config['input_dim']
         hidden_dim = config['hidden_dim']
-        out_dim = config['out_dim']
-        num_layers = config['num_layers']
+        out_dim = config['embedding_dim']
+        num_layers = config['n_layers']
         activation = config['activation']
         use_bn = config['use_bn']
         neighbor_pooling_type = config['neighbor_pooling_type']
@@ -42,7 +43,7 @@ class MultiLayerGNN(nn.Module):
             act=activation,
             layer_id=0,
             use_bn=use_bn,
-            neighbor_pooling_type=neighbor_pooling_type)
+            config=config)
         )
         # hidden layers
         for i in range(1, num_layers-1):
@@ -53,7 +54,7 @@ class MultiLayerGNN(nn.Module):
                 act=activation,
                 layer_id=i,
                 use_bn=use_bn,
-                neighbor_pooling_type=neighbor_pooling_type)
+                config=config)
             )
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
@@ -63,11 +64,15 @@ class MultiLayerGNN(nn.Module):
             act=activation,
             layer_id=num_layers-1,
             use_bn=use_bn,
-            neighbor_pooling_type=neighbor_pooling_type)
+            config=config)
         )
 
-    def forward(self, g, features):
-        h = features
+    def forward(self, g, h, cat=False):
+
+        h_concat = [h]
         for layer in self.layers:
             h = layer(g, h)
+            h_concat.append(h)
+        if cat:
+            return torch.cat(h_concat, dim=1)
         return h

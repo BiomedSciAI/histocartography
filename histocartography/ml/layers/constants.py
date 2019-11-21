@@ -16,6 +16,8 @@ GNN_EDGE_WEIGHT = 'gnn_edge_weight'
 
 AVAILABLE_LAYER_TYPES = {
     'gin_layer': 'GINLayer',
+    'diff_pool_layer': 'DiffPoolLayer',
+    'dense_gin_layer': 'DenseGINLayer'
 }
 
 GNN_MODULE = 'histocartography.ml.layers.{}'

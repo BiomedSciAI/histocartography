@@ -24,9 +24,7 @@ class GINLayer(nn.Module):
             act,
             layer_id,
             use_bn=True,
-            eps=None,
-            neighbor_pooling_type='sum',
-            learn_eps=False,
+            config=None,
             verbose=False):
         """
         GIN Layer constructor
@@ -36,15 +34,23 @@ class GINLayer(nn.Module):
         :param act: (str) activation function of the update function
         :param layer_id: (int) layer number
         :param use_bn: (bool) if layer uses batch norm
-        :param eps: (float) value for epsilon (used only if learned)
-        :param neighbor_pooling_type: (str) pooling type. Choose between 'mean' and 'sum'
-        :param learn_eps: (bool) if we learn eps
+        :param config: (dict) optional argument
         :param verbose: (bool) verbosity level
         """
         super(GINLayer, self).__init__()
 
         if verbose:
             print('Creating new GNN layer:')
+
+        if config is not None:
+            eps = config['eps'] if 'eps' in config.keys() else None
+            neighbor_pooling_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys() else 'sum'
+            learn_eps = config['learn_eps'] if 'learn_eps' in config.keys() else None
+        else:
+            eps = None
+            neighbor_pooling_type = 'sum'
+            learn_eps = None
+
         self.mlp = MLP(
             node_dim,
             hidden_dim,
@@ -102,12 +108,14 @@ class GINLayer(nn.Module):
         h = self.mlp(h)
         return {GNN_NODE_FEAT_OUT: h}
 
-    def forward(self, g):
+    def forward(self, g, h):
         """
         Forward-pass of a GIN layer.
         :param g: DGLGraph object. Node features in GNN_NODE_FEAT_IN_KEY
         :return: updated node features
         """
+        g.ndata[GNN_NODE_FEAT_IN] = h
+
         g.update_all(self.msg_fn, self.reduce_fn)
 
         if self.learn_eps:

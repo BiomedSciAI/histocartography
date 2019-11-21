@@ -11,7 +11,7 @@ class MLP(nn.Module):
         in_dim,
         h_dim,
         out_dim,
-        num_layers,
+        num_layers=1,
         act="relu",
         use_bn=False,
         bias=True,
@@ -130,8 +130,8 @@ class MLP(nn.Module):
             self.activation = ACTIVATIONS[act]
         else:
             raise ValueError(
-                'Unsupported type of activation function. Choose among {}'.
-                format(list(ACTIVATIONS.keys()))
+                'Unsupported type of activation function: {}. Choose among {}'.
+                format(act, list(ACTIVATIONS.keys()))
             )
 
     def forward(self, feats):

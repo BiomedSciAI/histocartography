@@ -1,6 +1,7 @@
 """
-Implementation of a GIN (Graph Isomorphism Network) layer.
-In the  implementation the edges can also have weights that can be set as g.edata[GNN_EDGE_WEIGHT] = weight.
+Implementation of a Dense GIN (Graph Isomorphism Network) layer. This implementation should be used
+when the input graph(s) can only be represented as an adjacency (typically when dealing with dense
+adjacency matrices).
 
 Original paper:
     - How Powerful are Graph Neural Networks: https://arxiv.org/abs/1810.00826
@@ -69,13 +70,17 @@ class DenseGINLayer(nn.Module):
         # @TODO implement cat operator.
 
         if self.add_self:
-            adj = adj + torch.eye(adj.size(0)).to(adj.device)
+            adj = adj + torch.eye(adj.size(1)).to(adj.device)
 
         if self.mean:
             adj = adj / adj.sum(1, keepdim=True)
 
         h_k_N = torch.matmul(adj, h)
+        bs, n_nodes, dim = h_k_N.shape
+        h_k_N = h_k_N.view(bs * n_nodes, dim)
+
         h_k = self.mlp(h_k_N)
+        h_k = h_k.view(bs, n_nodes, dim)
         h_k = F.normalize(h_k, dim=2, p=2)
         h_k = F.relu(h_k)
         return h_k

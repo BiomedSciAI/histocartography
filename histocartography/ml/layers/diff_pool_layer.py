@@ -9,43 +9,40 @@ from histocartography.utils.torch import masked_softmax
 class DiffPoolLayer(nn.Module):
 
     def __init__(self,
-                 input_dim,
-                 assign_dim,
-                 output_feat_dim,
-                 activation="relu",
-                 dropout=0.,
-                 aggregator_type="mean"):
+                 config,
+                 layer_id=0):
 
         super(DiffPoolLayer, self).__init__()
-        self.embedding_dim = input_dim
-        self.assign_dim = assign_dim
-        self.hidden_dim = output_feat_dim
+        self.input_dim = config['input_dim']
+        self.embedding_dim = config['input_dim']
+        self.assign_dim = config['assign_dim']
+        self.hidden_dim = config['output_feat_dim']
+        self.output_feat_dim = config['output_feat_dim']
+        self.activation = config['activation']
+        self.dropout = config['dropout']
+        self.use_bn = config['use_bn']
 
         self.feat_gc = GINLayer(
-            node_dim=input_dim,
-            hidden_dim=output_feat_dim,
-            out_dim=output_feat_dim,
-            act=activation,
+            node_dim=self.input_dim,
+            hidden_dim=self.output_feat_dim,
+            out_dim=self.output_feat_dim,
+            act=self.activation,
             layer_id=0,
+            use_bn=self.use_bn
         )
 
         self.pool_gc = GINLayer(
-            node_dim=input_dim,
-            hidden_dim=assign_dim,
-            out_dim=assign_dim,
-            act=activation,
+            node_dim=self.input_dim,
+            hidden_dim=self.assign_dim,
+            out_dim=self.assign_dim,
+            act=self.activation,
             layer_id=0,
+            use_bn=self.use_bn
         )
 
         self.reg_loss = nn.ModuleList([])
         self.loss_log = {}
         self.reg_loss.append(EntropyLoss())
-
-    def _entropy_loss(self, s_l):
-        entropy = (torch.distributions.Categorical(
-            probs=s_l).entropy()).sum(-1).mean(-1)
-        assert not torch.isnan(entropy)
-        return entropy
 
     def forward(self, g, h):
         """
@@ -68,6 +65,7 @@ class DiffPoolLayer(nn.Module):
                 *
                 assign_tensor_masks)).to(
             device=device)
+
         assign_tensor = masked_softmax(assign_tensor, mask,
                                        memory_efficient=False)
         h = torch.matmul(torch.t(assign_tensor), feat)

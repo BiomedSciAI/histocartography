@@ -27,59 +27,52 @@ class DiffPoolTestCase(unittest.TestCase):
             g.ndata[GNN_NODE_FEAT_IN] = torch.randn(max_num_node, node_dim)
         dgl_graphs = dgl.batch(dgl_graphs)
 
-        # 2. create a Diff Pool model. @TODO reorganize all this huge mess... hard code what we can.
+        # 2. create a Diff Pool model.
         config = {
             "model_type": "DiffPool",
             "model_params": {
-                "input_dim": 10,
-                "hidden_dim": 10,
-                "embedding_dim": 10,
-                "label_dim": 1,
-                "activation": "relu",
-                "n_layers": 3,
-                "gc_per_block": 3,
+                "num_classes": 2,
+                "n_layers": 3,  # @TODO delete in the future
                 "dropout": 0.0,
                 "use_bn": True,
-                "n_pooling": 1,
-                "neighbor_pooling_type": "mean",
-                "pool_ratio": 0.15,
+                "pool_ratio": 0.5,
                 "cat": False,
-                "gnn_before": {
-                  "layer_type": "gin_layer",
-                  "input_dim": 10,
-                  "hidden_dim": 10,
-                  "embedding_dim": 10,
-                  "label_dim": 1,
-                  "activation": "relu",
-                  "n_layers": 3,
-                  "gc_per_block": 3,
-                  "dropout": 0.0,
-                  "use_bn": True,
-                  "n_pooling":  1,
-                  "neighbor_pooling_type": "mean",
-                  "pool_ratio": 0.15,
-                  "cat": False
-                },
-                "gnn_after": {
-                  "layer_type": "dense_gin_layer",
-                  "input_dim": 10,
-                  "hidden_dim": 10,
-                  "embedding_dim": 10,
-                  "label_dim": 1,
-                  "activation": "relu",
-                  "n_layers": 3,
-                  "gc_per_block": 3,
-                  "dropout": 0.0,
-                  "use_bn": True,
-                  "n_pooling":  1,
-                  "neighbor_pooling_type": "mean",
-                  "pool_ratio": 0.15,
-                  "cat": False
-                }
+                "gnn_params": [
+                    {
+                        "layer_type": "gin_layer",
+                        "hidden_dim": 10,
+                        "embedding_dim": 10,
+                        "activation": "relu",
+                        "n_layers": 2,
+                        "neighbor_pooling_type": "mean",
+                    },
+                    {
+                        "layer_type": "dense_gin_layer",
+                        "hidden_dim": 10,
+                        "embedding_dim": 10,
+                        "activation": "relu",
+                        "n_layers": 2,
+                        "neighbor_pooling_type": "mean",
+                    }
+                ],
+                "pooling_params": [
+                    {
+                        "layer_type": "diff_pool_layer",
+                        "hidden_dim": 10,
+                        "embedding_dim": 10,
+                        "output_feat_dim": 10,
+                        "activation": "relu",
+                        "n_layers": 2,
+                        "neighbor_pooling_type": "mean",
+                    }
+                ]
               }
         }
 
-        model = DiffPool(config=config["model_params"], max_num_node=max_num_node, batch_size=batch_size)
+        model = DiffPool(config=config["model_params"],
+                         input_dim=node_dim,
+                         max_num_node=max_num_node,
+                         batch_size=batch_size)
 
         # 3. print the model parameters
         for name, param in model.named_parameters():

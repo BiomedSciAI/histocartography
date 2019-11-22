@@ -12,25 +12,46 @@ from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
 
 class DiffPool(nn.Module):
     """
-    DiffPool model.
-    @TODO: (gja) add more information about the Diff Pool implementation and orginal paper.
+    Implementation of the Differentiable Pooling (DiffPool) algortihms proposed by Ying et al.
+    (https://arxiv.org/abs/1806.08804).
+
+    DiffPool is implementing a learned pooling mechanism that is iteratively coarsening the original graph. The
+    information extracted at the different scales (ie the different graphs) is then used for classifying the graph.
+
+    Implementation: DiffPool is using 2 types of modules, a GNN layer and a pooling layer. Therefore if we seek
+    to build 2 pooling levels we have the following:
+
+    - 1 graph level GNN: regular GNN operating on the original graph to build node embeddings (defined by g, h)
+    - 1 graph level pooling: pool the original graph to create a 1st pooled graph (defined by adj, h)
+    - 1 1-pooled graph GNN: GNN operating on the 1-pooled graph
+    - 1 1-pooled pooling: pool the 1-pooled graph to create the 2-pooled graph
+    - 1 2-pooled graph GNN: GNN operating on the 2-pooled graph
+
+    => we end up with node features on 3 graphs: original, 1-pooled, 2-pooled. We can then have a readout function
+    that is aggregating this information to classify the graph itself.
+
     """
 
-    def __init__(self, config, max_num_node, batch_size):
+    def __init__(self, config, input_dim, max_num_node, batch_size):
+        """
+
+        :param config: (dict)
+        :param input_dim: data specific parameter. Known at run time.
+        :param max_num_node: data specific parameter. Known at run time
+        :param batch_size: learning param .
+        """
 
         super(DiffPool, self).__init__()
 
         # use the config dict to set the input arguments.
-        self.input_dim = config['input_dim']
-        self.hidden_dim = config['hidden_dim']
-        self.embedding_dim = config['embedding_dim']
-        self.label_dim = config['label_dim']
-        self.activation = config['activation']
+        self.input_dim = input_dim
+        self.hidden_dim = config['gnn_params'][0]['hidden_dim']
+        self.embedding_dim = config['gnn_params'][0]['embedding_dim']
+        self.num_classes = config['num_classes']
         self.n_layers = config['n_layers']
         self.dropout = config['dropout']
         self.use_bn = config['use_bn']
-        self.n_pooling = config['n_pooling']
-        self.neighbor_pooling_type = config['neighbor_pooling_type']
+        self.n_pooling = len(config['pooling_params'])
         self.pool_ratio = config['pool_ratio']
         self.concat = config['cat']
         self.batch_size = batch_size
@@ -42,51 +63,30 @@ class DiffPool(nn.Module):
         else:
             pool_embedding_dim = self.embedding_dim
 
-        # @TODO: renaming + reorganisation of the Diff Pool parameters:
-
-        # 1-  gc_before_pool --> graph_level_gnn : transform raw node features in node embeddings.
-        # 2-  first_diffpool_layer --> diffpool_layers : 1st level diff pool layer that returns a new graph defined
-        #                                               by an adjacency matrix and node features.
-        # 3-  diffpool_layers --> diffpool_layers: ie merge with the 1st level diff pool layer.
-        # 4-  gc_after_pool --> : new GNN operating on the pooled graphs (based on Dense GIN Layer)
-        #
-        # 5- Organise the config file as 2 lists. One for the GNN parameters and one for the Pooling parameters
-        # 6- How to handle the parameters that known only at run time ?
-        #     => have some _update_gnn_config param and _update_pooling_params
-
-        # @TODO: Research question:
-        # 1-How to include edge features in the pooling mechanism ?
-
         # list of GNN modules before the first diffpool operation
         self.multi_level_diff_pool_layers = nn.ModuleList()
         self.multi_level_gnn_layers = nn.ModuleList()
 
-        # list of list of GNN modules, each list after one diffpool operation
-        self.bn = True
-        self.num_aggs = 1
+        self.num_aggs = 1  # @TODO what is this parameter ?
 
-        self.gc_before_pool = MultiLayerGNN(config['gnn_before'])
+        self._update_gnn_config(config['gnn_params'][0], input_dim)
+        self.graph_level_gnn = MultiLayerGNN(config['gnn_params'][0])
 
-        self.first_diffpool_layer = DiffPoolLayer(
-            input_dim=pool_embedding_dim,
-            assign_dim=assign_dim,
-            output_feat_dim=self.hidden_dim,
-            activation=self.activation,
-            dropout=self.dropout)
+        self._update_pooling_config(config['pooling_params'][0], assign_dim, input_dim)
+        self.graph_level_pooling = DiffPoolLayer(config['pooling_params'][0])
 
-        self.multi_level_gnn_layers.append(MultiLayerGNN(config['gnn_after']))
+        self._update_gnn_config(config['gnn_params'][1], input_dim)
+        self.multi_level_gnn_layers.append(MultiLayerGNN(config['gnn_params'][1]))
 
-        assign_dim = int(assign_dim * self.pool_ratio)
         for i in range(self.n_pooling - 1):
+            self._update_pooling_config(config['pooling_params'][i], assign_dim)
             self.multi_level_diff_pool_layers.append(
-                DiffPoolLayer(
-                    pool_embedding_dim,
-                    assign_dim,
-                    self.hidden_dim))
-            gc_after_per_pool = MultiLayerGNN(config)
-            self.multi_level_gnn_layers.append(gc_after_per_pool)
+                DiffPoolLayer(config['pooling_params'][i])
+            )
+            self.multi_level_gnn_layers.append(
+                MultiLayerGNN(config['gnn_params'][i+1])
+            )
             assign_dims.append(assign_dim)
-            assign_dim = int(assign_dim * self.pool_ratio)
 
         # predicting layer
         if self.concat:
@@ -94,13 +94,23 @@ class DiffPool(nn.Module):
                 self.num_aggs * (self.n_pooling + 1)
         else:
             self.pred_input_dim = self.embedding_dim * self.num_aggs
-        self.pred_layer = nn.Linear(self.pred_input_dim, self.label_dim)
+        self.pred_layer = nn.Linear(self.pred_input_dim, self.num_classes)
 
-    # @TODO: set all the parameters that we could be know only at run time.
-    def _update_gnn_config(self, config, param1, param2):
+    def _update_gnn_config(self, config, input_dim):
+        config['input_dim'] = input_dim
+        config['use_bn'] = self.use_bn
+        config['dropout'] = self.dropout
         return config
 
-    def _update_pooling_config(self, config, param1, param2):
+    def _update_pooling_config(self, config, assign_dim, input_dim):
+        # 1- compute updated parameters
+        assign_dim = int(assign_dim * self.pool_ratio)
+
+        # 2- set parameters
+        config['assign_dim'] = assign_dim
+        config['input_dim'] = input_dim
+        config['use_bn'] = self.use_bn
+        config['dropout'] = self.dropout
         return config
 
     def forward(self, g):
@@ -112,7 +122,7 @@ class DiffPool(nn.Module):
         out_all = []
 
         # we use GCN blocks to get an embedding first
-        g_embedding = self.gc_before_pool(g, h, self.concat)
+        g_embedding = self.graph_level_gnn(g, h, self.concat)
         g.ndata[GNN_NODE_FEAT_IN] = g_embedding
 
         readout = dgl.sum_nodes(g, GNN_NODE_FEAT_IN)
@@ -121,7 +131,7 @@ class DiffPool(nn.Module):
             readout = dgl.max_nodes(g, GNN_NODE_FEAT_IN)
             out_all.append(readout)
 
-        adj, h = self.first_diffpool_layer(g, g_embedding)
+        adj, h = self.graph_level_pooling(g, g_embedding)
         node_per_pool_graph = int(adj.size()[0] / self.batch_size)
 
         h, adj = batch2tensor(adj, h, node_per_pool_graph)
@@ -134,8 +144,10 @@ class DiffPool(nn.Module):
             out_all.append(readout)
 
         for i, diffpool_layer in enumerate(self.multi_level_diff_pool_layers):
-            h, adj = diffpool_layer(h, adj)
 
+            # 1. apply pooling
+            h, adj = diffpool_layer(h, adj)
+            # 2. apply gnn
             h = self.multi_level_gnn_layers[i + 1](adj, h, self.concat)
 
             readout = torch.sum(h, dim=1)
@@ -151,9 +163,12 @@ class DiffPool(nn.Module):
         return ypred
 
     def loss(self, pred, label):
-        '''
-        loss function
-        '''
+        """
+        Compute cross entropy loss.
+        :param pred: (FloatTensor)
+        :param label: (LongTensor)
+        :return: loss (FloatTensor)
+        """
         #softmax + CE
         criterion = nn.CrossEntropyLoss()
         loss = criterion(pred, label)

@@ -58,7 +58,7 @@ class MultiLayerGNN(nn.Module):
             )
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
-            node_dim=in_dim,
+            node_dim=hidden_dim,
             hidden_dim=hidden_dim,
             out_dim=out_dim,
             act=activation,

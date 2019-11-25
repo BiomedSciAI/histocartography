@@ -42,7 +42,7 @@ class DenseGINLayer(BaseLayer):
         super(DenseGINLayer, self).__init__(node_dim, hidden_dim, out_dim, act, layer_id)
 
         if verbose:
-            print('Creating new GNN layer:')
+            print('Creating new GNN dense layer:')
 
         if config is not None:
             self.add_self = config['add_self'] if 'add_self' in config.keys() else True
@@ -61,14 +61,12 @@ class DenseGINLayer(BaseLayer):
             verbose=verbose)
         self.layer_id = layer_id
 
-    def forward(self, adj, h, cat=False):
+    def forward(self, adj, h):
         """
         Forward-pass of a Dense GIN layer.
         :param g: DGLGraph object. Node features in GNN_NODE_FEAT_IN_KEY
         :return: updated node features
         """
-        # @TODO implement cat operator.
-
         if self.add_self:
             adj = adj + torch.eye(adj.size(1)).to(adj.device)
 
@@ -78,7 +76,6 @@ class DenseGINLayer(BaseLayer):
         h_k_N = torch.matmul(adj, h)
         bs, n_nodes, dim = h_k_N.shape
         h_k_N = h_k_N.view(bs * n_nodes, dim)
-
         h_k = self.mlp(h_k_N)
         h_k = h_k.view(bs, n_nodes, dim)
         h_k = F.normalize(h_k, dim=2, p=2)

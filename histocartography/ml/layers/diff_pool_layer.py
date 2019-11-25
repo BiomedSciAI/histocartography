@@ -14,18 +14,16 @@ class DiffPoolLayer(nn.Module):
 
         super(DiffPoolLayer, self).__init__()
         self.input_dim = config['input_dim']
-        self.embedding_dim = config['input_dim']
-        self.assign_dim = config['assign_dim']
-        self.hidden_dim = config['output_feat_dim']
-        self.output_feat_dim = config['output_feat_dim']
+        self.hidden_dim = config['hidden_dim']
+        self.output_dim = config['output_dim']
         self.activation = config['activation']
         self.dropout = config['dropout']
         self.use_bn = config['use_bn']
 
         self.feat_gc = GINLayer(
             node_dim=self.input_dim,
-            hidden_dim=self.output_feat_dim,
-            out_dim=self.output_feat_dim,
+            hidden_dim=self.hidden_dim,
+            out_dim=self.hidden_dim,
             act=self.activation,
             layer_id=0,
             use_bn=self.use_bn
@@ -33,8 +31,8 @@ class DiffPoolLayer(nn.Module):
 
         self.pool_gc = GINLayer(
             node_dim=self.input_dim,
-            hidden_dim=self.assign_dim,
-            out_dim=self.assign_dim,
+            hidden_dim=self.output_dim,
+            out_dim=self.output_dim,
             act=self.activation,
             layer_id=0,
             use_bn=self.use_bn
@@ -50,8 +48,9 @@ class DiffPoolLayer(nn.Module):
         We first take the adjacency matrix of the batched graph, which is block-wise diagonal.
         We then compute the assignment matrix for the whole batch graph, which will also be block diagonal
         """
+
         feat = self.feat_gc(g, h)
-        assign_tensor = self.pool_gc(g, h)  # @TODO is it h or feat ?
+        assign_tensor = self.pool_gc(g, h)
         device = feat.device
         assign_tensor_masks = []
         batch_size = len(g.batch_num_nodes)

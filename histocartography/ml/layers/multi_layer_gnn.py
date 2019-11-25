@@ -25,9 +25,11 @@ class MultiLayerGNN(nn.Module):
                 )
             )
 
+        self.config = config
+
         in_dim = config['input_dim']
         hidden_dim = config['hidden_dim']
-        out_dim = config['embedding_dim']
+        out_dim = config['output_dim']
         num_layers = config['n_layers']
         activation = config['activation']
         use_bn = config['use_bn']
@@ -74,5 +76,5 @@ class MultiLayerGNN(nn.Module):
             h = layer(g, h)
             h_concat.append(h)
         if cat:
-            return torch.cat(h_concat, dim=1)
+            return torch.cat(h_concat, dim=-1)
         return h

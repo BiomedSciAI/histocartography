@@ -73,7 +73,7 @@ class MLP(nn.Module):
                          Linear(self.dims[layer_id],
                                 self.dims[layer_id + 1],
                                 bias=self.bias[layer_id]))
-        if self.use_bn:
+        if self.use_bn[0]:
             bn = nn.BatchNorm1d(self.dims[layer_id + 1])
             layer.add_module("bn", bn)
         if act:

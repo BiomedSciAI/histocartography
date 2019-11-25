@@ -12,9 +12,10 @@ import torch.nn as nn
 
 from histocartography.ml.layers.constants import GNN_MSG, GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT, GNN_AGG_MSG, GNN_EDGE_WEIGHT
 from histocartography.ml.layers.mlp import MLP
+from histocartography.ml.layers.base_layer import BaseLayer
 
 
-class GINLayer(nn.Module):
+class GINLayer(BaseLayer):
 
     def __init__(
             self,
@@ -37,7 +38,7 @@ class GINLayer(nn.Module):
         :param config: (dict) optional argument
         :param verbose: (bool) verbosity level
         """
-        super(GINLayer, self).__init__()
+        super(GINLayer, self).__init__(node_dim, hidden_dim, out_dim, act, layer_id)
 
         if verbose:
             print('Creating new GNN layer:')

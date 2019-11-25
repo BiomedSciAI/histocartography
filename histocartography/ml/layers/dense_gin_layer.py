@@ -9,13 +9,13 @@ Original paper:
 """
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from histocartography.ml.layers.mlp import MLP
+from histocartography.ml.layers.base_layer import BaseLayer
 
 
-class DenseGINLayer(nn.Module):
+class DenseGINLayer(BaseLayer):
 
     def __init__(
             self,
@@ -39,7 +39,7 @@ class DenseGINLayer(nn.Module):
         :param mean: (bool) adjust the adjacency with its mean
         :param verbose: (bool) verbosity level
         """
-        super(DenseGINLayer, self).__init__()
+        super(DenseGINLayer, self).__init__(node_dim, hidden_dim, out_dim, act, layer_id)
 
         if verbose:
             print('Creating new GNN layer:')

@@ -19,7 +19,7 @@ class DiffPoolTestCase(unittest.TestCase):
         # 1. generate dummy data for the forward pass.
         batch_size = 16
         max_num_node = 100
-        node_dim = 10
+        node_dim = 13
         dgl_graphs = [dgl.DGLGraph() for _ in range(batch_size)]
         for g in dgl_graphs:
             g.add_nodes(max_num_node)
@@ -32,37 +32,31 @@ class DiffPoolTestCase(unittest.TestCase):
             "model_type": "DiffPool",
             "model_params": {
                 "num_classes": 2,
-                "n_layers": 3,  # @TODO delete in the future
                 "dropout": 0.0,
-                "use_bn": True,
-                "pool_ratio": 0.5,
+                "use_bn": False,
+                "pool_ratio": 0.3,
                 "cat": False,
+                "num_aggs": 1,
+                "hidden_dim": 10,
+                "output_dim": 10,
                 "gnn_params": [
                     {
                         "layer_type": "gin_layer",
-                        "hidden_dim": 10,
-                        "embedding_dim": 10,
                         "activation": "relu",
                         "n_layers": 2,
                         "neighbor_pooling_type": "mean",
                     },
                     {
                         "layer_type": "dense_gin_layer",
-                        "hidden_dim": 10,
-                        "embedding_dim": 10,
                         "activation": "relu",
                         "n_layers": 2,
                         "neighbor_pooling_type": "mean",
-                    }
+                    },
                 ],
                 "pooling_params": [
                     {
                         "layer_type": "diff_pool_layer",
-                        "hidden_dim": 10,
-                        "embedding_dim": 10,
-                        "output_feat_dim": 10,
                         "activation": "relu",
-                        "n_layers": 2,
                         "neighbor_pooling_type": "mean",
                     }
                 ]
@@ -75,9 +69,11 @@ class DiffPoolTestCase(unittest.TestCase):
                          batch_size=batch_size)
 
         # 3. print the model parameters
-        for name, param in model.named_parameters():
-            if param.requires_grad:
-                print(name, param.shape)
+        print_params = True
+        if print_params:
+            for name, param in model.named_parameters():
+                if param.requires_grad:
+                    print(name, param.shape)
 
         # 4. forward pass
         logits = model(dgl_graphs)

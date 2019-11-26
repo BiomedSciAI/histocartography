@@ -4,7 +4,7 @@ HoverNet: A multiple branch network that performs nuclear instance segmentation 
 
 ## Inference
 
-To generate the network predictions on the dataset, run `infer.py`.
+To generate the network predictions on the dataset, run `inference.py`.
 
 ### Modifying parameters for running inference
 
@@ -16,7 +16,7 @@ To modify the parameters for the network, make changes to `config.py`.
 
 ## Post-processing to json files after inference
 
-After the results of the network is obtained from `infer.py` (will be located in the inf_output_dir in .mat format).
+After the results of the network is obtained from `inference.py` (will be located in the inf_output_dir in .mat format).
 Run `process.py` to obtain the images with the instances overlaid as well as the json files.
 
 ### JSON file structure

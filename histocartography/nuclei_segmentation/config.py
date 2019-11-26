@@ -10,8 +10,7 @@ class Config(object):
 
         self.type_classification = False
         self.nr_types = 5  # denotes number of classes for nuclear type classification
-        # ! some semantic segmentation network like micronet,
-        # ! nr_types will replace nr_classes if type_classification=True
+
         self.nr_classes = 2 # Nuclei Pixels vs Background
 
         self.input_norm  = True # normalize RGB to 0-1 range
@@ -20,7 +19,7 @@ class Config(object):
         exp_id = 'v1.0/'
         model_id = '%s' % self.model_type
         self.model_name = '%s/%s' % (exp_id, model_id)
-        # loading chkpts in tensorflow, the path must not contain extra '/'
+
         self.log_path = '/home/ubuntu/consep_pred/GraphsZRL/histocartography/histocartography/nuclei_segmentation/logs/' # log root path - modify according to needs
         self.save_dir = '%s/%s' % (self.log_path, self.model_name) # log file destination
         self.train_input_shape = [270, 270]

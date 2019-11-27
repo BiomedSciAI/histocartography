@@ -33,7 +33,6 @@ class MultiLayerGNN(nn.Module):
         num_layers = config['n_layers']
         activation = config['activation']
         use_bn = config['use_bn']
-        neighbor_pooling_type = config['neighbor_pooling_type']
 
         self.layers = nn.ModuleList()
 

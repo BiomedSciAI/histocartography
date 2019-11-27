@@ -7,6 +7,7 @@ class BaseModel(Module):
         """
         Base model constructor.
         """
+        super(BaseModel, self).__init__()
 
     def forward(self, graphs):
         """

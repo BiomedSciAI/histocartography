@@ -7,9 +7,10 @@ from histocartography.ml.layers.diff_pool_layer import DiffPoolLayer
 from histocartography.ml.layers.dense_diff_pool_layer import DenseDiffPoolLayer
 from histocartography.utils.torch import batch2tensor
 from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
+from histocartography.ml.models.base_model import BaseModel
 
 
-class DiffPool(nn.Module):
+class DiffPool(BaseModel):
     """
     Implementation of the Differentiable Pooling (DiffPool) algortihms proposed by Ying et al.
     (https://arxiv.org/abs/1806.08804).

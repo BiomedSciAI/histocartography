@@ -1,110 +1,146 @@
 import glob
 import os
-
-import cv2
-import numpy as np
 import scipy.io as sio
-
 from postproc.hover import proc_np_hv
-
 from config import Config
-
 from utils.utils import *
 import json
+import time
+import csv
 
-###################
+class Process(Config):
+    def create_directory(self, path):
+        if not os.path.isdir(path):
+            os.makedirs(path)
+    #enddef
 
-# TODO:
-# * due to the need of running this multiple times, should make
-# * it less reliant on the training config file
+    def run(self):
+        # * flag for HoVer-Net only
+        # 1 - threshold, 2 - sobel based
+        energy_mode = 2
+        marker_mode = 2
+        
+        pred_dir = self.inf_output_dir + '_mat/'
 
-## ! WARNING:
-## check the prediction channels, wrong ordering will break the code !
-## the prediction channels ordering should match the ones produced in augs.py
+        proc_json_dir = self.inf_output_dir + '_json/'
+        proc_overlap_dir = self.inf_output_dir + '_overlap/'
+        self.create_directory(proc_json_dir)
+        self.create_directory(proc_overlap_dir)
 
-cfg = Config()
+        file_list = glob.glob('%s/*.mat' % pred_dir)
+        file_list.sort()  # ensure same order
 
-# * flag for HoVer-Net only
-# 1 - threshold, 2 - sobel based
-energy_mode = 2
-marker_mode = 2
+        start_time = time.time()
+        for filename in file_list:
+            filename = os.path.basename(filename)
+            basename = filename.split('.')[0]
+            print('Working on = ', basename)
 
-pred_dir = cfg.inf_output_dir
-proc_dir = pred_dir + '_proc'
+            img = cv2.imread(self.inf_data_dir + basename + self.inf_imgs_ext)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+            pred = sio.loadmat('%s/%s.mat' % (pred_dir, basename))
+            pred = np.squeeze(pred['result'])
+        
+            if hasattr(self, 'type_classification') and self.type_classification:
+                pred_inst = pred[..., self.nr_types:]
+                pred_type = pred[..., :self.nr_types]
+        
+                pred_inst = np.squeeze(pred_inst)
+                pred_type = np.argmax(pred_type, axis=-1)
+            else:
+                pred_inst = pred
+            #endif
+        
+            pred_inst = proc_np_hv(pred_inst, marker_mode=marker_mode, energy_mode=energy_mode, rgb=img)
 
-file_list = glob.glob('%s/*.mat' % pred_dir)
-file_list.sort()  # ensure same order
+            # ! will be extremely slow on WSI/TMA so it's advisable to comment this out
+            # * remap once so that further processing faster (metrics calculation, etc.)
+            pred_inst = remap_label(pred_inst, by_size=True)
+            overlaid_output = visualize_instances(pred_inst, img)
+            overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
+            cv2.imwrite('%s/%s.png' % (proc_overlap_dir, basename), overlaid_output)
+            pred_inst_centroid = get_inst_centroid(pred_inst)
+        
+            # for instance segmentation only
+            if self.type_classification:
+                #### * Get class of each instance id, stored at index id-1
+                pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
+                pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
+                for idx, inst_id in enumerate(pred_id_list):
+                    inst_type = pred_type[pred_inst == inst_id]
+                    type_list, type_pixels = np.unique(inst_type, return_counts=True)
+                    type_list = list(zip(type_list, type_pixels))
+                    type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
+                    inst_type = type_list[0][0]
+                    if inst_type == 0:  # ! pick the 2nd most dominant if exist
+                        if len(type_list) > 1:
+                            inst_type = type_list[1][0]
+                        else:
+                            print('[Warn] Instance has `background` type')
+                    pred_inst_type[idx] = inst_type
+        
+                file_name = '%s/%s.json' % (proc_json_dir, basename)
+        
+                with open(file_name, 'a') as k:
+                    json.dump({'detected_instance_map': pred_inst.tolist(), 'detected_type_map': pred_type.tolist(),
+                               'instance_types': pred_inst_type[:, None].tolist(),
+                               'instance_centroid_location': pred_inst_centroid.tolist() ,
+                               'image_dimension' : img.shape}, k)
+            else:
+        
+                file_name = '%s/%s.json' % (proc_json_dir, basename)
+                with open(file_name, 'a') as k:
+                    json.dump({'detected_instance_map': pred_inst.tolist(),
+                                'instance_centroid_location': pred_inst_centroid.tolist(),
+                                'image_dimension': img.shape}, k)
+        
+            #endif
+        #endfor
+        print('Time per image= ', round((time.time() - start_time)/len(file_list), 2), 's')
+    #enddef
 
-if not os.path.isdir(proc_dir):
-    os.makedirs(proc_dir)
+    ### Save instance centroids to csv, to be used by QuPath
+    def save_to_csv(self):
+        proc_json_dir = self.inf_output_dir + '_json/'
+        proc_csv_dir = self.inf_output_dir + '_csv/'
+        self.create_directory(proc_csv_dir)
 
-for filename in file_list:
-    filename = os.path.basename(filename)
-    basename = filename.split('.')[0]
-    print(pred_dir, basename, end=' ', flush=True)
+        file_list = glob.glob('%s/*.json' % proc_json_dir)
+        file_list.sort()  # ensure same order
 
-    ##
-    img = cv2.imread(cfg.inf_data_dir + basename + cfg.inf_imgs_ext)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        for filename in file_list:
+            basename = os.path.basename(filename).split('.')[0]
+            centroid_np = np.zeros(shape=(1, 2))    # x, y
 
-    pred = sio.loadmat('%s/%s.mat' % (pred_dir, basename))
-    pred = np.squeeze(pred['result'])
+            with open(filename) as f:
+                data = json.load(f)
+                centroid = data['instance_centroid_location']
 
-    if hasattr(cfg, 'type_classification') and cfg.type_classification:
-        pred_inst = pred[..., cfg.nr_types:]
-        pred_type = pred[..., :cfg.nr_types]
-
-        pred_inst = np.squeeze(pred_inst)
-        pred_type = np.argmax(pred_type, axis=-1)
-
-    else:
-        pred_inst = pred
-
-    pred_inst = proc_np_hv(pred_inst,
-                                              marker_mode=marker_mode,
-                                              energy_mode=energy_mode, rgb=img)
+                for i in range(len(centroid)):
+                    x = centroid[i][0]
+                    y = centroid[i][1]
+                    centroid_np = np.vstack((centroid_np, np.reshape(np.array([x, y]), newshape=(-1, 2))))
+                #endfor
+                centroid_np = np.delete(centroid_np, 0, axis=0)
+                np.savetxt(proc_csv_dir + basename + '.csv', centroid_np, delimiter=',')
+            #end
+        #endfor
+    #enddef
+#end
 
 
-    # ! will be extremely slow on WSI/TMA so it's advisable to comment this out
-    # * remap once so that further processing faster (metrics calculation, etc.)
-    pred_inst = remap_label(pred_inst, by_size=True)
-    overlaid_output = visualize_instances(pred_inst, img)
-    overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-    cv2.imwrite('%s/%s.png' % (proc_dir, basename), overlaid_output)
-    pred_inst_centroid = get_inst_centroid(pred_inst)
 
-    # for instance segmentation only
-    if cfg.type_classification:
-        #### * Get class of each instance id, stored at index id-1
-        pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
-        pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
-        for idx, inst_id in enumerate(pred_id_list):
-            inst_type = pred_type[pred_inst == inst_id]
-            type_list, type_pixels = np.unique(inst_type, return_counts=True)
-            type_list = list(zip(type_list, type_pixels))
-            type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
-            inst_type = type_list[0][0]
-            if inst_type == 0:  # ! pick the 2nd most dominant if exist
-                if len(type_list) > 1:
-                    inst_type = type_list[1][0]
-                else:
-                    print('[Warn] Instance has `background` type')
-            pred_inst_type[idx] = inst_type
 
-        file_name = '%s/%s.json' % (proc_dir, basename)
 
-        with open(file_name, 'a') as k:
-            json.dump({'detected_instance_map': pred_inst.tolist(), 'detected_type_map': pred_type.tolist(),
-                       'instance_types': pred_inst_type[:, None].tolist(),
-                       'instance_centroid_location': pred_inst_centroid.tolist() ,
-                       'image_dimension' : img.shape}, k)
-    else:
 
-        file_name = '%s/%s.json' % (proc_dir, basename)
-        with open(file_name, 'a') as k:
-            json.dump({'detected_instance_map': pred_inst.tolist(),
-                        'instance_centroid_location': pred_inst_centroid.tolist(),
-                        'image_dimension': img.shape}, k)
 
-    ##
-    print('FINISH')
+
+
+
+
+
+
+
+
+

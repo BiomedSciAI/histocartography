@@ -40,7 +40,7 @@ def res_blk(name, l, ch, ksize, count, split=1, strides=1, freeze=False):
     :return: returns output after each residual block
     """
     ch_in = l.get_shape().as_list()
-    print("In Res Block")
+    #print("In Res Block")
     with tf.variable_scope(name):
         for i in range(0, count):
             with tf.variable_scope('block' + str(i)):
@@ -74,7 +74,7 @@ def dense_blk(name, l, ch, ksize, count, split=1, padding='valid'):
     with tf.variable_scope(name):
         for i in range(0, count):
             with tf.variable_scope('blk/' + str(i)):
-                print('In dense block' + str(i))
+                #print('In dense block' + str(i))
                 x = BNReLU('preact_bna', l)
                 x = Conv2D('conv1', x, ch[0], ksize[0], padding=padding, activation=BNReLU)
                 x = Conv2D('conv2', x, ch[1], ksize[1], padding=padding, split=split)

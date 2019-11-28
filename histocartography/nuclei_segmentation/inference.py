@@ -144,11 +144,11 @@ class Inferer(Config):
 ####
 if __name__ == '__main__':
     print('Inferencing...')
-    #inferer = Inferer()
-    #inferer.run()
+    inferer = Inferer()
+    inferer.run()
 
     print('\nProcessing...')
     process = Process()
-    #process.run()
+    process.run()
     process.save_to_csv()
 

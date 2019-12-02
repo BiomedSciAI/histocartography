@@ -1,33 +1,34 @@
 import itertools
 import torch
 import dgl
-import numpy as np
-from sklearn.neighbors import kneighbors_graph
-from sklearn.neighbors import DistanceMetric
 
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
-from histocartography.graph_building.constants import LABEL, CENTROID
+from histocartography.graph_building.constants import LABEL, VISUAL, CENTROID
 from histocartography.utils.vector import compute_l2_distance, compute_edge_weight
 
 
-class KNNGraphBuilder(BaseGraphBuilder):
+class WaxmanGraphBuilder(BaseGraphBuilder):
     """
-    KNN (K-Nearest Neighbors) class for graph building.
+    Waxman class for graph building.
+
+    Current implementation is deterministic, ie the edge weights is determistically assigned
+    to the graph.
+
     """
 
     def __init__(self, config, cuda=False, verbose=False):
         """
-        k-NN Graph Builder constructor.
+        Waxman Graph Builder constructor.
 
         Args:
             config: list of required params to build a graph
             cuda: (bool) if cuda is available
             verbose: (bool) verbosity level
         """
-        super(KNNGraphBuilder, self).__init__(config, cuda, verbose)
+        super(WaxmanGraphBuilder, self).__init__(config, cuda, verbose)
 
         if verbose:
-            print('*** Build k-NN graph ***')
+            print('*** Build Waxman graph ***')
 
         self.config = config
         self.cuda = cuda
@@ -66,21 +67,24 @@ class KNNGraphBuilder(BaseGraphBuilder):
 
     def _build_topology(self, objects, graph):
         """
-        Build topology
+        Build topology.
         """
+        num_objects = len(objects)
         centroid = [obj[CENTROID] for obj in objects]
+        src = []
+        dst = []
+        for pair in itertools.combinations(range(num_objects), 2):
+            dist = compute_l2_distance(centroid[pair[0]], centroid[pair[1]])
+            edge_weight = compute_edge_weight(dist)
+            if edge_weight > self.config['edge_threshold']:
 
-        # build adjacency matrix
-        adj = kneighbors_graph(
-            centroid,
-            self.config['n_neighbors'],
-            mode='distance',
-            include_self=False,
-            metric='euclidean'
-        )
-        adj = np.clip(adj.toarray(), self.config['edge_threshold'], 1)
+                # src -> dst
+                src.append(pair[0])
+                dst.append(pair[1])
 
-        # append edges
-        edge_list = np.nonzero(adj)
-        graph.add_edges(list(edge_list[0]), list(edge_list[1]))
+                # dst -> src
+                src.append(pair[1])
+                dst.append(pair[0])
+
+        graph.add_edges(src, dst)
 

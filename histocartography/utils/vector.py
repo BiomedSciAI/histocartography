@@ -28,5 +28,5 @@ def compute_edge_weight(dist):
     Args:
         :param dist: normalised distance
     """
-    # @TODO check what is the best dist to edge weight normalization.
+    # @TODO add Waxman's parameters here ?
     return math.exp(-dist)

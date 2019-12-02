@@ -112,7 +112,7 @@ def collate(batch):
     """
     graphs = dgl.batch([example[0] for example in batch])
     images = [example[1] for example in batch]
-    labels = [example[2] for example in batch]
+    labels = torch.LongTensor([example[2] for example in batch])
     return graphs, images, labels
 
 

@@ -30,7 +30,7 @@ class PooledGINLayer(BaseLayer):
             verbose=False):
         """
         GIN Layer constructor
-        :param node_dim: (int) input dimension of each node
+        :param node_dim: (int) input dimension of each node (ll level + high level)
         :param hidden_dim: (int) hidden dimension of each node (2-layer MLP as update function)
         :param out_dim: (int) output dimension of each node
         :param act: (str) activation function of the update function
@@ -45,7 +45,6 @@ class PooledGINLayer(BaseLayer):
             print('Creating new GNN layer:')
 
         if config is not None:
-            ll_node_dim = config['ll_node_dim']
             eps = config['eps'] if 'eps' in config.keys() else None
             neighbor_pooling_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys() else 'sum'
             learn_eps = config['learn_eps'] if 'learn_eps' in config.keys() else None
@@ -55,7 +54,7 @@ class PooledGINLayer(BaseLayer):
             learn_eps = None
 
         self.mlp = MLP(
-            node_dim + ll_node_dim,
+            node_dim,
             hidden_dim,
             out_dim,
             2,
@@ -100,20 +99,22 @@ class PooledGINLayer(BaseLayer):
         """
         Node update function
         """
-        h = torch.cat((nodes.data[GNN_NODE_FEAT_OUT], nodes.data[GNN_LL_NODE_FEAT]), dim=0)
+        if self.layer_id == 0:
+            h = torch.cat((nodes.data[GNN_NODE_FEAT_OUT], nodes.data[GNN_LL_NODE_FEAT]), dim=1)
+        else:
+            h = nodes.data[GNN_NODE_FEAT_OUT]
+
         h = self.mlp(h)
         return {GNN_NODE_FEAT_OUT: h}
 
-    def forward(self, g, hl_features, ll_features):
+    def forward(self, g, hl_features):
         """
         Forward-pass of a GIN layer.
-        :param g: DGLGraph object. Node features in GNN_NODE_FEAT_IN_KEY
+        :param g: (DGLGraph)
         :param hl_features: (FloatTensor) high level features (ie from the upper graph)
-        :param ll_fetures: (FloatTensor) low level features (ie from the lower graph)
-        :return: updated node features
         """
+
         g.ndata[GNN_NODE_FEAT_IN] = hl_features
-        g.ndata[GNN_LL_NODE_FEAT] = ll_features
 
         g.update_all(self.msg_fn, self.reduce_fn)
 

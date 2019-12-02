@@ -8,7 +8,6 @@ Original paper:
 """
 
 import torch
-import torch.nn as nn
 
 from histocartography.ml.layers.constants import GNN_MSG, GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT, GNN_AGG_MSG, GNN_EDGE_WEIGHT
 from histocartography.ml.layers.mlp import MLP

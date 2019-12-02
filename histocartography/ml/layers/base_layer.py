@@ -8,6 +8,7 @@ class BaseLayer(Module):
         Base layer constructor.
         """
         super(BaseLayer, self).__init__()
+        self.layer_id = layer_id
 
     def forward(self, g, h):
         """

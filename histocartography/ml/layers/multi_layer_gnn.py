@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import importlib
 
-from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE, GNN_NODE_FEAT_IN
+from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE
 
 
 class MultiLayerGNN(nn.Module):
@@ -11,6 +11,11 @@ class MultiLayerGNN(nn.Module):
     """
 
     def __init__(self, config):
+        """
+        MultiLayer GNN constructor.
+        :param config: (dict) configuration parameters. Refer to the layers implementation
+                              for the parameter description.
+        """
         super(MultiLayerGNN, self).__init__()
 
         layer_type = config['layer_type']
@@ -69,7 +74,13 @@ class MultiLayerGNN(nn.Module):
         )
 
     def forward(self, g, h, cat=False):
-
+        """
+        Forward pass.
+        :param g: (DGLGraph)
+        :param h: (FloatTensor)
+        :param cat: (bool) if concat the features at each conv layer
+        :return:
+        """
         h_concat = [h]
         for layer in self.layers:
             h = layer(g, h)

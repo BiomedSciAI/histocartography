@@ -18,7 +18,8 @@ GNN_LL_NODE_FEAT = 'gnn_ll_node_feat'
 AVAILABLE_LAYER_TYPES = {
     'gin_layer': 'GINLayer',
     'diff_pool_layer': 'DiffPoolLayer',
-    'dense_gin_layer': 'DenseGINLayer'
+    'dense_gin_layer': 'DenseGINLayer',
+    'pooled_gin_layer': 'PooledGINLayer'
 }
 
 GNN_MODULE = 'histocartography.ml.layers.{}'

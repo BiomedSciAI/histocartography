@@ -1,13 +1,10 @@
-import itertools
 import torch
 import dgl
 import numpy as np
 from sklearn.neighbors import kneighbors_graph
-from sklearn.neighbors import DistanceMetric
 
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
 from histocartography.graph_building.constants import LABEL, CENTROID
-from histocartography.utils.vector import compute_l2_distance, compute_edge_weight
 
 
 class KNNGraphBuilder(BaseGraphBuilder):

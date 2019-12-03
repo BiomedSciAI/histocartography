@@ -2,14 +2,10 @@
 import os
 import dgl
 import torch.utils.data
-import importlib
 
 from histocartography.dataloader.base_dataloader import BaseDataset
 from histocartography.utils.io import get_files_in_folder, complete_path
-from histocartography.graph_building.constants import (
-    GRAPH_BUILDING_TYPE, AVAILABLE_GRAPH_BUILDERS,
-    GRAPH_BUILDING_MODULE, GRAPH_BUILDING
-)
+from histocartography.graph_building.constants import GRAPH_BUILDING
 
 
 class PascaleDataset(BaseDataset):
@@ -27,23 +23,6 @@ class PascaleDataset(BaseDataset):
         super(PascaleDataset, self).__init__(cuda)
         self._load_dataset(fpath)
         self._build_graph_builder(config[GRAPH_BUILDING])
-
-    def _build_graph_builder(self, config):
-        """
-        Build graph builder
-        """
-        graph_builder_type = config[GRAPH_BUILDING_TYPE]
-        if graph_builder_type in list(AVAILABLE_GRAPH_BUILDERS.keys()):
-            module = importlib.import_module(
-                GRAPH_BUILDING_MODULE.format(graph_builder_type)
-            )
-            self.graph_builder = getattr(module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
-        else:
-            raise ValueError(
-                'Graph builder type: {} not recognized. Options are: {}'.format(
-                    graph_builder_type, list(AVAILABLE_GRAPH_BUILDERS.keys())
-                )
-            )
 
     def _load_dataset(self, fpath):
         """

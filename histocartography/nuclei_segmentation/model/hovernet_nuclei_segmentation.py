@@ -5,14 +5,13 @@ from .base_nuclei_segmentation import BaseNucleiSegmentation
 import numpy as np
 
 import sys
-sys.path.append("..") # Adds higher directory to python modules path.
+sys.path.append("..")  # Adds higher directory to python modules path.
 try:
     from config import Config
 except ImportError:
     assert False, 'Fail to import config.py'
 
 
-####
 def upsample2x(name, x):
     """
 
@@ -25,7 +24,6 @@ def upsample2x(name, x):
         data_format='channels_last')
 
 
-####
 def res_blk(name, l, ch, ksize, count, split=1, strides=1, freeze=False):
     """
     Residual block
@@ -40,7 +38,7 @@ def res_blk(name, l, ch, ksize, count, split=1, strides=1, freeze=False):
     :return: returns output after each residual block
     """
     ch_in = l.get_shape().as_list()
-    #print("In Res Block")
+    # print("In Res Block")
     with tf.variable_scope(name):
         for i in range(0, count):
             with tf.variable_scope('block' + str(i)):
@@ -58,7 +56,6 @@ def res_blk(name, l, ch, ksize, count, split=1, strides=1, freeze=False):
     return l
 
 
-####
 def dense_blk(name, l, ch, ksize, count, split=1, padding='valid'):
     """
     Dense Block for decoder
@@ -74,7 +71,7 @@ def dense_blk(name, l, ch, ksize, count, split=1, padding='valid'):
     with tf.variable_scope(name):
         for i in range(0, count):
             with tf.variable_scope('blk/' + str(i)):
-                #print('In dense block' + str(i))
+                # print('In dense block' + str(i))
                 x = BNReLU('preact_bna', l)
                 x = Conv2D('conv1', x, ch[0], ksize[0], padding=padding, activation=BNReLU)
                 x = Conv2D('conv2', x, ch[1], ksize[1], padding=padding, split=split)
@@ -90,7 +87,6 @@ def dense_blk(name, l, ch, ksize, count, split=1, padding='valid'):
     return l
 
 
-####
 def encoder(i, freeze):
     """
     Pre-activated ResNet50 Encoder
@@ -120,14 +116,13 @@ def encoder(i, freeze):
     return [d1, d2, d3, d4]
 
 
-####
 def decoder(name, i):
     """
 
     :param name: Name of decoder
     :param i: Input to the decoder
-    :return: returns output where output[0]- output of first dense block with 8 dense units after nearest neighbour upsampling(2x)
-    with 5x5 and 1x1 conv
+    :return: returns output where output[0]- output of first dense block with 8 dense units after nearest neighbour
+    upsampling(2x) with 5x5 and 1x1 conv
     output[1] - output of first dense block after upsampling(2x) and 5x5 conv
     output[2] - Output of second dense block after upsampling(2x), adding with encoder output followed by conv 5x5
     """
@@ -159,6 +154,7 @@ def decoder(name, i):
 
     return [u3, u2x, u1]
 
+
 def crop_op(x, cropping, data_format='channels_first'):
     """
     Center-cropping image
@@ -173,9 +169,9 @@ def crop_op(x, cropping, data_format='channels_first'):
     crop_l = cropping[1] // 2
     crop_r = cropping[1] - crop_l
     if data_format == 'channels_first':
-        x = x[:,:,crop_t:-crop_b,crop_l:-crop_r]
+        x = x[:, :, crop_t:-crop_b, crop_l:-crop_r]
     else:
-        x = x[:,crop_t:-crop_b,crop_l:-crop_r]
+        x = x[:, crop_t:-crop_b, crop_l:-crop_r]
     return x
 
 
@@ -184,23 +180,20 @@ class Model_NP_HV(BaseNucleiSegmentation):
 
         images, truemap_coded = inputs
 
-        ####
         with argscope(Conv2D, activation=tf.identity, use_bias=False,  # K.he initializer
                       W_init=tf.variance_scaling_initializer(scale=2.0, mode='fan_out')), \
-             argscope([Conv2D, BatchNorm], data_format=self.data_format):
+             argscope([Conv2D, BatchNorm],data_format=self.data_format):
 
             # i = tf.transpose(images, [0, 3, 1, 2]) #LAU: NHWC format : no need to transpose
             print("Loading images")
             i = images
             i = i if not self.input_norm else i / 255.0
 
-            ####
             print("computing encoder")
             d = encoder(i, self.freeze)
             d[0] = crop_op(d[0], (184, 184), "NHWC")
             d[1] = crop_op(d[1], (72, 72), "NHWC")
 
-            ####
             print("decoder for NP")
             np_feat = decoder('np', d)
             npx = BNReLU('preact_out_np', np_feat[-1])
@@ -217,24 +210,19 @@ class Model_NP_HV(BaseNucleiSegmentation):
 
                 # Nuclei Type Pixels (TP)
                 logi_class = Conv2D('conv_out_tp', tp, self.nr_types, 1, use_bias=True, activation=tf.identity)
-                # logi_class = tf.transpose(logi_class, [0, 2, 3, 1])
                 soft_class = tf.nn.softmax(logi_class, axis=-1)
 
-            #### Nuclei Pixels (NP)
+            # Nuclei Pixels (NP)
             logi_np = Conv2D('conv_out_np', npx, 2, 1, use_bias=True, activation=tf.identity)
-            # logi_np = tf.transpose(logi_np, [0, 2, 3, 1])
             soft_np = tf.nn.softmax(logi_np, axis=-1)
             prob_np = tf.identity(soft_np[..., 1], name='predmap-prob-np')
             prob_np = tf.expand_dims(prob_np, axis=-1)
 
-            #### Horizontal-Vertival (HV)
+            # Horizontal-Vertival (HV)
             logi_hv = Conv2D('conv_out_hv', hv, 2, 1, use_bias=True, activation=tf.identity)
-            # LAU: commented all transpose
-            # logi_hv = tf.transpose(logi_hv, [0, 2, 3, 1])
             pred_hv = tf.identity(logi_hv, name='predmap-hv')
 
             # * channel ordering: type-map, segmentation map
-            # encoded so that inference can extract all output at once
             if self.type_classification:
                 predmap_coded = tf.concat([soft_class, prob_np, pred_hv], axis=-1, name='predmap-coded')
             else:

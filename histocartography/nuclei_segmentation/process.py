@@ -8,14 +8,15 @@ import json
 import time
 import csv
 
+
 class Process(Config):
     def create_directory(self, path):
         if not os.path.isdir(path):
             os.makedirs(path)
-    #enddef
+    # end def
 
     def run(self):
-        # * flag for HoVer-Net only
+        # * flag for HoVer-Net
         # 1 - threshold, 2 - sobel based
         energy_mode = 2
         marker_mode = 2
@@ -28,7 +29,7 @@ class Process(Config):
         self.create_directory(proc_overlap_dir)
 
         file_list = glob.glob('%s/*.mat' % pred_dir)
-        file_list.sort()  # ensure same order
+        file_list.sort()
 
         start_time = time.time()
         for filename in file_list:
@@ -50,12 +51,9 @@ class Process(Config):
                 pred_type = np.argmax(pred_type, axis=-1)
             else:
                 pred_inst = pred
-            #endif
-        
+
             pred_inst = proc_np_hv(pred_inst, marker_mode=marker_mode, energy_mode=energy_mode, rgb=img)
 
-            # ! will be extremely slow on WSI/TMA so it's advisable to comment this out
-            # * remap once so that further processing faster (metrics calculation, etc.)
             pred_inst = remap_label(pred_inst, by_size=True)
             overlaid_output = visualize_instances(pred_inst, img)
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
@@ -64,7 +62,6 @@ class Process(Config):
         
             # for instance segmentation only
             if self.type_classification:
-                #### * Get class of each instance id, stored at index id-1
                 pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
                 pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
                 for idx, inst_id in enumerate(pred_id_list):
@@ -86,21 +83,18 @@ class Process(Config):
                     json.dump({'detected_instance_map': pred_inst.tolist(), 'detected_type_map': pred_type.tolist(),
                                'instance_types': pred_inst_type[:, None].tolist(),
                                'instance_centroid_location': pred_inst_centroid.tolist() ,
-                               'image_dimension' : img.shape}, k)
+                               'image_dimension': img.shape}, k)
             else:
         
                 file_name = '%s/%s.json' % (proc_json_dir, basename)
                 with open(file_name, 'a') as k:
                     json.dump({'detected_instance_map': pred_inst.tolist(),
-                                'instance_centroid_location': pred_inst_centroid.tolist(),
-                                'image_dimension': img.shape}, k)
-        
-            #endif
-        #endfor
-        print('Time per image= ', round((time.time() - start_time)/len(file_list), 2), 's')
-    #enddef
+                               'instance_centroid_location': pred_inst_centroid.tolist(),
+                               'image_dimension': img.shape}, k)
 
-    ### Save instance centroids to csv, to be used by QuPath
+        print('Time per image= ', round((time.time() - start_time)/len(file_list), 2), 's')
+
+    # Save instance centroids to csv, to be used by QuPath
     def save_to_csv(self):
         proc_json_dir = self.inf_output_dir + '_json/'
         proc_csv_dir = self.inf_output_dir + '_csv/'
@@ -121,13 +115,13 @@ class Process(Config):
                     x = centroid[i][0]
                     y = centroid[i][1]
                     centroid_np = np.vstack((centroid_np, np.reshape(np.array([x, y]), newshape=(-1, 2))))
-                #endfor
+
                 centroid_np = np.delete(centroid_np, 0, axis=0)
                 np.savetxt(proc_csv_dir + basename + '.csv', centroid_np, delimiter=',')
-            #end
-        #endfor
-    #enddef
-#end
+            # end
+        # end for
+    # end def
+# end
 
 
 

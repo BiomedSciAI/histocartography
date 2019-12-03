@@ -1,20 +1,20 @@
 import importlib
 import tensorflow as tf
 
-#### 
+
 class Config(object):
     def __init__(self):
         self.data_param = 'dataT'
         self.type_classification = False
 
         if self.data_param == 'local':
-            #### Inference model path
+            # Inference model path
             self.inf_model_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/nuclei_segmentation/hover_seg_Kumar.npz'
 
-            #### Inference data path
+            # Inference data path
             self.inf_data_dir = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/nuclei_segmentation/Images/'
 
-            #### Inference prediction results save path
+            # Inference prediction results save path
             self.inf_output_dir = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/nuclei_segmentation/Predictions/'
 
         elif self.data_param == 'dpmiccai':
@@ -27,21 +27,19 @@ class Config(object):
             self.inf_data_dir = '/dataT/pus/histocartography/Data/PASCALE/nuclei_segmentation/Images/'
             self.inf_output_dir = '/dataT/pus/histocartography/Data/PASCALE/nuclei_segmentation/Predictions/'
 
-
         self.seed = 10
         self.model_type = 'np_hv'
 
         self.nr_types = 5  # denotes number of classes for nuclear type classification
-        self.nr_classes = 2 # Nuclei Pixels vs Background
-        self.input_norm  = True # normalize RGB to 0-1 range
+        self.nr_classes = 2  # Nuclei Pixels vs Background
+        self.input_norm = True  # normalize RGB to 0-1 range
 
-        ####
         exp_id = 'v1.0/'
         model_id = '%s' % self.model_type
         self.model_name = '%s/%s' % (exp_id, model_id)
 
-        self.log_path = './logs/' # log root path - modify according to needs
-        self.save_dir = '%s/%s' % (self.log_path, self.model_name) # log file destination
+        self.log_path = './logs/'  # log root path - modify according to needs
+        self.save_dir = '%s/%s' % (self.log_path, self.model_name)  # log file destination
         self.train_input_shape = [270, 270]
         self.train_mask_shape = [80, 80]
 
@@ -58,7 +56,6 @@ class Config(object):
         self.optimizer = tf.train.AdamOptimizer
         self.learning_rate = 1.0e-5
 
-        # for inference during evalutaion mode i.e run by infer.py
         self.eval_inf_input_tensor_names = ['images']
         self.eval_inf_output_tensor_names = ['predmap-coded']
 

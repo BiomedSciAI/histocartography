@@ -5,7 +5,7 @@ import tensorflow as tf
 from config import Config
 
 
-class BaseNucleiSegmentation(ModelDesc,Config):
+class BaseNucleiSegmentation(ModelDesc, Config):
     """
     Base interface class for Nuclei Segmentation(using tensorpack)
     """
@@ -13,7 +13,7 @@ class BaseNucleiSegmentation(ModelDesc,Config):
         super(BaseNucleiSegmentation, self).__init__()
         # assert tf.test.is_gpu_available()
         self.freeze = freeze
-        self.data_format = 'NHWC'  #for CPU
+        self.data_format = 'NHWC'  # for CPU
 
     def _get_inputs(self):
         return [InputDesc(tf.float32, [None] + self.train_input_shape + [3], 'images'),

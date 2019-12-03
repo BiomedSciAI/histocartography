@@ -3,24 +3,21 @@ import numpy as np
 import random
 import colorsys
 
-####
+
 def normalize(mask, dtype=np.uint8):
     return (255 * mask / np.amax(mask)).astype(dtype)
 
-####
+
 def bounding_box(img):
     rows = np.any(img, axis=1)
     cols = np.any(img, axis=0)
     rmin, rmax = np.where(rows)[0][[0, -1]]
     cmin, cmax = np.where(cols)[0][[0, -1]]
-    # due to python indexing, need to add 1 to max
-    # else accessing will be 1px in the box, not out 
     rmax += 1
     cmax += 1
     return [rmin, rmax, cmin, cmax]
 
 
-####
 def get_inst_centroid(inst_map):
     """
 
@@ -28,7 +25,7 @@ def get_inst_centroid(inst_map):
     """
     inst_centroid_list = []
     inst_id_list = list(np.unique(inst_map))
-    for inst_id in inst_id_list[1:]: # avoid 0 i.e background
+    for inst_id in inst_id_list[1:]:  # avoid 0 i.e background
         mask = np.array(inst_map == inst_id, np.uint8)
         inst_moment = cv2.moments(mask)
         inst_centroid = [(inst_moment["m10"] / inst_moment["m00"]),
@@ -36,19 +33,19 @@ def get_inst_centroid(inst_map):
         inst_centroid_list.append(inst_centroid)
     return np.array(inst_centroid_list)
 
-####
 
-def random_colors(N, bright=True):
+def random_colors(n, bright=True):
     """
     Generate random colors.
     To get visually distinct colors, generate them in HSV space then
     convert to RGB.
     """
     brightness = 1.0 if bright else 0.7
-    hsv = [(i / N, 1, brightness) for i in range(N)]
+    hsv = [(i / n, 1, brightness) for i in range(n)]
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     random.shuffle(colors)
     return colors
+
 
 def visualize_instances(mask, canvas=None, color=None):
     """
@@ -58,11 +55,10 @@ def visualize_instances(mask, canvas=None, color=None):
         Image with the instance overlaid
     """
 
-    canvas = np.full(mask.shape + (3,), 200, dtype=np.uint8) \
-                if canvas is None else np.copy(canvas)
+    canvas = np.full(mask.shape + (3,), 200, dtype=np.uint8) if canvas is None else np.copy(canvas)
 
     insts_list = list(np.unique(mask))
-    insts_list.remove(0) # remove background
+    insts_list.remove(0)  # remove background
 
     inst_colors = random_colors(len(insts_list))
     inst_colors = np.array(inst_colors) * 255
@@ -70,7 +66,7 @@ def visualize_instances(mask, canvas=None, color=None):
     for idx, inst_id in enumerate(insts_list):
         inst_color = color[idx] if color is not None else inst_colors[idx]
         inst_map = np.array(mask == inst_id, np.uint8)
-        y1, y2, x1, x2  = bounding_box(inst_map)
+        y1, y2, x1, x2 = bounding_box(inst_map)
         y1 = y1 - 2 if y1 - 2 >= 0 else y1
         x1 = x1 - 2 if x1 - 2 >= 0 else x1
         x2 = x2 + 2 if x2 + 2 <= mask.shape[1] - 1 else x2
@@ -83,7 +79,6 @@ def visualize_instances(mask, canvas=None, color=None):
     return canvas
 
 
-####
 def remap_label(pred, by_size=False):
     """
     Rename all instance id so that the id is contiguous i.e [0, 1, 2, 3]

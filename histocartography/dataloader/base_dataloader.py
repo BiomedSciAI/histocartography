@@ -13,7 +13,8 @@ class BaseDataset(Dataset):
         """
         Base dataset constructor.
         """
-        self._build_graph_builder(config[GRAPH_BUILDING])
+        self._build_graph_builder(config[GRAPH_BUILDING], name='cell_graph_builder')
+        self._build_graph_builder(config[GRAPH_BUILDING], name='superpx_graph_builder')
         self.cuda = cuda
 
     def __getitem__(self, item):
@@ -31,7 +32,7 @@ class BaseDataset(Dataset):
         """
         raise NotImplementedError('Implementation in subclasses.')
 
-    def _build_graph_builder(self, config):
+    def _build_graph_builder(self, config, name='cell_graph_builder'):
         """
         Build graph builder
         """
@@ -40,7 +41,7 @@ class BaseDataset(Dataset):
             module = importlib.import_module(
                 GRAPH_BUILDING_MODULE.format(graph_builder_type)
             )
-            self.graph_builder = getattr(module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
+            vars(self)[name] = getattr(module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
         else:
             raise ValueError(
                 'Graph builder type: {} not recognized. Options are: {}'.format(

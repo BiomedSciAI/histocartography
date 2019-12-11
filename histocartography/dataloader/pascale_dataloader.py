@@ -5,7 +5,6 @@ import torch.utils.data
 
 from histocartography.dataloader.base_dataloader import BaseDataset
 from histocartography.utils.io import get_files_in_folder, complete_path
-from histocartography.graph_building.constants import GRAPH_BUILDING
 
 
 class PascaleDataset(BaseDataset):
@@ -20,15 +19,14 @@ class PascaleDataset(BaseDataset):
             fpath (str): path to a pascale dataset whole slide image.
             cuda (bool): cuda usage.
         """
-        super(PascaleDataset, self).__init__(cuda)
+        super(PascaleDataset, self).__init__(config, cuda)
         self._load_dataset(fpath)
-        self._build_graph_builder(config[GRAPH_BUILDING])
 
     def _load_dataset(self, fpath):
         """
         Load WSI tumor regions
         """
-        self.samples = ...
+        self.samples = []
 
     def __getitem__(self, index):
         """
@@ -37,20 +35,25 @@ class PascaleDataset(BaseDataset):
         Args:
             index (int): index of the example.
         Returns:
-            a tuple containing: @TODO can be changed
-                 - dgl graph,
-                 - image
-                 - labels.
+            a tuple containing:
+                 - cell_graph (dgl graph)
+                 - superpx_graph (dgl graph)
+                 - assignment matrix (list of LongTensor)
+                 - labels (LongTensor)
         """
 
-        objects = ...
-        image_size = ...
-        label = ...
-        image = ...
+        objects = []
+        image_size = [1000, 1000]
+        label = torch.LongTensor([0])
 
-        g = self.graph_builder(objects, image_size)
+        cell_graph = self.cell_graph_builder(objects, image_size)
+        superpx_graph = self.superpx_graph_builder
+        assignment_matrix = torch.empty(
+            superpx_graph.number_of_nodes(),
+            cell_graph.number_of_nodes()
+        ).random_(2)
 
-        return g, image, label
+        return cell_graph, superpx_graph, assignment_matrix, label
 
     def __len__(self):
         """Return the number of samples in the WSI."""
@@ -90,13 +93,14 @@ def collate(batch):
     Returns:
         a tuple of torch.tensors.
     """
-    graphs = dgl.batch([example[0] for example in batch])
-    images = [example[1] for example in batch]
-    labels = [example[2] for example in batch]
-    return graphs, images, labels
+    cell_graphs = dgl.batch([example[0] for example in batch])
+    superpx_graphs = dgl.batch([example[1] for example in batch])
+    assignment_matrix = [example[2] for example in batch]
+    labels = [example[3] for example in batch]
+    return cell_graphs, superpx_graphs, assignment_matrix, labels
 
 
-def make_data_loader(batch_size, num_workers=1, *args, **kwargs):
+def make_data_loader(batch_size, train_ratio=0.8, num_workers=1, *args, **kwargs):
     """
     Create a data loader for the dataset.
 
@@ -106,12 +110,29 @@ def make_data_loader(batch_size, num_workers=1, *args, **kwargs):
     Returns:
         a tuple containing the data loader and the dataset.
     """
-    dataset = build_dataset(*args, **kwargs)
-    data_loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        collate_fn=collate,
-        num_workers=num_workers
+
+    full_dataset = build_dataset(*args, **kwargs)
+    train_length = int(len(full_dataset) * train_ratio)
+    val_length = len(full_dataset) - train_length
+    training_dataset, val_dataset = torch.utils.data.random_split(
+        full_dataset, [train_length, val_length]
     )
-    return data_loader, dataset
+
+    dataset_loaders = {
+        'train':
+            torch.utils.data.DataLoader(
+                training_dataset,
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=num_workers
+            ),
+        'val':
+            torch.utils.data.DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=num_workers
+            )
+    }
+
+    return dataset_loaders

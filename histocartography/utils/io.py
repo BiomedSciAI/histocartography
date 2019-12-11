@@ -45,3 +45,19 @@ def load_image(fname):
     """
     image = Image.open(fname)
     return image
+
+
+def read_params(fname, verbose=False):
+    """
+        Config file contains either a simple config set or a list of configs
+        (used to run several experiments).
+    :param fname:
+    :param reading_index:
+    :param verbose:
+    :return: config params
+    """
+    with open(fname, 'r') as in_config:
+        config_params = json.load(in_config)
+        if verbose:
+            print('\n*** Model config parameters:', config_params)
+    return config_params

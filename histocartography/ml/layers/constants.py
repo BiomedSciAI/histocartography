@@ -13,7 +13,6 @@ GNN_NODE_FEAT_IN = 'feat'
 GNN_NODE_FEAT_OUT = 'gnn_node_feat_out'
 GNN_AGG_MSG = 'gnn_agg_msg'
 GNN_EDGE_WEIGHT = 'gnn_edge_weight'
-GNN_LL_NODE_FEAT = 'gnn_ll_node_feat'
 
 AVAILABLE_LAYER_TYPES = {
     'gin_layer': 'GINLayer',

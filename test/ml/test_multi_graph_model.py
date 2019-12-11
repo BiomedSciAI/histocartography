@@ -47,6 +47,10 @@ class MultiGraphTestCase(unittest.TestCase):
         config = {
               "model_type": "MultiGraph",
               "model_params": {
+                "readout": {
+                      "num_layers": 2,
+                      "hidden_dim": 64,
+                },
                 "num_classes": 2,
                 "use_bn": False,
                 "dropout": 0.0,

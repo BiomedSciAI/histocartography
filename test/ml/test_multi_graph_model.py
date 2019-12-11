@@ -61,7 +61,7 @@ class MultiGraphTestCase(unittest.TestCase):
                     "neighbor_pooling_type": "mean"
                   },
                   {
-                    "layer_type": "pooled_gin_layer",
+                    "layer_type": "gin_layer",
                     "activation": "relu",
                     "hidden_dim": 10,
                     "output_dim": 78,

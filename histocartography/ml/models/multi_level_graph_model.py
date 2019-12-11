@@ -117,7 +117,8 @@ class MultiLevelGraphModel(BaseModel):
 
         # 2. Sum the low level features according to assignment matrix
         ll_h_concat = self._compute_assigned_feats(cell_graph, ll_h, assignment_matrix)
-        superpx_graph.ndata[GNN_LL_NODE_FEAT] = ll_h_concat
+
+        superpx_graph.ndata[GNN_NODE_FEAT_IN] = torch.cat((ll_h_concat, superpx_graph.ndata[GNN_NODE_FEAT_IN]), dim=1)
 
         # 3. GNN layers over the high level graph
         hl_feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]

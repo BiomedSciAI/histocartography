@@ -34,7 +34,10 @@ class MultiLevelGraphModel(BaseModel):
         self._build_cell_graph_params(config['gnn_params'][0])
 
         # 3- build super pixel graph params
-        self._build_superpx_graph_params(config['gnn_params'][1], config['gnn_params'][0])
+        self._build_superpx_graph_params(
+            config['gnn_params'][1],
+            self.hl_node_dim + config['gnn_params'][0]['output_dim']
+        )
 
         # 4- build classification params
         self._build_classification_params()

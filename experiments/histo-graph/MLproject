@@ -1,20 +1,16 @@
-name: fra_gleason2019 project
+name: gja_histo_graph project
 
 conda_env: conda.yml
 
 entry_points:
   main:
     parameters:
+      config_fpath: {type: string, default: histocartography/config/multi_graphs_config_file.json}
       data_path: {type: string, default: data/}
-      dataset: {type: string, default: prostate/TMA/gleason2019}
-      bucket: {type: string, default: curated-datasets}
       number_of_workers: {type: int, default: 1}
       model_name: {type string, default: model}
-      seed: {type: int, default: 42}
       batch_size: {type: int, default: 25}
       epochs: {type: int, default: 1}
       learning_rate: {type: float, default: 1e-5}
-      patch_size: {type: int, default: 128}
-      unet_depth: {type: int, default: 5}
-      filters: {type:int, default: 32}
-    command: "python3 training_script.py --bucket {bucket} -t {dataset} -d {data_path} --number_of_workers {number_of_workers} -n {model_name} -s {seed} -b {batch_size} -l {learning_rate} --epochs {epochs} --unet_depth {unet_depth} --filters {filters} --patch_size {patch_size}"
+    command: "python3 training_script.py --config_fpath {config_fpath} -d {data_path} --number_of_workers \
+    {number_of_workers} -n {model_name} -b {batch_size} -l {learning_rate} --epochs {epochs}"

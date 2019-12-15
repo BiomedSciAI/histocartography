@@ -57,8 +57,23 @@ class Process(Config):
             pred_inst = remap_label(pred_inst, by_size=True)
             overlaid_output = visualize_instances(pred_inst, img)
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-            cv2.imwrite('%s/%s.png' % (proc_overlap_dir, basename), overlaid_output)
+            # cv2.imwrite('%s/%s.png' % (proc_overlap_dir, basename), overlaid_output)
+            pred_inst_features, pred_centroid = extract_feat(img, pred_inst)
+
+            # TODO : remove get_inst_centroid
             pred_inst_centroid = get_inst_centroid(pred_inst)
+
+            j = 0
+            for item_t in pred_centroid:
+                j += 1
+                cv2.drawMarker(overlaid_output, (int(item_t[0]), int(item_t[1])), (0, 255, 0),
+                               markerType=cv2.MARKER_STAR,
+                               markerSize=10, thickness=1, line_type=cv2.LINE_AA)
+
+                cv2.putText(overlaid_output, str(j), (int(item_t[0]), int(item_t[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                            (0, 0, 255))  # , 2, cv2.LINE_AA)
+
+            cv2.imwrite('%s/%s.png' % (proc_json_dir, basename), overlaid_output)
         
             # for instance segmentation only
             if self.type_classification:
@@ -82,14 +97,16 @@ class Process(Config):
                 with open(file_name, 'a') as k:
                     json.dump({'detected_instance_map': pred_inst.tolist(), 'detected_type_map': pred_type.tolist(),
                                'instance_types': pred_inst_type[:, None].tolist(),
-                               'instance_centroid_location': pred_inst_centroid.tolist() ,
+                               'instance_centroid_location': pred_centroid.tolist(),
+                               'instance_features': pred_inst_features.tolist(),
                                'image_dimension': img.shape}, k)
             else:
         
                 file_name = '%s/%s.json' % (proc_json_dir, basename)
                 with open(file_name, 'a') as k:
                     json.dump({'detected_instance_map': pred_inst.tolist(),
-                               'instance_centroid_location': pred_inst_centroid.tolist(),
+                               'instance_centroid_location': pred_centroid.tolist(),
+                               'instance_features': pred_inst_features.tolist(),
                                'image_dimension': img.shape}, k)
 
         print('Time per image= ', round((time.time() - start_time)/len(file_list), 2), 's')

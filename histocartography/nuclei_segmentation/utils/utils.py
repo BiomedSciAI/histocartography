@@ -2,6 +2,10 @@ import cv2
 import numpy as np
 import random
 import colorsys
+from skimage.feature import greycomatrix, greycoprops
+from skimage.filters.rank import entropy as Entropy
+from skimage.morphology import disk
+import scipy
 
 
 def normalize(mask, dtype=np.uint8):
@@ -109,3 +113,117 @@ def remap_label(pred, by_size=False):
     for idx, inst_id in enumerate(pred_id):
         new_pred[pred == inst_id] = idx + 1
     return new_pred
+
+def extract_feat(img, mask):
+
+    img = np.full(mask.shape + (3,), 200, dtype=np.uint8) if img is None else np.copy(img)
+
+    insts_list = list(np.unique(mask))
+    insts_list.remove(0)  # remove background
+
+    img_g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    node_feat = []
+    node_coord = []
+    entropy = Entropy(img_g, disk(3))
+
+    for idx, inst_id in enumerate(insts_list):
+        # inst_color = color[idx] if color is not None else inst_colors[idx]
+        inst_map = np.array(mask == inst_id, np.uint8)
+        nuc_feat = []
+        # get bounding box for each nuclei
+        y1, y2, x1, x2 = bounding_box(inst_map)
+        y1 = y1 - 2 if y1 - 2 >= 0 else y1
+        x1 = x1 - 2 if x1 - 2 >= 0 else x1
+        x2 = x2 + 2 if x2 + 2 <= mask.shape[1] - 1 else x2
+        y2 = y2 + 2 if y2 + 2 <= mask.shape[0] - 1 else y2
+        nuclei_mask = inst_map[y1:y2, x1:x2]
+        nuclei_img = img[y1:y2, x1:x2]
+        nuclei_img_g = img_g[y1:y2, x1:x2]
+        nuclei_entropy = entropy[y1:y2, x1:x2]
+
+        background_px = np.array(nuclei_img_g[nuclei_mask == 0])
+        foreground_px = np.array(nuclei_img_g[nuclei_mask > 0])
+
+        # Morphological features
+        mean_bg = background_px.sum() / (np.size(background_px) + 1.0e-8)
+        mean_fg = foreground_px.sum() / (np.size(foreground_px) + 1.0e-8)
+        diff = abs(mean_fg - mean_bg)
+        var = np.var(foreground_px)
+        skew = scipy.stats.skew(foreground_px)
+        #  mean_fg, diff, var, skew: Morphological features
+
+        # Textural features (gray level co-occurence matrix)
+        glcm = greycomatrix(nuclei_img_g * nuclei_mask, [1], [0])
+        filt_glcm = glcm[1:, 1:, :, :]  # Filter out the first row and column
+        glcm_contrast = greycoprops(filt_glcm, prop='contrast')
+        glcm_contrast = glcm_contrast[0, 0]
+        glcm_dissimilarity = greycoprops(filt_glcm, prop='dissimilarity')
+        glcm_dissimilarity = glcm_dissimilarity[0, 0]
+        glcm_homogeneity = greycoprops(filt_glcm, prop='homogeneity')
+        glcm_homogeneity = glcm_homogeneity[0, 0]
+        glcm_energy = greycoprops(filt_glcm, prop='energy')
+        glcm_energy = glcm_energy[0, 0]
+        glcm_ASM = greycoprops(filt_glcm, prop='ASM')
+        glcm_ASM = glcm_ASM[0, 0]
+
+        mean_entropy = cv2.mean(nuclei_entropy, mask=nuclei_mask)[0]
+
+        contours = cv2.findContours(nuclei_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        contour = contours[0][0]
+        #contour_saved = contours[0]
+        #cv2.drawContours(nuclei_img, contours[0], -1, (0, 255, 0), 2)
+
+        #img[y1:y2, x1:x2] = nuclei_img
+        M = cv2.moments(contour)
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        centroid = [x1 + cX, y1 + cY]
+        # print("contour len")
+        # print(len(contour))
+        num_vertices = len(contour)
+        # print("For each object, no of vertices %d" % num_vertices)
+        area = cv2.contourArea(contour)
+        hull = cv2.convexHull(contour)
+        hull_area = cv2.contourArea(hull)
+        if hull_area == 0:
+            hull_area += 1
+        solidity = float(area) / hull_area
+        if num_vertices > 4:
+            centre, axes, orientation = cv2.fitEllipse(contour)
+            majoraxis_length = max(axes)
+            minoraxis_length = min(axes)
+        else:
+            orientation = 0
+            majoraxis_length = 1
+            minoraxis_length = 1
+        perimeter = cv2.arcLength(contour, True)
+        eccentricity = np.sqrt(1 - (minoraxis_length / majoraxis_length) ** 2)
+
+        nuc_feat.append(mean_fg)
+        nuc_feat.append(diff)
+        nuc_feat.append(var)
+        nuc_feat.append(skew)
+        nuc_feat.append(mean_entropy)
+        nuc_feat.append(glcm_dissimilarity)
+        nuc_feat.append(glcm_homogeneity)
+        nuc_feat.append(glcm_energy)
+        nuc_feat.append(glcm_ASM)
+        nuc_feat.append(eccentricity)
+        nuc_feat.append(area)
+        nuc_feat.append(majoraxis_length)
+        nuc_feat.append(minoraxis_length)
+        nuc_feat.append(perimeter)
+        nuc_feat.append(solidity)
+        nuc_feat.append(orientation)
+
+        # Stacking all features together
+        features = np.hstack(nuc_feat)
+        node_feat.append(features)
+        node_coord.append(centroid)
+
+    # For all nuclei in one image
+    node_feat = np.vstack(node_feat)
+    node_coord = np.vstack(node_coord)
+
+    return node_feat, node_coord

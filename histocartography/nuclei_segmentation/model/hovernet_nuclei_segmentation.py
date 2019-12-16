@@ -112,7 +112,7 @@ def encoder(i, freeze):
     d4 = tf.stop_gradient(d4) if freeze else d4
 
     d4 = Conv2D('conv_bot', d4, 1024, 1, padding='same')
-    print("Encoder done")
+    #print("Encoder done")
     return [d1, d2, d3, d4]
 
 
@@ -150,7 +150,7 @@ def decoder(name, i):
 
             u1 = Conv2D('conva', u1_sum, 64, 5, strides=1, padding='same')
 
-    print("Decoder done")
+    # print("Decoder done")
 
     return [u3, u2x, u1]
 
@@ -185,26 +185,26 @@ class Model_NP_HV(BaseNucleiSegmentation):
              argscope([Conv2D, BatchNorm],data_format=self.data_format):
 
             # i = tf.transpose(images, [0, 3, 1, 2]) #LAU: NHWC format : no need to transpose
-            print("Loading images")
+            # print("Loading images")
             i = images
             i = i if not self.input_norm else i / 255.0
 
-            print("computing encoder")
+            # print("computing encoder")
             d = encoder(i, self.freeze)
             d[0] = crop_op(d[0], (184, 184), "NHWC")
             d[1] = crop_op(d[1], (72, 72), "NHWC")
 
-            print("decoder for NP")
+            # print("decoder for NP")
             np_feat = decoder('np', d)
             npx = BNReLU('preact_out_np', np_feat[-1])
 
-            print("decoder for HV")
+            # print("decoder for HV")
 
             hv_feat = decoder('hv', d)
             hv = BNReLU('preact_out_hv', hv_feat[-1])
 
             if self.type_classification:
-                print("decoder for TP")
+                # print("decoder for TP")
                 tp_feat = decoder('tp', d)
                 tp = BNReLU('preact_out_tp', tp_feat[-1])
 

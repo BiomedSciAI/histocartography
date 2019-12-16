@@ -6,6 +6,7 @@ from skimage.feature import greycomatrix, greycoprops
 from skimage.filters.rank import entropy as Entropy
 from skimage.morphology import disk
 import scipy
+import h5py
 
 
 def normalize(mask, dtype=np.uint8):
@@ -78,7 +79,7 @@ def visualize_instances(mask, canvas=None, color=None):
         inst_map_crop = inst_map[y1:y2, x1:x2]
         inst_canvas_crop = canvas[y1:y2, x1:x2]
         contours = cv2.findContours(inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(inst_canvas_crop, contours[1], -1, inst_color, 2)
+        cv2.drawContours(inst_canvas_crop, contours[0], -1, inst_color, 2)
         canvas[y1:y2, x1:x2] = inst_canvas_crop
     return canvas
 
@@ -113,6 +114,7 @@ def remap_label(pred, by_size=False):
     for idx, inst_id in enumerate(pred_id):
         new_pred[pred == inst_id] = idx + 1
     return new_pred
+
 
 def extract_feat(img, mask):
 
@@ -176,13 +178,11 @@ def extract_feat(img, mask):
 
         #img[y1:y2, x1:x2] = nuclei_img
         M = cv2.moments(contour)
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
+        cX = (M["m10"] / M["m00"])
+        cY = (M["m01"] / M["m00"])
         centroid = [x1 + cX, y1 + cY]
-        # print("contour len")
-        # print(len(contour))
         num_vertices = len(contour)
-        # print("For each object, no of vertices %d" % num_vertices)
+        #print("For each object, no of vertices %d" % num_vertices)
         area = cv2.contourArea(contour)
         hull = cv2.convexHull(contour)
         hull_area = cv2.contourArea(hull)
@@ -227,3 +227,43 @@ def extract_feat(img, mask):
     node_coord = np.vstack(node_coord)
 
     return node_feat, node_coord
+
+
+def save_h5(h5_filename, inst_map, centroid, inst_feat, img_dim, data_dtype='float32'):
+    h5_fout = h5py.File(h5_filename, 'w')
+    h5_fout.create_dataset(
+            'detected_instance_map', data=inst_map,
+            dtype=data_dtype)
+    h5_fout.create_dataset(
+            'instance_centroid_location', data=centroid,
+            dtype=data_dtype)
+    h5_fout.create_dataset(
+        'instance_features', data=inst_feat,
+        dtype=data_dtype)
+    h5_fout.create_dataset(
+        'image_dimension', data=img_dim,
+        dtype='int32')
+    h5_fout.close()
+
+
+def save_h5_type(h5_filename, inst_map, pred_type, centroid, inst_type, inst_feat, img_dim, data_dtype='float32'):
+    h5_fout = h5py.File(h5_filename, 'w')
+    h5_fout.create_dataset(
+            'detected_instance_map', data=inst_map,
+            dtype=data_dtype)
+    h5_fout.create_dataset(
+        'detected_type', data=pred_type,
+        dtype=data_dtype)
+    h5_fout.create_dataset(
+            'instance_centroid_location', data=centroid,
+            dtype=data_dtype)
+    h5_fout.create_dataset(
+        'instance_types', data=inst_type,
+        dtype=data_dtype)
+    h5_fout.create_dataset(
+        'instance_features', data=inst_feat,
+        dtype=data_dtype)
+    h5_fout.create_dataset(
+        'image_dimension', data=img_dim,
+        dtype='int32')
+    h5_fout.close()

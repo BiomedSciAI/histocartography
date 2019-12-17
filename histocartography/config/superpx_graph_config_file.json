@@ -1,9 +1,11 @@
 {
 "graph_building": {
-  "graph_building_type": "knn_graph_builder",
-  "max_num_nodes": 5000,
-  "edge_encoding": false,
-  "edge_threshold": 0.5
+    "cell_graph_builder": {
+    "graph_building_type": "knn_graph_builder",
+    "max_num_nodes": 5000,
+    "edge_encoding": false,
+    "edge_threshold": 0.5
+  }
 },
 "model_params": {
 "gnn_params": {

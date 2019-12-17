@@ -89,15 +89,18 @@ class MultiLevelGraphModel(BaseModel):
 
         return torch.cat(ll_h_concat, dim=0)
 
-    def forward(self, cell_graph, superpx_graph, assignment_matrix):
+    def forward(self, data):
         """
         Foward pass.
-        :param cell_graph: (DGLGraph) low level graph
-        :param superpx_graph: (DGLGraph) high level graph
-        :param assignment_matrix: (list of LongTensor) define how to pool
-                                  the low level graph to build high level
-                                  features.
+        :param data: tuple of (DGLGraph) low level graph,
+                                (DGLGraph) high level graph,
+                                (list of LongTensor) define how to pool
+                                the low level graph to build high level
+                                features.
         """
+
+        cell_graph, superpx_graph, assignment_matrix = data[0], data[1], data[2]
+
         # 1. GNN layers over the low level graph
         ll_feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
         ll_h = self.cell_graph_gnn(cell_graph, ll_feats, self.concat)

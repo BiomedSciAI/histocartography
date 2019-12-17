@@ -13,8 +13,12 @@ class BaseDataset(Dataset):
         """
         Base dataset constructor.
         """
-        self._build_graph_builder(config[GRAPH_BUILDING], name='cell_graph_builder')
-        self._build_graph_builder(config[GRAPH_BUILDING], name='superpx_graph_builder')
+
+        self.model_type = config['model_type']
+
+        for graph_type, param in config[GRAPH_BUILDING]:
+            self._build_graph_builder(param, name=graph_type)
+
         self.cuda = cuda
 
     def __getitem__(self, item):

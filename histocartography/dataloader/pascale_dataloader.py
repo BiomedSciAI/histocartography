@@ -6,6 +6,11 @@ import torch.utils.data
 from histocartography.dataloader.base_dataloader import BaseDataset
 from histocartography.utils.io import get_files_in_folder, complete_path
 
+COLLATE_FN = {
+    'DGLGraph': lambda x: dgl.batch(x),
+    'Tensor': lambda x: x
+}
+
 
 class PascaleDataset(BaseDataset):
     """Pascale data loader."""
@@ -46,14 +51,22 @@ class PascaleDataset(BaseDataset):
         image_size = [1000, 1000]
         label = torch.LongTensor([0])
 
-        cell_graph = self.cell_graph_builder(objects, image_size)
-        superpx_graph = self.superpx_graph_builder
-        assignment_matrix = torch.empty(
-            superpx_graph.number_of_nodes(),
-            cell_graph.number_of_nodes()
-        ).random_(2)
-
-        return cell_graph, superpx_graph, assignment_matrix, label
+        if self.model_type == 'CellGraphModel':
+            cell_graph = self.cell_graph_builder(objects, image_size)
+            return label, cell_graph
+        elif self.model_type == 'SuperpxGraphModel':
+            superpx_graph = self.superpx_graph_builder(objects, image_size)
+            return label, superpx_graph
+        elif self.model_type == 'MultiGraphModel':
+            cell_graph = self.cell_graph_builder(objects, image_size)
+            superpx_graph = self.superpx_graph_builder(objects, image_size)
+            assignment_matrix = torch.empty(
+                superpx_graph.number_of_nodes(),
+                cell_graph.number_of_nodes()
+            ).random_(2)
+            return cell_graph, superpx_graph, assignment_matrix
+        else:
+            raise ValueError('Model type: {} not supported'.format(self.model_type))
 
     def __len__(self):
         """Return the number of samples in the WSI."""
@@ -74,12 +87,12 @@ def build_dataset(path, *args, **kwargs):
                     complete_path(path, filename),
                     *args, **kwargs
                 )
-                for filename in get_files_in_folder(path, '.svs')
+                for filename in get_files_in_folder(path, '.h5')
             ]
         )
     else:
         raise RuntimeError(
-            'Provide a folder containing .svs files.'
+            'Provide a folder containing .h5 files.'
         )
 
 
@@ -93,11 +106,15 @@ def collate(batch):
     Returns:
         a tuple of torch.tensors.
     """
-    cell_graphs = dgl.batch([example[0] for example in batch])
-    superpx_graphs = dgl.batch([example[1] for example in batch])
-    assignment_matrix = [example[2] for example in batch]
-    labels = [example[3] for example in batch]
-    return cell_graphs, superpx_graphs, assignment_matrix, labels
+
+    def collate_fn(batch, id, type):
+        return COLLATE_FN[type]([example[id] for example in batch])
+
+    num_modalities = len(batch[0])
+    labels = [example[0] for example in batch]
+    data = [collate_fn(batch, mod_id, type(batch[0][mod_id]).__name__) for mod_id in range(1, num_modalities)]
+
+    return labels, data
 
 
 def make_data_loader(batch_size, train_ratio=0.8, num_workers=1, *args, **kwargs):

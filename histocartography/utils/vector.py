@@ -1,4 +1,5 @@
 import math
+import torch
 
 
 def compute_box_centroid(box):
@@ -30,3 +31,16 @@ def compute_edge_weight(dist):
     """
     # @TODO add Waxman's parameters here ?
     return math.exp(-dist)
+
+
+def compute_normalization_factor(features):
+    """
+    Compute normalization factors: mean, std of each feature.
+    :param features: (list of FloatTensor)
+    :return:
+    """
+    features = torch.cat([feat for feat in features])
+    return {
+        'mean': torch.mean(features, dim=0),
+        'std': torch.std(features, dim=0)
+    }

@@ -1,8 +1,7 @@
 import dgl
 import torch
 
-from histocartography.graph_building.constants import LABEL, CENTROID
-
+from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
 
 class BaseGraphBuilder:
     """
@@ -27,7 +26,7 @@ class BaseGraphBuilder:
         self.cuda = cuda
         self.verbose = verbose
 
-    def __call__(self, objects, image_size):
+    def __call__(self, cell_features, centroid):
         """
         Build graph
         Args:
@@ -37,24 +36,22 @@ class BaseGraphBuilder:
                 - visual descriptor
             image_size: (list) weight and height of the image
         """
-        num_objects = len(objects)
+        num_nodes = cell_features.shape[0]
         graph = dgl.DGLGraph()
-        graph.add_nodes(num_objects)
-        self._set_node_features(objects, graph)
-        self._build_topology(objects, graph)
+        graph.add_nodes(num_nodes)
+        self._set_node_features(cell_features, graph)
+        self._build_topology(centroid, graph)
         if self.config['edge_encoding']:
-            self._set_edge_embeddings(objects, graph)
+            self._set_edge_embeddings(graph)
         return graph
 
-    def _set_node_features(self, objects, graph):
+    def _set_node_features(self, cell_features, graph):
         """
         Build node embeddings
         """
-        graph.ndata[CENTROID] = torch.LongTensor([obj[CENTROID] for obj in objects])
-        graph.ndata[LABEL] = torch.LongTensor([obj[LABEL] for obj in objects])
-        # graph.ndata[VISUAL] = torch.LongTensor([obj[VISUAL] for obj in objects])
+        graph.ndata[GNN_NODE_FEAT_IN] = cell_features
 
-    def _set_edge_embeddings(self, objects, graph):
+    def _set_edge_embeddings(self, graph):
         """
         Build edge embedding
         """

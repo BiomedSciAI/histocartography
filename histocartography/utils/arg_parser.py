@@ -9,7 +9,7 @@ def parse_arguments():
         type=str,
         help='path to the data.',
         default='data/',
-        required=False
+        required=True
     )
     parser.add_argument(
         '-conf',
@@ -17,7 +17,7 @@ def parse_arguments():
         type=str,
         help='path to the config file.',
         default='',
-        required=False
+        required=True
     )
     parser.add_argument(
         '-p',

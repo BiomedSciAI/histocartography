@@ -35,7 +35,7 @@ CUDA = torch.cuda.is_available()
 
 def main(args):
     """
-    Train SqueezeNet with brontes.
+    Train HistoGraph.
     Args:
         args (Namespace): parsed arguments.
     """
@@ -44,7 +44,7 @@ def main(args):
     config = read_params(args.config_fpath, verbose=True)
 
     # make data loaders (train & validation)
-    dataloaders = make_data_loader(
+    dataloaders, num_cell_features = make_data_loader(
         batch_size=args.batch_size,
         train_ratio=args.train_ratio,
         num_workers=args.number_of_workers,
@@ -59,10 +59,10 @@ def main(args):
         module = importlib.import_module(
             MODEL_MODULE.format(model_type)
         )
-        model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(config)
+        model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(config['model_params'], num_cell_features)
     else:
         raise ValueError(
-            'Graph builder type: {} not recognized. Options are: {}'.format(
+            'Model: {} not recognized. Options are: {}'.format(
                 model_type, list(AVAILABLE_MODEL_TYPES.keys())
             )
         )
@@ -81,7 +81,7 @@ def main(args):
         'number_of_workers': args.number_of_workers,
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
-        'config': config
+        # 'config': config
     })
 
     # define metrics
@@ -100,7 +100,7 @@ def main(args):
         optimizers=optimizer,
         training_log_interval=10,
         tracker_type='mlflow',
-        metrics=metrics
+        # metrics=metrics
     )
 
     # finally, train the model

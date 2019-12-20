@@ -44,15 +44,17 @@ class CellGraphModel(BaseModel):
                               num_layers=self.config['readout']['num_layers']
                               )
 
-    def forward(self, cell_graph):
+    def forward(self, data):
         """
         Foward pass.
-        :param cell_graph: (DGLGraph) cell graph
+        :param data: tuple with (DGLGraph), cell graph
         """
         # 1. GNN layers over the low level graph
+        cell_graph = data[0]
         feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
         graph_embeddings = self.cell_graph_gnn(cell_graph, feats, self.concat)
 
-        # 2. Run readout function
+        # 3. Run readout function
         logits = self.pred_layer(graph_embeddings)
+
         return logits

@@ -6,8 +6,3 @@ AVAILABLE_GRAPH_BUILDERS = {
     'knn_graph_builder': 'KNNGraphBuilder',
     'waxman_graph_builder': 'WaxmanGraphBuilder'
 }
-
-CENTROID = 'centroid'
-BOX = 'box'
-LABEL = 'label'
-VISUAL = 'visual'

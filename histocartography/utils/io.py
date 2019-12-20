@@ -1,5 +1,7 @@
 import json
 import os
+import torch
+import numpy as np
 from PIL import Image
 
 
@@ -26,6 +28,11 @@ def get_files_in_folder(path, extension):
         f for f in os.listdir(path)
         if os.path.isfile(complete_path(path, f)) and f.endswith(extension)
     ]
+
+
+def h5_to_tensor(h5_object, device):
+    tensor = torch.from_numpy(np.array(h5_object.value)).to(device)
+    return tensor
 
 
 def load_json(fname):

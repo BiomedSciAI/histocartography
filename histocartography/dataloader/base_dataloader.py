@@ -16,10 +16,11 @@ class BaseDataset(Dataset):
 
         self.model_type = config['model_type']
 
-        for graph_type, param in config[GRAPH_BUILDING]:
+        for graph_type, param in config[GRAPH_BUILDING].items():
             self._build_graph_builder(param, name=graph_type)
 
         self.cuda = cuda
+        self.device = 'cuda:0' if self.cuda else 'cpu'
 
     def __getitem__(self, item):
         """

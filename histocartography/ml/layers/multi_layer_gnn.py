@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import importlib
+import dgl
 
-from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE
+from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE, GNN_NODE_FEAT_OUT
 
 
 class MultiLayerGNN(nn.Module):
@@ -85,6 +86,13 @@ class MultiLayerGNN(nn.Module):
         for layer in self.layers:
             h = layer(g, h)
             h_concat.append(h)
+
         if cat:
-            return torch.cat(h_concat, dim=-1)
+            g.ndata[GNN_NODE_FEAT_OUT] = torch.cat(h_concat, dim=-1)
+        else:
+            g.ndata[GNN_NODE_FEAT_OUT] = h
+
+        # 2. sum the nodes
+        h = dgl.sum_nodes(g, GNN_NODE_FEAT_OUT)
+
         return h

@@ -9,7 +9,9 @@ import importlib
 import torch
 import mlflow
 import pytorch_lightning as pl
-from brontes import Brontes
+
+# @TODO: fix bug in Brontest metrics ...
+from brontes.core import Brontes
 
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
@@ -96,7 +98,7 @@ def main(args):
     confusion_matrix_evaluation = ConfusionMatrixEvaluator(cuda=CUDA)
     metrics = {
         'accuracy': accuracy_evaluation,
-        'confusion_matrix': confusion_matrix_evaluation
+        # 'confusion_matrix': confusion_matrix_evaluation
     }
 
     # define brontes model
@@ -107,7 +109,7 @@ def main(args):
         optimizers=optimizer,
         training_log_interval=10,
         tracker_type='mlflow',
-        # metrics=metrics
+        metrics=metrics
     )
 
     # train the model with pytorch lightning

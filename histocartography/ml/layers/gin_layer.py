@@ -9,7 +9,10 @@ Original paper:
 
 import torch
 
-from histocartography.ml.layers.constants import GNN_MSG, GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT, GNN_AGG_MSG, GNN_EDGE_WEIGHT
+from histocartography.ml.layers.constants import (
+    GNN_MSG, GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT,
+    GNN_AGG_MSG, GNN_EDGE_WEIGHT, REDUCE_TYPES
+)
 from histocartography.ml.layers.mlp import MLP
 from histocartography.ml.layers.base_layer import BaseLayer
 
@@ -59,32 +62,17 @@ class GINLayer(BaseLayer):
             act,
             use_bn,
             verbose=verbose)
-        self._set_neighbor_pooling(neighbor_pooling_type)
         self.eps = eps
+        self.neighbor_pooling_type = neighbor_pooling_type
         self.learn_eps = learn_eps
         self.layer_id = layer_id
 
-    def _set_neighbor_pooling(self, type):
-        if type == 'sum':
-            self.reduce_fn = self.sum_reduce_fn
-        elif type == 'mean':
-            self.reduce_fn = self.mean_reduce_fn
-        else:
-            raise ValueError(
-                'Reduce type {} not implemented'.format(type))
-
-    def sum_reduce_fn(self, nodes):
+    def reduce_fn(self, nodes):
         """
-        For each node, computes the sum of the neighbors
+        For each node, aggregate the nodes using a reduce function.
+        Current supported functions are sum and mean.
         """
-        accum = torch.sum((nodes.mailbox[GNN_MSG]), dim=1)
-        return {GNN_AGG_MSG: accum}
-
-    def mean_reduce_fn(self, nodes):
-        """
-        For each node, computes the mean of the neighbors
-        """
-        accum = torch.mean(nodes.mailbox[GNN_MSG], dim=1)
+        accum = REDUCE_TYPES[self.neighbor_pooling_type]((nodes.mailbox[GNN_MSG]), dim=1)
         return {GNN_AGG_MSG: accum}
 
     def msg_fn(self, edges):
@@ -111,8 +99,8 @@ class GINLayer(BaseLayer):
     def forward(self, g, h):
         """
         Forward-pass of a GIN layer.
-        :param g: DGLGraph object. Node features in GNN_NODE_FEAT_IN_KEY
-        :return: updated node features
+        :param g: (DGLGraph) graph to process.
+        :param h: (FloatTensor) node features
         """
         g.ndata[GNN_NODE_FEAT_IN] = h
 

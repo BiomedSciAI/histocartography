@@ -6,7 +6,6 @@ import logging
 import sys
 import tempfile
 import importlib
-
 import torch
 import mlflow
 import pytorch_lightning as pl
@@ -17,8 +16,8 @@ from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.evaluation.evaluator import AccuracyEvaluator, ConfusionMatrixEvaluator
 from histocartography.utils.arg_parser import parse_arguments
+from histocartography.utils.io import get_device
 
-# @TODO: ignore warning for the time being
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -32,8 +31,9 @@ formatter = logging.Formatter(
 h1.setFormatter(formatter)
 log.addHandler(h1)
 
-# Cuda support
+# cuda support
 CUDA = torch.cuda.is_available()
+DEVICE = get_device(CUDA)
 
 
 def main(args):
@@ -62,7 +62,7 @@ def main(args):
         module = importlib.import_module(
             MODEL_MODULE.format(model_type)
         )
-        model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(config['model_params'], num_cell_features)
+        model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(config['model_params'], num_cell_features).to(DEVICE)
     else:
         raise ValueError(
             'Model: {} not recognized. Options are: {}'.format(
@@ -84,7 +84,10 @@ def main(args):
         'number_of_workers': args.number_of_workers,
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
-        # 'config': config
+        'graph_building': config['graph_building'],
+        'gnn_params': config['model_params']['gnn_params'],
+        'readout_params': config['model_params']['readout'],
+        'model_type': config['model_type']
     })
 
     # define metrics
@@ -106,7 +109,7 @@ def main(args):
         # metrics=metrics
     )
 
-    # finally, train the model
+    # train the model with pytorch lightning
     if CUDA:
         trainer = pl.Trainer(gpus=[0], max_nb_epochs=args.epochs)
     else:

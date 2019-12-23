@@ -32,7 +32,8 @@ class WaxmanGraphBuilder(BaseGraphBuilder):
 
     def _build_topology(self, centroid, graph):
         """
-        Build topology.
+        Build topology using the distance between the centroids of each node.
+            If the distance is smaller than a threshold, then we build an edge.
         """
         num_objects = len(centroid)
         src = []

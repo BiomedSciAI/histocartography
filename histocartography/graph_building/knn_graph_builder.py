@@ -28,7 +28,8 @@ class KNNGraphBuilder(BaseGraphBuilder):
 
     def _build_topology(self, centroid, graph):
         """
-        Build topology
+        Build topology using a kNN algorithm based on the euclidean
+            distance between the centroid of the nodes.
         """
 
         # build adjacency matrix

@@ -1,14 +1,9 @@
 import dgl
 
 NORMALIZATION_FACTORS = {
-    'cell_graph': {
-    },
-    'superpx_graph': {
-        'mean': [],
-        'std': []
-    }
+    'cell_graph': {},
+    'superpx_graph': {}
 }
-
 
 COLLATE_FN = {
     'DGLGraph': lambda x: dgl.batch(x),

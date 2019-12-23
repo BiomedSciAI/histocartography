@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import importlib
-import dgl
 
 from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE, GNN_NODE_FEAT_OUT, READOUT_TYPES
 
@@ -32,7 +31,6 @@ class MultiLayerGNN(nn.Module):
             )
 
         self.config = config
-
         in_dim = config['input_dim']
         hidden_dim = config['hidden_dim']
         out_dim = config['output_dim']
@@ -95,7 +93,7 @@ class MultiLayerGNN(nn.Module):
         else:
             g.ndata[GNN_NODE_FEAT_OUT] = h
 
-        # 2. aggregate the nodes, mean or sum readout
+        # 2. aggregate the nodes, mean, max or sum readout
         h = READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
 
         return h

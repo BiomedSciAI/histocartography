@@ -29,5 +29,8 @@ class ConfusionMatrixEvaluator(BaseEvaluator):
 
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)
-        conf_matrix = confusion_matrix(labels.cpu().numpy(), indices.cpu().numpy())
+        conf_matrix = confusion_matrix(
+            labels.cpu().numpy(),
+            indices.cpu().numpy()
+        )
         return conf_matrix

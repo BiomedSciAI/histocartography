@@ -10,7 +10,7 @@ class CellGraphModel(BaseModel):
 
     def __init__(self, config, node_dim):
         """
-        CellGraphMddel model constructor
+        CellGraphModel model constructor
         :param config: (dict) configuration parameters
         :param node_dim: (int) cell dim, data specific argument
         """
@@ -38,11 +38,12 @@ class CellGraphModel(BaseModel):
         else:
             emd_dim = self.config['gnn_params']['output_dim']
 
-        self.pred_layer = MLP(in_dim=emd_dim,
-                              h_dim=self.config['readout']['hidden_dim'],
-                              out_dim=self.num_classes,
-                              num_layers=self.config['readout']['num_layers']
-                              )
+        self.pred_layer = MLP(
+            in_dim=emd_dim,
+            h_dim=self.config['readout']['hidden_dim'],
+            out_dim=self.num_classes,
+            num_layers=self.config['readout']['num_layers']
+        )
 
     def forward(self, data):
         """

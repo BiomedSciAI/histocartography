@@ -17,8 +17,8 @@ class PascaleDataset(BaseDataset):
 
         Args:
             :param config: (dict) config file
-            :param dir_path (str): path to the pascale dataset.
-            :param cuda (bool): cuda usage.
+            :param dir_path (str): path to the pascale dataset
+            :param cuda (bool): cuda usage
             :param norm_cell_features (bool): if the cell features should be normalised
             :param norm_superpx_features (bool): if the super pixel features should be normalised
         """
@@ -38,7 +38,7 @@ class PascaleDataset(BaseDataset):
 
     def _build_normaliser(self):
         """
-        Build normalizer to normalize the node features (ie, mean=0, std=1)
+        Build normalizers to normalize the node features (ie, mean=0, std=1)
         """
         if self.norm_cell_features:
             if not NORMALIZATION_FACTORS['cell_graph']:
@@ -101,6 +101,7 @@ class PascaleDataset(BaseDataset):
                  - labels (LongTensor)
         """
 
+        # extract the image size, centroid, cell features and label
         image_size = self.image_dimensions[index]
         centroid = self.cell_centroids[index] / image_size[:-1]
         cell_features = self.cell_features[index]
@@ -115,6 +116,7 @@ class PascaleDataset(BaseDataset):
         # concat spatial + appearance features
         cell_features = torch.cat((cell_features, centroid), dim=1)
 
+        # build graph topology
         if self.model_type == 'cell_graph_model':
             cell_graph = self.cell_graph_builder(cell_features, centroid)
             return cell_graph, label
@@ -171,7 +173,9 @@ def make_data_loader(batch_size, train_ratio=0.8, num_workers=1, *args, **kwargs
         batch_size (int): size of the batch.
         num_workers (int): number of workers.
     Returns:
-        a tuple containing the data loader and the dataset.
+        dataloaders: a dict containing the train and val data loader.
+        num_cell_features: num of cell features in the cell graph. Data dependent parameters
+            required by the model
     """
 
     full_dataset = build_dataset(*args, **kwargs)

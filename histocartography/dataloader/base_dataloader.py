@@ -5,6 +5,7 @@ from histocartography.graph_building.constants import (
     GRAPH_BUILDING_TYPE, AVAILABLE_GRAPH_BUILDERS,
     GRAPH_BUILDING_MODULE, GRAPH_BUILDING
 )
+from histocartography.utils.io import get_device
 
 
 class BaseDataset(Dataset):
@@ -14,26 +15,22 @@ class BaseDataset(Dataset):
         Base dataset constructor.
         """
 
+        self.cuda = cuda
+        self.device = get_device(self.cuda)
         self.model_type = config['model_type']
 
         for graph_type, param in config[GRAPH_BUILDING].items():
             self._build_graph_builder(param, name=graph_type)
 
-        self.cuda = cuda
-        self.device = 'cuda:0' if self.cuda else 'cpu'
-
     def __getitem__(self, item):
         """
-
-        :param item:
-        :return:
+        Get an example.
         """
         raise NotImplementedError('Implementation in subclasses.')
 
     def __len__(self):
         """
-
-        :return:
+        Num samples in the dataset.
         """
         raise NotImplementedError('Implementation in subclasses.')
 

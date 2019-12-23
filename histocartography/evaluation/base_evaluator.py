@@ -9,7 +9,7 @@ class BaseEvaluator:
         Base Evaluator constructor.
 
         Args:
-            cuda: (bool) if cuda is available
+            :param cuda: (bool) if cuda is available
         """
         self.cuda = cuda
 
@@ -17,7 +17,7 @@ class BaseEvaluator:
         """
         Evaluate
         Args:
-            logits: (FloatTensor)
-            labels: (LongTensor)
+            :param logits: (FloatTensor)
+            :param labels: (LongTensor)
         """
         raise NotImplementedError("Implementation in sub classes.")

@@ -1,3 +1,4 @@
+import torch
 from torch.nn import ReLU, Tanh, Sigmoid, ELU, LeakyReLU
 import dgl
 
@@ -30,4 +31,10 @@ READOUT_TYPES = {
     'mean': dgl.mean_nodes,
     'max': dgl.max_nodes
 }
+
+REDUCE_TYPES = {
+    'sum': torch.sum,
+    'mean': torch.mean
+}
+
 

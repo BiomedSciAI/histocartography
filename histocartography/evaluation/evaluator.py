@@ -16,7 +16,7 @@ class AccuracyEvaluator(BaseEvaluator):
         _, indices = torch.max(logits, dim=1)
         correct = torch.sum(indices == labels)
         accuracy = correct.item() * 1.0 / len(labels)
-        return accuracy.item()
+        return torch.FloatTensor([accuracy])
 
 
 class ConfusionMatrixEvaluator(BaseEvaluator):

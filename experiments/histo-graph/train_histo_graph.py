@@ -18,6 +18,9 @@ from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TY
 from histocartography.evaluation.evaluator import AccuracyEvaluator, ConfusionMatrixEvaluator
 from histocartography.utils.arg_parser import parse_arguments
 
+# @TODO: ignore warning for the time being
+import warnings
+warnings.filterwarnings("ignore")
 
 # setup logging
 log = logging.getLogger('Histocartography::Training')

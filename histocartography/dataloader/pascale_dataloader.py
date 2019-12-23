@@ -2,8 +2,6 @@
 import os
 import torch.utils.data
 import h5py
-from torchvision import transforms
-
 from histocartography.dataloader.base_dataloader import BaseDataset
 from histocartography.utils.io import get_files_in_folder, complete_path, h5_to_tensor
 from histocartography.dataloader.constants import NORMALIZATION_FACTORS, COLLATE_FN, TUMOR_TYPE_TO_LABEL

@@ -11,7 +11,13 @@ from histocartography.utils.vector import compute_normalization_factor
 class PascaleDataset(BaseDataset):
     """Pascale data loader."""
 
-    def __init__(self, dir_path, config, cuda=False, norm_cell_features=True, norm_superpx_features=False):
+    def __init__(
+            self,
+            dir_path,
+            config,
+            cuda=False,
+            norm_cell_features=True,
+            norm_superpx_features=False):
         """
         Pascale dataset constructor.
 
@@ -29,7 +35,8 @@ class PascaleDataset(BaseDataset):
 
         # 2. extract meta info from data
         self.num_samples = len(self.image_dimensions)
-        self.num_cell_features = self.cell_features[0].shape[1] + self.cell_centroids[0].shape[1]
+        self.num_cell_features = self.cell_features[0].shape[1] + \
+            self.cell_centroids[0].shape[1]
 
         # 3. build data normalizer
         self.norm_cell_features = norm_cell_features
@@ -42,12 +49,14 @@ class PascaleDataset(BaseDataset):
         """
         if self.norm_cell_features:
             if not NORMALIZATION_FACTORS['cell_graph']:
-                self.cell_features_transformer = compute_normalization_factor(self.cell_features)
+                self.cell_features_transformer = compute_normalization_factor(
+                    self.cell_features)
             else:
                 self.cell_features_transformer = NORMALIZATION_FACTORS['cell_graph']
 
         if self.norm_superpx_features:
-            raise NotImplementedError("Super pixel normalization not implemented.")
+            raise NotImplementedError(
+                "Super pixel normalization not implemented.")
 
     def _load_and_store_dataset(self, dir_path):
         """
@@ -68,7 +77,10 @@ class PascaleDataset(BaseDataset):
         """
         Load the label by inspecting the filename
         """
-        tumor_type = list(filter(lambda x: x in fpath, list(TUMOR_TYPE_TO_LABEL.keys())))[0]
+        tumor_type = list(
+            filter(
+                lambda x: x in fpath, list(
+                    TUMOR_TYPE_TO_LABEL.keys())))[0]
         self.labels.append(TUMOR_TYPE_TO_LABEL[tumor_type])
 
     def _load_sample(self, fpath):
@@ -78,7 +90,8 @@ class PascaleDataset(BaseDataset):
         with h5py.File(fpath, 'r') as f:
             # extract features, centroid and image dimension
             node_embeddings = h5_to_tensor(f['instance_features'], self.device)
-            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
+            centroid = h5_to_tensor(
+                f['instance_centroid_location'], self.device)
             image_dim = h5_to_tensor(f['image_dimension'], self.device)
 
             # append
@@ -121,7 +134,9 @@ class PascaleDataset(BaseDataset):
             cell_graph = self.cell_graph_builder(cell_features, centroid)
             return cell_graph, label
         else:
-            raise ValueError('Model type: {} not supported'.format(self.model_type))
+            raise ValueError(
+                'Model type: {} not supported'.format(
+                    self.model_type))
 
     def __len__(self):
         """Return the number of samples in the WSI."""
@@ -159,13 +174,19 @@ def collate(batch):
         return COLLATE_FN[type]([example[id] for example in batch])
 
     num_modalities = len(batch[0])
-    data = tuple([collate_fn(batch, mod_id, type(batch[0][mod_id]).__name__) for mod_id in range(0, num_modalities-1)])
+    data = tuple([collate_fn(batch, mod_id, type(batch[0][mod_id]).__name__)
+                  for mod_id in range(0, num_modalities - 1)])
     labels = torch.LongTensor([example[-1] for example in batch])
 
     return data, labels
 
 
-def make_data_loader(batch_size, train_ratio=0.8, num_workers=1, *args, **kwargs):
+def make_data_loader(
+        batch_size,
+        train_ratio=0.8,
+        num_workers=1,
+        *args,
+        **kwargs):
     """
     Create a data loader for the dataset.
 

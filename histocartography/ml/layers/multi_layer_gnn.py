@@ -51,29 +51,32 @@ class MultiLayerGNN(nn.Module):
             config=config)
         )
         # hidden layers
-        for i in range(1, num_layers-1):
-            self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
-                node_dim=hidden_dim,
-                hidden_dim=hidden_dim,
-                out_dim=hidden_dim,
-                act=activation,
-                layer_id=i,
-                use_bn=use_bn,
-                config=config)
-            )
+        for i in range(1, num_layers - 1):
+            self.layers.append(
+                getattr(
+                    module,
+                    AVAILABLE_LAYER_TYPES[layer_type])(
+                    node_dim=hidden_dim,
+                    hidden_dim=hidden_dim,
+                    out_dim=hidden_dim,
+                    act=activation,
+                    layer_id=i,
+                    use_bn=use_bn,
+                    config=config))
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=hidden_dim,
             hidden_dim=hidden_dim,
             out_dim=out_dim,
             act=activation,
-            layer_id=num_layers-1,
+            layer_id=num_layers - 1,
             use_bn=use_bn,
             config=config)
         )
 
         # readout function
-        self.readout_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys() else 'sum'
+        self.readout_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys(
+        ) else 'sum'
 
     def forward(self, g, h, cat=False):
         """

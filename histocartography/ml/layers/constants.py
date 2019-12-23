@@ -36,5 +36,3 @@ REDUCE_TYPES = {
     'sum': torch.sum,
     'mean': torch.mean
 }
-
-

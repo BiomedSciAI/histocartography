@@ -32,10 +32,15 @@ class ConsepDataset(BaseDataset):
         """
         # 1. load annotations
         ann_fnames = get_files_in_folder(path, 'json')
-        self.segmentation_annotations = [load_json(complete_path(path, fname)) for fname in ann_fnames]
+        self.segmentation_annotations = [
+            load_json(
+                complete_path(
+                    path,
+                    fname)) for fname in ann_fnames]
         # 2. load images
         image_fnames = get_files_in_folder(path, 'png')
-        self.images = [load_image(complete_path(path, fname)) for fname in image_fnames]
+        self.images = [load_image(complete_path(path, fname))
+                       for fname in image_fnames]
 
     def __getitem__(self, index):
         """
@@ -51,9 +56,9 @@ class ConsepDataset(BaseDataset):
         """
 
         ann = [{CENTROID: centroid, LABEL: label[0]} for i, (centroid, label) in enumerate(zip(
-                    self.segmentation_annotations[index]['instance_centroid_location'],
-                    self.segmentation_annotations[index]['instance_types']))
-               ]
+            self.segmentation_annotations[index]['instance_centroid_location'],
+            self.segmentation_annotations[index]['instance_types']))
+        ]
         image_size = self.segmentation_annotations[index]['image_dimension']
 
         g = self.graph_builder(ann, image_size)

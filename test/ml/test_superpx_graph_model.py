@@ -32,30 +32,30 @@ class SuperpxGraphTestCase(unittest.TestCase):
         # 2. set dummy config
         config = {
             "graph_building": {
-              "graph_building_type": "knn_graph_builder",
-              "max_num_nodes": 5000,
-              "edge_encoding": False,
-              "edge_threshold": 0.5
+                "graph_building_type": "knn_graph_builder",
+                "max_num_nodes": 5000,
+                "edge_encoding": False,
+                "edge_threshold": 0.5
             },
             "model_params": {
-            "gnn_params": {
-                "layer_type": "gin_layer",
+                "gnn_params": {
+                    "layer_type": "gin_layer",
+                    "activation": "relu",
+                    "n_layers": 2,
+                    "neighbor_pooling_type": "mean",
+                    "hidden_dim": 11,
+                    "output_dim": 32
+                },
+                "num_classes": 3,
+                "dropout": 0.0,
+                "use_bn": False,
+                "cat": True,
+                "node_dim": 2,
                 "activation": "relu",
-                "n_layers": 2,
-                "neighbor_pooling_type": "mean",
-                "hidden_dim": 11,
-                "output_dim": 32
-              },
-              "num_classes": 3,
-              "dropout": 0.0,
-              "use_bn": False,
-              "cat": True,
-              "node_dim": 2,
-              "activation": "relu",
-              "readout": {
-                "num_layers": 2,
-                "hidden_dim": 64,
-              }
+                "readout": {
+                    "num_layers": 2,
+                    "hidden_dim": 64,
+                }
             },
             "model_type": "CellGraphModel"
         }

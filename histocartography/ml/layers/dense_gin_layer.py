@@ -39,13 +39,21 @@ class DenseGINLayer(BaseLayer):
         :param mean: (bool) adjust the adjacency with its mean
         :param verbose: (bool) verbosity level
         """
-        super(DenseGINLayer, self).__init__(node_dim, hidden_dim, out_dim, act, layer_id)
+        super(
+            DenseGINLayer,
+            self).__init__(
+            node_dim,
+            hidden_dim,
+            out_dim,
+            act,
+            layer_id)
 
         if verbose:
             print('Creating new GNN dense layer:')
 
         if config is not None:
-            self.add_self = config['add_self'] if 'add_self' in config.keys() else True
+            self.add_self = config['add_self'] if 'add_self' in config.keys(
+            ) else True
             self.mean = config['mean'] if 'mean' in config.keys() else False
         else:
             self.add_self = True

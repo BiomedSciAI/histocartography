@@ -43,5 +43,3 @@ class KNNGraphBuilder(BaseGraphBuilder):
         # append edges
         edge_list = np.nonzero(adj)
         graph.add_edges(list(edge_list[0]), list(edge_list[1]))
-
-

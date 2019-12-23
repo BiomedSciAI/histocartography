@@ -80,11 +80,13 @@ class MultiLevelGraphModel(BaseModel):
         """
         num_nodes_per_graph = graph.batch_num_nodes
         num_nodes_per_graph.insert(0, 0)
-        intervals = [sum(num_nodes_per_graph[:i+1]) for i in range(len(num_nodes_per_graph))]
+        intervals = [sum(num_nodes_per_graph[:i + 1])
+                     for i in range(len(num_nodes_per_graph))]
 
         ll_h_concat = []
         for i in range(1, len(intervals)):
-            sum_ = torch.matmul(assignment[i-1], feats[intervals[i-1]:intervals[i], :])
+            sum_ = torch.matmul(
+                assignment[i - 1], feats[intervals[i - 1]:intervals[i], :])
             ll_h_concat.append(sum_)
 
         return torch.cat(ll_h_concat, dim=0)
@@ -106,9 +108,11 @@ class MultiLevelGraphModel(BaseModel):
         ll_h = self.cell_graph_gnn(cell_graph, ll_feats, self.concat)
 
         # 2. Sum the low level features according to assignment matrix
-        ll_h_concat = self._compute_assigned_feats(cell_graph, ll_h, assignment_matrix)
+        ll_h_concat = self._compute_assigned_feats(
+            cell_graph, ll_h, assignment_matrix)
 
-        superpx_graph.ndata[GNN_NODE_FEAT_IN] = torch.cat((ll_h_concat, superpx_graph.ndata[GNN_NODE_FEAT_IN]), dim=1)
+        superpx_graph.ndata[GNN_NODE_FEAT_IN] = torch.cat(
+            (ll_h_concat, superpx_graph.ndata[GNN_NODE_FEAT_IN]), dim=1)
 
         # 3. GNN layers over the high level graph
         hl_feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]

@@ -6,7 +6,7 @@ def compute_box_centroid(box):
     """
     Compute the centroid of a bounding box
     """
-    return [(box[0]+box[2])/2, (box[1]+box[3])/2]
+    return [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]
 
 
 def compute_l2_distance(pt1, pt2):

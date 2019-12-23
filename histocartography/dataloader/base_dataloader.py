@@ -43,11 +43,10 @@ class BaseDataset(Dataset):
             module = importlib.import_module(
                 GRAPH_BUILDING_MODULE.format(graph_builder_type)
             )
-            vars(self)[name] = getattr(module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
+            vars(self)[name] = getattr(
+                module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
         else:
             raise ValueError(
                 'Graph builder type: {} not recognized. Options are: {}'.format(
-                    graph_builder_type, list(AVAILABLE_GRAPH_BUILDERS.keys())
-                )
-            )
-
+                    graph_builder_type, list(
+                        AVAILABLE_GRAPH_BUILDERS.keys())))

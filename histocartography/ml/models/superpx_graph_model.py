@@ -22,7 +22,8 @@ class SuperpxGraphModel(BaseModel):
         self.hl_node_dim = node_dim
 
         # 2- build cell graph params
-        self._build_superpx_graph_params(config['gnn_params'], input_dim=self.hl_node_dim)
+        self._build_superpx_graph_params(
+            config['gnn_params'], input_dim=self.hl_node_dim)
 
         # 3- build classification params
         self._build_classification_params()

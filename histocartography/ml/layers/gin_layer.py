@@ -40,15 +40,24 @@ class GINLayer(BaseLayer):
         :param config: (dict) optional argument
         :param verbose: (bool) verbosity level
         """
-        super(GINLayer, self).__init__(node_dim, hidden_dim, out_dim, act, layer_id)
+        super(
+            GINLayer,
+            self).__init__(
+            node_dim,
+            hidden_dim,
+            out_dim,
+            act,
+            layer_id)
 
         if verbose:
             print('Creating new GNN layer:')
 
         if config is not None:
             eps = config['eps'] if 'eps' in config.keys() else None
-            neighbor_pooling_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys() else 'sum'
-            learn_eps = config['learn_eps'] if 'learn_eps' in config.keys() else None
+            neighbor_pooling_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys(
+            ) else 'sum'
+            learn_eps = config['learn_eps'] if 'learn_eps' in config.keys(
+            ) else None
         else:
             eps = None
             neighbor_pooling_type = 'sum'
@@ -72,7 +81,8 @@ class GINLayer(BaseLayer):
         For each node, aggregate the nodes using a reduce function.
         Current supported functions are sum and mean.
         """
-        accum = REDUCE_TYPES[self.neighbor_pooling_type]((nodes.mailbox[GNN_MSG]), dim=1)
+        accum = REDUCE_TYPES[self.neighbor_pooling_type](
+            (nodes.mailbox[GNN_MSG]), dim=1)
         return {GNN_AGG_MSG: accum}
 
     def msg_fn(self, edges):

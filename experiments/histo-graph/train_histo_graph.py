@@ -62,7 +62,8 @@ def main(args):
         module = importlib.import_module(
             MODEL_MODULE.format(model_type)
         )
-        model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(config['model_params'], num_cell_features).to(DEVICE)
+        model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
+            config['model_params'], num_cell_features).to(DEVICE)
     else:
         raise ValueError(
             'Model: {} not recognized. Options are: {}'.format(
@@ -114,7 +115,7 @@ def main(args):
         trainer = pl.Trainer(gpus=[0], max_nb_epochs=args.epochs)
     else:
         trainer = pl.Trainer(max_nb_epochs=args.epochs)
-    
+
     trainer.fit(brontes_model)
 
     # save the model to tmp and log it as an mlflow artifact

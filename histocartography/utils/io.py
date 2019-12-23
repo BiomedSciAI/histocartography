@@ -31,7 +31,7 @@ def get_files_in_folder(path, extension):
 
 
 def h5_to_tensor(h5_object, device):
-    tensor = torch.from_numpy(np.array(h5_object.value)).to(device)
+    tensor = torch.from_numpy(np.array(h5_object[()])).to(device)
     return tensor
 
 

@@ -41,35 +41,42 @@ class MultiGraphTestCase(unittest.TestCase):
         hl_dgl_graphs = dgl.batch(hl_dgl_graphs)
 
         # Build assignment matrix from low level graph to high level graph
-        assignment_matrix = [torch.empty(hl_num_nodes, ll_num_nodes).random_(2) for _ in range(batch_size)]
+        assignment_matrix = [
+            torch.empty(
+                hl_num_nodes,
+                ll_num_nodes).random_(2) for _ in range(batch_size)]
 
         # 2. create a Diff Pool model.
         config = {
-              "model_type": "MultiGraph",
-              "model_params": {
+            "model_type": "MultiGraph",
+            "model_params": {
+                "readout": {
+                    "num_layers": 2,
+                    "hidden_dim": 64,
+                },
                 "num_classes": 2,
                 "use_bn": False,
                 "dropout": 0.0,
                 "cat": False,
                 "gnn_params": [
-                  {
-                    "layer_type": "gin_layer",
-                    "activation": "relu",
-                    "hidden_dim": 11,
-                    "output_dim": 32,
-                    "n_layers": 2,
-                    "neighbor_pooling_type": "mean"
-                  },
-                  {
-                    "layer_type": "pooled_gin_layer",
-                    "activation": "relu",
-                    "hidden_dim": 10,
-                    "output_dim": 78,
-                    "n_layers": 2,
-                    "neighbor_pooling_type": "mean"
-                  }
+                    {
+                        "layer_type": "gin_layer",
+                        "activation": "relu",
+                        "hidden_dim": 11,
+                        "output_dim": 32,
+                        "n_layers": 2,
+                        "neighbor_pooling_type": "mean"
+                    },
+                    {
+                        "layer_type": "gin_layer",
+                        "activation": "relu",
+                        "hidden_dim": 10,
+                        "output_dim": 78,
+                        "n_layers": 2,
+                        "neighbor_pooling_type": "mean"
+                    }
                 ]
-                }
+            }
         }
 
         model = MultiLevelGraphModel(

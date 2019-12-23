@@ -1,14 +1,12 @@
 import math
+import torch
 
 
 def compute_box_centroid(box):
     """
     Compute the centroid of a bounding box
-    Args:
-        :param box: @TODO agree on the bounding box format.
-        :return: centroid
     """
-    return [(box[0]+box[2])/2, (box[1]+box[3])/2]
+    return [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]
 
 
 def compute_l2_distance(pt1, pt2):
@@ -28,5 +26,17 @@ def compute_edge_weight(dist):
     Args:
         :param dist: normalised distance
     """
-    # @TODO add Waxman's parameters here ?
+    # @TODO add decaying parameter ?
     return math.exp(-dist)
+
+
+def compute_normalization_factor(features):
+    """
+    Compute normalization factors: mean, std of each feature.
+    :param features: (list of FloatTensor)
+    """
+    features = torch.cat([feat for feat in features])
+    return {
+        'mean': torch.mean(features, dim=0),
+        'std': torch.std(features, dim=0)
+    }

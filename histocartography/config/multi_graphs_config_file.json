@@ -1,0 +1,45 @@
+{
+  "graph_building": {
+    "cell_graph_builder": {
+      "graph_building_type": "knn_graph_builder",
+      "max_num_nodes": 5000,
+      "edge_encoding": false,
+      "edge_threshold": 0.5
+    },
+    "superpx_graph_builder": {
+      "graph_building_type": "knn_graph_builder",
+      "max_num_nodes": 5000,
+      "edge_encoding": false,
+      "edge_threshold": 0.5
+    }
+  },
+  "model_type": "MultiGraphModel",
+  "model_params": {
+    "readout": {
+      "num_layers": 2,
+      "hidden_dim": 64,
+    },
+    "num_classes": 2,
+    "dropout": 0,
+    "use_bn": false,
+    "cat": false,
+    "gnn_params": [
+      {
+        "layer_type": "gin_layer",
+        "activation": "relu",
+        "n_layers": 2,
+        "neighbor_pooling_type": "mean",
+        "hidden_dim": 11,
+        "output_dim": 32
+      },
+      {
+        "layer_type": "gin_layer",
+        "activation": "relu",
+        "n_layers": 2,
+        "neighbor_pooling_type": "mean",
+        "hidden_dim": 10,
+        "output_dim": 78
+      }
+    ]
+  }
+}

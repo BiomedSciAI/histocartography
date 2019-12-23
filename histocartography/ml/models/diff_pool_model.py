@@ -68,15 +68,15 @@ class DiffPool(BaseModel):
     def _build_classification(self):
         # predicting layer
         if self.concat:
-            self.pred_input_dim = self.config['pooling_params'][-1]['input_dim'] * \
-                self.num_aggs * self.n_pooling + \
+            self.pred_input_dim = self.config['pooling_params'][-1]['input_dim'] * self.num_aggs * self.n_pooling + \
                 self.config['gnn_params'][-1]['input_dim'] * (self.config['gnn_params'][-1]['n_layers'] + 1) * self.num_aggs
         else:
             self.pred_input_dim = self.config['pooling_params'][-1]['input_dim'] * self.num_aggs
         self.pred_layer = nn.Linear(self.pred_input_dim, self.num_classes)
 
     def _build_diff_pool(self):
-        assign_dim = int(self.max_num_nodes * self.pool_ratio) * self.batch_size
+        assign_dim = int(self.max_num_nodes *
+                         self.pool_ratio) * self.batch_size
         self.entropy_loss = []
         self.assign_dims = [assign_dim]
 
@@ -84,27 +84,31 @@ class DiffPool(BaseModel):
                                 input_dim=self.input_dim)
         self.graph_level_gnn = MultiLayerGNN(self.config['gnn_params'][0])
 
-        self._update_pooling_config(self.config['pooling_params'][0],
-                                    assign_dim,
-                                    input_dim=self.config['gnn_params'][0]['output_dim'],
-                                    n_prev_layers=self.config['gnn_params'][0]['n_layers'],
-                                    prev_input_dim=self.input_dim)
+        self._update_pooling_config(
+            self.config['pooling_params'][0],
+            assign_dim,
+            input_dim=self.config['gnn_params'][0]['output_dim'],
+            n_prev_layers=self.config['gnn_params'][0]['n_layers'],
+            prev_input_dim=self.input_dim)
 
-        self.graph_level_pooling = DiffPoolLayer(self.config['pooling_params'][0])
+        self.graph_level_pooling = DiffPoolLayer(
+            self.config['pooling_params'][0])
 
         self.multi_level_diff_pool_layers = nn.ModuleList()
         self.multi_level_gnn_layers = nn.ModuleList()
 
-        self._update_gnn_config(self.config['gnn_params'][1],
-                                input_dim=self.config['gnn_params'][0]['output_dim'])
-        self.multi_level_gnn_layers.append(MultiLayerGNN(self.config['gnn_params'][1]))
+        self._update_gnn_config(
+            self.config['gnn_params'][1],
+            input_dim=self.config['gnn_params'][0]['output_dim'])
+        self.multi_level_gnn_layers.append(
+            MultiLayerGNN(self.config['gnn_params'][1]))
 
         for i in range(1, self.n_pooling):
-            self._update_pooling_config(self.config['pooling_params'][i],
-                                        assign_dim,
-                                        input_dim=self.config['gnn_params'][i]['output_dim'],
-                                        n_prev_layers=self.config['gnn_params'][i]['n_layers']
-                                        )
+            self._update_pooling_config(
+                self.config['pooling_params'][i],
+                assign_dim,
+                input_dim=self.config['gnn_params'][i]['output_dim'],
+                n_prev_layers=self.config['gnn_params'][i]['n_layers'])
             self.multi_level_diff_pool_layers.append(
                 DenseDiffPoolLayer(self.config['pooling_params'][i])
             )
@@ -115,7 +119,8 @@ class DiffPool(BaseModel):
                 MultiLayerGNN(self.config['gnn_params'][i + 1])
             )
 
-            self.assign_dims.append(self.config['pooling_params'][i]['output_dim'])
+            self.assign_dims.append(
+                self.config['pooling_params'][i]['output_dim'])
 
     def _update_gnn_config(self, config, input_dim):
         config['input_dim'] = input_dim
@@ -125,7 +130,13 @@ class DiffPool(BaseModel):
         config['dropout'] = self.dropout
         return config
 
-    def _update_pooling_config(self, config, assign_dim, input_dim, n_prev_layers, prev_input_dim):
+    def _update_pooling_config(
+            self,
+            config,
+            assign_dim,
+            input_dim,
+            n_prev_layers,
+            prev_input_dim):
         # 1- compute updated parameters
         assign_dim = int(assign_dim * self.pool_ratio)
 

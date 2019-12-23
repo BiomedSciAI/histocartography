@@ -24,7 +24,8 @@ class GNNTestCase(unittest.TestCase):
             module = importlib.import_module(
                 GRAPH_BUILDING_MODULE.format(graph_builder_type)
             )
-            graph_builder = getattr(module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
+            graph_builder = getattr(
+                module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
         else:
             raise ValueError(
                 'Decoder type: {} not recognized. Options are: {}'.format(

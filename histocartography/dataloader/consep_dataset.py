@@ -1,15 +1,10 @@
 """Consep Dataset loader."""
 import dgl
 import torch.utils.data
-import importlib
 
 from histocartography.dataloader.base_dataloader import BaseDataset
 from histocartography.utils.io import get_files_in_folder, load_json, complete_path, load_image
-from histocartography.graph_building.constants import (
-    GRAPH_BUILDING_TYPE, AVAILABLE_GRAPH_BUILDERS,
-    GRAPH_BUILDING_MODULE, GRAPH_BUILDING,
-    LABEL, VISUAL, CENTROID
-)
+from histocartography.graph_building.constants import LABEL, CENTROID
 
 
 class ConsepDataset(BaseDataset):
@@ -22,33 +17,14 @@ class ConsepDataset(BaseDataset):
         Initialize ConsepDataset.
 
         Args:
-            cpnfig: (dict) config file
-            filepath (str): path to the Consep dataset dir.
-            graph_name (str): name of the graph.
+            path (str): path to the Consep dataset dir.
+            config: (dict) config file
             cuda (bool): cuda usage.
             is_train (bool): training dataset.
         """
-        super(ConsepDataset, self).__init__(cuda)
+        super(ConsepDataset, self).__init__(config, cuda)
         self.is_train = is_train
         self._load_dataset(path)
-        self._build_graph_builder(config[GRAPH_BUILDING])
-
-    def _build_graph_builder(self, config):
-        """
-        Build graph builder
-        """
-        graph_builder_type = config[GRAPH_BUILDING_TYPE]
-        if graph_builder_type in list(AVAILABLE_GRAPH_BUILDERS.keys()):
-            module = importlib.import_module(
-                GRAPH_BUILDING_MODULE.format(graph_builder_type)
-            )
-            self.graph_builder = getattr(module, AVAILABLE_GRAPH_BUILDERS[graph_builder_type])(config)
-        else:
-            raise ValueError(
-                'Graph builder type: {} not recognized. Options are: {}'.format(
-                    graph_builder_type, list(AVAILABLE_GRAPH_BUILDERS.keys())
-                )
-            )
 
     def _load_dataset(self, path):
         """
@@ -56,10 +32,15 @@ class ConsepDataset(BaseDataset):
         """
         # 1. load annotations
         ann_fnames = get_files_in_folder(path, 'json')
-        self.segmentation_annotations = [load_json(complete_path(path, fname)) for fname in ann_fnames]
+        self.segmentation_annotations = [
+            load_json(
+                complete_path(
+                    path,
+                    fname)) for fname in ann_fnames]
         # 2. load images
         image_fnames = get_files_in_folder(path, 'png')
-        self.images = [load_image(complete_path(path, fname)) for fname in image_fnames]
+        self.images = [load_image(complete_path(path, fname))
+                       for fname in image_fnames]
 
     def __getitem__(self, index):
         """
@@ -75,9 +56,9 @@ class ConsepDataset(BaseDataset):
         """
 
         ann = [{CENTROID: centroid, LABEL: label[0]} for i, (centroid, label) in enumerate(zip(
-                    self.segmentation_annotations[index]['instance_centroid_location'],
-                    self.segmentation_annotations[index]['instance_types']))
-               ]
+            self.segmentation_annotations[index]['instance_centroid_location'],
+            self.segmentation_annotations[index]['instance_types']))
+        ]
         image_size = self.segmentation_annotations[index]['image_dimension']
 
         g = self.graph_builder(ann, image_size)

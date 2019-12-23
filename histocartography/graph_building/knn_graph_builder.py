@@ -1,10 +1,7 @@
-import torch
-import dgl
 import numpy as np
 from sklearn.neighbors import kneighbors_graph
 
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
-from histocartography.graph_building.constants import LABEL, CENTROID
 
 
 class KNNGraphBuilder(BaseGraphBuilder):
@@ -29,11 +26,11 @@ class KNNGraphBuilder(BaseGraphBuilder):
         self.config = config
         self.cuda = cuda
 
-    def _build_topology(self, objects, graph):
+    def _build_topology(self, centroid, graph):
         """
-        Build topology
+        Build topology using a kNN algorithm based on the euclidean
+            distance between the centroid of the nodes.
         """
-        centroid = [obj[CENTROID] for obj in objects]
 
         # build adjacency matrix
         adj = kneighbors_graph(
@@ -43,9 +40,6 @@ class KNNGraphBuilder(BaseGraphBuilder):
             include_self=False,
             metric='euclidean'
         )
-        adj = np.clip(adj.toarray(), self.config['edge_threshold'], 1)
-
         # append edges
         edge_list = np.nonzero(adj)
         graph.add_edges(list(edge_list[0]), list(edge_list[1]))
-

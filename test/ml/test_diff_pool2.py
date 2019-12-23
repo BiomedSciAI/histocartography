@@ -60,7 +60,7 @@ class DiffPoolTestCase(unittest.TestCase):
                         "neighbor_pooling_type": "mean",
                     }
                 ]
-              }
+            }
         }
 
         model = DiffPool(config=config["model_params"],

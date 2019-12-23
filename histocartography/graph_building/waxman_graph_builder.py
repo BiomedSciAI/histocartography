@@ -1,9 +1,6 @@
 import itertools
-import torch
-import dgl
 
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
-from histocartography.graph_building.constants import LABEL, VISUAL, CENTROID
 from histocartography.utils.vector import compute_l2_distance, compute_edge_weight
 
 
@@ -33,12 +30,11 @@ class WaxmanGraphBuilder(BaseGraphBuilder):
         self.config = config
         self.cuda = cuda
 
-    def _build_topology(self, objects, graph):
+    def _build_topology(self, centroid, graph):
         """
         Build topology.
         """
-        num_objects = len(objects)
-        centroid = [obj[CENTROID] for obj in objects]
+        num_objects = len(centroid)
         src = []
         dst = []
         for pair in itertools.combinations(range(num_objects), 2):
@@ -55,4 +51,3 @@ class WaxmanGraphBuilder(BaseGraphBuilder):
                 dst.append(pair[0])
 
         graph.add_edges(src, dst)
-

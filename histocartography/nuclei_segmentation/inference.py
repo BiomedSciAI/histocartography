@@ -2,6 +2,7 @@ import glob
 import math
 import os
 from collections import deque
+from process import Process
 import cv2
 import numpy as np
 from scipy import io as sio
@@ -9,7 +10,7 @@ from tensorpack.predict import OfflinePredictor, PredictConfig
 from tensorpack.tfutils.sessinit import get_model_loader
 from config import Config
 import time
-from process import Process
+
 
 from absl import logging
 logging._warn_preinit_stderr = 0

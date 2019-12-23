@@ -1,4 +1,6 @@
 from torch.nn import ReLU, Tanh, Sigmoid, ELU, LeakyReLU
+import dgl
+
 
 ACTIVATIONS = {
     'relu': ReLU(),
@@ -22,4 +24,10 @@ AVAILABLE_LAYER_TYPES = {
 }
 
 GNN_MODULE = 'histocartography.ml.layers.{}'
+
+READOUT_TYPES = {
+    'sum': dgl.sum_nodes,
+    'mean': dgl.mean_nodes,
+    'max': dgl.max_nodes
+}
 

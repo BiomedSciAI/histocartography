@@ -3,7 +3,7 @@ import torch.nn as nn
 import importlib
 import dgl
 
-from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE, GNN_NODE_FEAT_OUT
+from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE, GNN_NODE_FEAT_OUT, READOUT_TYPES
 
 
 class MultiLayerGNN(nn.Module):
@@ -74,6 +74,9 @@ class MultiLayerGNN(nn.Module):
             config=config)
         )
 
+        # readout function
+        self.readout_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys() else 'sum'
+
     def forward(self, g, h, cat=False):
         """
         Forward pass.
@@ -92,7 +95,7 @@ class MultiLayerGNN(nn.Module):
         else:
             g.ndata[GNN_NODE_FEAT_OUT] = h
 
-        # 2. sum the nodes
-        h = dgl.sum_nodes(g, GNN_NODE_FEAT_OUT)
+        # 2. aggregate the nodes, mean or sum readout
+        h = READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
 
         return h

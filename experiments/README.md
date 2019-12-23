@@ -38,20 +38,27 @@ create a folder for your training script and write an MLproject file with the
 required information (see fra_gleason2019 example)
 For example: 
 ```
-name: fra_gleason2019 project
+name: gja_histo_graph project
+
+conda_env: conda.yml
 
 entry_points:
   main:
     parameters:
+      config_fpath: {type: string, default: histocartography/config/multi_graphs_config_file.json}
+      data_path: {type: string, default: data/}
+      number_of_workers: {type: int, default: 1}
+      model_name: {type string, default: model}
       batch_size: {type: int, default: 25}
-      epochs: {type: int, default: 5}
+      epochs: {type: int, default: 1}
       learning_rate: {type: float, default: 1e-5}
-    command: "python3 training_script.py -b {batch_size} -l {learning_rate} --epochs {epochs}"
+    command: "python3 training_script.py --config_fpath {config_fpath} -d {data_path} --number_of_workers \
+    {number_of_workers} -n {model_name} -b {batch_size} -l {learning_rate} --epochs {epochs}"
 ```
 
 and then, start your runs with your parameters
 ```sh
- mlflow run fra_gleason2019/ -P batch_size=10 -P epochs=1 
+ mlflow run histo-graph/ -P batch_size=10 -P epochs=1 
 ```
 
 Check your live(!) results at: 

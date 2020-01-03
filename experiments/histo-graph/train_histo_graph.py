@@ -9,9 +9,7 @@ import importlib
 import torch
 import mlflow
 import pytorch_lightning as pl
-
-# @TODO: fix bug in Brontest metrics ...
-from brontes.core import Brontes
+from brontes import Brontes
 
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader

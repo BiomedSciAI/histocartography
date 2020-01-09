@@ -4,7 +4,10 @@ import torch.utils.data
 import h5py
 from histocartography.dataloader.base_dataloader import BaseDataset
 from histocartography.utils.io import get_files_in_folder, complete_path, h5_to_tensor
-from histocartography.dataloader.constants import NORMALIZATION_FACTORS, COLLATE_FN, TUMOR_TYPE_TO_LABEL
+from histocartography.dataloader.constants import (
+    NORMALIZATION_FACTORS, COLLATE_FN,
+    TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST
+)
 from histocartography.utils.vector import compute_normalization_factor
 
 
@@ -31,17 +34,25 @@ class PascaleDataset(BaseDataset):
         super(PascaleDataset, self).__init__(config, cuda)
 
         # 1. load and store h5 data
+        self.dir_path = dir_path
         self._load_and_store_dataset(dir_path)
 
         # 2. extract meta info from data
-        self.num_samples = len(self.image_dimensions)
-        self.num_cell_features = self.cell_features[0].shape[1] + \
-            self.cell_centroids[0].shape[1]
+        self.num_samples = len(self.h5_fnames)
+        self.num_cell_features = self._get_cell_features_dim()
 
         # 3. build data normalizer
         self.norm_cell_features = norm_cell_features
         self.norm_superpx_features = norm_superpx_features
         self._build_normaliser()
+
+    def _get_cell_features_dim(self):
+
+        with h5py.File(complete_path(self.dir_path, self.h5_fnames[0]), 'r') as f:
+            cell_features = h5_to_tensor(f['instance_features'], self.device)
+            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
+            f.close()
+        return cell_features.shape[1] + centroid.shape[1]
 
     def _build_normaliser(self):
         """
@@ -50,7 +61,7 @@ class PascaleDataset(BaseDataset):
         if self.norm_cell_features:
             if not NORMALIZATION_FACTORS['cell_graph']:
                 self.cell_features_transformer = compute_normalization_factor(
-                    self.cell_features)
+                    self.dir_path, self.h5_fnames)
             else:
                 self.cell_features_transformer = NORMALIZATION_FACTORS['cell_graph']
 
@@ -62,16 +73,11 @@ class PascaleDataset(BaseDataset):
         """
         Load the h5 data and store them in lists
         """
-        self.cell_features = []
-        self.cell_centroids = []
-        self.image_dimensions = []
         self.labels = []
+        self.h5_fnames = get_files_in_folder(dir_path, 'h5')
 
-        h5_fnames = get_files_in_folder(dir_path, 'h5')
-
-        for fname in h5_fnames:
-            self._load_sample(complete_path(dir_path, fname))
-            self._load_label(fname)
+        for fname in self.h5_fnames:
+            self._load_label(complete_path(dir_path, fname))
 
     def _load_label(self, fpath):
         """
@@ -115,9 +121,12 @@ class PascaleDataset(BaseDataset):
         """
 
         # extract the image size, centroid, cell features and label
-        image_size = self.image_dimensions[index]
-        centroid = self.cell_centroids[index] / image_size[:-1]
-        cell_features = self.cell_features[index]
+        with h5py.File(complete_path(self.dir_path, self.h5_fnames[index]), 'r') as f:
+            image_size = h5_to_tensor(f['image_dimension'], self.device)
+            cell_features = h5_to_tensor(f['instance_features'], self.device)
+            centroid = h5_to_tensor(f['instance_centroid_location'], self.device) / image_size[:-1]
+            f.close()
+
         label = self.labels[index]
 
         # normalize the appearance-based cell features
@@ -150,8 +159,22 @@ def build_dataset(path, *args, **kwargs):
     Returns:
         a PascaleDataset.
     """
+
+    # 1. list all dir in path and remove the dataset from our blacklist
+    data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
+    data_dir = list(filter(lambda x: any(b not in x for b in DATASET_BLACKLIST), data_dir))
+
+    # 2. build dataset by concatenating all the sub-datasets
     if os.path.isdir(path):
-        return PascaleDataset(path, *args, **kwargs)
+        return torch.utils.data.ConcatDataset(
+            datasets=[
+                PascaleDataset(
+                    complete_path(dir, '_h5'),
+                    *args, **kwargs
+                )
+                for dir in data_dir
+            ]
+        )
     else:
         raise RuntimeError(
             '{} doesnt seem to exist.'.format(path)
@@ -225,4 +248,4 @@ def make_data_loader(
             )
     }
 
-    return dataset_loaders, full_dataset.num_cell_features
+    return dataset_loaders, full_dataset.datasets[0].num_cell_features

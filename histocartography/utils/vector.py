@@ -1,5 +1,8 @@
 import math
 import torch
+import h5py
+
+from histocartography.utils.io import complete_path, h5_to_tensor
 
 
 def compute_box_centroid(box):
@@ -30,11 +33,17 @@ def compute_edge_weight(dist):
     return math.exp(-dist)
 
 
-def compute_normalization_factor(features):
+def compute_normalization_factor(path, fnames):
     """
     Compute normalization factors: mean, std of each feature.
     :param features: (list of FloatTensor)
     """
+    features = []
+    for fname in fnames:
+        with h5py.File(complete_path(path, fname), 'r') as f:
+            features.append(h5_to_tensor(f['instance_features'], device='cpu'))
+            f.close()
+
     features = torch.cat([feat for feat in features])
     return {
         'mean': torch.mean(features, dim=0),

@@ -1,6 +1,6 @@
 import dgl
 
-from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
+from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN, CENTROID
 
 
 class BaseGraphBuilder:
@@ -36,17 +36,18 @@ class BaseGraphBuilder:
         num_nodes = node_features.shape[0]
         graph = dgl.DGLGraph()
         graph.add_nodes(num_nodes)
-        self._set_node_features(node_features, graph)
+        self._set_node_features(node_features, centroid, graph)
         self._build_topology(centroid, graph)
         if self.config['edge_encoding']:
             self._set_edge_embeddings(graph)
         return graph
 
-    def _set_node_features(self, cell_features, graph):
+    def _set_node_features(self, cell_features, centroid, graph):
         """
         Set node embeddings
         """
         graph.ndata[GNN_NODE_FEAT_IN] = cell_features
+        graph.ndata[CENTROID] = centroid
 
     def _set_edge_embeddings(self, graph):
         """

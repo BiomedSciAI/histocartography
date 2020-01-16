@@ -1,5 +1,6 @@
 """Pascale Dataset loader."""
 import os
+from os.path import split
 import torch.utils.data
 import h5py
 from histocartography.dataloader.base_dataloader import BaseDataset
@@ -9,6 +10,7 @@ from histocartography.dataloader.constants import (
     TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST
 )
 from histocartography.utils.vector import compute_normalization_factor
+from histocartography.utils.io import load_image
 
 
 class PascaleDataset(BaseDataset):
@@ -17,10 +19,13 @@ class PascaleDataset(BaseDataset):
     def __init__(
             self,
             dir_path,
+            dataset_name,
             config,
             cuda=False,
             norm_cell_features=True,
-            norm_superpx_features=False):
+            norm_superpx_features=False,
+            img_path=None
+    ):
         """
         Pascale dataset constructor.
 
@@ -33,8 +38,12 @@ class PascaleDataset(BaseDataset):
         """
         super(PascaleDataset, self).__init__(config, cuda)
 
+        print('Start loading dataset {}'.format(dataset_name))
+
         # 1. load and store h5 data
         self.dir_path = dir_path
+        self.dataset_name = dataset_name
+        self.img_path = img_path
         self._load_and_store_dataset(dir_path)
 
         # 2. extract meta info from data
@@ -45,6 +54,13 @@ class PascaleDataset(BaseDataset):
         self.norm_cell_features = norm_cell_features
         self.norm_superpx_features = norm_superpx_features
         self._build_normaliser()
+
+        # 4. load the images if path
+        if img_path is not None:
+            self._load_images(img_path)
+
+    def _load_images(self, img_path):
+        self.image_fnames = get_files_in_folder(complete_path(img_path, self.dataset_name), 'png')
 
     def _get_cell_features_dim(self):
 
@@ -106,6 +122,18 @@ class PascaleDataset(BaseDataset):
             self.image_dimensions.append(image_dim)
             f.close()
 
+    def _load_image(self, img_name):
+        if img_name + '.png' in self.image_fnames:
+            return load_image(
+                complete_path(
+                    complete_path(
+                        self.img_path, self.dataset_name
+                    ), img_name + '.png'
+                )
+            )
+        else:
+            print('Warning: the image {} doesntseem to exist in path {}'.format(img_name, self.img_path))
+
     def __getitem__(self, index):
         """
         Get an example.
@@ -129,6 +157,10 @@ class PascaleDataset(BaseDataset):
 
         label = self.labels[index]
 
+        # load the image if required
+        if self.img_path is not None:
+            image = self._load_image(self.h5_fnames[index].replace('.h5', ''))
+
         # normalize the appearance-based cell features
         if self.norm_cell_features:
             cell_features = \
@@ -141,6 +173,8 @@ class PascaleDataset(BaseDataset):
         # build graph topology
         if self.model_type == 'cell_graph_model':
             cell_graph = self.cell_graph_builder(cell_features, centroid)
+            if self.img_path is not None:
+                return cell_graph, image, label
             return cell_graph, label
         else:
             raise ValueError(
@@ -170,6 +204,7 @@ def build_dataset(path, *args, **kwargs):
             datasets=[
                 PascaleDataset(
                     complete_path(dir, '_h5'),
+                    split(dir)[-1],
                     *args, **kwargs
                 )
                 for dir in data_dir

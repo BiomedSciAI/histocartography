@@ -66,6 +66,13 @@ def load_image(fname):
     return image
 
 
+def show_image(image):
+    """
+    Show a PIL image
+    """
+    image.show()
+
+
 def read_params(fname, verbose=False):
     """
     Config file contains either a simple config set or a list of configs

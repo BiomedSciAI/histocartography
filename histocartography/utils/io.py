@@ -66,6 +66,10 @@ def load_image(fname):
     return image
 
 
+def save_image(image, fname):
+    image.save(fname)
+
+
 def show_image(image):
     """
     Show a PIL image

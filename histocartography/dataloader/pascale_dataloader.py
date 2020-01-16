@@ -130,7 +130,7 @@ class PascaleDataset(BaseDataset):
                         self.img_path, self.dataset_name
                     ), img_name + '.png'
                 )
-            )
+            ), img_name
         else:
             print('Warning: the image {} doesntseem to exist in path {}'.format(img_name, self.img_path))
 
@@ -152,14 +152,16 @@ class PascaleDataset(BaseDataset):
         with h5py.File(complete_path(self.dir_path, self.h5_fnames[index]), 'r') as f:
             image_size = h5_to_tensor(f['image_dimension'], self.device)
             cell_features = h5_to_tensor(f['instance_features'], self.device)
-            centroid = h5_to_tensor(f['instance_centroid_location'], self.device) / image_size[:-1]
+            norm_centroid = h5_to_tensor(f['instance_centroid_location'], self.device) / image_size[:-1]
+            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
+
             f.close()
 
         label = self.labels[index]
 
         # load the image if required
         if self.img_path is not None:
-            image = self._load_image(self.h5_fnames[index].replace('.h5', ''))
+            image, image_name = self._load_image(self.h5_fnames[index].replace('.h5', ''))
 
         # normalize the appearance-based cell features
         if self.norm_cell_features:
@@ -168,13 +170,13 @@ class PascaleDataset(BaseDataset):
                 self.cell_features_transformer['std']
 
         # concat spatial + appearance features
-        cell_features = torch.cat((cell_features, centroid), dim=1)
+        cell_features = torch.cat((cell_features, norm_centroid), dim=1)
 
         # build graph topology
         if self.model_type == 'cell_graph_model':
             cell_graph = self.cell_graph_builder(cell_features, centroid)
             if self.img_path is not None:
-                return cell_graph, image, label
+                return cell_graph, image, image_name, label
             return cell_graph, label
         else:
             raise ValueError(

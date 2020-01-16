@@ -3,7 +3,7 @@
       "cell_graph_builder": {
         "graph_building_type": "knn_graph_builder",
         "n_neighbors": 5,
-        "max_num_nodes": 5000,
+        "max_distance": 50,
         "edge_encoding": false
     }
   },

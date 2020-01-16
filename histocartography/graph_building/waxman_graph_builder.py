@@ -1,9 +1,7 @@
-import itertools
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
-from histocartography.utils.vector import compute_l2_distance, compute_edge_weight
 
 
 class WaxmanGraphBuilder(BaseGraphBuilder):

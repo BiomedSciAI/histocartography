@@ -9,7 +9,9 @@ NORMALIZATION_FACTORS = {
 
 COLLATE_FN = {
     'DGLGraph': lambda x: dgl.batch(x),
-    'Tensor': lambda x: x
+    'Tensor': lambda x: x,
+    'PngImageFile': lambda x: x,
+    'str': lambda x: x
 }
 
 

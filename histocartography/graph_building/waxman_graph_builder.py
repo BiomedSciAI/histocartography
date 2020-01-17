@@ -1,7 +1,7 @@
-import itertools
+import numpy as np
+from sklearn.metrics.pairwise import euclidean_distances
 
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
-from histocartography.utils.vector import compute_l2_distance, compute_edge_weight
 
 
 class WaxmanGraphBuilder(BaseGraphBuilder):
@@ -35,20 +35,6 @@ class WaxmanGraphBuilder(BaseGraphBuilder):
         Build topology using the distance between the centroids of each node.
             If the distance is smaller than a threshold, then we build an edge.
         """
-        num_objects = len(centroid)
-        src = []
-        dst = []
-        for pair in itertools.combinations(range(num_objects), 2):
-            dist = compute_l2_distance(centroid[pair[0]], centroid[pair[1]])
-            edge_weight = compute_edge_weight(dist)
-            if edge_weight > self.config['edge_threshold']:
-
-                # src -> dst
-                src.append(pair[0])
-                dst.append(pair[1])
-
-                # dst -> src
-                src.append(pair[1])
-                dst.append(pair[0])
-
+        out = euclidean_distances(centroid.numpy())
+        src, dst = np.nonzero(out < self.config['edge_threshold'])
         graph.add_edges(src, dst)

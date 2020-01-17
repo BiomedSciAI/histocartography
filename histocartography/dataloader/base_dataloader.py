@@ -49,4 +49,7 @@ class BaseDataset(Dataset):
             raise ValueError(
                 'Graph builder type: {} not recognized. Options are: {}'.format(
                     graph_builder_type, list(
-                        AVAILABLE_GRAPH_BUILDERS.keys())))
+                        AVAILABLE_GRAPH_BUILDERS.keys()
+                    )
+                )
+            )

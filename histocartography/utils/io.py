@@ -99,7 +99,11 @@ def get_files_from_text(path,text_path, extension,train_flag):
 
     list_of_files = os.listdir(text_path) #lists all files in text_path(all text files)
     tumor_type = path.split('/')[-2]#lpath gives tumor type
-    tumor = tumor_type.split('_')[-1]
+    tumor = [token for token in tumor_type.split('_') if not token.isdigit()]#tumor_type.split(tumor_type.isdigit)[-1]
+    if len(tumor) > 1:
+        tumor = ''.join(map(str, tumor))[0]
+    else:
+        tumor = tumor[0]
 
     train_files=[]
     valid_files=[]

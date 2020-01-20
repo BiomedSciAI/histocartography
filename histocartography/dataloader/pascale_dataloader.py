@@ -56,8 +56,6 @@ class PascaleDataset(BaseDataset):
 
         # 2. extract meta info from data
         self.num_samples = len(self.h5_fnames)
-        #print("H5")
-        #print(self.h5_fnames)
         self.num_cell_features = self._get_cell_features_dim()
 
         # 3. build data normalizer
@@ -110,7 +108,6 @@ class PascaleDataset(BaseDataset):
         extension = '.h5'
 
         self.h5_fnames = get_files_from_text(path,text_path, extension,train_flag)
-        print("H5")
         print(self.h5_fnames)
 
         for fname in self.h5_fnames:
@@ -219,10 +216,7 @@ def build_dataset(path, *args, **kwargs):
 
     # 1. list all dir in path and remove the dataset from our blacklist
     data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
-    data_dir = list(filter(lambda x: any(b not in x for b in DATASET_BLACKLIST), data_dir))
-    print("DATA")
-    print(data_dir)
-
+    data_dir = list(filter(lambda x: all(b not in x for b in DATASET_BLACKLIST), data_dir))
 
     # 2. build dataset by concatenating all the sub-datasets
     if os.path.isdir(path):
@@ -315,7 +309,7 @@ def make_data_loader(
 def build_dataset_from_text(text_path,path,*args, **kwargs):
 
     data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
-    data_dir = list(filter(lambda x: any(b not in x for b in DATASET_BLACKLIST), data_dir))
+    data_dir = list(filter(lambda x: all(b not in x for b in DATASET_BLACKLIST), data_dir))
 
 
     # 2. build dataset by concatenating all the sub-datasets

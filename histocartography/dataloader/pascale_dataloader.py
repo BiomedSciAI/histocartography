@@ -298,11 +298,22 @@ def build_dataset_from_text(text_path, path, *args, **kwargs):
                 for dir in data_dir
             ]
         )
+        test_data = torch.utils.data.ConcatDataset(
+            datasets=[
+                PascaleDataset(
+                    complete_path(dir, '_h5'),
+                    split(dir)[-1], "test",
+                    text_path,
+                    *args, **kwargs
+                )
+                for dir in data_dir
+            ]
+        )
     else:
         raise RuntimeError(
             '{} doesnt seem to exist.'.format(path)
         )
-    return train_data, valid_data
+    return train_data, valid_data, test_data
 
 
 def _build_dataset_loaders(train_data, validation_data, batch_size, workers):
@@ -353,8 +364,18 @@ def make_data_loader(
     """
 
     if text_path:
-        training_dataset, val_dataset = build_dataset_from_text(text_path, *args, **kwargs)
+        training_dataset, val_dataset, test_dataset = build_dataset_from_text(text_path, *args, **kwargs)
         dataset_loaders = _build_dataset_loaders(training_dataset, val_dataset, batch_size, num_workers)
+        dataset_loaders.update({
+            'test':
+                torch.utils.data.DataLoader(
+                    test_dataset,
+                    batch_size=batch_size,
+                    shuffle=True,
+                    num_workers=num_workers,
+                    collate_fn=collate
+                    )
+            })
         num_features = training_dataset.datasets[0].num_cell_features
     else:
         full_dataset = build_dataset(*args, **kwargs)

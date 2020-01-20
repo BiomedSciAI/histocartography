@@ -66,7 +66,7 @@ def parse_arguments():
         '--text_path',
         type=str,
         help='Path to folder where train:test:val split is located',
-        default='',
+        default=''
 
     )
 

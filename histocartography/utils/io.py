@@ -95,33 +95,22 @@ def read_params(fname, verbose=False):
     return config_params
 
 
-def get_files_from_text(path,text_path, extension,train_flag):
-
-    list_of_files = os.listdir(text_path) #lists all files in text_path(all text files)
-    tumor_type = path.split('/')[-2]#lpath gives tumor type
-    tumor = [token for token in tumor_type.split('_') if not token.isdigit()]#tumor_type.split(tumor_type.isdigit)[-1]
-    if len(tumor) > 1:
-        tumor = ''.join(map(str, tumor))[0]
-    else:
-        tumor = tumor[0]
-
-    train_files=[]
-    valid_files=[]
-    for file in list_of_files:
-        if train_flag=="train":
-            if file.startswith(train_flag) and tumor in file:
-                with open("%s/%s" % (text_path, file)) as f:
-                    train_files = f.read().split()
-                    train_files = [x + extension for x in train_files]
-            files = [complete_path(path,g) for g in train_files]
-        elif train_flag=="valid":
-            if file.startswith(train_flag) and tumor in file:
-                with open("%s/%s" % (text_path, file)) as h:
-                    valid_files = h.read().split()
-                    valid_files = [x + extension for x in valid_files]
-            files = [complete_path(path,g) for g in valid_files]
-
+def read_txt(dir, fname, extension):
+    with open(complete_path(dir, fname)) as f:
+        files = f.read().split()
+        files = [x + extension for x in files]
     return files
 
 
+def get_files_from_text(path, text_path, extension, split):
 
+    list_of_files = get_files_in_folder(text_path, 'txt')  # lists all files in text_path(all text files)
+    tumor_type = path.split('/')[-2]  # path gives tumor type
+    tumor = [token for token in tumor_type.split('_') if not token.isdigit()]
+    tumor = '_' + ''.join(map(str, tumor))
+
+    # returns relevant text file to be read
+    read_file = list(filter(lambda x: tumor in x and split in x, list_of_files))
+    h5_files = read_txt(text_path, read_file[0], extension)  # Loads all the .h5 files in the text file
+
+    return [complete_path(path, g) for g in h5_files]

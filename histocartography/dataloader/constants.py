@@ -33,4 +33,4 @@ TUMOR_TYPE_TO_LABEL = {
 
 
 # List of classes to discard for training
-DATASET_BLACKLIST = ['pathological_benign','adh','fea','dcis','udh']
+DATASET_BLACKLIST = ['pathological_benign', 'adh', 'fea', 'dcis', 'udh']

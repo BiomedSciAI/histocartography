@@ -48,11 +48,11 @@ def parse_arguments():
         '--batch_size',
         type=int,
         help='batch size.',
-        default=8,
+        default=2,
         required=False
     )
     parser.add_argument(
-        '--epochs', type=int, help='epochs.', default=10, required=False
+        '--epochs', type=int, help='epochs.', default=2, required=False
     )
     parser.add_argument(
         '-l',

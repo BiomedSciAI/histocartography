@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from brontes import Brontes
 
 from histocartography.utils.io import read_params
-from histocartography.dataloader.pascale_dataloader import make_data_loader, make_dataloader_from_text
+from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.dataloader.constants import DATASET_BLACKLIST
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.evaluation.evaluator import AccuracyEvaluator, ConfusionMatrixEvaluator
@@ -48,18 +48,10 @@ def main(args):
     config = read_params(args.config_fpath, verbose=True)
 
     # make data loaders (train & validation)
-    """dataloaders, num_cell_features = make_data_loader(
+    dataloaders, num_cell_features = make_data_loader(
         batch_size=args.batch_size,
-        train_ratio=args.train_ratio,
-        num_workers=args.number_of_workers,
-        path=args.data_path,
-        config=config,
-        cuda=CUDA
-    )"""
-    print(DATASET_BLACKLIST)
-    dataloaders, num_cell_features = make_dataloader_from_text(
         text_path=args.text_path,
-        batch_size=args.batch_size,
+        train_ratio=args.train_ratio,
         num_workers=args.number_of_workers,
         path=args.data_path,
         config=config,

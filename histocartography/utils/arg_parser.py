@@ -48,11 +48,11 @@ def parse_arguments():
         '--batch_size',
         type=int,
         help='batch size.',
-        default=8,
+        default=2,
         required=False
     )
     parser.add_argument(
-        '--epochs', type=int, help='epochs.', default=10, required=False
+        '--epochs', type=int, help='epochs.', default=2, required=False
     )
     parser.add_argument(
         '-l',
@@ -61,6 +61,13 @@ def parse_arguments():
         help='learning rate.',
         default=10e-3,
         required=False
+    )
+    parser.add_argument(
+        '--text_path',
+        type=str,
+        help='Path to folder where train:test:val split is located',
+        default=''
+
     )
 
     return parser.parse_args()

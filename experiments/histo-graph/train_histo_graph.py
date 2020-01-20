@@ -13,6 +13,7 @@ from brontes import Brontes
 
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
+from histocartography.dataloader.constants import DATASET_BLACKLIST
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.evaluation.evaluator import AccuracyEvaluator, ConfusionMatrixEvaluator
 from histocartography.utils.arg_parser import parse_arguments
@@ -49,6 +50,7 @@ def main(args):
     # make data loaders (train & validation)
     dataloaders, num_cell_features = make_data_loader(
         batch_size=args.batch_size,
+        text_path=args.text_path,
         train_ratio=args.train_ratio,
         num_workers=args.number_of_workers,
         path=args.data_path,

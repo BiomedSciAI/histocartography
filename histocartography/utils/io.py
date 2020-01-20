@@ -93,3 +93,24 @@ def read_params(fname, verbose=False):
         if verbose:
             print('\n*** Model config parameters:', config_params)
     return config_params
+
+
+def read_txt(dir, fname, extension):
+    with open(complete_path(dir, fname)) as f:
+        files = f.read().split()
+        files = [x + extension for x in files]
+    return files
+
+
+def get_files_from_text(path, text_path, extension, split):
+
+    list_of_files = get_files_in_folder(text_path, 'txt')  # lists all files in text_path(all text files)
+    tumor_type = path.split('/')[-2]  # path gives tumor type
+    tumor = [token for token in tumor_type.split('_') if not token.isdigit()]
+    tumor = '_' + ''.join(map(str, tumor))
+
+    # returns relevant text file to be read
+    read_file = list(filter(lambda x: tumor in x and split in x, list_of_files))
+    h5_files = read_txt(text_path, read_file[0], extension)  # Loads all the .h5 files in the text file
+
+    return [complete_path(path, g) for g in h5_files]

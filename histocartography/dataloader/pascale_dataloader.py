@@ -4,7 +4,7 @@ from os.path import split
 import torch.utils.data
 import h5py
 from histocartography.dataloader.base_dataloader import BaseDataset
-from histocartography.utils.io import get_files_in_folder, complete_path, h5_to_tensor
+from histocartography.utils.io import get_files_in_folder, complete_path, h5_to_tensor, get_files_from_text
 from histocartography.dataloader.constants import (
     NORMALIZATION_FACTORS, COLLATE_FN,
     TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST
@@ -20,11 +20,13 @@ class PascaleDataset(BaseDataset):
             self,
             dir_path,
             dataset_name,
+            train_flag,
+            text_path,
             config,
             cuda=False,
             norm_cell_features=True,
             norm_superpx_features=False,
-            img_path=None
+            img_path=None,
     ):
         """
         Pascale dataset constructor.
@@ -44,10 +46,18 @@ class PascaleDataset(BaseDataset):
         self.dir_path = dir_path
         self.dataset_name = dataset_name
         self.img_path = img_path
-        self._load_and_store_dataset(dir_path)
+        self.text_path = text_path
+        self.train_flag = train_flag
+
+        if text_path is not None:
+            self._load_files(text_path, dir_path, train_flag)
+        else:
+            self._load_and_store_dataset(dir_path)
 
         # 2. extract meta info from data
         self.num_samples = len(self.h5_fnames)
+        #print("H5")
+        #print(self.h5_fnames)
         self.num_cell_features = self._get_cell_features_dim()
 
         # 3. build data normalizer
@@ -94,6 +104,17 @@ class PascaleDataset(BaseDataset):
 
         for fname in self.h5_fnames:
             self._load_label(complete_path(dir_path, fname))
+
+    def _load_files(self,text_path,path, train_flag):
+        self.labels=[]
+        extension = '.h5'
+
+        self.h5_fnames = get_files_from_text(path,text_path, extension,train_flag)
+        print("H5")
+        print(self.h5_fnames)
+
+        for fname in self.h5_fnames:
+            self._load_label(complete_path(path, fname))
 
     def _load_label(self, fpath):
         """
@@ -199,6 +220,9 @@ def build_dataset(path, *args, **kwargs):
     # 1. list all dir in path and remove the dataset from our blacklist
     data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
     data_dir = list(filter(lambda x: any(b not in x for b in DATASET_BLACKLIST), data_dir))
+    print("DATA")
+    print(data_dir)
+
 
     # 2. build dataset by concatenating all the sub-datasets
     if os.path.isdir(path):
@@ -206,7 +230,7 @@ def build_dataset(path, *args, **kwargs):
             datasets=[
                 PascaleDataset(
                     complete_path(dir, '_h5'),
-                    split(dir)[-1],
+                    split(dir)[-1],None,None,
                     *args, **kwargs
                 )
                 for dir in data_dir
@@ -286,3 +310,70 @@ def make_data_loader(
     }
 
     return dataset_loaders, full_dataset.datasets[0].num_cell_features
+
+
+def build_dataset_from_text(text_path,path,*args, **kwargs):
+
+    data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
+    data_dir = list(filter(lambda x: any(b not in x for b in DATASET_BLACKLIST), data_dir))
+
+
+    # 2. build dataset by concatenating all the sub-datasets
+    if os.path.isdir(path):
+        train_data = torch.utils.data.ConcatDataset(
+            datasets=[
+                PascaleDataset(
+                    complete_path(dir, '_h5'),
+                    split(dir)[-1], "train",
+                    text_path,
+                    *args, **kwargs
+                )
+                for dir in data_dir
+            ]
+        )
+        valid_data = torch.utils.data.ConcatDataset(
+            datasets=[
+                PascaleDataset(
+                    complete_path(dir, '_h5'),
+                    split(dir)[-1], None,
+                    text_path,
+                    *args, **kwargs
+                )
+                for dir in data_dir
+            ]
+        )
+    else:
+        raise RuntimeError(
+            '{} doesnt seem to exist.'.format(path)
+        )
+    return train_data,valid_data
+
+
+def make_dataloader_from_text(
+        text_path,
+        batch_size,
+        num_workers=1,
+        *args,
+        **kwargs):
+    training_dataset, val_dataset = build_dataset_from_text(text_path,*args, **kwargs)
+
+    dataset_loaders = {
+        'train':
+            torch.utils.data.DataLoader(
+                training_dataset,
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=num_workers,
+                collate_fn=collate
+            ),
+        'val':
+            torch.utils.data.DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=num_workers,
+                collate_fn=collate
+            )
+    }
+
+    return dataset_loaders, training_dataset.datasets[0].num_cell_features

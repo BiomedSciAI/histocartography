@@ -93,3 +93,31 @@ def read_params(fname, verbose=False):
         if verbose:
             print('\n*** Model config parameters:', config_params)
     return config_params
+
+
+def get_files_from_text(path,text_path, extension,train_flag):
+
+    list_of_files = os.listdir(text_path) #lists all files in text_path(all text files)
+    tumor_type = path.split('/')[-2]#lpath gives tumor type
+    tumor = tumor_type.split('_')[-1]
+
+    train_files=[]
+    valid_files=[]
+    for file in list_of_files:
+        if train_flag:
+            if file.startswith("train") and tumor in file:
+                with open("%s/%s" % (text_path, file)) as f:
+                    train_files = f.read().split()
+                    train_files = [x + extension for x in train_files]
+            files = [complete_path(path,g) for g in train_files]
+        else:
+            if file.startswith("valid") and tumor in file:
+                with open("%s/%s" % (text_path, file)) as h:
+                    valid_files = h.read().split()
+                    valid_files = [x + extension for x in valid_files]
+            files = [complete_path(path,g) for g in valid_files]
+
+    return files
+
+
+

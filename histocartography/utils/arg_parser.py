@@ -62,5 +62,12 @@ def parse_arguments():
         default=10e-3,
         required=False
     )
+    parser.add_argument(
+        '--text_path',
+        type=str,
+        help='Path to folder where train:test:val split is located',
+        default='',
+
+    )
 
     return parser.parse_args()

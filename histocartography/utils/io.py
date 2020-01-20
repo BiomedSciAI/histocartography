@@ -108,14 +108,14 @@ def get_files_from_text(path,text_path, extension,train_flag):
     train_files=[]
     valid_files=[]
     for file in list_of_files:
-        if train_flag:
-            if file.startswith("train") and tumor in file:
+        if train_flag=="train":
+            if file.startswith(train_flag) and tumor in file:
                 with open("%s/%s" % (text_path, file)) as f:
                     train_files = f.read().split()
                     train_files = [x + extension for x in train_files]
             files = [complete_path(path,g) for g in train_files]
-        else:
-            if file.startswith("valid") and tumor in file:
+        elif train_flag=="valid":
+            if file.startswith(train_flag) and tumor in file:
                 with open("%s/%s" % (text_path, file)) as h:
                     valid_files = h.read().split()
                     valid_files = [x + extension for x in valid_files]

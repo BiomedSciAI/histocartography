@@ -20,7 +20,7 @@ class PascaleDataset(BaseDataset):
             self,
             dir_path,
             dataset_name,
-            train_flag,
+            status,
             text_path,
             config,
             cuda=False,
@@ -37,6 +37,8 @@ class PascaleDataset(BaseDataset):
             :param cuda (bool): cuda usage
             :param norm_cell_features (bool): if the cell features should be normalised
             :param norm_superpx_features (bool): if the super pixel features should be normalised
+            :param status(str): train, validation or test
+            :param text_path(str): path to text files containing train:validation:test split
         """
         super(PascaleDataset, self).__init__(config, cuda)
 
@@ -47,10 +49,10 @@ class PascaleDataset(BaseDataset):
         self.dataset_name = dataset_name
         self.img_path = img_path
         self.text_path = text_path
-        self.train_flag = train_flag
+        self.status = status
 
         if text_path is not None:
-            self._load_files(text_path, dir_path, train_flag)
+            self._load_files(text_path, dir_path, status)
         else:
             self._load_and_store_dataset(dir_path)
 
@@ -108,7 +110,7 @@ class PascaleDataset(BaseDataset):
         extension = '.h5'
 
         self.h5_fnames = get_files_from_text(path,text_path, extension,train_flag)
-        print(self.h5_fnames)
+        # print(self.h5_fnames)
 
         for fname in self.h5_fnames:
             self._load_label(complete_path(path, fname))
@@ -150,7 +152,7 @@ class PascaleDataset(BaseDataset):
                 )
             ), img_name
         else:
-            print('Warning: the image {} doesntseem to exist in path {}'.format(img_name, self.img_path))
+            print('Warning: the image {} doesnt seem to exist in path {}'.format(img_name, self.img_path))
 
     def __getitem__(self, index):
         """
@@ -311,7 +313,6 @@ def build_dataset_from_text(text_path,path,*args, **kwargs):
     data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
     data_dir = list(filter(lambda x: all(b not in x for b in DATASET_BLACKLIST), data_dir))
 
-
     # 2. build dataset by concatenating all the sub-datasets
     if os.path.isdir(path):
         train_data = torch.utils.data.ConcatDataset(
@@ -329,7 +330,7 @@ def build_dataset_from_text(text_path,path,*args, **kwargs):
             datasets=[
                 PascaleDataset(
                     complete_path(dir, '_h5'),
-                    split(dir)[-1], None,
+                    split(dir)[-1], "valid",
                     text_path,
                     *args, **kwargs
                 )

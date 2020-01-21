@@ -51,10 +51,7 @@ class PascaleDataset(BaseDataset):
         self.text_path = text_path
         self.status = status
 
-        if text_path is not None:
-            self._load_files(text_path, dir_path, status)
-        else:
-            self._load_and_store_dataset(dir_path)
+        self._load_files(text_path, dir_path, status)
 
         # 2. extract meta info from data
         self.num_samples = len(self.h5_fnames)
@@ -73,8 +70,7 @@ class PascaleDataset(BaseDataset):
         self.image_fnames = get_files_in_folder(complete_path(img_path, self.dataset_name), 'png')
 
     def _get_cell_features_dim(self):
-
-        with h5py.File(complete_path(self.dir_path, self.h5_fnames[0]), 'r') as f:
+        with h5py.File(self.h5_fnames[0], 'r') as f:
             cell_features = h5_to_tensor(f['instance_features'], self.device)
             centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
             f.close()
@@ -94,16 +90,6 @@ class PascaleDataset(BaseDataset):
         if self.norm_superpx_features:
             raise NotImplementedError(
                 "Super pixel normalization not implemented.")
-
-    def _load_and_store_dataset(self, dir_path):
-        """
-        Load the h5 data and store them in lists
-        """
-        self.labels = []
-        self.h5_fnames = get_files_in_folder(dir_path, 'h5')
-
-        for fname in self.h5_fnames:
-            self._load_label(complete_path(dir_path, fname))
 
     def _load_files(self, text_path, path, train_flag):
         """
@@ -171,7 +157,7 @@ class PascaleDataset(BaseDataset):
         """
 
         # extract the image size, centroid, cell features and label
-        with h5py.File(complete_path(self.dir_path, self.h5_fnames[index]), 'r') as f:
+        with h5py.File(self.h5_fnames[index], 'r') as f:
             image_size = h5_to_tensor(f['image_dimension'], self.device)
             cell_features = h5_to_tensor(f['instance_features'], self.device)
             centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
@@ -263,90 +249,40 @@ def collate(batch):
     return data, labels
 
 
-def build_dataset_from_text(text_path, path, *args, **kwargs):
+def build_datasets(text_path, path, *args, **kwargs):
     """
     Builds dataset from text files that contain train:test:validation split
 
     Returns:
-        Two PASCALE datasets for train and validation
+        PASCALE datasets for train, validation and testing
     """
 
     data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
     data_dir = list(filter(lambda x: all(b not in x for b in DATASET_BLACKLIST), data_dir))
 
-    # 2. build dataset by concatenating all the sub-datasets
-    if os.path.isdir(path):
-        train_data = torch.utils.data.ConcatDataset(
+    datasets = {}
+
+    for data_split in ['train', 'val', 'test']:
+        datasets[data_split] = torch.utils.data.ConcatDataset(
             datasets=[
                 PascaleDataset(
                     complete_path(dir, '_h5'),
-                    split(dir)[-1], "train",
+                    split(dir)[-1],
+                    data_split,
                     text_path,
                     *args, **kwargs
                 )
                 for dir in data_dir
             ]
         )
-        valid_data = torch.utils.data.ConcatDataset(
-            datasets=[
-                PascaleDataset(
-                    complete_path(dir, '_h5'),
-                    split(dir)[-1], "valid",
-                    text_path,
-                    *args, **kwargs
-                )
-                for dir in data_dir
-            ]
-        )
-        test_data = torch.utils.data.ConcatDataset(
-            datasets=[
-                PascaleDataset(
-                    complete_path(dir, '_h5'),
-                    split(dir)[-1], "test",
-                    text_path,
-                    *args, **kwargs
-                )
-                for dir in data_dir
-            ]
-        )
-    else:
-        raise RuntimeError(
-            '{} doesnt seem to exist.'.format(path)
-        )
-    return train_data, valid_data, test_data
 
-
-def _build_dataset_loaders(train_data, validation_data, batch_size, workers):
-    """
-
-    Returns the dataset loader for train and validation
-    """
-    dataset_loader = {
-        'train':
-            torch.utils.data.DataLoader(
-                train_data,
-                batch_size=batch_size,
-                shuffle=True,
-                num_workers=workers,
-                collate_fn=collate
-            ),
-        'val':
-            torch.utils.data.DataLoader(
-                validation_data,
-                batch_size=batch_size,
-                shuffle=False,
-                num_workers=workers,
-                collate_fn=collate
-            )
-    }
-    return dataset_loader
+    return datasets
 
 
 def make_data_loader(
         batch_size,
         text_path,
-        train_ratio,
-        num_workers=1,
+        num_workers=0,
         *args,
         **kwargs):
     """
@@ -355,7 +291,6 @@ def make_data_loader(
     Args:
         batch_size (int): size of the batch.
         text_path(str) : path to text files containing split
-        train_ratio(float) : if text_path not given, randomly splits dataset as per ratio
         num_workers (int): number of workers.
     Returns:
         dataloaders: a dict containing the train and val data loader.
@@ -363,26 +298,17 @@ def make_data_loader(
             required by the model
     """
 
-    if text_path:
-        training_dataset, val_dataset, test_dataset = build_dataset_from_text(text_path, *args, **kwargs)
-        dataset_loaders = _build_dataset_loaders(training_dataset, val_dataset, batch_size, num_workers)
-        dataset_loaders.update({
-            'test':
-                torch.utils.data.DataLoader(
-                    test_dataset,
-                    batch_size=batch_size,
-                    shuffle=True,
-                    num_workers=num_workers,
-                    collate_fn=collate
-                    )
-            })
-        num_features = training_dataset.datasets[0].num_cell_features
-    else:
-        full_dataset = build_dataset(*args, **kwargs)
-        train_length = int(len(full_dataset) * train_ratio)
-        val_length = len(full_dataset) - train_length
-        training_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_length, val_length])
-        dataset_loaders = _build_dataset_loaders(training_dataset, val_dataset, batch_size, num_workers)
-        num_features = full_dataset.datasets[0].num_cell_features
+    datasets = build_datasets(text_path, *args, **kwargs)
+    dataloaders = {}
 
-    return dataset_loaders, num_features
+    for split, data in datasets.items():
+        dataloaders[split] = torch.utils.data.DataLoader(
+                data,
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=num_workers,
+                collate_fn=collate
+            )
+        num_features = data.datasets[0].num_cell_features
+
+    return dataloaders, num_features

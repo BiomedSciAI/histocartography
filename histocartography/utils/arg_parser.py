@@ -28,14 +28,6 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
-        '-r',
-        '--train_ratio',
-        type=int,
-        help='% of data to use for training.',
-        default=0.8,
-        required=False
-    )
-    parser.add_argument(
         '-n',
         '--model_name',
         type=str,

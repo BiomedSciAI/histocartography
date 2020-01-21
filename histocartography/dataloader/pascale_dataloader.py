@@ -174,17 +174,9 @@ class PascaleDataset(BaseDataset):
         with h5py.File(complete_path(self.dir_path, self.h5_fnames[index]), 'r') as f:
             image_size = h5_to_tensor(f['image_dimension'], self.device)
             cell_features = h5_to_tensor(f['instance_features'], self.device)
-            #norm_centroid = h5_to_tensor(f['instance_centroid_location'], self.device) / image_size[:-1]
             centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
-            img_size = image_size.type(torch.float32)
-            # debug purposes
-            print('centroid {} | img size {} | new_img_size {} '.format(
-                type(centroid),
-                type(image_size),
-                type(img_size)
-            ))
-            norm_centroid = centroid / (img_size[:-1])
-
+            image_size = image_size.type(torch.float32)
+            norm_centroid = centroid / image_size[:-1]
             f.close()
 
         label = self.labels[index]

@@ -174,8 +174,16 @@ class PascaleDataset(BaseDataset):
         with h5py.File(complete_path(self.dir_path, self.h5_fnames[index]), 'r') as f:
             image_size = h5_to_tensor(f['image_dimension'], self.device)
             cell_features = h5_to_tensor(f['instance_features'], self.device)
-            norm_centroid = h5_to_tensor(f['instance_centroid_location'], self.device) / image_size[:-1]
+            #norm_centroid = h5_to_tensor(f['instance_centroid_location'], self.device) / image_size[:-1]
             centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
+            img_size = image_size.type(torch.float32)
+            # debug purposes
+            print('centroid {} | img size {} | new_img_size {} '.format(
+                type(centroid),
+                type(image_size),
+                type(img_size)
+            ))
+            norm_centroid = centroid / (img_size[:-1])
 
             f.close()
 
@@ -188,8 +196,8 @@ class PascaleDataset(BaseDataset):
         # normalize the appearance-based cell features
         if self.norm_cell_features:
             cell_features = \
-                (cell_features - self.cell_features_transformer['mean']) / \
-                self.cell_features_transformer['std']
+                (cell_features - self.cell_features_transformer['mean'].to(self.device)) / \
+                (self.cell_features_transformer['std']).to(self.device)
 
         # concat spatial + appearance features
         cell_features = torch.cat((cell_features, norm_centroid), dim=1)

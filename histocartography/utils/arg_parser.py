@@ -24,7 +24,7 @@ def parse_arguments():
         '--number_of_workers',
         type=int,
         help='number of workers.',
-        default=1,
+        default=0,
         required=False
     )
     parser.add_argument(

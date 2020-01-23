@@ -18,14 +18,14 @@ class PascaleDataset(BaseDataset):
 
     def __init__(
             self,
-            dir_path,
+            data_path,
             dataset_name,
-            status,
+            split,
             config,
             cuda=False,
-            norm_cell_features=True,
-            norm_superpx_features=False,
-            img_path=None,
+            load_cell_graph=True,
+            load_superpx_graph=True,
+            load_image=False,
     ):
         """
         Pascale dataset constructor.
@@ -36,59 +36,39 @@ class PascaleDataset(BaseDataset):
             :param cuda (bool): cuda usage
             :param norm_cell_features (bool): if the cell features should be normalised
             :param norm_superpx_features (bool): if the super pixel features should be normalised
-            :param status(str): train, validation or test
+            :param split(str): train, validation or test
         """
         super(PascaleDataset, self).__init__(config, cuda)
 
-        print('Start loading dataset {} : {}'.format(dataset_name, status))
+        print('Start loading dataset {} : {}'.format(dataset_name, split))
 
-        # 1. load and store h5 data
-        self.dir_path = dir_path
+        # 1. set class attributes
+        self.data_path = data_path
         self.dataset_name = dataset_name
-        self.img_path = img_path
-        self.status = status
+        self.load_cell_graph = load_cell_graph
+        self.load_superpx_graph = load_superpx_graph
+        self.load_image = load_image
 
-        self._load_files(dir_path, status)
+        # 2. load h5 fnames and labels (from h5 fname)
+        self._load_h5_fnames_and_labels(data_path, split)
 
-        # 2. extract meta info from data
+        # 3. extract meta data
         self.num_samples = len(self.h5_fnames)
-        self.num_cell_features = self._get_cell_features_dim()
-
-        # 3. build data normalizer
-        self.norm_cell_features = norm_cell_features
-        self.norm_superpx_features = norm_superpx_features
-        self._build_normaliser()
+        if load_cell_graph:
+            self.num_cell_features = self._get_cell_features_dim()
+            self._build_normaliser(graph_type='cell_graph')
+        if load_superpx_graph:
+            self.num_superpx_features = 10
+            self._build_normaliser(graph_type='superpx_graph')
 
         # 4. load the images if path
-        if img_path is not None:
-            self._load_images(img_path)
+        if load_image:
+            self._load_image_fnames()
 
-    def _load_images(self, img_path):
+    def _load_image_fnames(self, img_path):
         self.image_fnames = get_files_in_folder(complete_path(img_path, self.dataset_name), 'png')
 
-    def _get_cell_features_dim(self):
-        with h5py.File(self.h5_fnames[0], 'r') as f:
-            cell_features = h5_to_tensor(f['instance_features'], self.device)
-            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
-            f.close()
-        return cell_features.shape[1] + centroid.shape[1]
-
-    def _build_normaliser(self):
-        """
-        Build normalizers to normalize the node features (ie, mean=0, std=1)
-        """
-        if self.norm_cell_features:
-            if not NORMALIZATION_FACTORS['cell_graph']:
-                self.cell_features_transformer = compute_normalization_factor(
-                    self.dir_path, self.h5_fnames)
-            else:
-                self.cell_features_transformer = NORMALIZATION_FACTORS['cell_graph']
-
-        if self.norm_superpx_features:
-            raise NotImplementedError(
-                "Super pixel normalization not implemented.")
-
-    def _load_files(self, path, train_flag):
+    def _load_h5_fnames_and_labels(self, data_path, train_flag):
         """
         Load the h5 data from the text files
         """
@@ -98,7 +78,7 @@ class PascaleDataset(BaseDataset):
         self.h5_fnames = get_files_from_text(path, extension, train_flag)
 
         for fname in self.h5_fnames:
-            self._load_label(complete_path(path, fname))
+            self._load_label(complete_path(data_path, fname))
 
     def _load_label(self, fpath):
         """
@@ -110,22 +90,22 @@ class PascaleDataset(BaseDataset):
                     TUMOR_TYPE_TO_LABEL.keys())))[0]
         self.labels.append(TUMOR_TYPE_TO_LABEL[tumor_type])
 
-    def _load_sample(self, fpath):
-        """
-        Load a h5 dataset
-        """
-        with h5py.File(fpath, 'r') as f:
-            # extract features, centroid and image dimension
-            node_embeddings = h5_to_tensor(f['instance_features'], self.device)
-            centroid = h5_to_tensor(
-                f['instance_centroid_location'], self.device)
-            image_dim = h5_to_tensor(f['image_dimension'], self.device)
-
-            # append
-            self.cell_features.append(node_embeddings)
-            self.cell_centroids.append(centroid)
-            self.image_dimensions.append(image_dim)
+    def _get_cell_features_dim(self):
+        with h5py.File(self.h5_fnames[0], 'r') as f:
+            cell_features = h5_to_tensor(f['instance_features'], self.device)
+            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
             f.close()
+        return cell_features.shape[1] + centroid.shape[1]
+
+    def _build_normaliser(self, graph_type):
+        """
+        Build normalizers to normalize the node features (ie, mean=0, std=1)
+        """
+        if not NORMALIZATION_FACTORS[graph_type]:
+            self.cell_features_transformer = compute_normalization_factor(
+                self.data_path, self.h5_fnames)
+        else:
+            self.cell_features_transformer = NORMALIZATION_FACTORS[graph_type]
 
     def _load_image(self, img_name):
         if img_name + '.png' in self.image_fnames:
@@ -139,20 +119,10 @@ class PascaleDataset(BaseDataset):
         else:
             print('Warning: the image {} doesnt seem to exist in path {}'.format(img_name, self.img_path))
 
-    def __getitem__(self, index):
+    def _build_cell_graph(self, index):
         """
-        Get an example.
-
-        Args:
-            index (int): index of the example.
-        Returns:
-            a tuple containing:
-                 - cell_graph (dgl graph)
-                 - @TODO: superpx_graph (dgl graph)
-                 - @TODO: assignment matrix (list of LongTensor)
-                 - labels (LongTensor)
+        Build the cell graph
         """
-
         # extract the image size, centroid, cell features and label
         with h5py.File(self.h5_fnames[index], 'r') as f:
             image_size = h5_to_tensor(f['image_dimension'], self.device)
@@ -162,65 +132,59 @@ class PascaleDataset(BaseDataset):
             norm_centroid = centroid / image_size[:-1]
             f.close()
 
-        label = self.labels[index]
-
-        # load the image if required
-        if self.img_path is not None:
-            image, image_name = self._load_image(self.h5_fnames[index].replace('.h5', ''))
-
-        # normalize the appearance-based cell features
-        if self.norm_cell_features:
-            cell_features = \
-                (cell_features - self.cell_features_transformer['mean'].to(self.device)) / \
-                (self.cell_features_transformer['std']).to(self.device)
+        # normalize the cell features
+        cell_features = \
+            (cell_features - self.cell_features_transformer['mean'].to(self.device)) / \
+            (self.cell_features_transformer['std']).to(self.device)
 
         # concat spatial + appearance features
         cell_features = torch.cat((cell_features, norm_centroid), dim=1)
 
-        # build graph topology
-        if self.model_type == 'cell_graph_model':
-            cell_graph = self.cell_graph_builder(cell_features, centroid)
-            if self.img_path is not None:
-                return cell_graph, image, image_name, label
-            return cell_graph, label
-        else:
-            raise ValueError(
-                'Model type: {} not supported'.format(
-                    self.model_type))
+        # build topology
+        cell_graph = self.cell_graph_builder(cell_features, centroid)
+
+        return cell_graph
+
+    def __getitem__(self, index):
+        """
+        Get an example.
+
+        Args:
+            index (int): index of the example.
+        Returns:
+        """
+
+        # 1. load label
+        label = self.labels[index]
+
+        data = []
+
+        # 2. load cell graph
+        if self.load_cell_graph:
+            cell_graph = self._build_cell_graph(index)
+            data.append(cell_graph)
+
+        # 3. load superpx graph
+        if self.load_superpx_graph:
+            superpx_graph = self._build_superpx_graph(index)
+            data.append(superpx_graph)
+
+        # 4. load assignment matrix to go from the cell graph to the the superpx graph
+        if self.load_cell_graph and self.load_superpx_graph:
+            assignment_matrix = self._build_assignment_matrix(cell_graph, superpx_graph)
+            data.append(assignment_matrix)
+
+        # 4. load the image if required
+        if self.load_image:
+            image, image_name = self._load_image(self.h5_fnames[index].replace('.h5', ''))
+            data.append(image_name)
+            data.append(image_name)
+
+        return data, label
 
     def __len__(self):
         """Return the number of samples in the WSI."""
         return self.num_samples
-
-
-def build_dataset(path, *args, **kwargs):
-    """
-    Build the dataset.
-
-    Returns:
-        a PascaleDataset.
-    """
-
-    # 1. list all dir in path and remove the dataset from our blacklist
-    data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
-    data_dir = list(filter(lambda x: all(b not in x for b in DATASET_BLACKLIST), data_dir))
-
-    # 2. build dataset by concatenating all the sub-datasets
-    if os.path.isdir(path):
-        return torch.utils.data.ConcatDataset(
-            datasets=[
-                PascaleDataset(
-                    complete_path(dir, '_h5'),
-                    split(dir)[-1], "all", None,
-                    *args, **kwargs
-                )
-                for dir in data_dir
-            ]
-        )
-    else:
-        raise RuntimeError(
-            '{} doesnt seem to exist.'.format(path)
-        )
 
 
 def collate(batch):
@@ -236,12 +200,15 @@ def collate(batch):
     """
 
     def collate_fn(batch, id, type):
-        return COLLATE_FN[type]([example[id] for example in batch])
+        return COLLATE_FN[type]([example[0][id] for example in batch])
 
-    num_modalities = len(batch[0])
-    data = tuple([collate_fn(batch, mod_id, type(batch[0][mod_id]).__name__)
-                  for mod_id in range(0, num_modalities - 1)])
-    labels = torch.LongTensor([example[-1] for example in batch])
+    # collate the data
+    num_modalities = len(batch[0][0])
+    data = tuple([collate_fn(batch, mod_id, type(batch[0][0][mod_id]).__name__)
+                  for mod_id in range(num_modalities)])
+
+    # collate the labels
+    labels = torch.LongTensor([example[1] for example in batch])
 
     return data, labels
 

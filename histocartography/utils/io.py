@@ -115,6 +115,7 @@ def split_path(path):
             tumor_name = os.path.basename(text_path)
     return text_path, tumor_name
 
+
 def get_files_from_text(path, extension, split):
 
     text_path, tumor_type = split_path(path)

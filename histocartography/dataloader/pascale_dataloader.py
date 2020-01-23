@@ -21,7 +21,6 @@ class PascaleDataset(BaseDataset):
             dir_path,
             dataset_name,
             status,
-            text_path,
             config,
             cuda=False,
             norm_cell_features=True,
@@ -33,12 +32,11 @@ class PascaleDataset(BaseDataset):
 
         Args:
             :param config: (dict) config file
-            :param dir_path (str): path to the pascale dataset
+            :param dir_path (str): path to the pascale dataset and split files
             :param cuda (bool): cuda usage
             :param norm_cell_features (bool): if the cell features should be normalised
             :param norm_superpx_features (bool): if the super pixel features should be normalised
             :param status(str): train, validation or test
-            :param text_path(str): path to text files containing train:validation:test split
         """
         super(PascaleDataset, self).__init__(config, cuda)
 
@@ -48,10 +46,9 @@ class PascaleDataset(BaseDataset):
         self.dir_path = dir_path
         self.dataset_name = dataset_name
         self.img_path = img_path
-        self.text_path = text_path
         self.status = status
 
-        self._load_files(text_path, dir_path, status)
+        self._load_files(dir_path, status)
 
         # 2. extract meta info from data
         self.num_samples = len(self.h5_fnames)
@@ -91,14 +88,14 @@ class PascaleDataset(BaseDataset):
             raise NotImplementedError(
                 "Super pixel normalization not implemented.")
 
-    def _load_files(self, text_path, path, train_flag):
+    def _load_files(self, path, train_flag):
         """
         Load the h5 data from the text files
         """
         self.labels = []
         extension = '.h5'
 
-        self.h5_fnames = get_files_from_text(path, text_path, extension, train_flag)
+        self.h5_fnames = get_files_from_text(path, extension, train_flag)
 
         for fname in self.h5_fnames:
             self._load_label(complete_path(path, fname))
@@ -249,7 +246,7 @@ def collate(batch):
     return data, labels
 
 
-def build_datasets(text_path, path, *args, **kwargs):
+def build_datasets(path, *args, **kwargs):
     """
     Builds dataset from text files that contain train:test:validation split
 
@@ -257,6 +254,8 @@ def build_datasets(text_path, path, *args, **kwargs):
         PASCALE datasets for train, validation and testing
     """
 
+    # TODO : check if this is fine: to add directory to path
+    path = complete_path(path, 'nuclei_info')
     data_dir = [f.path for f in os.scandir(path) if f.is_dir()]
     data_dir = list(filter(lambda x: all(b not in x for b in DATASET_BLACKLIST), data_dir))
 
@@ -269,7 +268,6 @@ def build_datasets(text_path, path, *args, **kwargs):
                     complete_path(dir, '_h5'),
                     split(dir)[-1],
                     data_split,
-                    text_path,
                     *args, **kwargs
                 )
                 for dir in data_dir
@@ -281,7 +279,6 @@ def build_datasets(text_path, path, *args, **kwargs):
 
 def make_data_loader(
         batch_size,
-        text_path,
         num_workers=0,
         *args,
         **kwargs):
@@ -290,7 +287,6 @@ def make_data_loader(
 
     Args:
         batch_size (int): size of the batch.
-        text_path(str) : path to text files containing split
         num_workers (int): number of workers.
     Returns:
         dataloaders: a dict containing the train and val data loader.
@@ -298,7 +294,7 @@ def make_data_loader(
             required by the model
     """
 
-    datasets = build_datasets(text_path, *args, **kwargs)
+    datasets = build_datasets(*args, **kwargs)
     dataloaders = {}
 
     for split, data in datasets.items():

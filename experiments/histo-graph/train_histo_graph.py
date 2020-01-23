@@ -49,7 +49,6 @@ def main(args):
     # make data loaders (train & validation)
     dataloaders, num_cell_features = make_data_loader(
         batch_size=args.batch_size,
-        text_path=args.text_path,
         num_workers=args.number_of_workers,
         path=args.data_path,
         config=config,

@@ -96,18 +96,36 @@ def read_params(fname, verbose=False):
 
 
 def read_txt(dir, fname, extension):
+    """
+
+   Reads files from a text file and adds the extension for each file name in the text
+    """
     with open(complete_path(dir, fname)) as f:
         files = f.read().split()
         files = [x + extension for x in files]
     return files
 
 
-def get_files_from_text(path, text_path, extension, split):
+def split_path(path):
+    text_path = path
+    tumor_name = ""
+    for i in range(3):
+        text_path = os.path.dirname(text_path)
+        if i == 0:
+            tumor_name = os.path.basename(text_path)
+    return text_path, tumor_name
 
-    list_of_files = get_files_in_folder(text_path, 'txt')  # lists all files in text_path(all text files)
-    tumor_type = path.split('/')[-2]  # path gives tumor type
+def get_files_from_text(path, extension, split):
+
+    text_path, tumor_type = split_path(path)
+
+    # get tumor name
     tumor = [token for token in tumor_type.split('_') if not token.isdigit()]
     tumor = '_' + ''.join(map(str, tumor))
+
+    # get text path
+    text_path = complete_path(text_path, 'data_split')
+    list_of_files = get_files_in_folder(text_path, 'txt')  # lists all files in text_path(all text files)
 
     # returns relevant text file to be read
     read_file = list(filter(lambda x: tumor in x and split in x, list_of_files))

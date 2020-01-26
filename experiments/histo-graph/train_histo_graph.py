@@ -15,7 +15,7 @@ import dgl
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
-from histocartography.evaluation.evaluator import AccuracyEvaluator
+from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
@@ -99,8 +99,10 @@ def main(args):
 
     # define metrics
     accuracy_evaluation = AccuracyEvaluator(cuda=CUDA)
+    weighted_f1_score = WeightedF1(cuda=CUDA)
     metrics = {
         'accuracy': accuracy_evaluation,
+        'weighted_f1_score' : weighted_f1_score
     }
 
     # define brontes model

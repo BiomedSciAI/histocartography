@@ -1,5 +1,5 @@
 import torch
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score
 
 from histocartography.evaluation.base_evaluator import BaseEvaluator
 
@@ -34,3 +34,17 @@ class ConfusionMatrixEvaluator(BaseEvaluator):
             indices.cpu().numpy()
         )
         return conf_matrix
+
+
+class WeightedF1(BaseEvaluator):
+    """
+    Compute weighted F1 score
+    """
+
+    def __init__(self, cuda=False):
+        super(WeightedF1, self).__init__(cuda)
+
+    def __call__(self, logits, labels):
+        _, indices = torch.max(logits, dim=1)
+        weighted_f1 = f1_score(labels, indices, average='weighted')
+        return torch.FloatTensor([weighted_f1])

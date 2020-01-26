@@ -231,7 +231,7 @@ class PascaleDataset(BaseDataset):
         # 4. load the image if required
         if self.load_image:
             image, image_name = self._load_image(self.h5_fnames[index].replace('.h5', ''))
-            data.append(image_name)
+            data.append(image)
             data.append(image_name)
 
         return data, label

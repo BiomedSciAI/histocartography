@@ -10,14 +10,16 @@ import torch
 import mlflow
 import pytorch_lightning as pl
 from brontes import Brontes
+import dgl
 
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.evaluation.evaluator import AccuracyEvaluator
 from histocartography.utils.arg_parser import parse_arguments
-from histocartography.utils.io import get_device
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
+from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
+from histocartography.utils.visualization import GraphVisualization
 
 
 import warnings
@@ -119,6 +121,19 @@ def main(args):
         trainer = pl.Trainer(max_nb_epochs=args.epochs)
 
     trainer.fit(brontes_model)
+
+    # visualization
+    if args.visualization:
+        graph_visualizer = GraphVisualization()
+        graph_path = args.data_path + 'graphs/' # Path where graphs will be located
+        check_for_dir(graph_path)
+
+        for (graph, image, image_name), label in dataloaders['test']:
+            for index in range(len(image_name)):
+                graph_img = graph_visualizer(dgl.unbatch(graph)[index], image[index], image_name[index])
+                file_name = complete_path(graph_path, get_filename(image_name[index]) + '.png')
+                save_image(graph_img, fname=file_name)
+                mlflow.log_artifact(file_name)
 
     # save the model to tmp and log it as an mlflow artifact
     saved_model = f'{tempfile.mkdtemp()}/{args.model_name}.pt'

@@ -12,6 +12,21 @@ def complete_path(folder, fname):
     return os.path.join(folder, fname)
 
 
+def get_filename(path):
+    """
+    Get file name in the path
+    """
+    return os.path.basename(path)
+
+
+def check_for_dir(path):
+    """
+    Checks if directory exists, if not, makes a new directory
+    """
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def get_device(cuda=False):
     """
     Get device (cpu or gpu)

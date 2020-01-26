@@ -55,10 +55,10 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
-        '--text_path',
-        type=str,
-        help='Path to folder where train:test:val split is located',
-        default=''
+        '--visualization',
+        type=bool,
+        help='True if visualisation of graphs',
+        default=True
 
     )
 

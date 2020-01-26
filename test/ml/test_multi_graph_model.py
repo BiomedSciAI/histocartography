@@ -81,8 +81,7 @@ class MultiGraphTestCase(unittest.TestCase):
 
         model = MultiLevelGraphModel(
             config=config["model_params"],
-            ll_node_dim=ll_node_dim,
-            hl_node_dim=hl_node_dim
+            node_dims=(ll_node_dim, hl_node_dim)
         )
 
         # 3. print the model parameters
@@ -93,7 +92,7 @@ class MultiGraphTestCase(unittest.TestCase):
                     print(name, param.shape)
 
         # 4. forward pass
-        logits = model(ll_dgl_graphs, hl_dgl_graphs, assignment_matrix)
+        logits = model([ll_dgl_graphs, hl_dgl_graphs, assignment_matrix])
 
     def tearDown(self):
         """Tear down the tests."""

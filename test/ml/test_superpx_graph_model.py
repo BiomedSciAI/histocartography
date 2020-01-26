@@ -73,7 +73,7 @@ class SuperpxGraphTestCase(unittest.TestCase):
                     print(name, param.shape)
 
         # 4. forward pass
-        logits = model(dgl_graphs)
+        logits = model([dgl_graphs])
 
     def tearDown(self):
         """Tear down the tests."""

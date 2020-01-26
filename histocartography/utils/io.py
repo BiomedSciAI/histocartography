@@ -37,6 +37,11 @@ def get_files_in_folder(path, extension):
     ]
 
 
+def get_dir_in_folder(path):
+    return [f.name for f in os.scandir(path) if f.is_dir()]
+    # return [f for f in os.listdir(path) if f.is_dir()]
+
+
 def h5_to_tensor(h5_object, device):
     """
     Convert h5 object into torch tensor
@@ -97,7 +102,6 @@ def read_params(fname, verbose=False):
 
 def read_txt(dir, fname, extension):
     """
-
    Reads files from a text file and adds the extension for each file name in the text
     """
     with open(complete_path(dir, fname)) as f:
@@ -106,30 +110,15 @@ def read_txt(dir, fname, extension):
     return files
 
 
-def split_path(path):
-    text_path = path
-    tumor_name = ""
-    for i in range(3):
-        text_path = os.path.dirname(text_path)
-        if i == 0:
-            tumor_name = os.path.basename(text_path)
-    return text_path, tumor_name
+def load_h5_fnames(base_path, tumor_type, extension, split):
+    """
 
-
-def get_files_from_text(path, extension, split):
-
-    text_path, tumor_type = split_path(path)
-
-    # get tumor name
-    tumor = [token for token in tumor_type.split('_') if not token.isdigit()]
-    tumor = '_' + ''.join(map(str, tumor))
-
-    # get text path
-    text_path = complete_path(text_path, 'data_split')
-    list_of_files = get_files_in_folder(text_path, 'txt')  # lists all files in text_path(all text files)
-
-    # returns relevant text file to be read
-    read_file = list(filter(lambda x: tumor in x and split in x, list_of_files))
-    h5_files = read_txt(text_path, read_file[0], extension)  # Loads all the .h5 files in the text file
-
-    return [complete_path(path, g) for g in h5_files]
+    :param path:  ../../data/data_split
+    :param extension: .h5
+    :param split: train
+    :return:
+    """
+    text_path = complete_path(base_path, 'data_split')
+    fname = split + '_list_' + tumor_type + '.txt'
+    h5_files = read_txt(text_path, fname, extension)  # Loads all the .h5 files in the text file
+    return h5_files

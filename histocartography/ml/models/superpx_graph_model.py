@@ -45,12 +45,14 @@ class SuperpxGraphModel(BaseModel):
                               num_layers=self.config['readout']['num_layers']
                               )
 
-    def forward(self, superpx_graph):
+    def forward(self, data):
         """
         Foward pass.
         :param superpx_graph: (DGLGraph) superpx graph
         """
+
         # 1. GNN layers over the high level graph (super pixel graph)
+        superpx_graph = data[0]
         feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
         graph_embeddings = self.superpx_gnn(superpx_graph, feats, self.concat)
 

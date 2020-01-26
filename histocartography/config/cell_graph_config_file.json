@@ -20,7 +20,6 @@
     "num_classes": 4,
     "use_bn": false,
     "cat": true,
-    "node_dim": 2,
     "activation": "relu",
     "readout": {
       "num_layers": 2,

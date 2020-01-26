@@ -78,7 +78,7 @@ class MultiLayerGNN(nn.Module):
         self.readout_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys(
         ) else 'sum'
 
-    def forward(self, g, h, cat=False):
+    def forward(self, g, h, cat=False, with_readout=True):
         """
         Forward pass.
         :param g: (DGLGraph)
@@ -97,6 +97,7 @@ class MultiLayerGNN(nn.Module):
             g.ndata[GNN_NODE_FEAT_OUT] = h
 
         # 2. aggregate the nodes, mean, max or sum readout
-        h = READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
+        if with_readout:
+            return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
 
         return h

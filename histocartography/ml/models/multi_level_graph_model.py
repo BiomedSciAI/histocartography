@@ -15,7 +15,7 @@ class MultiLevelGraphModel(BaseModel):
 
     """
 
-    def __init__(self, config, ll_node_dim, hl_node_dim):
+    def __init__(self, config, node_dims):
         """
         MultiLevelGraph model constructor
         :param config: (dict) configuration parameters
@@ -27,8 +27,8 @@ class MultiLevelGraphModel(BaseModel):
 
         # 1- set class attributes
         self.config = config
-        self.ll_node_dim = ll_node_dim
-        self.hl_node_dim = hl_node_dim
+        self.ll_node_dim = node_dims[0]
+        self.hl_node_dim = node_dims[1]
 
         # 2- build cell graph params
         self._build_cell_graph_params(config['gnn_params'][0])
@@ -84,9 +84,11 @@ class MultiLevelGraphModel(BaseModel):
                      for i in range(len(num_nodes_per_graph))]
 
         ll_h_concat = []
+
         for i in range(1, len(intervals)):
             sum_ = torch.matmul(
-                assignment[i - 1], feats[intervals[i - 1]:intervals[i], :])
+                assignment[i - 1], feats[intervals[i - 1]:intervals[i], :]
+            )
             ll_h_concat.append(sum_)
 
         return torch.cat(ll_h_concat, dim=0)
@@ -105,7 +107,7 @@ class MultiLevelGraphModel(BaseModel):
 
         # 1. GNN layers over the low level graph
         ll_feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
-        ll_h = self.cell_graph_gnn(cell_graph, ll_feats, self.concat)
+        ll_h = self.cell_graph_gnn(cell_graph, ll_feats, self.concat, with_readout=False)
 
         # 2. Sum the low level features according to assignment matrix
         ll_h_concat = self._compute_assigned_feats(

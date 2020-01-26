@@ -1,12 +1,12 @@
 {
-"graph_building": {
-    "cell_graph_builder": {
-    "graph_building_type": "knn_graph_builder",
-    "max_num_nodes": 5000,
-    "edge_encoding": false,
-    "edge_threshold": 0.5
-  }
-},
+  "graph_building": {
+      "cell_graph_builder": {
+        "graph_building_type": "knn_graph_builder",
+        "n_neighbors": 5,
+        "max_distance": 50,
+        "edge_encoding": false
+    }
+  },
 "model_params": {
 "gnn_params": {
     "layer_type": "gin_layer",
@@ -20,12 +20,11 @@
   "dropout": 0.0,
   "use_bn": false,
   "cat": true,
-  "node_dim": 2,
   "activation": "relu",
   "readout": {
     "num_layers": 2,
-    "hidden_dim": 64,
+    "hidden_dim": 64
   }
 },
-"model_type": "SuperpxGraphModel"
+"model_type": "superpx_graph_model"
 }

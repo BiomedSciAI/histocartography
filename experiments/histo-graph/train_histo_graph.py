@@ -14,9 +14,11 @@ from brontes import Brontes
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
-from histocartography.evaluation.evaluator import AccuracyEvaluator, ConfusionMatrixEvaluator
+from histocartography.evaluation.evaluator import AccuracyEvaluator
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.utils.io import get_device
+from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
+
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -52,7 +54,10 @@ def main(args):
         num_workers=args.number_of_workers,
         path=args.data_path,
         config=config,
-        cuda=CUDA
+        cuda=CUDA,
+        load_cell_graph=load_cell_graph(config['model_type']),
+        load_superpx_graph=load_superpx_graph(config['model_type']),
+        load_image=True
     )
 
     # declare model
@@ -84,18 +89,16 @@ def main(args):
         'number_of_workers': args.number_of_workers,
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
-        'graph_building': config['graph_building'],
-        'gnn_params': config['model_params']['gnn_params'],
-        'readout_params': config['model_params']['readout'],
+        # 'graph_building': config['graph_building'],
+        # 'gnn_params': config['model_params']['gnn_params'],
+        # 'readout_params': config['model_params']['readout'],
         'model_type': config['model_type']
     })
 
     # define metrics
     accuracy_evaluation = AccuracyEvaluator(cuda=CUDA)
-    confusion_matrix_evaluation = ConfusionMatrixEvaluator(cuda=CUDA)
     metrics = {
         'accuracy': accuracy_evaluation,
-        # 'confusion_matrix': confusion_matrix_evaluation
     }
 
     # define brontes model

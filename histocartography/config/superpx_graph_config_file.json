@@ -16,7 +16,7 @@
     "hidden_dim": 11,
     "output_dim": 32
   },
-  "num_classes": 3,
+  "num_classes": 2,
   "dropout": 0.0,
   "use_bn": false,
   "cat": true,

@@ -164,8 +164,9 @@ class PascaleDataset(BaseDataset):
         """
         # extract the image size, centroid, cell features and label
         with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
-            features = h5_to_tensor(f['sp_features'], self.device)
-            centroid = h5_to_tensor(f['sp_centroids'], self.device)
+            d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+            features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
+            centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
             norm_centroid = centroid
             f.close()
 

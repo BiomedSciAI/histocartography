@@ -6,12 +6,11 @@ entry_points:
   main:
     parameters:
       config_fpath: {type: string, default: ../../histocartography/config/cell_graph_config_file.json}
-      data_path: {type: string, default: /dataT/pus/histocartography/Data/PASCALE/nuclei_info/Predictions/}
-      text_path: {type: string, default: /dataT/frd/frd_cell_graph/Split_files/}
+      data_path: {type: string, default: /dataT/pus/histocartography/Data/PASCALE/}
       number_of_workers: {type: int, default: 0}
       model_name: {type string, default: model}
       batch_size: {type: int, default: 2}
       epochs: {type: int, default: 1}
       learning_rate: {type: float, default: 0.01}
     command: "python3 train_histo_graph.py --config_fpath {config_fpath} -d {data_path} --number_of_workers \
-    {number_of_workers} -n {model_name} -b {batch_size} -l {learning_rate} --epochs {epochs} --text_path {text_path}"
+    {number_of_workers} -n {model_name} -b {batch_size} -l {learning_rate} --epochs {epochs}"

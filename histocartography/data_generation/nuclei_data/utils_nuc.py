@@ -78,7 +78,8 @@ def visualize_instances(mask, canvas=None, color=None):
         y2 = y2 + 2 if y2 + 2 <= mask.shape[0] - 1 else y2
         inst_map_crop = inst_map[y1:y2, x1:x2]
         inst_canvas_crop = canvas[y1:y2, x1:x2]
-        contours = cv2.findContours(inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
         cv2.drawContours(inst_canvas_crop, contours[0], -1, inst_color, 2)
         canvas[y1:y2, x1:x2] = inst_canvas_crop
     return canvas
@@ -89,7 +90,7 @@ def remap_label(pred, by_size=False):
     Rename all instance id so that the id is contiguous i.e [0, 1, 2, 3]
     not [0, 2, 4, 6]. The ordering of instances (which one comes first)
     is preserved unless by_size=True, then the instances will be reordered
-    so that bigger nucler has smaller ID
+    so that bigger nuclei has smaller ID
     Args:
         pred    : the 2d array contain instances where each instances is marked
                   by non-zero integer
@@ -170,10 +171,8 @@ def extract_feat(img, mask):
 
         mean_entropy = cv2.mean(nuclei_entropy, mask=nuclei_mask)[0]
 
-        contours = cv2.findContours(nuclei_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        contour = contours[0][0]
-        #contour_saved = contours[0]
+        _, contours, _ = cv2.findContours(nuclei_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contour = contours[0]
         #cv2.drawContours(nuclei_img, contours[0], -1, (0, 255, 0), 2)
 
         #img[y1:y2, x1:x2] = nuclei_img

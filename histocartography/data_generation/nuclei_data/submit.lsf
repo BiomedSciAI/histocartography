@@ -1,15 +1,15 @@
 #!/bin/bash                                                                                                                                                                                                                                                              
 
-#BSUB -q prod.short
+#BSUB -q prod.med
 #BSUB -n 1
 #BSUB -R "rusage [ngpus_excl_p=1]"
 
 module load Anaconda3
 source /u/pus/venv/bin/activate
 
-#BSUB -J "logs"
-#BSUB -o "logs"
-#BSUB -e "logs.stderr"
+#BSUB -J "logs_dcis"
+#BSUB -o "logs_dcis"
+#BSUB -e "logs_dcis.stderr"
 
-python3 -u inference.py
+python3 -u inference.py -1
 

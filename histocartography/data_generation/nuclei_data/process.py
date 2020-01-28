@@ -2,20 +2,18 @@ import glob
 import os
 import scipy.io as sio
 from postproc.hover import proc_np_hv
-from config import Config
-from utils.utils import *
+from config_sp import Config
+from utils_nuc import *
 import json
 import time
-import csv
-
 
 class Process(Config):
     def create_directory(self, path):
         if not os.path.isdir(path):
             os.makedirs(path)
-    # end def
+    #enddef
 
-    def run(self):
+    def run(self, n):
         # * flag for HoVer-Net
         # 1 - threshold, 2 - sobel based
         energy_mode = 2
@@ -24,25 +22,34 @@ class Process(Config):
         pred_dir = self.inf_output_dir + '_mat/'
 
         proc_json_dir = self.inf_output_dir + '_json/'
-        proc_overlap_dir = self.inf_output_dir + '_overlap/'
+        proc_overlaid_dir = self.inf_output_dir + '_overlaid/'
         proc_h5_dir = self.inf_output_dir + '_h5/'
         self.create_directory(proc_json_dir)
-        self.create_directory(proc_overlap_dir)
+        self.create_directory(proc_overlaid_dir)
         self.create_directory(proc_h5_dir)
 
         file_list = glob.glob('%s/*.mat' % pred_dir)
         file_list.sort()
 
-        start_time = time.time()
-        for filename in file_list:
-            filename = os.path.basename(filename)
+        # ------------------------------------------------------------------------------- USEFUL FOR CHUNK WISE PROCESSING
+        idx = np.arange(len(file_list))
+        idx = np.array_split(idx, 20)
+        idx = idx[n]
+
+        total_time = time.time()
+        for i in range(len(file_list)):
+        #for i in range(len(idx)):
+            start_time = time.time()
+
+            #filename = os.path.basename(file_list[idx[i]])
+            filename = os.path.basename(file_list[i])
             basename = filename.split('.')[0]
-            print('Working on = ', basename)
 
             img = cv2.imread(self.inf_data_dir + basename + self.inf_imgs_ext)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-            print("Loading mat files")
+            # ------------------------------------------------------------------------------- LOADING MAT FILES
+            #print("Loading mat files")
             pred = sio.loadmat('%s/%s.mat' % (pred_dir, basename))
             pred = np.squeeze(pred['result'])
         
@@ -54,33 +61,39 @@ class Process(Config):
                 pred_type = np.argmax(pred_type, axis=-1)
             else:
                 pred_inst = pred
+            #endif
 
             pred_inst = proc_np_hv(pred_inst, marker_mode=marker_mode, energy_mode=energy_mode, rgb=img)
+            # ------------------------------------------------------------------------------- by_size=False: Saves time
+            pred_inst = remap_label(pred_inst, by_size=False)
 
-            pred_inst = remap_label(pred_inst, by_size=True)
             overlaid_output = visualize_instances(pred_inst, img)
             overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-            # cv2.imwrite('%s/%s.png' % (proc_overlap_dir, basename), overlaid_output)
-            print("Extracting features")
+            #-- cv2.imwrite('%s/%s.png' % (proc_overlap_dir, basename), overlaid_output)
+
+            # ------------------------------------------------------------------------------- FEATURE EXTRACTION
+            #print("Extracting features")
             pred_inst_features, pred_centroid = extract_feat(img, pred_inst)
 
             # TODO : remove get_inst_centroid
             # pred_inst_centroid = get_inst_centroid(pred_inst)
 
+            #------------------------------------------------------------------------------- OVERLAID OUTPUT PLOT
+            # Comment out (this block + overlaid_output lines from above) to save time.
             j = 0
-            print("Generating overlaid output")
+            #print("Generating overlaid output")
             for item_t in pred_centroid:
                 j += 1
                 cv2.drawMarker(overlaid_output, (int(item_t[0]), int(item_t[1])), (0, 255, 0),
                                markerType=cv2.MARKER_STAR,
                                markerSize=10, thickness=1, line_type=cv2.LINE_AA)
 
-                cv2.putText(overlaid_output, str(j), (int(item_t[0]), int(item_t[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                            (0, 0, 255))  # , 2, cv2.LINE_AA)
+                cv2.putText(overlaid_output, str(j), (int(item_t[0]), int(item_t[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 255))  # , 2, cv2.LINE_AA)
+            #endfor
+            cv2.imwrite('%s/%s.png' % (proc_overlaid_dir, basename), overlaid_output)
 
-            cv2.imwrite('%s/%s.png' % (proc_overlap_dir, basename), overlaid_output)
-        
-            # for instance segmentation only
+            #------------------------------------------------------------------------------- SAVE PREDICTIONS AS JSON & H5
+            # For instance segmentation only
             if self.type_classification:
                 pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
                 pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
@@ -108,10 +121,9 @@ class Process(Config):
                                'image_dimension': img.shape}, k)
                 save_h5_type(file_name_h5, pred_inst, pred_type, pred_centroid, pred_inst_type[:, None], pred_inst_features, img.shape)
             else:
-                print("Saving as json and h5")
                 file_name = '%s/%s.json' % (proc_json_dir, basename)
                 file_name_h5 = '%s/%s.h5' % (proc_h5_dir, basename)
-                # saving as h5 file
+
                 with open(file_name, 'a') as k:
                     json.dump({'detected_instance_map': pred_inst.tolist(),
                                'instance_centroid_location': pred_centroid.tolist(),
@@ -119,8 +131,13 @@ class Process(Config):
                                'image_dimension': img.shape}, k)
 
                 save_h5(file_name_h5, pred_inst, pred_centroid, pred_inst_features, img.shape)
+            #endif
+            print('#', idx[i],  ' working on = ', basename, ' #nuclei = ', pred_inst_features.shape[0], ' time = ', round(time.time() - start_time, 2))
+        #endfor
 
-        print('Time per image= ', round((time.time() - start_time)/len(file_list), 2), 's')
+        print('Time per image= ', round((time.time() - total_time)/len(file_list), 2), 's')
+    #enddef
+
 
     # Save instance centroids to csv, to be used by QuPath
     def save_to_csv(self):
@@ -146,10 +163,10 @@ class Process(Config):
 
                 centroid_np = np.delete(centroid_np, 0, axis=0)
                 np.savetxt(proc_csv_dir + basename + '.csv', centroid_np, delimiter=',')
-            # end
-        # end for
-    # end def
-# end
+            #end
+        #endfor
+    #enddef
+#end
 
 
 

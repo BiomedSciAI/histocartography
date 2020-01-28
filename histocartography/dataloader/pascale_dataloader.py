@@ -180,7 +180,7 @@ class PascaleDataset(BaseDataset):
         features = torch.cat((features, norm_centroid), dim=1).to(torch.float)
 
         # build topology
-        superpx_graph = self.cell_graph_builder(features, centroid)
+        superpx_graph = self.superpx_graph_builder(features, centroid)
 
         return superpx_graph
 

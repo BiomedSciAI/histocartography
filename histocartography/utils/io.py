@@ -137,3 +137,8 @@ def load_h5_fnames(base_path, tumor_type, extension, split):
     fname = split + '_list_' + tumor_type + '.txt'
     h5_files = read_txt(text_path, fname, extension)  # Loads all the .h5 files in the text file
     return h5_files
+
+
+def write_json(data, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)

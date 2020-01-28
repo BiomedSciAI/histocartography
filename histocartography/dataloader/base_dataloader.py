@@ -34,7 +34,7 @@ class BaseDataset(Dataset):
         """
         raise NotImplementedError('Implementation in subclasses.')
 
-    def _build_graph_builder(self, config, name='cell_graph_builder'):
+    def _build_graph_builder(self, config, name):
         """
         Build graph builder
         """

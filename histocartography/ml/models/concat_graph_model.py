@@ -29,12 +29,15 @@ class ConcatGraphModel(BaseModel):
         self.config = config
         self.ll_node_dim = node_dims[0]
         self.hl_node_dim = node_dims[1]
+        self.cell_gnn_params = config['gnn_params']['cell_gnn']
+        self.superpx_gnn_params = config['gnn_params']['superpx_gnn']
+        self.readout_params = self.config['readout']
 
         # 2- build cell graph params
-        self._build_cell_graph_params(config['gnn_params'][0])
+        self._build_cell_graph_params(self.cell_gnn_params)
 
         # 3- build super pixel graph params
-        self._build_superpx_graph_params(config['gnn_params'][1], input_dim=self.hl_node_dim)
+        self._build_superpx_graph_params(self.superpx_gnn_params, input_dim=self.hl_node_dim)
 
         # 4- build classification params
         self._build_classification_params()
@@ -44,21 +47,21 @@ class ConcatGraphModel(BaseModel):
         Build classification parameters
         """
         if self.concat:
-            emd_dim = self.config['gnn_params'][0]['input_dim'] + \
-                self.config['gnn_params'][0]['hidden_dim'] * (self.config['gnn_params'][0]['n_layers'] - 1) + \
-                self.config['gnn_params'][0]['output_dim'] + \
-                self.config['gnn_params'][1]['input_dim'] + \
-                self.config['gnn_params'][1]['hidden_dim'] * (self.config['gnn_params'][1]['n_layers'] - 1) + \
-                self.config['gnn_params'][1]['output_dim']
+            emd_dim = self.cell_gnn_params['input_dim'] + \
+                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) + \
+                self.cell_gnn_params['output_dim'] + \
+                self.superpx_gnn_params['input_dim'] + \
+                self.superpx_gnn_params['hidden_dim'] * (self.superpx_gnn_params['n_layers'] - 1) + \
+                self.superpx_gnn_params['output_dim']
         else:
-            emd_dim = self.config['gnn_params'][0]['output_dim'] + \
-                      self.config['gnn_params'][1]['output_dim']
+            emd_dim = self.cell_gnn_params['output_dim'] + \
+                      self.superpx_gnn_params['output_dim']
 
         self.pred_layer = MLP(
             in_dim=emd_dim,
-            h_dim=self.config['readout']['hidden_dim'],
+            h_dim=self.readout_params['hidden_dim'],
             out_dim=self.num_classes,
-            num_layers=self.config['readout']['num_layers']
+            num_layers=self.readout_params['num_layers']
         )
 
     def _update_config(self, config, input_dim=None):

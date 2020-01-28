@@ -6,7 +6,7 @@ from histocartography.ml.layers.constants import CENTROID
 
 class GraphVisualization:
 
-    def __init__(self, show=False, save=True):
+    def __init__(self, show=False, save=False):
         print('Initialize graph visualizer')
         self.show = show
         self.save = save
@@ -39,3 +39,5 @@ class GraphVisualization:
 
         if self.save:
             save_image(image, fname=complete_path(self.save_path, image_name + '.png'))
+
+        return image

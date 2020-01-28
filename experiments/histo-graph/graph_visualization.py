@@ -75,7 +75,7 @@ def main(args):
 
     graph_visualizer = GraphVisualization()
 
-    for (graph, image, image_name), label in dataloaders['train']:
+    for (graph, label, image, image_name) in dataloaders['train']:
         graph_visualizer(dgl.unbatch(graph)[0], image[0], image_name[0])
 
 

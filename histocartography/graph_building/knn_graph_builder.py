@@ -32,6 +32,7 @@ class KNNGraphBuilder(BaseGraphBuilder):
         Build topology using a kNN algorithm based on the euclidean
             distance between the centroid of the nodes.
         """
+        centroid = centroid.cpu().numpy()
 
         # build adjacency matrix
         adj = kneighbors_graph(

@@ -55,7 +55,7 @@ class CellGraphModel(BaseModel):
         feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
         graph_embeddings = self.cell_graph_gnn(cell_graph, feats, self.concat)
 
-        # 3. Run readout function
+        # 2. Run readout function
         logits = self.pred_layer(graph_embeddings)
 
         return logits

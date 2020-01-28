@@ -43,18 +43,18 @@ COLLATE_FN = {
 
 # tumor type to 4. Currently UDH, ADH, FEA and DCIS are grouped under the same label
 TUMOR_TYPE_TO_LABEL = {
-    'pathological_benign': 3,
     'benign': 0,
+    'pathological_benign': 1,
+    'dcis': 2,
+    'malignant': 3,
     'udh': 4,
     'adh': 4,
-    'fea': 4,
-    'dcis': 3,
-    'malignant': 1
+    'fea': 4
 }
 
 
 # List of classes to discard for training
-DATASET_BLACKLIST = ['dcis', 'adh', 'fea', 'udh', 'pathological_benign']
+DATASET_BLACKLIST = ['adh', 'fea', 'udh']
 
 DATASET_TO_TUMOR_TYPE = {
     '0_benign': 'benign',

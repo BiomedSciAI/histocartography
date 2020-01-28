@@ -7,7 +7,7 @@ import numpy as np
 import sys
 sys.path.append("..")  # Adds higher directory to python modules path.
 try:
-    from config import Config
+    from config_sp import Config
 except ImportError:
     assert False, 'Fail to import config.py'
 

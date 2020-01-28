@@ -1,17 +1,3 @@
-import glob
-import math
-import os
-from collections import deque
-from process import Process
-import cv2
-import numpy as np
-from scipy import io as sio
-from tensorpack.predict import OfflinePredictor, PredictConfig
-from tensorpack.tfutils.sessinit import get_model_loader
-from config import Config
-import time
-
-
 from absl import logging
 logging._warn_preinit_stderr = 0
 
@@ -21,6 +7,35 @@ logging.getLogger('tensorpack').disabled = True
 
 from warnings import simplefilter
 simplefilter(action='ignore', category=FutureWarning)
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("gpu_number")               # 0, 1, 2, 3
+parser.add_argument("n")               # 1, 2, 3,..,21
+
+args = parser.parse_args()
+gpu_number = args.gpu_number
+n = args.n
+
+
+import glob
+import math
+import os
+from collections import deque
+import time
+
+import numpy as np
+import cv2
+from scipy import io as sio
+from tensorpack.predict import OfflinePredictor, PredictConfig
+from tensorpack.tfutils.sessinit import get_model_loader
+
+from config_sp import Config
+from process_sp import Process
+
+if gpu_number != '-1':
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = gpu_number
 
 
 class Inferer(Config):
@@ -116,10 +131,10 @@ class Inferer(Config):
         file_list.sort()
 
         start_time = time.time()
-        for filename in file_list:
-            filename = os.path.basename(filename)
+        for i in range(len(file_list)):
+            filename = os.path.basename(file_list[i])
             basename = filename.split('.')[0]
-            print('Working on = ', basename)
+            print('#' , i, ' working on = ', basename)
 
             # print("Reading images")
             img = cv2.imread(self.inf_data_dir + filename)
@@ -128,10 +143,11 @@ class Inferer(Config):
             # print("Generating prediction map")
             pred_map = self.__gen_prediction(img, predictor)
             sio.savemat('%s/%s.mat' % (save_dir, basename), {'result': [pred_map]})
+        #endfor
 
         print('Time per image= ', round((time.time() - start_time)/len(file_list), 2), 's')
-
-# end
+    #endfor
+#end
 
 
 if __name__ == '__main__':
@@ -141,6 +157,8 @@ if __name__ == '__main__':
 
     print('\nProcessing...')
     process = Process()
-    process.run()
+    process.run(int(n))
     process.save_to_csv()
+
+    print('Done !')
 

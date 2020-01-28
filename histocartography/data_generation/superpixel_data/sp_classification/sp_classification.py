@@ -12,15 +12,15 @@ from sklearn.metrics import confusion_matrix
 from sklearn.ensemble import RandomForestClassifier
 from skimage.measure import regionprops
 
-class SP_Segmentation:
+class SP_Classification:
     def __init__(self, data_param):
         if data_param == 'local':
-            self.base_sp_dir = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/super_pixel_info/'
-        elif data_param == 'dataT':
-            self.base_sp_dir = ''
+            self.basic_sp_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/super_pixel_info/basic_sp/'
+            self.sp_classifier_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/misc_utils/sp_classification/'
 
-        self.basic_sp_path = self.base_sp_dir + 'basic_sp/'
-        self.sp_classifier_path = self.base_sp_dir + 'sp_classification/'
+        elif data_param == 'dataT':
+            self.basic_sp_path = ''
+            self.sp_classifier_path = '/dataT/pus/histocartography/Data/PASCALE/misc_utils/sp_classification/'
 
         self.create_directory(self.sp_classifier_path)
         self.create_directory(self.sp_classifier_path + 'train_img/')

@@ -9,18 +9,46 @@ from skimage import segmentation, color
 import pickle
 
 class Process_SP:
-    def __init__(self, config):
+    def __init__(self, config, chunk_id):
         self.base_img_dir = config.base_img_dir
         self.base_sp_dir = config.base_sp_dir
+        self.basic_sp_path = config.basic_sp_path
+        self.main_sp_path = config.main_sp_path
+        self.sp_img_path = config.sp_img_path
+        self.sp_classifier_path = config.sp_classifier_path
+        self.tumor_types = config.tumor_types
 
         self.base_n_segments = config.base_n_segments
         self.base_n_pixels = config.base_n_pixels
         self.max_n_segments = config.max_n_segments
+        self.prob_thr = config.prob_thr
 
         self.threshold = 0.01
         self.w_hist = 0.5
         self.w_mean = 0.5
         self.diff_list = []
+        self.n_chunks = 100
+
+        self.magnification = 8          # magnification level
+        self.blur_kernel_size = 3       # blurring kernel size
+
+        self.chunk_id = chunk_id
+        self.load_image_paths()
+    #enddef
+
+    def load_image_paths(self):
+        img_paths = []
+        for tt in self.tumor_types:
+            paths = glob.glob(self.base_img_dir + tt + '/*.png')
+            img_paths += paths
+        #endfor
+        img_paths.sort()
+
+        print(len(img_paths))
+
+        chunks = np.array_split(np.arange(len(img_paths)), self.n_chunks)
+        chunk = chunks[self.chunk_id]
+        self.img_paths = [img_paths[x] for x in chunk]
     #enddef
 
     def color_features_per_channel(self, img_ch):
@@ -103,36 +131,24 @@ class Process_SP:
         return graph
     #enddef
 
-    def extract_basic_superpixels(self, n):
-        r = 8            # magnification level
-        blur = 3         # blurring kernel size
-
-        sp_save_path = self.base_sp_dir + '1_results_basic_sp/'
-        create_directory(sp_save_path + 'sp_img/')
-        create_directory(sp_save_path + 'sp_info/')
-
-        img_paths = glob.glob(self.base_img_dir + '*.png')
-        img_paths.sort()
-
-        for i in range(len(img_paths)):
-            if (i < 20*n) or (i >= 20*(n+1)):
-                continue
-
+    def extract_basic_superpixels(self, save_fig=False):
+        for i in range(len(self.img_paths)):
             print('i: ', i)
             start_time = time.time()
-            basename = os.path.basename(img_paths[i]).split('.')[0]
+            basename = os.path.basename(self.img_paths[i]).split('.')[0]
+            tumorname = basename.split('_')[1]
 
-            img_ = Image.open(img_paths[i])
+            img_ = Image.open(self.img_paths[i])
             img_rgb = np.array(img_)
             img_.close()
             (H, W, C) = img_rgb.shape
 
-            h = int(H / r)
-            w = int(W / r)
+            h = int(H / self.magnification)
+            w = int(W / self.magnification)
             img = cv2.resize(img_rgb, (w, h), interpolation=cv2.INTER_NEAREST)
 
-            if blur != 0:
-                img = cv2.GaussianBlur(img, (blur, blur), 0)
+            if self.blur_kernel_size != 0:
+                img = cv2.GaussianBlur(img, (self.blur_kernel_size, self.blur_kernel_size), 0)
 
             # ----------------------------------------------------- SLIC
             n_segments = min(int(self.base_n_segments * (h * w / self.base_n_pixels)), self.max_n_segments)
@@ -151,33 +167,26 @@ class Process_SP:
             # ----------------------------------------------------- SAVE Map and Features
             sp_map_merged = cv2.resize(sp_map_merged, (W, H), interpolation=cv2.INTER_NEAREST)
             sp_feat, sp_centroid = extract_basic_sp_features(img_rgb=img_rgb, sp_map=sp_map_merged)
-            save_h5(sp_save_path + 'sp_info/' + basename + '.h5', sp_map=sp_map_merged, sp_feat=sp_feat, sp_centroid=sp_centroid)
+            save_h5(self.basic_sp_path + tumorname + '/' + basename + '.h5', sp_map=sp_map_merged, sp_feat=sp_feat, sp_centroid=sp_centroid)
 
             # ----------------------------------------------------- PLOT
-            overlaid = np.round(mark_boundaries(img_rgb, sp_map_merged, (0, 0, 0)) * 255, 0).astype(np.uint8)
-            instance_map = color.label2rgb(sp_map_merged, img_rgb, kind='overlay')
-            instance_map = np.round(segmentation.mark_boundaries(instance_map, sp_map_merged, (0, 0, 0)) * 255, 0).astype(np.uint8)
-            combo = np.hstack((overlaid, instance_map))
-            imageio.imwrite(sp_save_path + 'sp_img/' + basename + '.png', combo)
+            if save_fig:
+                overlaid = np.round(mark_boundaries(img_rgb, sp_map_merged, (0, 0, 0)) * 255, 0).astype(np.uint8)
+                instance_map = color.label2rgb(sp_map_merged, img_rgb, kind='overlay')
+                instance_map = np.round(segmentation.mark_boundaries(instance_map, sp_map_merged, (0, 0, 0)) * 255, 0).astype(np.uint8)
+                combo = np.hstack((overlaid, instance_map))
+                imageio.imwrite(self.sp_img_path + 'basic_sp/' + tumorname + '/' + basename + '.png', combo)
 
-            print('#', i, ' : ', basename, 'n_segments=', n_segments, ' n_sp=', len(np.unique(sp_map)), ':', len(np.unique(sp_map_merged)),
-                  ' time=', round(time.time() - start_time, 2))
+            print('#', i, ' : ', basename, 'n_segments=', n_segments, ' n_sp=', len(np.unique(sp_map)), ':', len(np.unique(sp_map_merged)), ' time=', round(time.time() - start_time, 2))
+            break
         #enddef
     #enddef
 
-    def extract_main_superpixels(self, n, prob_thr=0.8):
-        sp_save_path = self.base_sp_dir + '2_results_main_sp/prob_thr_' + str(prob_thr) + '/'
-        create_directory(sp_save_path)
-        create_directory(sp_save_path + 'sp_img/')
-        create_directory(sp_save_path + 'sp_info/')
 
-        basic_sp_info_path = self.base_sp_dir + '1_results_basic_sp/sp_info/'
-        sp_classifier_path = self.base_sp_dir + 'sp_classification/sp_classifier/'
-
-        img_paths = glob.glob(self.base_img_dir + '*.png')
-        img_paths.sort()
-
+    def extract_main_superpixels(self, save_fig=False):
         # ----------------------------------------------------------------------------------------------- Load sp classifier
+        sp_classifier_path = self.sp_classifier_path + 'sp_classifier/'
+
         model = pickle.load(open(sp_classifier_path + 'svm_model.pkl', 'rb'))
         data = np.load(sp_classifier_path + 'feature_ids.npz')
         indices = data['indices']
@@ -186,22 +195,18 @@ class Process_SP:
         min_max = data['min_max']
         min_max = min_max[:, indices]
 
-        for i in range(len(img_paths)):
-            #if (i < 20*n) or (i >= 20*(n+1)):
-            #    continue
-
+        for i in range(len(self.img_paths)):
             print('i: ', i)
             start_time = time.time()
-            basename = os.path.basename(img_paths[i]).split('.')[0]
+            basename = os.path.basename(self.img_paths[i]).split('.')[0]
+            tumorname = basename.split('_')[1]
 
             # ----------------------------------------------------------------------------------------------- Load image data
-            img_ = Image.open(img_paths[i])
+            img_ = Image.open(self.img_paths[i])
             img_rgb = np.array(img_)
             img_.close()
 
-            with h5py.File(basic_sp_info_path + basename + '.h5', 'r') as f:
-                sp_map = np.array(f.get('sp_map')[:]).astype(int)
-                feats = np.array(f.get('sp_features')[:])
+            sp_map, feats, centroids = load_h5(self.basic_sp_path + tumorname + '/' + basename + '.h5')
 
             feats = feats[:, indices]
             for i in range(feats.shape[1]):
@@ -215,7 +220,7 @@ class Process_SP:
             pred = model.predict_proba(feats)
             pred_prob = np.max(pred, axis=1)
             pred_label = np.argmax(pred, axis=1)
-            pred_label[pred_prob < prob_thr] = -1
+            pred_label[pred_prob < self.prob_thr] = -1
 
             # ----------------------------------------------------------------------------------------------- Generate tissue map
             tissue_map = np.ones_like(sp_map) * -1
@@ -246,18 +251,19 @@ class Process_SP:
             sp_map_new = merge(tissue_id=2, map=sp_map_new)
             sp_map_new = merge(tissue_id=0, map=sp_map_new)
 
-            overlaid = np.round(mark_boundaries(img_rgb, sp_map_new, (0, 0, 0)) * 255, 0).astype(np.uint8)
-            instance_map = color.label2rgb(sp_map_new, img_rgb, kind='overlay')
-            instance_map = np.round(segmentation.mark_boundaries(instance_map, sp_map_new, (0, 0, 0)) * 255, 0).astype(np.uint8)
+            if save_fig:
+                overlaid = np.round(mark_boundaries(img_rgb, sp_map_new, (0, 0, 0)) * 255, 0).astype(np.uint8)
+                instance_map = color.label2rgb(sp_map_new, img_rgb, kind='overlay')
+                instance_map = np.round(segmentation.mark_boundaries(instance_map, sp_map_new, (0, 0, 0)) * 255, 0).astype(np.uint8)
+                combo = np.hstack((overlaid, instance_map))
+                imageio.imwrite(self.sp_img_path + 'main_sp/prob_thr_' + str(self.prob_thr) + '/' + tumorname + '/' + basename + '.png', combo)
 
-            combo = np.hstack((overlaid, instance_map))
-            imageio.imwrite(sp_save_path + 'sp_img/' + basename + '.png', combo)
-
-            # ----------------------------------------------------------------------------------------------- FEATURES (at original resolution)
+            # ----------------------------------------------------------------------------------------------- FEATURES
             sp_feat, sp_centroid = extract_main_sp_features(img_rgb=img_rgb, sp_map=sp_map_new)
-            save_h5(sp_save_path + 'sp_info/' + basename + '.h5', sp_map=sp_map_new, sp_feat=sp_feat, sp_centroid=sp_centroid)
+            save_h5(self.main_sp_path + tumorname + '/' + basename + '.h5', sp_map=sp_map_new, sp_feat=sp_feat, sp_centroid=sp_centroid)
 
             print('#', i, ' : ', basename, ' reduction:', len(np.unique(sp_map)), ':', len(np.unique(sp_map_new)), ' time=', round(time.time() - start_time, 2))
+            exit()
         #endfor
     #enddef
 

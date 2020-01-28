@@ -227,3 +227,12 @@ def save_h5(h5_filename, sp_map, sp_feat, sp_centroid, data_dtype='float32'):
     h5_fout.close()
 #enddef
 
+def load_h5(h5_filename):
+    with h5py.File(h5_filename, 'r') as f:
+        sp_map = np.array(f.get('sp_map')[:]).astype(int)
+        feats = np.array(f.get('sp_features')[:])
+        centroids = np.array(f.get('sp_centroids')[:])
+
+    return sp_map, feats, centroids
+#enddef
+

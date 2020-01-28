@@ -10,39 +10,19 @@ class Config(object):
         tumor_type = '0_benign'    # 0_benign, 1_pathological_benign, 2_udh, 3_adh, 4_fea, 5_dcis, 6_malignant
 
         if self.data_param == 'local':
-            # Inference model path
-            self.inf_model_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/nuclei_info/hover_seg_Kumar.npz'
-
-            # Inference data path
+            self.inf_model_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/misc_utils/nuclei_detection/hover_seg_Kumar.npz'
             self.inf_data_dir = '/Users/pus/Desktop/Projects/Data/Hiastocartography/PASCALE/Images_norm/' + tumor_type + '/'
-
-            # Inference prediction results save path
             self.inf_output_dir = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/nuclei_info/Predictions/' + tumor_type + '/'
 
-        elif self.data_param == 'dpmiccai':
-            ##### Models trained on CoNSeP data
-            '''
-            self.inf_data_dir = '/home/ubuntu/histocartography/CRC/Images_norm/' 
-            self.inf_model_path = '/home/ubuntu/histocartography/hover_net/src/hover_seg_CoNSeP.npz'
-            self.inf_output_dir = '/home/ubuntu/histocartography/feature_extraction/nuclei_segmentation/output_CRC/'
-            #'''
-
-            ##### Models trained on MoNuSeg data
-            #'''
-            self.inf_data_dir = '/home/ubuntu/histocartography/Data/PASCALE/Images_norm/' + tumor_type + '/'
-            self.inf_model_path = '/home/ubuntu/histocartography/Data/PASCALE/nuclei_info/hover_seg_Kumar.npz'
-            self.inf_output_dir = '/home/ubuntu/histocartography/Data/PASCALE/nuclei_info/Predictions/' + tumor_type + '/'
-            #'''
-
         elif self.data_param == 'dataT':
+            self.inf_model_path = '/dataT/pus/histocartography/Data/PASCALE/misc_utils/nuclei_detection/hover_seg_Kumar.npz'
             self.inf_data_dir = '/dataT/pus/histocartography/Data/PASCALE/Images_norm/' + tumor_type + '/'
-            self.inf_model_path = '/dataT/pus/histocartography/Data/PASCALE/nuclei_info/hover_seg_Kumar.npz'
-            self.inf_output_dir = '/dataT/pus/histocartography/Data/PASCALE/nuclei_info/Predictions/' + tumor_type + '/'
+            self.inf_output_dir = '/dataT/pus/histocartography/Data/PASCALE/nuclei_info/' + tumor_type + '/'
 
         elif self.data_param == 'dataL':
-            self.inf_data_dir = '/dataL/pus/histocartography/Data/PASCALE/Images_norm/' + tumor_type + '/'
-            self.inf_model_path = '/dataL/pus/histocartography/Data/PASCALE/nuclei_info/hover_seg_Kumar.npz'
-            self.inf_output_dir = '/dataL/pus/histocartography/Data/PASCALE/nuclei_info/Predictions/' + tumor_type + '/'
+            self.inf_model_path = '/dataT/pus/histocartography/Data/PASCALE/misc_utils/nuclei_detection/hover_seg_Kumar.npz'
+            self.inf_data_dir = '/dataT/pus/histocartography/Data/PASCALE/Images_norm/' + tumor_type + '/'
+            self.inf_output_dir = '/dataT/pus/histocartography/Data/PASCALE/nuclei_info/' + tumor_type + '/'
         #endif
 
         self.seed = 10

@@ -167,7 +167,8 @@ class PascaleDataset(BaseDataset):
             d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
             features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
-            norm_centroid = centroid
+            image_size = torch.FloatTensor(list(h5_to_tensor(f['sp_map'], self.device).shape))
+            norm_centroid = centroid / image_size
             f.close()
 
         # normalize the cell features

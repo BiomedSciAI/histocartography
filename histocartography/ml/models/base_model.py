@@ -32,11 +32,12 @@ class BaseModel(Module):
         self._update_config(config, self.ll_node_dim)
         self.cell_graph_gnn = MultiLayerGNN(config=config)
 
-    def _build_superpx_graph_params(self, superpx_config, input_dim):
+    def _build_superpx_graph_params(self, superpx_config, input_dim=None):
         """
         Build super pixel multi layer GNN
         """
-        self._update_config(superpx_config, input_dim)
+        if input_dim is not None:
+            self._update_config(superpx_config, input_dim)
         self.superpx_gnn = MultiLayerGNN(config=superpx_config)
 
     def _build_classification_params(self):

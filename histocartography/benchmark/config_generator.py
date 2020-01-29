@@ -2,6 +2,8 @@ from sklearn.model_selection import ParameterGrid
 
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES
 from histocartography.utils.io import write_json, complete_path, check_for_dir
+from histocartography.dataloader.constants import TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST
+import numpy as np
 
 
 MODEL_TYPE_TO_MODEL_PARAMS = {
@@ -128,6 +130,25 @@ class ConfigGenerator:
         )
         return config
 
+    def _get_base_model_params(self):
+        config = ParameterGrid(
+            {
+                "dropout": [0.0],
+                "num_classes": self._get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
+                "use_bn": [False, True],
+                "cat": [False, True],
+                "activation": ["relu"]
+            }
+        )
+        return config
+
+    @staticmethod
+    def _get_number_classes(blacklist, labels):
+        for i in range(len(blacklist)):
+            del labels[blacklist[i]]
+        n_classes = len(np.unique(list(labels.values())))
+        return [n_classes]
+
     def _get_gnn_params(self):
         gnn_config = self._get_gin_params()
         gat_config = self._get_gat_params()
@@ -180,18 +201,17 @@ class ConfigGenerator:
         )
         return config
 
-    @staticmethod
-    def _get_base_model_params():
+    """def _get_base_model_params():
         config = ParameterGrid(
             {
                 "dropout": [0.0],
-                "num_classes": [2],
+                "num_classes": _get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
                 "use_bn": [False, True],
                 "cat": [False, True],
                 "activation": ["relu"]
             }
         )
-        return config
+        return config"""
 
     @staticmethod
     def _get_knn_graph_building_params():

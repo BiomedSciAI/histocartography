@@ -12,8 +12,8 @@ source ~/.setup_MLflow.sh
 mkdir -p ../runs
 
 # Set input parameters
-learning_rates=(0.001 0.01)
-batch_size=(2 4)
+learning_rates=(0.0001 0.001 0.01)
+batch_size=(4 8)
 queue="prod.med"
 # Training loop
 for bs in "${batch_size[@]}"

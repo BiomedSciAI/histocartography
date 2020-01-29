@@ -201,18 +201,6 @@ class ConfigGenerator:
         )
         return config
 
-    """def _get_base_model_params():
-        config = ParameterGrid(
-            {
-                "dropout": [0.0],
-                "num_classes": _get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
-                "use_bn": [False, True],
-                "cat": [False, True],
-                "activation": ["relu"]
-            }
-        )
-        return config"""
-
     @staticmethod
     def _get_knn_graph_building_params():
         config = ParameterGrid(

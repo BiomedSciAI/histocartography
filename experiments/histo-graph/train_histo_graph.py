@@ -91,9 +91,9 @@ def main(args):
         'number_of_workers': args.number_of_workers,
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
-        # 'graph_building': config['graph_building'],
-        # 'gnn_params': config['model_params']['gnn_params'],
-        # 'readout_params': config['model_params']['readout'],
+        'graph_building': config['graph_building'],
+        'gnn_params': config['model_params']['gnn_params'],
+        'readout_params': config['model_params']['readout'],
         'model_type': config['model_type']
     })
 
@@ -127,7 +127,7 @@ def main(args):
     # visualization
     if args.visualization:
         graph_visualizer = GraphVisualization()
-        graph_path = args.data_path + 'graphs/' # Path where graphs will be located
+        graph_path = '/dataT/frd/frd_cell_graph/histocartography/graphs_viz/' # Path where graphs will be located
         check_for_dir(graph_path)
 
         for (graph, image, image_name), label in dataloaders['test']:
@@ -137,10 +137,13 @@ def main(args):
                 save_image(graph_img, fname=file_name)
                 mlflow.log_artifact(file_name)
 
+    trainer.test(brontes_model)
+
     # save the model to tmp and log it as an mlflow artifact
     saved_model = f'{tempfile.mkdtemp()}/{args.model_name}.pt'
     torch.save(brontes_model.model, saved_model)
     mlflow.log_artifact(saved_model)
+
 
 
 if __name__ == "__main__":

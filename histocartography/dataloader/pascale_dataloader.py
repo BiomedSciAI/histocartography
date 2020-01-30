@@ -29,7 +29,7 @@ class PascaleDataset(BaseDataset):
             config,
             cuda=False,
             load_cell_graph=True,
-            load_superpx_graph=True,
+            load_superpx_graph=False,
             load_image=False,
     ):
         """
@@ -168,6 +168,7 @@ class PascaleDataset(BaseDataset):
             features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
             image_size = torch.FloatTensor(list(h5_to_tensor(f['sp_map'], self.device).shape))
+            sp_map = h5_to_tensor(f['sp_map'], self.device)
             norm_centroid = centroid / image_size
             f.close()
 
@@ -182,7 +183,7 @@ class PascaleDataset(BaseDataset):
         # build topology
         superpx_graph = self.superpx_graph_builder(features, centroid)
 
-        return superpx_graph
+        return superpx_graph, sp_map
 
     def _build_assignment_matrix(self, index):
 
@@ -222,8 +223,9 @@ class PascaleDataset(BaseDataset):
 
         # 3. load superpx graph
         if self.load_superpx_graph:
-            superpx_graph = self._build_superpx_graph(index)
+            superpx_graph, sp_map = self._build_superpx_graph(index)
             data.append(superpx_graph)
+            data.append(sp_map)
 
         # 4. load assignment matrix to go from the cell graph to the the superpx graph
         if self.load_cell_graph and self.load_superpx_graph:

@@ -81,7 +81,6 @@ class MultiLayerGNN(nn.Module):
         """
         h_concat = [h]
         for layer in self.layers:
-            print('i')
             h = layer(g, h)
             h_concat.append(h)
 

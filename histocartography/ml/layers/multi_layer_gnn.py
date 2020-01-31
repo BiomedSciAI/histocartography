@@ -36,18 +36,15 @@ class MultiLayerGNN(nn.Module):
         out_dim = config['output_dim']
         num_layers = config['n_layers']
         activation = config['activation']
-        use_bn = config['use_bn']
 
         self.layers = nn.ModuleList()
 
         # input layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=in_dim,
-            hidden_dim=hidden_dim,
             out_dim=hidden_dim,
             act=activation,
             layer_id=0,
-            use_bn=use_bn,
             config=config)
         )
         # hidden layers
@@ -57,20 +54,16 @@ class MultiLayerGNN(nn.Module):
                     module,
                     AVAILABLE_LAYER_TYPES[layer_type])(
                     node_dim=hidden_dim,
-                    hidden_dim=hidden_dim,
                     out_dim=hidden_dim,
                     act=activation,
                     layer_id=i,
-                    use_bn=use_bn,
                     config=config))
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=hidden_dim,
-            hidden_dim=hidden_dim,
             out_dim=out_dim,
             act=activation,
             layer_id=num_layers - 1,
-            use_bn=use_bn,
             config=config)
         )
 
@@ -88,6 +81,7 @@ class MultiLayerGNN(nn.Module):
         """
         h_concat = [h]
         for layer in self.layers:
+            print('i')
             h = layer(g, h)
             h_concat.append(h)
 

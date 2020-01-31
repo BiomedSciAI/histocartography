@@ -22,7 +22,8 @@ AVAILABLE_LAYER_TYPES = {
     'gin_layer': 'GINLayer',
     'diff_pool_layer': 'DiffPoolLayer',
     'dense_gin_layer': 'DenseGINLayer',
-    'pooled_gin_layer': 'PooledGINLayer'
+    'pooled_gin_layer': 'PooledGINLayer',
+    'gat_layer': 'GATLayer'
 }
 
 GNN_MODULE = 'histocartography.ml.layers.{}'

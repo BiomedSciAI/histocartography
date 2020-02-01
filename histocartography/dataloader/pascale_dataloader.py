@@ -11,9 +11,7 @@ from histocartography.utils.io import (
 )
 from histocartography.dataloader.constants import (
     NORMALIZATION_FACTORS, COLLATE_FN,
-    TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST,
-    DATASET_TO_TUMOR_TYPE
-)
+    TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST)
 from histocartography.utils.vector import compute_normalization_factor
 from histocartography.utils.io import load_image
 
@@ -29,7 +27,7 @@ class PascaleDataset(BaseDataset):
             config,
             cuda=False,
             load_cell_graph=True,
-            load_superpx_graph=False,
+            load_superpx_graph=True,
             load_image=False,
     ):
         """
@@ -69,8 +67,7 @@ class PascaleDataset(BaseDataset):
 
         if load_superpx_graph:
             self.superpx_graph_path = os.path.join(
-                self.data_path, 'super_pixel_info', self.dataset_name, '_h5'
-            )
+                self.data_path, 'super_pixel_info','main_sp', 'prob_thr_0.8', self.dataset_name)
             self.num_superpx_features = self._get_superpx_features_dim()
             self._build_normaliser(graph_type='superpx_graph')
 
@@ -85,7 +82,7 @@ class PascaleDataset(BaseDataset):
         """
         self.labels = []
         extension = '.h5'
-        tumor_type = DATASET_TO_TUMOR_TYPE[self.dataset_name]
+        tumor_type = self.dataset_name
         self.h5_fnames = load_h5_fnames(data_path, tumor_type, extension, split)
 
         for fname in self.h5_fnames:
@@ -168,7 +165,6 @@ class PascaleDataset(BaseDataset):
             features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
             image_size = torch.FloatTensor(list(h5_to_tensor(f['sp_map'], self.device).shape))
-            sp_map = h5_to_tensor(f['sp_map'], self.device)
             norm_centroid = centroid / image_size
             f.close()
 
@@ -183,7 +179,7 @@ class PascaleDataset(BaseDataset):
         # build topology
         superpx_graph = self.superpx_graph_builder(features, centroid)
 
-        return superpx_graph, sp_map
+        return superpx_graph
 
     def _build_assignment_matrix(self, index):
 
@@ -223,9 +219,8 @@ class PascaleDataset(BaseDataset):
 
         # 3. load superpx graph
         if self.load_superpx_graph:
-            superpx_graph, sp_map = self._build_superpx_graph(index)
+            superpx_graph = self._build_superpx_graph(index)
             data.append(superpx_graph)
-            data.append(sp_map)
 
         # 4. load assignment matrix to go from the cell graph to the the superpx graph
         if self.load_cell_graph and self.load_superpx_graph:

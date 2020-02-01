@@ -11,7 +11,6 @@ import mlflow
 import pytorch_lightning as pl
 from brontes import Brontes
 import dgl
-import mlflow.pytorch
 
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
@@ -20,7 +19,7 @@ from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
-from histocartography.utils.visualization import GraphVisualization
+#from histocartography.utils.visualization import GraphVisualization
 
 
 import warnings
@@ -89,7 +88,7 @@ def main(args):
 
     # mlflow log parameters
     mlflow.log_params({
-        # 'number_of_workers': args.number_of_workers,
+        'number_of_workers': args.number_of_workers,
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
         'graph_building': config['graph_building'],
@@ -103,24 +102,19 @@ def main(args):
     weighted_f1_score = WeightedF1(cuda=CUDA)
     metrics = {
         'accuracy': accuracy_evaluation,
-        'weighted_f1_score': weighted_f1_score
+        'weighted_f1_score' : weighted_f1_score
     }
 
-    if args.resume_model:
-        print("Resuming model...")
-        mod_path = '/Users/frd/Documents/Code/Projects/Experiments/frd_cg_test_new/histocartography/experiments/histo-graph/mlruns/0/' + args.resume_model + '/artifacts/artifacts/model/'
-        print(mod_path)
-        brontes_model = mlflow.pytorch.load_model(mod_path)
-    else:
-        brontes_model = Brontes(
-            model=model,
-            loss=loss_fn,
-            data_loaders=dataloaders,
-            optimizers=optimizer,
-            training_log_interval=10,
-            tracker_type='mlflow',
-            metrics=metrics
-        )
+    # define brontes model
+    brontes_model = Brontes(
+        model=model,
+        loss=loss_fn,
+        data_loaders=dataloaders,
+        optimizers=optimizer,
+        training_log_interval=10,
+        tracker_type='mlflow',
+        metrics=metrics
+    )
 
     # train the model with pytorch lightning
     if CUDA:
@@ -130,41 +124,15 @@ def main(args):
 
     trainer.fit(brontes_model)
 
-    # Testing model
+    # Evaluation
     trainer.test(brontes_model)
 
     # save the model to tmp and log it as an mlflow artifact
     saved_model = f'{tempfile.mkdtemp()}/{args.model_name}.pt'
     torch.save(brontes_model.model, saved_model)
     mlflow.log_artifact(saved_model)
+    # mlflow.pytorch.log_model(brontes_model.model, “artifacts/model”, conda_env=“conda.yml”)
 
-    mlflow.pytorch.log_model(brontes_model.model, "artifacts/model", conda_env ="conda.yml")
-
-    # visualization
-    if args.visualization:
-        graph_visualizer = GraphVisualization()
-        # base_name of experiment
-        expt_name = get_filename(args.config_fpath)
-        expt_name = expt_name.rsplit('.', 1)[0]
-        graph_path = args.data_path + '/graphs_test/%s/' % expt_name  # Path where graphs will be located
-        check_for_dir(graph_path)
-
-        for (*args, image, image_name), label in dataloaders['test']:
-            for index in range(len(image_name)):
-                if model_type == 'cell_graph_model':
-                    graph_img = graph_visualizer(image[index], image_name[index], model_type,
-                                                 dgl.unbatch(args[0])[index])
-                elif model_type == 'superpx_graph_model':
-                    graph_img = graph_visualizer(image[index], image_name[index], model_type,
-                                                 dgl.unbatch(args[0])[index],
-                                                 args[1][index])
-                elif model_type == 'multi_level_graph_model' or 'concat_graph_model':
-                    graph_img = graph_visualizer(image[index], image_name[index],
-                                                 model_type, dgl.unbatch(args[0])[index],
-                                                 dgl.unbatch(args[1])[index], args[2][index])
-                file_name = complete_path(graph_path, get_filename(image_name[index]) + '.png')
-                save_image(graph_img, fname=file_name)
-                mlflow.log_artifact(file_name)
 
 
 if __name__ == "__main__":

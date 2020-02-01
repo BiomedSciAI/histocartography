@@ -5,8 +5,8 @@ conda_env: conda.yml
 entry_points:
   main:
     parameters:
-      config_fpath: {type: string, default: ../../histocartography/config/superpx_graph_config_file.json}
-      data_path: {type: string, default: /dataT/pus/histocartography/Data/PASCALE/}
+      config_fpath: {type: string, default: ../../histocartography/config/cell_graph_model_config/cell_graph_model_config_8.json}
+      data_path: {type: string, default: /dataT/pus/histocartography/Data/pascale/}
       number_of_workers: {type: int, default: 0}
       model_name: {type string, default: model}
       batch_size: {type: int, default: 2}

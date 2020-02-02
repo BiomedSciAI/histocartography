@@ -26,20 +26,27 @@ class BaseGraphBuilder:
         self.cuda = cuda
         self.verbose = verbose
 
-    def __call__(self, node_features, centroid):
+    def __call__(self, *args):
         """
         Build graph
         Args:
             :param node_features: (FloatTensor) node features
             ;param centroid: (list) centroid of each node normalized by the image size
         """
-        num_nodes = node_features.shape[0]
+        num_nodes = args[0].shape[0]
         graph = dgl.DGLGraph()
         graph.add_nodes(num_nodes)
-        self._set_node_features(node_features, centroid, graph)
-        self._build_topology(centroid, graph)
-        if self.config['edge_encoding']:
-            self._set_edge_embeddings(graph)
+
+        if self.config['graph_building_type'] == 'rag_graph_builder':
+            nxgraph = self._build_topology(args[2])
+            # convert nx graph to dgl graph
+            graph.from_networkx(nxgraph)
+            self._set_node_features(args[0], args[1], graph)
+        else:
+            self._set_node_features(args[0], args[1], graph)
+            self._build_topology(args[1], graph)
+            if self.config['edge_encoding']:
+                self._set_edge_embeddings(graph)
         return graph
 
     def _set_node_features(self, cell_features, centroid, graph):

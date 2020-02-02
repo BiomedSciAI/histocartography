@@ -116,7 +116,7 @@ class ConfigGenerator:
     def _get_superpx_graph_building_params(self):
         config = ParameterGrid(
             {
-                "superpx_graph_builder": self._get_knn_graph_building_params()
+                "superpx_graph_builder": self._get_rag_graph_building_params()
             }
         )
         return config
@@ -124,7 +124,7 @@ class ConfigGenerator:
     def _get_superpx_cell_graph_building_params(self):
         config = ParameterGrid(
             {
-                "superpx_graph_builder": self._get_knn_graph_building_params(),
+                "superpx_graph_builder": self._get_rag_graph_building_params(),
                 "cell_graph_builder": self._get_knn_graph_building_params()
             }
         )

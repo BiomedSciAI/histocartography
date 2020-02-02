@@ -164,7 +164,10 @@ class PascaleDataset(BaseDataset):
             d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
             features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
-            image_size = torch.FloatTensor(list(h5_to_tensor(f['sp_map'], self.device).shape))
+            # converting centroid coord from [y, x] to [x, y]
+            centroid = torch.index_select(centroid, 1, torch.LongTensor([1,0]))
+            sp_map = h5_to_tensor(f['sp_map'], self.device).type(d_type)
+            image_size = torch.FloatTensor(list(sp_map.shape))
             norm_centroid = centroid / image_size
             f.close()
 
@@ -177,7 +180,7 @@ class PascaleDataset(BaseDataset):
         features = torch.cat((features, norm_centroid), dim=1).to(torch.float)
 
         # build topology
-        superpx_graph = self.superpx_graph_builder(features, centroid)
+        superpx_graph = self.superpx_graph_builder(features, centroid, sp_map)
 
         return superpx_graph
 

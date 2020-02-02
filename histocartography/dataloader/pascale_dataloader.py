@@ -165,9 +165,9 @@ class PascaleDataset(BaseDataset):
             features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
             # converting centroid coord from [y, x] to [x, y]
-            centroid = torch.index_select(centroid, 1, torch.LongTensor([1,0]))
+            centroid = torch.index_select(centroid, 1, torch.LongTensor([1,0]).to(self.device)).to(self.device)
             sp_map = h5_to_tensor(f['sp_map'], self.device).type(d_type)
-            image_size = torch.FloatTensor(list(sp_map.shape))
+            image_size = torch.FloatTensor(list(sp_map.shape)).to(self.device)
             norm_centroid = centroid / image_size
             f.close()
 

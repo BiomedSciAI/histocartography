@@ -31,6 +31,9 @@ class RAGGraphBuilder(BaseGraphBuilder):
         """
         Returns the RAG in form of networkx graph
         """
+        
+        # convert sp_map to numpy
+        sp_map = sp_map.cpu().numpy()
         g = graph.RAG(sp_map, connectivity=2)
 
         return g

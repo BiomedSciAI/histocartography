@@ -2,6 +2,8 @@ from sklearn.model_selection import ParameterGrid
 
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES
 from histocartography.utils.io import write_json, complete_path, check_for_dir
+from histocartography.dataloader.constants import TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST
+import numpy as np
 
 
 MODEL_TYPE_TO_MODEL_PARAMS = {
@@ -114,7 +116,7 @@ class ConfigGenerator:
     def _get_superpx_graph_building_params(self):
         config = ParameterGrid(
             {
-                "superpx_graph_builder": self._get_knn_graph_building_params()
+                "superpx_graph_builder": self._get_rag_graph_building_params()
             }
         )
         return config
@@ -122,11 +124,30 @@ class ConfigGenerator:
     def _get_superpx_cell_graph_building_params(self):
         config = ParameterGrid(
             {
-                "superpx_graph_builder": self._get_knn_graph_building_params(),
+                "superpx_graph_builder": self._get_rag_graph_building_params(),
                 "cell_graph_builder": self._get_knn_graph_building_params()
             }
         )
         return config
+
+    def _get_base_model_params(self):
+        config = ParameterGrid(
+            {
+                "dropout": [0.0],
+                "num_classes": self._get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
+                "use_bn": [False, True],
+                "cat": [False, True],
+                "activation": ["relu"]
+            }
+        )
+        return config
+
+    @staticmethod
+    def _get_number_classes(blacklist, labels):
+        for i in range(len(blacklist)):
+            del labels[blacklist[i]]
+        n_classes = len(np.unique(list(labels.values())))
+        return [n_classes]
 
     def _get_gnn_params(self):
         gnn_config = self._get_gin_params()
@@ -176,19 +197,6 @@ class ConfigGenerator:
             {
                 "num_layers": [2],
                 "hidden_dim": [64]
-            }
-        )
-        return config
-
-    @staticmethod
-    def _get_base_model_params():
-        config = ParameterGrid(
-            {
-                "dropout": [0.0],
-                "num_classes": [2],
-                "use_bn": [False, True],
-                "cat": [False, True],
-                "activation": ["relu"]
             }
         )
         return config

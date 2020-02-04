@@ -11,9 +11,7 @@ from histocartography.utils.io import (
 )
 from histocartography.dataloader.constants import (
     NORMALIZATION_FACTORS, COLLATE_FN,
-    TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST,
-    DATASET_TO_TUMOR_TYPE
-)
+    TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST)
 from histocartography.utils.vector import compute_normalization_factor
 from histocartography.utils.io import load_image
 
@@ -69,8 +67,7 @@ class PascaleDataset(BaseDataset):
 
         if load_superpx_graph:
             self.superpx_graph_path = os.path.join(
-                self.data_path, 'super_pixel_info', self.dataset_name, '_h5'
-            )
+                self.data_path, 'super_pixel_info','main_sp', 'prob_thr_0.8', self.dataset_name)
             self.num_superpx_features = self._get_superpx_features_dim()
             self._build_normaliser(graph_type='superpx_graph')
 
@@ -85,7 +82,7 @@ class PascaleDataset(BaseDataset):
         """
         self.labels = []
         extension = '.h5'
-        tumor_type = DATASET_TO_TUMOR_TYPE[self.dataset_name]
+        tumor_type = self.dataset_name
         self.h5_fnames = load_h5_fnames(data_path, tumor_type, extension, split)
 
         for fname in self.h5_fnames:
@@ -167,7 +164,10 @@ class PascaleDataset(BaseDataset):
             d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
             features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
-            image_size = torch.FloatTensor(list(h5_to_tensor(f['sp_map'], self.device).shape))
+            # converting centroid coord from [y, x] to [x, y]
+            centroid = torch.index_select(centroid, 1, torch.LongTensor([1,0]).to(self.device)).to(self.device)
+            sp_map = h5_to_tensor(f['sp_map'], self.device).type(d_type)
+            image_size = torch.FloatTensor(list(sp_map.shape)).to(self.device)
             norm_centroid = centroid / image_size
             f.close()
 
@@ -180,7 +180,7 @@ class PascaleDataset(BaseDataset):
         features = torch.cat((features, norm_centroid), dim=1).to(torch.float)
 
         # build topology
-        superpx_graph = self.superpx_graph_builder(features, centroid)
+        superpx_graph = self.superpx_graph_builder(features, centroid, sp_map)
 
         return superpx_graph
 

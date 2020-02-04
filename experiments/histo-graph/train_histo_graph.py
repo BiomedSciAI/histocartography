@@ -19,7 +19,7 @@ from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
-from histocartography.utils.visualization import GraphVisualization
+#from histocartography.utils.visualization import GraphVisualization
 
 
 import warnings
@@ -91,9 +91,9 @@ def main(args):
         'number_of_workers': args.number_of_workers,
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
-        # 'graph_building': config['graph_building'],
-        # 'gnn_params': config['model_params']['gnn_params'],
-        # 'readout_params': config['model_params']['readout'],
+        'graph_building': config['graph_building'],
+        'gnn_params': config['model_params']['gnn_params'],
+        'readout_params': config['model_params']['readout'],
         'model_type': config['model_type']
     })
 
@@ -124,23 +124,15 @@ def main(args):
 
     trainer.fit(brontes_model)
 
-    # visualization
-    if args.visualization:
-        graph_visualizer = GraphVisualization()
-        graph_path = args.data_path + 'graphs/' # Path where graphs will be located
-        check_for_dir(graph_path)
-
-        for (graph, image, image_name), label in dataloaders['test']:
-            for index in range(len(image_name)):
-                graph_img = graph_visualizer(dgl.unbatch(graph)[index], image[index], image_name[index])
-                file_name = complete_path(graph_path, get_filename(image_name[index]) + '.png')
-                save_image(graph_img, fname=file_name)
-                mlflow.log_artifact(file_name)
+    # Evaluation
+    trainer.test(brontes_model)
 
     # save the model to tmp and log it as an mlflow artifact
     saved_model = f'{tempfile.mkdtemp()}/{args.model_name}.pt'
     torch.save(brontes_model.model, saved_model)
     mlflow.log_artifact(saved_model)
+    # mlflow.pytorch.log_model(brontes_model.model, “artifacts/model”, conda_env=“conda.yml”)
+
 
 
 if __name__ == "__main__":

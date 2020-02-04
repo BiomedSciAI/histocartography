@@ -6,15 +6,15 @@ conda activate cell_graph
 export PYTHONPATH="$PWD/../:{$PYTHONPATH}"
 
 # setup MLFLOW experiment 
-source ~/.setup_MLflow.sh
+source ~/.setup_MLflow_sp.sh
 
 # Create dir for output logs
 mkdir -p ../runs
 
 # Set input parameters
-learning_rates=(0.001 0.01)
-batch_size=(2 4)
-queue="prod.med"
+learning_rates=(0.0001 0.001 0.01)
+batch_size=(4 8)
+queue="prod.long"
 # Training loop
 for bs in "${batch_size[@]}"
 do
@@ -28,7 +28,7 @@ do
 		    -o "../runs/lsf_logs.%J.stdout" \
 		    -e "../runs/lsf_logs.%J.stderr" \
 		    -q "$queue" \
-		    "/u/frd/.local/bin/mlflow run --no-conda histo-graph/ -P learning_rate=$lr -P batch_size=$bs -P epochs=100"
+		    "/u/frd/.local/bin/mlflow run --no-conda histo-graph/ -P learning_rate=$lr -P batch_size=$bs -P epochs=50"
 			sleep 1.0 
 	done
 done

@@ -40,7 +40,7 @@ class ConfigGenerator:
                 list(AVAILABLE_MODEL_TYPES.keys())
             ))
 
-        graph_building_grid = ParameterGrid(
+        grid_params = ParameterGrid(
             {
                 'graph_building': getattr(self, MODEL_TYPE_TO_GRAPH_BUILDING_PARAMS[model_type])(),
                 'model_params': getattr(self, MODEL_TYPE_TO_MODEL_PARAMS[model_type])(),
@@ -48,11 +48,11 @@ class ConfigGenerator:
             }
         )
 
-        for i, model_params in enumerate(graph_building_grid):
+        for i, params in enumerate(grid_params):
             fname = model_type + '_config_' + str(i) + '.json'
             save_path = complete_path(self.save_path, model_type + '_config')
             check_for_dir(save_path)
-            write_json(model_params, complete_path(save_path, fname))
+            write_json(params, complete_path(save_path, fname))
 
     def _get_cell_graph_model_params(self):
         config = self._get_base_model_params()
@@ -128,8 +128,14 @@ class ConfigGenerator:
         )
         return config
 
+    def _get_gnn_params(self):
+        gnn_config = self._get_gin_params()
+        gat_config = self._get_gat_params()
+        gnn_config.param_grid.append(gat_config.param_grid[0])
+        return gnn_config
+
     @staticmethod
-    def _get_gnn_params():
+    def _get_gin_params():
 
         config = ParameterGrid(
             {
@@ -139,6 +145,26 @@ class ConfigGenerator:
                 "neighbor_pooling_type": ["mean", "sum"],
                 "hidden_dim": [32],
                 "output_dim": [32]
+            }
+        )
+
+        return config
+
+    @staticmethod
+    def _get_gat_params():
+
+        config = ParameterGrid(
+            {
+                "activation": ["relu"],
+                "hidden_dim": [64],
+                "layer_type": ["gat_layer"],
+                "n_layers": [2],
+                "output_dim": [64],
+                "feat_drop": [0.0],
+                "attn_drop": [0.0],
+                "negative_slope": [0.2],
+                "residual": [False],
+                "num_heads": [2]
             }
         )
 

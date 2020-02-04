@@ -3,7 +3,7 @@ from torch.nn import Module
 
 class BaseLayer(Module):
 
-    def __init__(self, node_dim, hidden_dim, out_dim, act, layer_id):
+    def __init__(self, node_dim, out_dim, act, layer_id):
         """
         Base layer constructor.
         """

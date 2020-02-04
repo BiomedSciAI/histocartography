@@ -22,17 +22,14 @@ class GINLayer(BaseLayer):
     def __init__(
             self,
             node_dim,
-            hidden_dim,
             out_dim,
             act,
             layer_id,
-            use_bn=True,
             config=None,
             verbose=False):
         """
         GIN Layer constructor
         :param node_dim: (int) input dimension of each node
-        :param hidden_dim: (int) hidden dimension of each node (2-layer MLP as update function)
         :param out_dim: (int) output dimension of each node
         :param act: (str) activation function of the update function
         :param layer_id: (int) layer number
@@ -44,7 +41,6 @@ class GINLayer(BaseLayer):
             GINLayer,
             self).__init__(
             node_dim,
-            hidden_dim,
             out_dim,
             act,
             layer_id)
@@ -58,10 +54,14 @@ class GINLayer(BaseLayer):
             ) else 'sum'
             learn_eps = config['learn_eps'] if 'learn_eps' in config.keys(
             ) else None
+            hidden_dim = config['hidden_dim']
+            use_bn = config['use_bn'] if 'use_bn' in config.keys() else True
         else:
             eps = None
             neighbor_pooling_type = 'sum'
             learn_eps = None
+            hidden_dim = 32
+            use_bn = True
 
         self.mlp = MLP(
             node_dim,

@@ -3,8 +3,9 @@
 Script for computing dataset statistics, e.g., avg number of node per class, image size
 """
 import argparse
+import pickle
 
-from histocartography.utils.io import read_params, check_for_dir, write_json, complete_path
+from histocartography.utils.io import read_params, check_for_dir, write_json, complete_path, load_json
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.data_stats import DataStats
@@ -39,6 +40,15 @@ def parse_arguments():
         required=False
     )
 
+    parser.add_argument(
+        '-i',
+        '--in_folder',
+        type=str,
+        help='where the stats were saved.',
+        default='',
+        required=False
+    )
+
     return parser.parse_args()
 
 
@@ -69,11 +79,16 @@ def main(args):
         img_stats=False
     )
 
-    out = data_stats(dataloaders)
+    if args.in_folder:
+        agg_stats = load_json(complete_path(args.in_folder, 'agg_data_stats.json'))
+        all_stats = load_json(complete_path(args.in_folder, 'all_data_stats.json'))
+    else:
+        agg_stats, all_stats = data_stats(dataloaders)
 
     if args.out_folder:
         check_for_dir(args.out_folder)
-        write_json(out, complete_path(args.out_folder, 'data_stats.json'))
+        write_json(agg_stats, complete_path(args.out_folder, 'agg_data_stats.json'))
+        write_json(all_stats, complete_path(args.out_folder, 'all_data_stats.json'))
 
     print('*** Data Statistics ***\n')
     for data_type, data in out.items():

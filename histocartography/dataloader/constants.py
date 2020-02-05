@@ -41,15 +41,22 @@ COLLATE_FN = {
 }
 
 
-# tumor type to 4. Currently UDH, ADH, FEA and DCIS are grouped under the same label
 TUMOR_TYPE_TO_LABEL = {
     'benign': 0,
     'pathologicalbenign': 1,
+    'udh': 1,
     'dcis': 2,
     'malignant': 3,
-    'udh': 1,
     'adh': 4,
     'fea': 4
+}
+
+LABEL_TO_TUMOR_TYPE = {
+    '0': 'benign',
+    '1': 'pb+udh',
+    '2': 'dcis',
+    '3': 'malignant',
+    '4': 'adh+fea'
 }
 
 

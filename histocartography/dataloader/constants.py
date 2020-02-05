@@ -53,10 +53,10 @@ TUMOR_TYPE_TO_LABEL = {
 
 LABEL_TO_TUMOR_TYPE = {
     '0': 'benign',
-    '1': 'pb + udh',
+    '1': 'pb+udh',
     '2': 'dcis',
     '3': 'malignant',
-    '4': 'adh + fea'
+    '4': 'adh+fea'
 }
 
 

@@ -73,7 +73,7 @@ def main(args):
         load_image=False
     )
 
-    data_stats = DataStats(
+    stats_calculator = DataStats(
         cg_stats=load_cell_graph(config['model_type']),
         spx_stats=False,
         img_stats=False
@@ -83,7 +83,10 @@ def main(args):
         agg_stats = load_json(complete_path(args.in_folder, 'agg_data_stats.json'))
         all_stats = load_json(complete_path(args.in_folder, 'all_data_stats.json'))
     else:
-        agg_stats, all_stats = data_stats(dataloaders)
+        agg_stats, all_stats = stats_calculator(dataloaders)
+
+    # plot histograms
+    stats_calculator.plot_histogram(all_stats['cell_graph']['train'], 'num_nodes')
 
     if args.out_folder:
         check_for_dir(args.out_folder)
@@ -91,7 +94,7 @@ def main(args):
         write_json(all_stats, complete_path(args.out_folder, 'all_data_stats.json'))
 
     print('*** Data Statistics ***\n')
-    for data_type, data in out.items():
+    for data_type, data in agg_stats.items():
         print('    *** Data Type {} ***'.format(data_type))
         for split, data_split in data.items():
             print('    * Split {} ***'.format(split))

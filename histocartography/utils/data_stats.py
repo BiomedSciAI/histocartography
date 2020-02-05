@@ -1,5 +1,18 @@
 from collections import defaultdict
 import numpy as np
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+
+from histocartography.dataloader.constants import LABEL_TO_TUMOR_TYPE
+
+
+LABEL_TO_COLOR = {
+    '0': 'green',
+    '1': 'cyan',
+    '2': 'red',
+    '3': 'yellow',
+    '4': 'orange'
+}
 
 
 class DataStats:
@@ -38,7 +51,7 @@ class DataStats:
         if self.img_stats:
             self.compute_img_stats(dataloader)
 
-        return self.agg_stats
+        return self.agg_stats, self.stats
 
     def compute_cell_graph_stats(self, dataloader):
         """
@@ -47,13 +60,13 @@ class DataStats:
         :return:
         """
 
-        # define cell graph stats
+        # 1. define cell graph stats
         self.stats['cell_graph'] = {}
 
         # compute and store all data stats
         for split, split_data in dataloader.items():
             self.stats['cell_graph'][split] = defaultdict(list)
-            for data, label in split_data:
+            for data, label in tqdm(split_data):
                 cell_graph = data[0]
                 stats = {
                     'num_nodes': cell_graph.number_of_nodes(),
@@ -61,7 +74,7 @@ class DataStats:
                 }
                 self.stats['cell_graph'][split][label.item()].append(stats)
 
-        # compute summarize stats
+        # 2. compute per class agg stats
         self.agg_stats['cell_graph'] = {}
 
         for split, stats in self.stats['cell_graph'].items():
@@ -85,6 +98,52 @@ class DataStats:
                 self.agg_stats['cell_graph'][split][cls]['num_edges'] = avg_num_edges
                 self.agg_stats['cell_graph'][split][cls]['std_num_edges'] = std_num_edges
                 self.agg_stats['cell_graph'][split][cls]['num_graphs'] = num_graphs
+
+        # 3. compute agg stats
+        for split, stats in self.stats['cell_graph'].items():
+
+            num_graphs = sum(map(lambda x: x['num_graphs'], self.agg_stats['cell_graph'][split].values()))
+            avg_num_nodes = sum(map(lambda x: x['num_graphs'] * x['num_nodes'], self.agg_stats['cell_graph'][split].values())) / num_graphs
+            avg_num_edges = sum(map(lambda x: x['num_graphs'] * x['num_edges'], self.agg_stats['cell_graph'][split].values())) / num_graphs
+
+            self.agg_stats['cell_graph'][split]['all'] = {}
+            self.agg_stats['cell_graph'][split]['all']['num_nodes'] = avg_num_nodes
+            self.agg_stats['cell_graph'][split]['all']['num_edges'] = avg_num_edges
+            self.agg_stats['cell_graph'][split]['all']['num_graphs'] = num_graphs
+
+    @staticmethod
+    def plot_histogram(data, feature, out_fname='', show=True):
+        """
+
+        :param data: (dict) --> should contain stats from the N classes
+        :param feature: (str) feature to plot, e.g., num_nodes, num_edges
+        :param out_fname: (str) where to save the histpgram
+        :param show: (bool) if we show the histogram
+        :return:
+        """
+
+        # 1- make sure that there is no all key
+        if 'all' in list(data.keys()):
+            del data['all']
+
+        # 2- draw the histogram for each class
+        for cls, data_per_class in data.items():
+            out = list(map(lambda x: x[feature], data_per_class))
+            plt.hist(out, 50, facecolor=LABEL_TO_COLOR[cls], alpha=1., label=LABEL_TO_TUMOR_TYPE[cls])
+
+        plt.xlabel(feature)
+        plt.ylabel('Occurence')
+        plt.title('{} distribution for each class'.format(feature))
+        plt.legend()
+        plt.grid(True)
+
+        # 3- save the histogram
+        if out_fname:
+            plt.save_fig(out_fname)
+
+        # 4- show the histogram
+        if show:
+            plt.show()
 
     def compute_spx_graph_stats(self, dataloader):
         """

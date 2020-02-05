@@ -86,7 +86,10 @@ def main(args):
         agg_stats, all_stats = stats_calculator(dataloaders)
 
     # plot histograms
-    stats_calculator.plot_histogram(all_stats['cell_graph']['train'], 'num_nodes')
+    stats_calculator.plot_histogram(all_stats['cell_graph']['train'], 'num_nodes', out_dir='../../data/stats', show=False)
+
+    # compute correlation between a feature and the labels
+    stats_calculator.corr_matrix(all_stats['cell_graph']['train'], 'num_nodes')
 
     if args.out_folder:
         check_for_dir(args.out_folder)

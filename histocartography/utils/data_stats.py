@@ -2,8 +2,10 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from histocartography.dataloader.constants import LABEL_TO_TUMOR_TYPE
+from histocartography.utils.io import complete_path
 
 
 LABEL_TO_COLOR = {
@@ -112,12 +114,12 @@ class DataStats:
             self.agg_stats['cell_graph'][split]['all']['num_graphs'] = num_graphs
 
     @staticmethod
-    def plot_histogram(data, feature, out_fname='', show=True):
+    def plot_histogram(data, feature, out_dir='', show=True, xlim=10000):
         """
 
         :param data: (dict) --> should contain stats from the N classes
         :param feature: (str) feature to plot, e.g., num_nodes, num_edges
-        :param out_fname: (str) where to save the histpgram
+        :param out_dir: (str) where to save the histograms
         :param show: (bool) if we show the histogram
         :return:
         """
@@ -131,19 +133,43 @@ class DataStats:
             out = list(map(lambda x: x[feature], data_per_class))
             plt.hist(out, 50, facecolor=LABEL_TO_COLOR[cls], alpha=1., label=LABEL_TO_TUMOR_TYPE[cls])
 
-        plt.xlabel(feature)
-        plt.ylabel('Occurence')
-        plt.title('{} distribution for each class'.format(feature))
-        plt.legend()
-        plt.grid(True)
+            plt.xlabel(feature)
+            plt.ylabel('Occurence')
+            plt.title('{} distribution for each class'.format(feature))
+            plt.legend()
+            plt.xlim((0, xlim))
+            plt.grid(True)
 
-        # 3- save the histogram
-        if out_fname:
-            plt.save_fig(out_fname)
+            # 3- save the histogram
+            if out_dir:
+                plt.savefig(complete_path(out_dir, LABEL_TO_TUMOR_TYPE[cls] + '.png'))
 
-        # 4- show the histogram
-        if show:
-            plt.show()
+            # 4- show the histogram
+            if show:
+                plt.show()
+
+    @staticmethod
+    def corr_matrix(data, feature):
+
+        all_df = []
+
+        for cls, data_per_class in data.items():
+            out = list(map(lambda x: x[feature], data_per_class))
+
+            data = {
+                    feature: out,
+                    'label': [int(cls)] * len(out),
+                    }
+
+            all_df.append(pd.DataFrame(data))
+
+        df = pd.concat(all_df)
+        df = pd.get_dummies(df, columns=['label'], prefix=['1hot_'])
+        corr_matrix = df.corr()
+
+        print('Correlation matrix:', corr_matrix)
+
+        return corr_matrix
 
     def compute_spx_graph_stats(self, dataloader):
         """

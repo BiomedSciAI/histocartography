@@ -3,7 +3,6 @@
 Script for computing dataset statistics, e.g., avg number of node per class, image size
 """
 import argparse
-import pickle
 
 from histocartography.utils.io import read_params, check_for_dir, write_json, complete_path, load_json
 from histocartography.dataloader.pascale_dataloader import make_data_loader

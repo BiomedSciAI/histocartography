@@ -148,6 +148,8 @@ class DataStats:
             if show:
                 plt.show()
 
+            plt.close()
+
     @staticmethod
     def corr_matrix(data, feature):
 

@@ -92,10 +92,7 @@ class PascaleDataset(BaseDataset):
         """
         Load the label by inspecting the filename
         """
-        tumor_type = list(
-            filter(
-                lambda x: x in fpath, list(
-                    TUMOR_TYPE_TO_LABEL.keys())))[0]
+        tumor_type = fpath.split('_')[1]
 
         self.labels.append(TUMOR_TYPE_TO_LABEL[tumor_type])
 

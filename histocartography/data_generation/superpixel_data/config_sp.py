@@ -11,9 +11,9 @@ class Config_SP:
             self.sp_classifier_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/misc_utils/sp_classification/'
 
         elif self.data_param == 'dataT':
-            self.base_img_dir = '/dataT/pus/histocartography/Data/PASCALE/Images_norm/'
-            self.base_sp_dir = '/dataT/pus/histocartography/Data/PASCALE/super_pixel_info/'
-            self.sp_classifier_path = '/dataT/pus/histocartography/Data/PASCALE/misc_utils/sp_classification/'
+            self.base_img_dir = '/dataT/pus/histocartography/Data/pascale/Images_norm/'
+            self.base_sp_dir = '/dataT/pus/histocartography/Data/pascale/super_pixel_info/'
+            self.sp_classifier_path = '/dataT/pus/histocartography/Data/pascale/misc_utils/sp_classification/'
 
         create_directory(self.base_sp_dir)
 

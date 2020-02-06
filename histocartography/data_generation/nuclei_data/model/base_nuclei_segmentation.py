@@ -2,7 +2,7 @@
 
 from tensorpack import *
 import tensorflow as tf
-from config_sp import Config
+from config import Config
 
 
 class BaseNucleiSegmentation(ModelDesc, Config):

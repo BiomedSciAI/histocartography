@@ -18,13 +18,17 @@ chunk_id = int(args.chunk_id)
 
 from config_sp import Config_SP
 from process_sp import Process_SP
+import time
 
 config = Config_SP(data_param=data_param, prob_thr=prob_thr)
 process = Process_SP(config=config, chunk_id=chunk_id)
 
+start_time = time.time()
 if basic_flag:
     process.extract_basic_superpixels(save_fig=True)
 
 if main_flag:
     process.extract_main_superpixels(save_fig=True)
+    print('\nTotal time=', round(time.time() - start_time, 2), 's')
+    print('\nDone!')
 

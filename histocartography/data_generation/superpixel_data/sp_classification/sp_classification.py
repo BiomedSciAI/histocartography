@@ -13,17 +13,22 @@ from sklearn.ensemble import RandomForestClassifier
 from skimage.measure import regionprops
 
 class SP_Classification:
-    def __init__(self, data_param):
-        if data_param == 'local':
-            self.basic_sp_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/super_pixel_info/basic_sp/'
-            self.sp_classifier_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/misc_utils/sp_classification/'
+    def __init__(self, sp_type):
+        self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/'
 
-        elif data_param == 'dataT':
-            self.basic_sp_path = ''
-            self.sp_classifier_path = '/dataT/pus/histocartography/Data/PASCALE/misc_utils/sp_classification/'
+        if sp_type == 'basic':
+            self.sp_path = self.base_path + 'super_pixel_info/basic_sp/'
+            self.sp_classifier_path = self.base_path + 'misc_utils/basic_sp_classification/'
+            self.n_feats = 39       # color features
+
+        elif sp_type == 'main':
+            self.sp_path = self.base_path + 'super_pixel_info/main_sp/prob_thr_0.8/'
+            self.sp_classifier_path = self.base_path + 'misc_utils/main_sp_classification/'
+            self.n_feats = 57       # shape, color, texture features
 
         self.create_directory(self.sp_classifier_path)
         self.create_directory(self.sp_classifier_path + 'train_img/')
+        self.create_directory(self.sp_classifier_path + 'extracted_sp_img/')
         self.create_directory(self.sp_classifier_path + 'train_sp_img/')
         self.create_directory(self.sp_classifier_path + 'sp_classifier/')
 
@@ -32,8 +37,6 @@ class SP_Classification:
         
         self.n_sp_per_img = 100
         self.boundary = 200
-        
-        self.n_feats = 39
     #enddef
 
     def create_directory(self, path):
@@ -59,7 +62,7 @@ class SP_Classification:
             img_.close()
             (H, W, C) = img_rgb.shape
 
-            with h5py.File(self.base_sp_dir + tumorname + '/' + basename + '.h5', 'r') as f:
+            with h5py.File(self.sp_path + tumorname + '/' + basename + '.h5', 'r') as f:
                 sp_map = np.array(f.get('sp_map')[:]).astype(int)
 
             regions = regionprops(sp_map)
@@ -89,9 +92,13 @@ class SP_Classification:
                 img_rgb_crop = img_rgb[min_row:max_row, min_col:max_col, :]
                 img_rgb_crop = cv2.bitwise_and(img_rgb_crop, img_rgb_crop, mask=sp_mask_crop)
 
-                imageio.imwrite(self.sp_classifier_path + 'train_sp_img/' + basename + '/' + basename + '_' + str(j + 1) + '.png', img_rgb_crop)
+                imageio.imwrite(self.sp_classifier_path + 'extracted_sp_img/' + basename + '/' + basename + '_' + str(j + 1) + '.png', img_rgb_crop)
             #endfor
         #endfor
+
+        print('\n\n-----------------------------------------------------------')
+        print('Manually label extracted super-pixels into tissue types.')
+        print('-----------------------------------------------------------')
     #enddef
 
     def prepare_data(self, seed=0, test_size=0.3):
@@ -119,9 +126,8 @@ class SP_Classification:
                 if cur_imgname != imgname:
                     imgname = cur_imgname
 
-                    with h5py.File(self.basic_sp_path + tumorname + '/' + cur_imgname + '.h5', 'r') as f:
+                    with h5py.File(self.sp_path + tumorname + '/' + cur_imgname + '.h5', 'r') as f:
                         feats = np.array(f.get('sp_features')[:])
-
 
                 feat = feats[sp_id, :]
                 features = np.vstack((features, feat))
@@ -158,13 +164,12 @@ class SP_Classification:
         return train_features, train_labels, test_features, test_labels
     #enddef
     
-    def rf_feature_importance(self, train, train_label, n_feats):
+    def rf_feature_importance(self, train, train_label):
         rf = RandomForestClassifier(n_estimators= 200, criterion="gini", max_features = 0.5, n_jobs=-1)
         rf.fit(train, train_label)
         importance = rf.feature_importances_
         indices = np.argsort(importance)[::-1]
-        indices = indices[:n_feats]
-    
+
         # Print the feature ranking
         '''
         print('Feature ranking:')
@@ -185,11 +190,10 @@ class SP_Classification:
         return indices
     #enddef
 
-    def feature_selection(self, train, train_labels, n_feats):
-        if not os.path.isfile(self.sp_classifier_path + 'feature_ids.npz'):
-            indices = self.rf_feature_importance(train=train, train_label=train_labels, n_feats=n_feats)
-            indices = np.sort(indices)
-            print('\n\nSelected ', n_feats, ' features...')
+    def feature_selection(self, train, train_labels):
+        if not os.path.isfile(self.sp_classifier_path + 'sp_classifier/feature_ids.npz'):
+            print('\n\nFeature selection...')
+            indices = self.rf_feature_importance(train=train, train_label=train_labels)
             print(indices)
             np.savez(self.sp_classifier_path + 'sp_classifier/feature_ids.npz', indices=indices)
     #enddef
@@ -208,23 +212,43 @@ class SP_Classification:
             pickle.dump(svc, open(self.sp_classifier_path + 'sp_classifier/svm_model.pkl', 'wb'))
     #enddef
     
-    def cross_validation(self):
-        accuracy_svm = []
-        n_fold = 10
+    def cross_validation(self, n_feats, n_folds=10):
+        print('\nCross-validating with ', n_feats, ' features...')
         data = np.load(self.sp_classifier_path + 'sp_classifier/feature_ids.npz')
         indices = data['indices']
-    
-        for cv in range(n_fold):
+        indices = indices[:n_feats]
+
+        accuracy_svm = []
+
+        for cv in range(n_folds):
             train_features, train_labels, test_features, test_labels = self.prepare_data(seed=cv, test_size=0.7)
             train_features = train_features[:, indices]
             test_features = test_features[:, indices]
             acc, conf_mat = self.svm_classifier(train=train_features, train_label=train_labels, test=test_features, test_label=test_labels)
             accuracy_svm.append(acc)
         #endfor
+
         accuracy_svm = np.array(accuracy_svm)
-        print('\nSVM ', n_fold, 'cv accuracy: mean=', np.round(np.mean(accuracy_svm), 4), ' std=', np.round(np.std(accuracy_svm), 4))
+        print('\nSVM ', n_folds, 'cv accuracy: mean=', np.round(np.mean(accuracy_svm), 4), ' std=', np.round(np.std(accuracy_svm), 4))
     #enddef
 
+    def train_classifier(self, n_feats):
+        print('\nTraining with ', n_feats, ' features...')
+
+        if not os.path.isfile(self.sp_classifier_path + 'sp_classifier/svm_model.pkl'):
+            train, train_labels, test, test_labels = self.prepare_data(test_size=0)
+
+            data = np.load(self.sp_classifier_path + 'sp_classifier/feature_ids.npz')
+            indices = data['indices']
+            indices = indices[:n_feats]
+            train = train[:, indices]
+
+            self.svm_classifier(train=train, train_label=train_labels, test=test, test_label=test_labels)
+            print('Model saved!')
+
+        else:
+            print('Model already exists!')
+    #enddef
 
 
 

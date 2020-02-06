@@ -27,7 +27,7 @@ class Process_SP:
         self.w_hist = 0.5
         self.w_mean = 0.5
         self.diff_list = []
-        self.n_chunks = 100
+        self.n_chunks = 25
 
         self.magnification = 8          # magnification level
         self.blur_kernel_size = 3       # blurring kernel size
@@ -44,11 +44,11 @@ class Process_SP:
         #endfor
         img_paths.sort()
 
-        print(len(img_paths))
-
         chunks = np.array_split(np.arange(len(img_paths)), self.n_chunks)
         chunk = chunks[self.chunk_id]
         self.img_paths = [img_paths[x] for x in chunk]
+
+        print('#Files=', len(self.img_paths))
     #enddef
 
     def color_features_per_channel(self, img_ch):
@@ -132,8 +132,9 @@ class Process_SP:
     #enddef
 
     def extract_basic_superpixels(self, save_fig=False):
+        print('Extract basic superpixels...')
+
         for i in range(len(self.img_paths)):
-            print('i: ', i)
             start_time = time.time()
             basename = os.path.basename(self.img_paths[i]).split('.')[0]
             tumorname = basename.split('_')[1]
@@ -171,19 +172,20 @@ class Process_SP:
 
             # ----------------------------------------------------- PLOT
             if save_fig:
-                overlaid = np.round(mark_boundaries(img_rgb, sp_map_merged, (0, 0, 0)) * 255, 0).astype(np.uint8)
+                #overlaid = np.round(mark_boundaries(img_rgb, sp_map_merged, (0, 0, 0)) * 255, 0).astype(np.uint8)
                 instance_map = color.label2rgb(sp_map_merged, img_rgb, kind='overlay')
                 instance_map = np.round(segmentation.mark_boundaries(instance_map, sp_map_merged, (0, 0, 0)) * 255, 0).astype(np.uint8)
-                combo = np.hstack((overlaid, instance_map))
-                imageio.imwrite(self.sp_img_path + 'basic_sp/' + tumorname + '/' + basename + '.png', combo)
+                #combo = np.hstack((overlaid, instance_map))
+                imageio.imwrite(self.sp_img_path + 'basic_sp/' + tumorname + '/' + basename + '.png', instance_map)
 
             print('#', i, ' : ', basename, 'n_segments=', n_segments, ' n_sp=', len(np.unique(sp_map)), ':', len(np.unique(sp_map_merged)), ' time=', round(time.time() - start_time, 2))
-            break
         #enddef
     #enddef
 
 
     def extract_main_superpixels(self, save_fig=False):
+        print('\n\nExtract main superpixels...')
+
         # ----------------------------------------------------------------------------------------------- Load sp classifier
         sp_classifier_path = self.sp_classifier_path + 'sp_classifier/'
 
@@ -196,7 +198,6 @@ class Process_SP:
         min_max = min_max[:, indices]
 
         for i in range(len(self.img_paths)):
-            print('i: ', i)
             start_time = time.time()
             basename = os.path.basename(self.img_paths[i]).split('.')[0]
             tumorname = basename.split('_')[1]
@@ -209,11 +210,11 @@ class Process_SP:
             sp_map, feats, centroids = load_h5(self.basic_sp_path + tumorname + '/' + basename + '.h5')
 
             feats = feats[:, indices]
-            for i in range(feats.shape[1]):
-                minm = min_max[0, i]
-                maxm = min_max[1, i]
+            for j in range(feats.shape[1]):
+                minm = min_max[0, j]
+                maxm = min_max[1, j]
                 if maxm - minm != 0:
-                    feats[:, i] = (feats[:, i] - minm) / (maxm - minm)
+                    feats[:, j] = (feats[:, j] - minm) / (maxm - minm)
             #endfor
 
             # ----------------------------------------------------------------------------------------------- Predict SVM output
@@ -225,9 +226,9 @@ class Process_SP:
             # ----------------------------------------------------------------------------------------------- Generate tissue map
             tissue_map = np.ones_like(sp_map) * -1
             regions = regionprops(sp_map)
-            for i, region in enumerate(regions):
-                if pred_label[i] != -1:
-                    tissue_map[sp_map == region['label']] = pred_label[i]
+            for j, region in enumerate(regions):
+                if pred_label[j] != -1:
+                    tissue_map[sp_map == region['label']] = pred_label[j]
             #endfor
 
             # ----------------------------------------------------------------------------------------------- Merge super-pixels
@@ -239,10 +240,10 @@ class Process_SP:
                 mask = mask.astype(np.uint8)
 
                 num_labels, output_map, _, _ = cv2.connectedComponentsWithStats(mask, 8, cv2.CV_16S)
-                for i in range(1, num_labels):
-                    id = np.unique(map[output_map == i])
+                for j in range(1, num_labels):
+                    id = np.unique(map[output_map == j])
                     if len(id) > 1:
-                        map[output_map == i] = np.min(id)
+                        map[output_map == j] = np.min(id)
                 #endfor
                 return map
             #enddef
@@ -251,19 +252,23 @@ class Process_SP:
             sp_map_new = merge(tissue_id=2, map=sp_map_new)
             sp_map_new = merge(tissue_id=0, map=sp_map_new)
 
+            # ----------------------------------------------------- Re-arranging labels in sp_map_new
+            id = np.unique(sp_map_new)
+            for j in range(len(np.unique(sp_map_new))):
+                sp_map_new[sp_map_new == id[j]] = j + 1
+
             if save_fig:
-                overlaid = np.round(mark_boundaries(img_rgb, sp_map_new, (0, 0, 0)) * 255, 0).astype(np.uint8)
+                #overlaid = np.round(mark_boundaries(img_rgb, sp_map_new, (0, 0, 0)) * 255, 0).astype(np.uint8)
                 instance_map = color.label2rgb(sp_map_new, img_rgb, kind='overlay')
                 instance_map = np.round(segmentation.mark_boundaries(instance_map, sp_map_new, (0, 0, 0)) * 255, 0).astype(np.uint8)
-                combo = np.hstack((overlaid, instance_map))
-                imageio.imwrite(self.sp_img_path + 'main_sp/prob_thr_' + str(self.prob_thr) + '/' + tumorname + '/' + basename + '.png', combo)
+                #combo = np.hstack((overlaid, instance_map))
+                imageio.imwrite(self.sp_img_path + 'main_sp/prob_thr_' + str(self.prob_thr) + '/' + tumorname + '/' + basename + '.png', instance_map)
 
             # ----------------------------------------------------------------------------------------------- FEATURES
             sp_feat, sp_centroid = extract_main_sp_features(img_rgb=img_rgb, sp_map=sp_map_new)
             save_h5(self.main_sp_path + tumorname + '/' + basename + '.h5', sp_map=sp_map_new, sp_feat=sp_feat, sp_centroid=sp_centroid)
 
             print('#', i, ' : ', basename, ' reduction:', len(np.unique(sp_map)), ':', len(np.unique(sp_map_new)), ' time=', round(time.time() - start_time, 2))
-            exit()
         #endfor
     #enddef
 

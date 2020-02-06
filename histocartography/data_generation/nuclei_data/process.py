@@ -2,7 +2,7 @@ import glob
 import os
 import scipy.io as sio
 from postproc.hover import proc_np_hv
-from config_sp import Config
+from config import Config
 from utils_nuc import *
 import json
 import time
@@ -32,16 +32,17 @@ class Process(Config):
         file_list.sort()
 
         # ------------------------------------------------------------------------------- USEFUL FOR CHUNK WISE PROCESSING
-        idx = np.arange(len(file_list))
-        idx = np.array_split(idx, 20)
-        idx = idx[n]
+        if n != -1:
+            idx = np.array_split(np.arange(len(file_list)), 4)
+            idx = idx[n]
+            file_list = [file_list[x] for x in idx]
+
+        print('# Files=', len(file_list))
 
         total_time = time.time()
         for i in range(len(file_list)):
-        #for i in range(len(idx)):
             start_time = time.time()
 
-            #filename = os.path.basename(file_list[idx[i]])
             filename = os.path.basename(file_list[i])
             basename = filename.split('.')[0]
 
@@ -67,8 +68,8 @@ class Process(Config):
             # ------------------------------------------------------------------------------- by_size=False: Saves time
             pred_inst = remap_label(pred_inst, by_size=False)
 
-            overlaid_output = visualize_instances(pred_inst, img)
-            overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
+            #overlaid_output = visualize_instances(pred_inst, img)
+            #overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
             #-- cv2.imwrite('%s/%s.png' % (proc_overlap_dir, basename), overlaid_output)
 
             # ------------------------------------------------------------------------------- FEATURE EXTRACTION
@@ -80,6 +81,7 @@ class Process(Config):
 
             #------------------------------------------------------------------------------- OVERLAID OUTPUT PLOT
             # Comment out (this block + overlaid_output lines from above) to save time.
+            '''
             j = 0
             #print("Generating overlaid output")
             for item_t in pred_centroid:
@@ -91,6 +93,7 @@ class Process(Config):
                 cv2.putText(overlaid_output, str(j), (int(item_t[0]), int(item_t[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 255))  # , 2, cv2.LINE_AA)
             #endfor
             cv2.imwrite('%s/%s.png' % (proc_overlaid_dir, basename), overlaid_output)
+            #'''
 
             #------------------------------------------------------------------------------- SAVE PREDICTIONS AS JSON & H5
             # For instance segmentation only
@@ -132,7 +135,7 @@ class Process(Config):
 
                 save_h5(file_name_h5, pred_inst, pred_centroid, pred_inst_features, img.shape)
             #endif
-            print('#', idx[i],  ' working on = ', basename, ' #nuclei = ', pred_inst_features.shape[0], ' time = ', round(time.time() - start_time, 2))
+            print('#', i,  ' working on = ', basename, ' #nuclei = ', pred_inst_features.shape[0], ' time = ', round(time.time() - start_time, 2))
         #endfor
 
         print('Time per image= ', round((time.time() - total_time)/len(file_list), 2), 's')

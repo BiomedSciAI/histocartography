@@ -7,9 +7,9 @@
 module load Anaconda3
 source /u/pus/venv/bin/activate
 
-#BSUB -J "logs_dcis"
-#BSUB -o "logs_dcis"
-#BSUB -e "logs_dcis.stderr"
+#BSUB -J "proc_udh"
+#BSUB -o "proc_udh"
+#BSUB -e "proc_udh.stderr"
 
-python3 -u inference.py -1
+python3 -u inference.py -1 -1
 

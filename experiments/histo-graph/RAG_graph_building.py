@@ -27,7 +27,7 @@ def parse_arguments():
         '--save_path',
         type=str,
         help='path for dgl files to be saved',
-        default='/dataT/pus/histocartography/Data/pascale/super_pixel_info/dgl_graphs/prob_thr_0.8/',
+        default='../../dgl_graphs/prob_thr_0.8/',
         required=False
     )
 

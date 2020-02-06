@@ -7,7 +7,7 @@ class Config(object):
         self.data_param = 'dataT'
         self.type_classification = False
 
-        tumor_type = '0_benign'    # 0_benign, 1_pathological_benign, 2_udh, 3_adh, 4_fea, 5_dcis, 6_malignant
+        tumor_type = 'benign'    # benign, pathologicalbenign, udh, adh, fea, dcis, malignant
 
         if self.data_param == 'local':
             self.inf_model_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/misc_utils/nuclei_detection/hover_seg_Kumar.npz'
@@ -15,9 +15,9 @@ class Config(object):
             self.inf_output_dir = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/nuclei_info/Predictions/' + tumor_type + '/'
 
         elif self.data_param == 'dataT':
-            self.inf_model_path = '/dataT/pus/histocartography/Data/PASCALE/misc_utils/nuclei_detection/hover_seg_Kumar.npz'
-            self.inf_data_dir = '/dataT/pus/histocartography/Data/PASCALE/Images_norm/' + tumor_type + '/'
-            self.inf_output_dir = '/dataT/pus/histocartography/Data/PASCALE/nuclei_info/' + tumor_type + '/'
+            self.inf_model_path = '/dataT/pus/histocartography/Data/pascale/misc_utils/nuclei_detection/hover_seg_Kumar.npz'
+            self.inf_data_dir = '/dataT/pus/histocartography/Data/pascale/Images_norm/' + tumor_type + '/'
+            self.inf_output_dir = '/dataT/pus/histocartography/Data/pascale/nuclei_info/' + tumor_type + '/'
 
         elif self.data_param == 'dataL':
             self.inf_model_path = '/dataT/pus/histocartography/Data/PASCALE/misc_utils/nuclei_detection/hover_seg_Kumar.npz'

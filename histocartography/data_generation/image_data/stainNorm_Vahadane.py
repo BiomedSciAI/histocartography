@@ -29,9 +29,8 @@ def get_stain_matrix(I, threshold=0.8, lamda=0.1):
         dictionary = dictionary[[1, 0], :]
     dictionary = ut.normalize_rows(dictionary)
     return dictionary
+#enddef
 
-
-###
 
 class Normalizer(object):
     """

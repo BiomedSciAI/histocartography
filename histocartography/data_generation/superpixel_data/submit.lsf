@@ -1,0 +1,21 @@
+#!/bin/bash                                                                                                                                                                                                                                                              
+
+#BSUB -q prod.med
+#BSUB -n 1
+#BSUB -R "rusage [ngpus_excl_p=1]"
+
+export MODULEPATH= ;
+MM=/ibm/gpfs-dataSW/hpc_modules/rhel7-P8-2020-01-29/;
+module use ${MM}/root/modules/all ;
+module use ${MM}/at10.0-based/modules/all ;
+module use ${MM}/os-based/modules/all ;
+module use ${MM}/powerai-based/modules/all
+
+module load Miniconda3
+
+#BSUB -J "sp_main_0"
+#BSUB -o "sp_main_0"
+#BSUB -e "sp_main_0.stderr"
+
+python3 -u main.py dataT False True 0.8 0
+

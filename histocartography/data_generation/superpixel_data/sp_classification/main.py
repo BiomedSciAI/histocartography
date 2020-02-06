@@ -3,32 +3,34 @@ simplefilter(action='ignore', category=FutureWarning)
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('data_param')       # local, dataT
+parser.add_argument('sp_type')              # basic, main
+parser.add_argument('extract_feats')        # True, False
 
 args = parser.parse_args()
-data_param = args.data_param
+sp_type = args.sp_type
+extract_feats = eval(args.extract_feats)
 
 from sp_classification import *
+classify = SP_Classification(sp_type=sp_type)
 
-classify = SP_Classification(data_param=data_param)
+if extract_feats:
+    classify.extract_sp_images()
 
-#----------------------------------------------------------------------------------------------- Feature selection
-n_feats = 24
+if sp_type == 'basic':
+    #----------------------------------------------------------------------------------------------- Feature selection
+    train, train_labels, test, test_labels = classify.prepare_data()
+    classify.feature_selection(train=train, train_labels=train_labels)
 
-train_features, train_labels, test_features, test_labels = classify.prepare_data()
-classify.feature_selection(train=train_features, train_labels=train_labels, n_feats=n_feats)         # Random forest feature importance
+    #----------------------------------------------------------------------------------------------- Cross-validation
+    n_feats = 24
+    classify.cross_validation(n_feats=n_feats)
 
-#----------------------------------------------------------------------------------------------- Cross-validation
-classify.cross_validation()
+    #----------------------------------------------------------------------------------------------- Train final model
+    classify.train_classifier(n_feats=n_feats)
 
-#----------------------------------------------------------------------------------------------- Train final model
-if not os.path.isfile(classify.sp_classifier_path + 'sp_classifier/svm_model.pkl'):
-    train_features, train_labels, test_features, test_labels = classify.prepare_data(test_size=0)
+elif sp_type == 'main':
+    train, train_labels, test, test_labels = classify.prepare_data()
+    classify.feature_selection(train=train, train_labels=train_labels)
 
-    data = np.load(classify.sp_classifier_path + 'sp_classifier/feature_ids.npz')
-    indices = data['indices']
-    train_features = train_features[:, indices]
-
-    classify.svm_classifier(train=train_features, train_label=train_labels, test=test_features, test_label=test_labels)
-    print('model saved !')
-#endif
+    n_feats = 24
+    classify.cross_validation(n_feats=n_feats)

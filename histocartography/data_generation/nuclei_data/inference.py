@@ -30,8 +30,8 @@ from scipy import io as sio
 from tensorpack.predict import OfflinePredictor, PredictConfig
 from tensorpack.tfutils.sessinit import get_model_loader
 
-from config_sp import Config
-from process_sp import Process
+from config import Config
+from process import Process
 
 if gpu_number != '-1':
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -110,7 +110,7 @@ class Inferer(Config):
         if not os.path.isdir(path):
             os.makedirs(path)
 
-    def run(self):
+    def run(self, n):
         print("Loaded model weight file")
         model_path = self.inf_model_path
 
@@ -130,11 +130,17 @@ class Inferer(Config):
         file_list = glob.glob('%s/*%s' % (self.inf_data_dir, self.inf_imgs_ext))
         file_list.sort()
 
-        start_time = time.time()
+        if n != -1:
+            idx = np.array_split(np.arange(len(file_list)), 5)
+            idx = idx[n]
+            file_list = [file_list[x] for x in idx]
+        print('# Files=', len(file_list))
+
+        total_time = time.time()
         for i in range(len(file_list)):
+            start_time = time.time()
             filename = os.path.basename(file_list[i])
             basename = filename.split('.')[0]
-            print('#' , i, ' working on = ', basename)
 
             # print("Reading images")
             img = cv2.imread(self.inf_data_dir + filename)
@@ -143,9 +149,10 @@ class Inferer(Config):
             # print("Generating prediction map")
             pred_map = self.__gen_prediction(img, predictor)
             sio.savemat('%s/%s.mat' % (save_dir, basename), {'result': [pred_map]})
+            print('#' , i, ' working on = ', basename, ' time=', round(time.time() - start_time, 2))
         #endfor
 
-        print('Time per image= ', round((time.time() - start_time)/len(file_list), 2), 's')
+        print('Time per image= ', round((time.time() - total_time)/len(file_list), 2), 's')
     #endfor
 #end
 
@@ -153,7 +160,7 @@ class Inferer(Config):
 if __name__ == '__main__':
     print('Inferencing...')
     inferer = Inferer()
-    inferer.run()
+    inferer.run(int(n))
 
     print('\nProcessing...')
     process = Process()

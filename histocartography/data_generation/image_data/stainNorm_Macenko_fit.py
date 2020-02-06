@@ -37,9 +37,8 @@ def get_stain_matrix(I, beta=0.15, alpha=1):
     else:
         HE = np.array([v2, v1])
     return ut.normalize_rows(HE)
+#enddef
 
-
-###
 
 class Normalizer(object):
     """

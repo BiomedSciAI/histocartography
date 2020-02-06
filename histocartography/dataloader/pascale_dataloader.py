@@ -68,6 +68,14 @@ class PascaleDataset(BaseDataset):
         if load_superpx_graph:
             self.superpx_graph_path = os.path.join(
                 self.data_path, 'super_pixel_info','main_sp', 'prob_thr_0.8', self.dataset_name)
+            # Path to dgl graphs
+            self.graph_path = os.path.join(self.data_path, 'super_pixel_info', 'dgl_graphs', 'prob_thr_0.8',
+                                           self.dataset_name)
+            # get indices of features
+            self.top_feat_path = os.path.join(self.data_path, 'misc_utils', 'main_sp_classification',
+                                              'sp_classifier')
+            self.top_feat_ind = self._load_feat_indices(self.top_feat_path)
+
             self.num_superpx_features = self._get_superpx_features_dim()
             self._build_normaliser(graph_type='superpx_graph')
 
@@ -88,6 +96,12 @@ class PascaleDataset(BaseDataset):
         for fname in self.h5_fnames:
             self._load_label(fname)
 
+    def _load_graph(self, graph_name):
+        """
+        Load dgl graphs from path
+        """
+        return os.path.join(self.graph_path, graph_name + '.bin')
+
     def _load_label(self, fpath):
         """
         Load the label by inspecting the filename
@@ -95,6 +109,16 @@ class PascaleDataset(BaseDataset):
         tumor_type = fpath.split('_')[1]
 
         self.labels.append(TUMOR_TYPE_TO_LABEL[tumor_type])
+
+    def _load_feat_indices(self, fpath):
+        """
+
+       Returns indices of top 24 features to be selected
+        """
+        with np.load(os.path.join(fpath, 'feature_ids.npz')) as data:
+            indices = data['indices'][:24]
+            indices = torch.from_numpy(indices).to(self.device)
+            return indices
 
     def _get_cell_features_dim(self):
 
@@ -107,10 +131,11 @@ class PascaleDataset(BaseDataset):
     def _get_superpx_features_dim(self):
 
         with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[0]), 'r') as f:
-            features = h5_to_tensor(f['sp_features'], self.device)
+            feat = h5_to_tensor(f['sp_features'], self.device)
             centroid = h5_to_tensor(f['sp_centroids'], self.device)
+            select_feat = torch.index_select(feat, 1, self.top_feat_ind)
             f.close()
-        return features.shape[1] + centroid.shape[1]
+        return select_feat.shape[1] + centroid.shape[1]
 
     def _build_normaliser(self, graph_type):
         """
@@ -159,25 +184,31 @@ class PascaleDataset(BaseDataset):
         # extract the image size, centroid, cell features and label
         with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
             d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
-            features = h5_to_tensor(f['sp_features'], self.device).type(d_type)
+            feat = h5_to_tensor(f['sp_features'], self.device).type(d_type)
+            select_feat = torch.index_select(feat, 1, self.top_feat_ind)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
             # converting centroid coord from [y, x] to [x, y]
-            centroid = torch.index_select(centroid, 1, torch.LongTensor([1,0]).to(self.device)).to(self.device)
+            centroid = torch.index_select(centroid, 1, torch.LongTensor([1, 0]).to(self.device)).to(self.device)
+
             sp_map = h5_to_tensor(f['sp_map'], self.device).type(d_type)
             image_size = torch.FloatTensor(list(sp_map.shape)).to(self.device)
             norm_centroid = centroid / image_size
             f.close()
 
+        # choose indices of norm factors
+        norm_mean = torch.index_select(self.superpx_graph_transform['mean'], 0, self.top_feat_ind)
+        norm_stddev = torch.index_select(self.superpx_graph_transform['std'], 0, self.top_feat_ind)
+
         # normalize the cell features
         features = \
-            (features - self.superpx_graph_transform['mean'].to(self.device)) / \
-            (self.superpx_graph_transform['std']).to(self.device)
+            (select_feat - norm_mean.to(self.device)) / norm_stddev.to(self.device)
 
         # concat spatial + appearance features
         features = torch.cat((features, norm_centroid), dim=1).to(torch.float)
 
         # build topology
-        superpx_graph = self.superpx_graph_builder(features, centroid, sp_map)
+        graph_file = self._load_graph(self.h5_fnames[index].replace('.h5', ''))
+        superpx_graph = self.superpx_graph_builder(features, centroid, graph_file)
 
         return superpx_graph
 

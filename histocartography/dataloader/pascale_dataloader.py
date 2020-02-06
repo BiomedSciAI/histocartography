@@ -133,7 +133,7 @@ class PascaleDataset(BaseDataset):
         with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[0]), 'r') as f:
             feat = h5_to_tensor(f['sp_features'], self.device)
             centroid = h5_to_tensor(f['sp_centroids'], self.device)
-            select_feat = torch.index_select(feat, 1, self.top_feat_ind)
+            select_feat = torch.index_select(feat, 1, self.top_feat_ind).to(self.device)
             f.close()
         return select_feat.shape[1] + centroid.shape[1]
 
@@ -185,7 +185,7 @@ class PascaleDataset(BaseDataset):
         with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
             d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
             feat = h5_to_tensor(f['sp_features'], self.device).type(d_type)
-            select_feat = torch.index_select(feat, 1, self.top_feat_ind)
+            select_feat = torch.index_select(feat, 1, self.top_feat_ind).to(self.device)
             centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
             # converting centroid coord from [y, x] to [x, y]
             centroid = torch.index_select(centroid, 1, torch.LongTensor([1, 0]).to(self.device)).to(self.device)
@@ -196,8 +196,8 @@ class PascaleDataset(BaseDataset):
             f.close()
 
         # choose indices of norm factors
-        norm_mean = torch.index_select(self.superpx_graph_transform['mean'], 0, self.top_feat_ind)
-        norm_stddev = torch.index_select(self.superpx_graph_transform['std'], 0, self.top_feat_ind)
+        norm_mean = torch.index_select(self.superpx_graph_transform['mean'], 0, self.top_feat_ind.cpu())
+        norm_stddev = torch.index_select(self.superpx_graph_transform['std'], 0, self.top_feat_ind.cpu())
 
         # normalize the cell features
         features = \

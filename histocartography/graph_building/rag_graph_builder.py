@@ -1,7 +1,5 @@
 from histocartography.graph_building.base_graph_builder import BaseGraphBuilder
-from skimage.future import graph
-import numpy as np
-from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN, CENTROID
+from dgl.data.utils import load_graphs
 
 
 class RAGGraphBuilder(BaseGraphBuilder):
@@ -26,15 +24,12 @@ class RAGGraphBuilder(BaseGraphBuilder):
         self.config = config
         self.cuda = cuda
 
-    def _build_topology(self, sp_map):
-
+    def _build_topology(self, dgl_graph_file):
         """
-        Returns the RAG in form of networkx graph
+        Loads the dgl graph from file
         """
-        
-        # convert sp_map to numpy
-        sp_map = sp_map.cpu().numpy()
-        g = graph.RAG(sp_map, connectivity=2)
 
-        return g
+        g, label_dict = load_graphs(dgl_graph_file)
+
+        return g[0]
 

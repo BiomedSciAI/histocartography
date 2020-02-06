@@ -33,16 +33,14 @@ class BaseGraphBuilder:
             :param node_features: (FloatTensor) node features
             ;param centroid: (list) centroid of each node normalized by the image size
         """
-        num_nodes = args[0].shape[0]
-        graph = dgl.DGLGraph()
-        graph.add_nodes(num_nodes)
-
         if self.config['graph_building_type'] == 'rag_graph_builder':
-            nxgraph = self._build_topology(args[2])
-            # convert nx graph to dgl graph
-            graph.from_networkx(nxgraph)
+            graph = self._build_topology(args[2])
             self._set_node_features(args[0], args[1], graph)
         else:
+            num_nodes = args[0].shape[0]
+            graph = dgl.DGLGraph()
+            graph.add_nodes(num_nodes)
+
             self._set_node_features(args[0], args[1], graph)
             self._build_topology(args[1], graph)
             if self.config['edge_encoding']:

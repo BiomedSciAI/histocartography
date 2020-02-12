@@ -6,7 +6,6 @@ import logging
 import sys
 import argparse
 
-
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.utils.visualization import GraphVisualization
@@ -39,6 +38,14 @@ def parse_arguments():
         default=2,
         required=False
     )
+
+    parser.add_argument(
+        '--show_superpx',
+        type=bool,
+        default=True,
+        required=False
+    )
+
 
     return parser.parse_args()
 
@@ -73,16 +80,17 @@ def main(args):
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
         load_image=True,
-        show_superpx=load_superpx_graph(config['model_type'])
+        show_superpx=args.show_superpx
     )
 
     graph_visualizer = GraphVisualization()
 
     show_cg_flag = load_cell_graph(config['model_type'])
     show_sp_flag = load_superpx_graph(config['model_type'])
+    show_sp_map = show_sp_flag and args.show_superpx
 
     for data, label in dataloaders['test']:
-        graph_visualizer(show_cg_flag, show_sp_flag, data, args.batch_size)
+        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, args.batch_size)
 
 
 if __name__ == "__main__":

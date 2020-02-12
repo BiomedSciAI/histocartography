@@ -15,7 +15,7 @@ class GraphVisualization:
         self.save = save
         self.save_path = '../graphs'
 
-    def __call__(self, show_cg, show_superpx, data, size):
+    def __call__(self, show_cg, show_sg, show_superpx, data, size):
 
         for index in range(size):
 
@@ -23,13 +23,14 @@ class GraphVisualization:
             image_name = data[-1][index]
             draw = ImageDraw.Draw(image, 'RGBA')
 
-            if show_superpx:
+            if show_sg:
+                if show_superpx:
+                    superpx_map = data[2][index] if show_cg else data[1][index]
+                    self.draw_superpx(superpx_map, draw)
                 superpx_graph = dgl.unbatch(data[1])[index] if show_cg else dgl.unbatch(data[0])[index]
-                superpx_map = data[2][index] if show_cg else data[1][index]
 
                 # get centroids and edges
                 cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
-                self.draw_superpx(superpx_map, draw)
                 self.draw_centroid(cent_sp, draw, (0, 255, 0))
                 self.draw_edges(cent_sp, edges_sp, draw, (0, 0, 255), 2)
 

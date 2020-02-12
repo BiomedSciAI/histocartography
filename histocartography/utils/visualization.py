@@ -31,7 +31,7 @@ class GraphVisualization:
                 cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
                 self.draw_superpx(superpx_map, draw)
                 self.draw_centroid(cent_sp, draw, (0, 255, 0))
-                self.draw_edges(cent_sp, edges_sp, draw, (0, 255, 0), 2)
+                self.draw_edges(cent_sp, edges_sp, draw, (0, 0, 255), 2)
 
             if show_cg:
                 cell_graph = dgl.unbatch(data[0])[index]
@@ -40,8 +40,8 @@ class GraphVisualization:
                 cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
                 # draw centroids
-                self.draw_centroid(cent_cg, draw, (0, 255, 255))
-                self.draw_edges(cent_cg, edges_cg, draw, (0, 255, 255), 5)
+                self.draw_centroid(cent_cg, draw, (255, 0, 0))
+                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 5)
 
             if self.show:
                 show_image(image)
@@ -49,8 +49,6 @@ class GraphVisualization:
             if self.save:
                 check_for_dir(self.save_path)
                 save_image(image, fname=complete_path(self.save_path, image_name + '.png'))
-
-        return image
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):

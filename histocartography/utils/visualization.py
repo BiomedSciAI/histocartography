@@ -20,8 +20,6 @@ class GraphVisualization:
         for index in range(size):
 
             image = data[-2][index]
-            print("IMG")
-            print(image)
             image_name = data[-1][index]
             draw = ImageDraw.Draw(image, 'RGBA')
 

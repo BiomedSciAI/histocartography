@@ -19,6 +19,7 @@ from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
+import mlflow.pytorch
 #from histocartography.utils.visualization import GraphVisualization
 
 
@@ -131,7 +132,8 @@ def main(args):
     saved_model = f'{tempfile.mkdtemp()}/{args.model_name}.pt'
     torch.save(brontes_model.model, saved_model)
     mlflow.log_artifact(saved_model)
-    # mlflow.pytorch.log_model(brontes_model.model, “artifacts/model”, conda_env=“conda.yml”)
+    #check_for_dir('model')
+    mlflow.pytorch.log_model(brontes_model.model, 'model', conda_env='conda.yml')
 
 
 

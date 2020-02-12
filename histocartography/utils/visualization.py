@@ -25,7 +25,7 @@ class GraphVisualization:
 
             if show_superpx:
                 superpx_graph = dgl.unbatch(data[1])[index] if show_cg else dgl.unbatch(data[0])[index]
-                superpx_map = data[2] if show_cg else data[1]
+                superpx_map = data[2][index] if show_cg else data[1][index]
 
                 # get centroids and edges
                 cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)

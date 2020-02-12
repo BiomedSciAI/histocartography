@@ -20,6 +20,7 @@ from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
 import mlflow.pytorch
+import pandas as pd
 #from histocartography.utils.visualization import GraphVisualization
 
 
@@ -91,12 +92,15 @@ def main(args):
     mlflow.log_params({
         'number_of_workers': args.number_of_workers,
         'batch_size': args.batch_size,
-        'learning_rate': args.learning_rate,
-        'graph_building': config['graph_building'],
-        'gnn_params': config['model_params']['gnn_params'],
-        'readout_params': config['model_params']['readout'],
-        'model_type': config['model_type']
     })
+
+    df = pd.io.json.json_normalize(config)
+    rep = {"graph_building.": "", "model_params.": "", "gnn_params.": ""}  # replacement for shorter key names
+    for i, j in rep.items():
+        df.columns = df.columns.str.replace(i, j)
+    flatten_config = df.to_dict(orient='records')[0]
+    for key, val in flatten_config.items():
+        mlflow.log_params({key: str(val)})
 
     # define metrics
     accuracy_evaluation = AccuracyEvaluator(cuda=CUDA)
@@ -134,7 +138,6 @@ def main(args):
     mlflow.log_artifact(saved_model)
     #check_for_dir('model')
     mlflow.pytorch.log_model(brontes_model.model, 'model', conda_env='conda.yml')
-
 
 
 if __name__ == "__main__":

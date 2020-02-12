@@ -2,7 +2,7 @@ from PIL import ImageDraw
 import numpy as np
 import dgl
 
-from histocartography.utils.io import show_image, save_image, complete_path
+from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
 from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly
 from histocartography.ml.layers.constants import CENTROID
 
@@ -13,7 +13,7 @@ class GraphVisualization:
         print('Initialize graph visualizer')
         self.show = show
         self.save = save
-        self.save_path = '/Users/frd/Documents/Code/Projects/Experiments/data_dummy_sp/graphs/'
+        self.save_path = '../graphs'
 
     def __call__(self, show_cg, show_superpx, data, size):
 
@@ -47,6 +47,7 @@ class GraphVisualization:
                 show_image(image)
 
             if self.save:
+                check_for_dir(self.save_path)
                 save_image(image, fname=complete_path(self.save_path, image_name + '.png'))
 
         return image

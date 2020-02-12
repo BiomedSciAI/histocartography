@@ -5,7 +5,7 @@ Script for visualizing graph-based histocartography models
 import logging
 import sys
 import argparse
-import dgl
+
 
 from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
@@ -20,7 +20,7 @@ def parse_arguments():
         '--graph_data_path',
         type=str,
         help='path to the graph data.',
-        default='/Users/frd/Documents/Code/Projects/Experiments/data_dummy_sp/',
+        default='../../pascale/',
         required=False
     )
 
@@ -29,7 +29,14 @@ def parse_arguments():
         '--config_fpath',
         type=str,
         help='path to the config file.',
-        default='../../histocartography/config/concat_graph_model_config/concat_graph_model_config_0.json',
+        default='../../histocartography/config/cell_graph_model_config/cell_graph_model_config_0.json',
+        required=False
+    )
+
+    parser.add_argument(
+        '--batch_size',
+        type=int,
+        default=2,
         required=False
     )
 
@@ -59,28 +66,23 @@ def main(args):
 
     # make data loaders (train & validation)
     dataloaders, num_cell_features = make_data_loader(
-        batch_size=2,
+        batch_size=args.batch_size,
         num_workers=0,
         path=args.graph_data_path,
         config=config,
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
-        load_image=True
+        load_image=True,
+        show_superpx=load_superpx_graph(config['model_type'])
     )
 
     graph_visualizer = GraphVisualization()
-    model_type = config['model_type']
 
-    if model_type == 'multi_level_graph_model' or 'concat_graph_model':
-        for (cell_graph, superpx_graph, superpx_map, assign_mat, image, image_name), label in dataloaders['train']:
-            graph_visualizer(image[0], image_name[0], model_type, dgl.unbatch(cell_graph)[0],
-                             dgl.unbatch(superpx_graph)[0], superpx_map[0])
-    elif model_type == 'cell_graph_model':
-        for (graph, image, image_name), label in dataloaders['train']:
-            graph_visualizer(image[0], image_name[0], model_type, dgl.unbatch(graph)[0])
-    elif model_type == 'superpx_graph_model':
-        for (graph, sp_mask, image, image_name), label in dataloaders['train']:
-            graph_visualizer(image[0], image_name[0], model_type, dgl.unbatch(graph)[0], sp_mask[0])
+    show_cg_flag = load_cell_graph(config['model_type'])
+    show_sp_flag = load_superpx_graph(config['model_type'])
+
+    for data, label in dataloaders['test']:
+        graph_visualizer(show_cg_flag, show_sp_flag, data, args.batch_size)
 
 
 if __name__ == "__main__":

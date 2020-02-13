@@ -19,7 +19,7 @@ def parse_arguments():
         '--graph_data_path',
         type=str,
         help='path to the graph data.',
-        default='../../pascale/',
+        default='/dataT/pus/histocartography/Data/pascale/',
         required=False
     )
 
@@ -42,7 +42,7 @@ def parse_arguments():
     parser.add_argument(
         '--show_superpx',
         type=bool,
-        default=True,
+        default=False,
         required=False
     )
 

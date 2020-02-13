@@ -42,7 +42,7 @@ class GraphVisualization:
 
                 # draw centroids
                 self.draw_centroid(cent_cg, draw, (255, 0, 0))
-                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 5)
+                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
 
             if self.show:
                 show_image(image)

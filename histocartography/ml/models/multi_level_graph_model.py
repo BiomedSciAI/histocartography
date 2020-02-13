@@ -1,7 +1,7 @@
 import torch
 
 from histocartography.ml.models.base_model import BaseModel
-from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
+from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN, READOUT_TYPES, GNN_NODE_FEAT_OUT
 from histocartography.ml.layers.mlp import MLP
 
 
@@ -37,9 +37,16 @@ class MultiLevelGraphModel(BaseModel):
         self._build_cell_graph_params(self.cell_gnn_params)
 
         # 3- build super pixel graph params
+        if self.concat:
+            superpx_input_dim = self.hl_node_dim +\
+                                self.cell_gnn_params['output_dim'] +\
+                                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) +\
+                                self.cell_gnn_params['input_dim']
+        else:
+            superpx_input_dim = self.hl_node_dim + self.cell_gnn_params['output_dim']
         self._build_superpx_graph_params(
             self.superpx_gnn_params,
-            self.hl_node_dim + self.cell_gnn_params['output_dim']
+            input_dim=superpx_input_dim
         )
 
         # 4- build classification params
@@ -50,10 +57,7 @@ class MultiLevelGraphModel(BaseModel):
         Build classification parameters
         """
         if self.concat:
-            emd_dim = self.cell_gnn_params['input_dim'] + \
-                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) + \
-                self.cell_gnn_params['output_dim'] + \
-                self.superpx_gnn_params['input_dim'] + \
+            emd_dim = self.superpx_gnn_params['input_dim'] + \
                 self.superpx_gnn_params['hidden_dim'] * (self.superpx_gnn_params['n_layers'] - 1) + \
                 self.superpx_gnn_params['output_dim']
         else:
@@ -121,13 +125,8 @@ class MultiLevelGraphModel(BaseModel):
 
         # 3. GNN layers over the high level graph
         hl_feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
-        hl_h = self.superpx_gnn(superpx_graph, hl_feats, self.concat)
+        graph_embeddings = self.superpx_gnn(superpx_graph, hl_feats, self.concat)
 
         # 4. Classification layers
-        if self.concat:
-            graph_embeddings = torch.cat((ll_h, hl_h), dim=0)
-        else:
-            graph_embeddings = hl_h
-
         logits = self.pred_layer(graph_embeddings)
         return logits

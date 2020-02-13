@@ -122,10 +122,11 @@ def main(args):
     )
 
     # train the model with pytorch lightning
+    early_stop = pl.callbacks.EarlyStopping('avg_val_loss', patience=10)
     if CUDA:
-        trainer = pl.Trainer(gpus=[0], max_nb_epochs=args.epochs)
+        trainer = pl.Trainer(gpus=[0], max_nb_epochs=args.epochs, early_stop_callback=early_stop)
     else:
-        trainer = pl.Trainer(max_nb_epochs=args.epochs)
+        trainer = pl.Trainer(max_nb_epochs=args.epochs, early_stop_callback=early_stop)
 
     trainer.fit(brontes_model)
 

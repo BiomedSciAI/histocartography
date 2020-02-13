@@ -87,7 +87,7 @@ def main(args):
 
     show_cg_flag = load_cell_graph(config['model_type'])
     show_sp_flag = load_superpx_graph(config['model_type'])
-    show_sp_map = show_sp_flag and args.show_superpx
+    show_sp_map = args.show_superpx
 
     for data, label in dataloaders['test']:
         graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, args.batch_size)

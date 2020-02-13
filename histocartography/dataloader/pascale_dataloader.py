@@ -29,6 +29,7 @@ class PascaleDataset(BaseDataset):
             load_cell_graph=True,
             load_superpx_graph=True,
             load_image=False,
+            show_superpx=False
     ):
         """
         Pascale dataset constructor.
@@ -51,6 +52,7 @@ class PascaleDataset(BaseDataset):
         self.load_cell_graph = load_cell_graph
         self.load_superpx_graph = load_superpx_graph
         self.load_image = load_image
+        self.show_superpx = show_superpx
 
         # 2. load h5 fnames and labels (from h5 fname)
         self._load_h5_fnames_and_labels(data_path, split)
@@ -67,7 +69,7 @@ class PascaleDataset(BaseDataset):
 
         if load_superpx_graph:
             self.superpx_graph_path = os.path.join(
-                self.data_path, 'super_pixel_info','main_sp', 'prob_thr_0.8', self.dataset_name)
+                self.data_path, 'super_pixel_info', 'main_sp', 'prob_thr_0.8', self.dataset_name)
             # Path to dgl graphs
             self.graph_path = os.path.join(self.data_path, 'super_pixel_info', 'dgl_graphs', 'prob_thr_0.8',
                                            self.dataset_name)
@@ -136,6 +138,13 @@ class PascaleDataset(BaseDataset):
             select_feat = torch.index_select(feat, 1, self.top_feat_ind).to(self.device)
             f.close()
         return select_feat.shape[1] + centroid.shape[1]
+
+    def _get_superpx_map(self, index):
+        with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
+            d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+            sp_map = h5_to_tensor(f['sp_map'], self.device).type(d_type)
+            f.close()
+        return sp_map
 
     def _build_normaliser(self, graph_type):
         """
@@ -253,12 +262,17 @@ class PascaleDataset(BaseDataset):
             superpx_graph = self._build_superpx_graph(index)
             data.append(superpx_graph)
 
+        # 5. load superpx map for viz
+        if self.show_superpx:
+            superpx_map = self._get_superpx_map(index)
+            data.append(superpx_map)
+
         # 4. load assignment matrix to go from the cell graph to the the superpx graph
         if self.load_cell_graph and self.load_superpx_graph:
             assignment_matrix = self._build_assignment_matrix(index)
             data.append(assignment_matrix)
 
-        # 4. load the image if required
+        # 6. load the image if required
         if self.load_image:
             image, image_name = self._load_image(self.h5_fnames[index].replace('.h5', ''))
             data.append(image)

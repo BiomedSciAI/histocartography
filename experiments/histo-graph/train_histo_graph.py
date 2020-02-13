@@ -16,6 +16,8 @@ from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
+from histocartography.evaluation.confusion_matrix import ConfusionMatrix
+from histocartography.evaluation.classification_report import ClassificationReport
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
@@ -105,9 +107,16 @@ def main(args):
     # define metrics
     accuracy_evaluation = AccuracyEvaluator(cuda=CUDA)
     weighted_f1_score = WeightedF1(cuda=CUDA)
+    conf_matrix = ConfusionMatrix()
+    class_report = ClassificationReport()
     metrics = {
         'accuracy': accuracy_evaluation,
-        'weighted_f1_score' : weighted_f1_score
+        'weighted_f1_score' : weighted_f1_score,
+               
+    }
+    evaluator = {
+        'confusion_matrix' : conf_matrix,
+        'classification_report' : class_report
     }
 
     # define brontes model
@@ -118,7 +127,8 @@ def main(args):
         optimizers=optimizer,
         training_log_interval=10,
         tracker_type='mlflow',
-        metrics=metrics
+        metrics=metrics,
+        evaluators=evaluator
     )
 
     # train the model with pytorch lightning

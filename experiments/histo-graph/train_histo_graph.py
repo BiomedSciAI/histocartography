@@ -91,7 +91,7 @@ def main(args):
     # mlflow log parameters
     mlflow.log_params({
         'number_of_workers': args.number_of_workers,
-        'batch_size': args.batch_size,
+        'batch_size': args.batch_size
     })
 
     df = pd.io.json.json_normalize(config)

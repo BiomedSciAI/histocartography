@@ -93,4 +93,4 @@ class MultiLayerGNN(nn.Module):
         if with_readout:
             return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
 
-        return h
+        return g.ndata.pop(GNN_NODE_FEAT_OUT)

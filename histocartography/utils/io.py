@@ -4,6 +4,8 @@ import torch
 import numpy as np
 import pandas as pd 
 from PIL import Image
+import io
+import pickle
 
 
 def complete_path(folder, fname):

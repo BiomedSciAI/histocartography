@@ -77,5 +77,11 @@ def parse_arguments():
         default=True
 
     )
+    parser.add_argument(
+        '--pretrained_model',
+        type=bool,
+        help='Path to pretrained GNN model.',
+        default=''
+    )
 
     return parser.parse_args()

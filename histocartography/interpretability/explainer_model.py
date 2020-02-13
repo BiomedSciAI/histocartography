@@ -1,31 +1,31 @@
 import math
-import time
-import numpy as np
 import torch
 import torch.nn as nn
-
-import utils.train_utils as train_utils 
+import torch.optim as optim
 
 
 class ExplainerModel(nn.Module):
     def __init__(
         self,
+        model,
         adj,
         x,
-        model,
         label,
-        args,
-        graph_idx=0,
+        model_params,
+        train_params,
+        cuda=False,
         use_sigmoid=True,
     ):
-        super(ExplainModule, self).__init__()
+        super(ExplainerModel, self).__init__()
         self.adj = adj
         self.x = x
         self.model = model
         self.label = label
-        self.graph_idx = graph_idx
-        self.args = args
-        self.mask_act = args.mask_act
+        self.model_params = model_params
+
+        self.cuda = cuda
+        self.mask_act = model_params['mask_activation']
+        self.mask_bias = None
         self.use_sigmoid = use_sigmoid
 
         init_strategy = "normal"
@@ -40,10 +40,15 @@ class ExplainerModel(nn.Module):
             params.append(self.mask_bias)
         # For masking diagonal entries
         self.diag_mask = torch.ones(num_nodes, num_nodes) - torch.eye(num_nodes)
-        if args.gpu:
+        if self.cuda:
             self.diag_mask = self.diag_mask.cuda()
 
-        self.scheduler, self.optimizer = train_utils.build_optimizer(args, params)
+        self.optimizer = optim.Adam(params, lr=train_params['lr'], weight_decay=train_params['weight_decay'])
+        self.scheduler = optim.lr_scheduler.StepLR(
+            self.optimizer,
+            step_size=train_params['opt_decay_step'],
+            gamma=train_params['opt_decay_rate']
+        )
 
     def construct_feat_mask(self, feat_dim, init_strategy="normal"):
         mask = nn.Parameter(torch.FloatTensor(feat_dim))
@@ -54,7 +59,6 @@ class ExplainerModel(nn.Module):
         elif init_strategy == "constant":
             with torch.no_grad():
                 nn.init.constant_(mask, 0.0)
-                # mask[0] = 2
         return mask
 
     def construct_edge_mask(self, num_nodes, init_strategy="normal", const_val=1.0):
@@ -68,7 +72,7 @@ class ExplainerModel(nn.Module):
         elif init_strategy == "const":
             nn.init.constant_(mask, const_val)
 
-        if self.args.mask_bias:
+        if self.mask_bias is not None:
             mask_bias = nn.Parameter(torch.FloatTensor(num_nodes, num_nodes))
             nn.init.constant_(mask_bias, 0.0)
         else:
@@ -83,9 +87,13 @@ class ExplainerModel(nn.Module):
         elif self.mask_act == "ReLU":
             sym_mask = nn.ReLU()(self.mask)
         sym_mask = (sym_mask + sym_mask.t()) / 2
-        adj = self.adj.cuda() if self.args.gpu else self.adj
+        adj = self.adj.cuda() if self.cuda else self.adj
+
+        print('Adj:', adj.shape)
+        print('Sym mask:', sym_mask.shape)
+
         masked_adj = adj * sym_mask
-        if self.args.mask_bias:
+        if self.mask_bias:
             bias = (self.mask_bias + self.mask_bias.t()) / 2
             bias = nn.ReLU6()(bias * 6) / 6
             masked_adj += (bias + bias.t()) / 2
@@ -96,43 +104,31 @@ class ExplainerModel(nn.Module):
         adj_sum = torch.sum(self.adj)
         return mask_sum / adj_sum
 
-    def forward(self, unconstrained=False, mask_features=True, marginalize=False):
-        x = self.x.cuda() if self.args.gpu else self.x
+    def forward(self):
 
-        if unconstrained:
-            sym_mask = torch.sigmoid(self.mask) if self.use_sigmoid else self.mask
-            self.masked_adj = (
-                torch.unsqueeze((sym_mask + sym_mask.t()) / 2, 0) * self.diag_mask
-            )
-        else:
-            self.masked_adj = self._masked_adj()
-            if mask_features:
-                feat_mask = (
-                    torch.sigmoid(self.feat_mask)
-                    if self.use_sigmoid
-                    else self.feat_mask
-                )
-                if marginalize:
-                    std_tensor = torch.ones_like(x, dtype=torch.float) / 2
-                    mean_tensor = torch.zeros_like(x, dtype=torch.float) - x
-                    z = torch.normal(mean=mean_tensor, std=std_tensor)
-                    x = x + z * (1 - feat_mask)
-                else:
-                    x = x * feat_mask
+        self.masked_adj = self._masked_adj()
+        feat_mask = (
+            torch.sigmoid(self.feat_mask)
+            if self.use_sigmoid
+            else self.feat_mask
+        )
+        x = self.x * feat_mask
 
-        ypred, adj_att = self.model(x, self.masked_adj)
-        res = nn.Softmax(dim=0)(ypred[0])
+        # build a graph from the new x & adjacency matrix...
 
-        return res, adj_att
+        ypred = self.model(self.masked_adj)
+        res = nn.Softmax(dim=0)(ypred)
 
-    def adj_feat_grad(self, node_idx, pred_label_node):
+        return res
+
+    def adj_feat_grad(self, pred_label_node):
         self.model.zero_grad()
         self.adj.requires_grad = True
         self.x.requires_grad = True
         if self.adj.grad is not None:
             self.adj.grad.zero_()
             self.x.grad.zero_()
-        if self.args.gpu:
+        if self.cuda:
             adj = self.adj.cuda()
             x = self.x.cuda()
         else:
@@ -144,7 +140,7 @@ class ExplainerModel(nn.Module):
         loss.backward()
         return self.adj.grad, self.x.grad
 
-    def loss(self, pred, pred_label, node_idx, epoch):
+    def loss(self, pred):
         """
         Args:
             pred: prediction made by current model

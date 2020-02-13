@@ -107,7 +107,7 @@ def main(args):
     # define metrics
     accuracy_evaluation = AccuracyEvaluator(cuda=CUDA)
     weighted_f1_score = WeightedF1(cuda=CUDA)
-    conf_matrix = ConfusionMatrix()
+    conf_matrix = ConfusionMatrix(return_img=True)
     class_report = ClassificationReport()
     metrics = {
         'accuracy': accuracy_evaluation,

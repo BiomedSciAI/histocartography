@@ -2,6 +2,7 @@ import json
 import os
 import torch
 import numpy as np
+import pandas as pd 
 from PIL import Image
 
 
@@ -158,6 +159,12 @@ def save_checkpoint(model, save_path=''):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model.state_dict(), os.path.join(save_path))
     
+
+def flatten_dict(d):   
+    df = pd.io.json.json_normalize(d, sep='_')
+    d = df.to_dict(orient='records')[0]
+    return d
+
     
 DATATYPE_TO_SAVEFN = {
     dict: write_json,

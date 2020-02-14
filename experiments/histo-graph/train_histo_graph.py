@@ -11,8 +11,10 @@ import mlflow
 import pytorch_lightning as pl
 from brontes import Brontes
 import dgl
+import os
+import uuid
 
-from histocartography.utils.io import read_params
+from histocartography.utils.io import read_params, check_for_dir
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
@@ -23,8 +25,6 @@ from histocartography.ml.models.constants import load_superpx_graph, load_cell_g
 from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
 import mlflow.pytorch
 import pandas as pd
-#from histocartography.utils.visualization import GraphVisualization
-
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -54,6 +54,10 @@ def main(args):
     # load config file
     config = read_params(args.config_fpath, verbose=True)
 
+    # set model path
+    model_path = complete_path(args.model_path, str(uuid.uuid4()))
+    check_for_dir(model_path)
+
     # make data loaders (train & validation)
     dataloaders, num_cell_features = make_data_loader(
         batch_size=args.batch_size,
@@ -63,7 +67,7 @@ def main(args):
         cuda=CUDA,
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
-        load_image=True
+        load_image=False
     )
 
     # declare model
@@ -111,12 +115,12 @@ def main(args):
     class_report = ClassificationReport()
     metrics = {
         'accuracy': accuracy_evaluation,
-        'weighted_f1_score' : weighted_f1_score,
+        'weighted_f1_score': weighted_f1_score,
                
     }
     evaluator = {
-        'confusion_matrix' : conf_matrix,
-        'classification_report' : class_report
+        'confusion_matrix': conf_matrix,
+        'classification_report': class_report
     }
 
     # define brontes model
@@ -128,27 +132,40 @@ def main(args):
         training_log_interval=10,
         tracker_type='mlflow',
         metrics=metrics,
-        evaluators=evaluator
+        evaluators=evaluator,
+        model_path=model_path,
     )
 
     # train the model with pytorch lightning
     early_stop = pl.callbacks.EarlyStopping('avg_val_loss', patience=10)
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(
+        filepath=model_path,
+        monitor='avg_val_loss'
+    )
     if CUDA:
-        trainer = pl.Trainer(gpus=[0], max_nb_epochs=args.epochs, early_stop_callback=early_stop)
+        trainer = pl.Trainer(
+            gpus=[0],
+            max_nb_epochs=args.epochs,
+            early_stop_callback=early_stop,
+            checkpoint_callback=checkpoint_callback
+        )
     else:
-        trainer = pl.Trainer(max_nb_epochs=args.epochs, early_stop_callback=early_stop)
+        trainer = pl.Trainer(
+            max_nb_epochs=args.epochs,
+            early_stop_callback=early_stop,
+            checkpoint_callback=checkpoint_callback
+        )
 
     trainer.fit(brontes_model)
-
-    # Evaluation
+    
+    # restore best model and test
+    model_name = [file for file in os.listdir(model_path) if file.endswith(".ckpt")][0]
+    brontes_model.load_state_dict(
+        torch.load(
+            os.path.join(model_path, model_name)
+        )['state_dict']
+    )
     trainer.test(brontes_model)
-
-    # save the model to tmp and log it as an mlflow artifact
-    saved_model = f'{tempfile.mkdtemp()}/{args.model_name}.pt'
-    torch.save(brontes_model.model, saved_model)
-    mlflow.log_artifact(saved_model)
-    #check_for_dir('model')
-    mlflow.pytorch.log_model(brontes_model.model, 'model', conda_env='conda.yml')
 
 
 if __name__ == "__main__":

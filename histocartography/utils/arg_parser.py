@@ -28,11 +28,10 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
-        '-n',
-        '--model_name',
+        '--model_path',
         type=str,
-        help='model name.',
-        default='model',
+        help='path to where the model is saved.',
+        default='trained_model',
         required=False
     )
     parser.add_argument(

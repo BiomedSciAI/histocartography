@@ -63,7 +63,7 @@ def main(args):
         cuda=CUDA,
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
-        load_image=True
+        load_image=False
     )
 
     # declare model

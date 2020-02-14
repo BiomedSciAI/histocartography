@@ -137,7 +137,7 @@ def main(args):
     )
 
     # train the model with pytorch lightning
-    early_stop = pl.callbacks.EarlyStopping('avg_val_loss', patience=10)
+    early_stop = pl.callbacks.EarlyStopping('avg_val_loss', patience=20)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         filepath=model_path,
         monitor='avg_val_loss'

@@ -1,8 +1,13 @@
 import torch
 import torch.nn as nn
 import importlib
+import dgl
 
-from histocartography.ml.layers.constants import AVAILABLE_LAYER_TYPES, GNN_MODULE, GNN_NODE_FEAT_OUT, READOUT_TYPES
+from histocartography.ml.layers.constants import (
+    AVAILABLE_LAYER_TYPES, GNN_MODULE,
+    GNN_NODE_FEAT_OUT, READOUT_TYPES,
+    REDUCE_TYPES
+)
 
 
 class MultiLayerGNN(nn.Module):
@@ -84,13 +89,24 @@ class MultiLayerGNN(nn.Module):
             h = layer(g, h)
             h_concat.append(h)
 
-        if cat:
-            g.ndata[GNN_NODE_FEAT_OUT] = torch.cat(h_concat, dim=-1)
+        if isinstance(g, dgl.DGLGraph):
+            # concat
+            if cat:
+                g.ndata[GNN_NODE_FEAT_OUT] = torch.cat(h_concat, dim=-1)
+            else:
+                g.ndata[GNN_NODE_FEAT_OUT] = h
+            # readout
+            if with_readout:
+                return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
+
+            return g.ndata.pop(GNN_NODE_FEAT_OUT)
+
         else:
-            g.ndata[GNN_NODE_FEAT_OUT] = h
+            # concat
+            if cat:
+                h = torch.cat(h_concat, dim=-1)
+            # readout
+            if with_readout:
+                return REDUCE_TYPES[self.readout_type](h, dim=0)
+            return h
 
-        # 2. aggregate the nodes, mean, max or sum readout
-        if with_readout:
-            return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
-
-        return g.ndata.pop(GNN_NODE_FEAT_OUT)

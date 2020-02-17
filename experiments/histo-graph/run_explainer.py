@@ -9,14 +9,16 @@ Implementation derived from the GNN-Explainer (NeurIPS'19)
 import importlib
 import torch
 import mlflow
+from mlflow.pytorch import load_model
 
-from histocartography.utils.io import read_params, load_checkpoint
+from histocartography.utils.io import read_params, unsafe_load_checkpoint
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.single_instance_explainer import SingleInstanceExplainer
+from histocartography.utils.graph import adj_to_networkx
 
 # cuda support
 CUDA = torch.cuda.is_available()
@@ -54,7 +56,28 @@ def main(args):
         model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
             config['model_params'], num_cell_features).to(DEVICE)
         if args.pretrained_model:
-            load_checkpoint(model, args.pretrained_model)
+            fname = 's3://mlflow/fd2d1f71b3974e9a9afdab4112857a80/artifacts/trained_model/304279a8-e0a8-4a08-99b0-7ebc6264f48a'
+            mlflow_model = load_model(fname)
+
+            def is_int(s):
+                try:
+                    int(s)
+                    return True
+                except:
+                    return False
+
+            for n, p in mlflow_model.named_parameters():
+                split = n.split('.')
+                to_eval = 'model'
+                for i, s in enumerate(split):
+                    if is_int(s):
+                        to_eval += '[' + s + ']'
+                    else:
+                        to_eval += '.'
+                        to_eval += s
+                print('To execute:', to_eval)
+                exec(to_eval + '=' + 'p')
+
     else:
         raise ValueError(
             'Model: {} not recognized. Options are: {}'.format(
@@ -88,10 +111,12 @@ def main(args):
 
         cell_graph = data[0]
 
-        explanation = explainer.explain(
+        adj, feats = explainer.explain(
             data=data,
             label=label
         )
+
+        explanation = adj_to_networkx(adj, feats, rm_iso_nodes=True)
 
         print('Explanation:')
         print('Original Graph: # nodes: {} # edges: {}'.format(

@@ -16,41 +16,55 @@ class ExplainerModel(nn.Module):
         cuda=False,
         use_sigmoid=True,
     ):
+
         super(ExplainerModel, self).__init__()
+
+        # set data
         self.adj = adj
         self.x = x
         self.model = model
         self.label = label
-        self.model_params = model_params
 
+        # set model parameters
         self.cuda = cuda
         self.mask_act = model_params['mask_activation']
+        init_strategy = model_params['init']
         self.mask_bias = None
         self.use_sigmoid = use_sigmoid
 
-        init_strategy = "normal"
+        # build learnable parameters: edge mask & feat mask
         num_nodes = adj.size()[1]
-        self.mask, self.mask_bias = self.construct_edge_mask(
-            num_nodes, init_strategy=init_strategy
-        )
+        self.mask, self.mask_bias = self._build_edge_mask(num_nodes, init_strategy=init_strategy)
+        self.feat_mask = self._build_feat_mask(x.size(-1), init_strategy="constant")
+        self.diag_mask = torch.ones(num_nodes, num_nodes) - torch.eye(num_nodes)
 
-        self.feat_mask = self.construct_feat_mask(x.size(-1), init_strategy="constant")
+        # group them
         params = [self.mask, self.feat_mask]
         if self.mask_bias is not None:
             params.append(self.mask_bias)
-        # For masking diagonal entries
-        self.diag_mask = torch.ones(num_nodes, num_nodes) - torch.eye(num_nodes)
+
         if self.cuda:
             self.diag_mask = self.diag_mask.cuda()
 
-        self.optimizer = optim.Adam(params, lr=train_params['lr'], weight_decay=train_params['weight_decay'])
-        self.scheduler = optim.lr_scheduler.StepLR(
-            self.optimizer,
-            step_size=train_params['opt_decay_step'],
-            gamma=train_params['opt_decay_rate']
-        )
+        # build optimizer
+        self._build_optimizer(params, train_params)
 
-    def construct_feat_mask(self, feat_dim, init_strategy="normal"):
+        # build loss reg weights
+        self.coeffs = {
+            "size": 0.005,
+            "feat_size": 1.0,
+            "ent": 1.0,
+        }
+
+    def _build_optimizer(self, params, train_params):
+        self.optimizer = optim.Adam(params, lr=train_params['lr'], weight_decay=train_params['weight_decay'])
+        # self.scheduler = optim.lr_scheduler.StepLR(
+        #     self.optimizer,
+        #     step_size=train_params['opt_decay_step'],
+        #     gamma=train_params['opt_decay_rate']
+        # )
+
+    def _build_feat_mask(self, feat_dim, init_strategy="normal"):
         mask = nn.Parameter(torch.FloatTensor(feat_dim))
         if init_strategy == "normal":
             std = 0.1
@@ -61,7 +75,7 @@ class ExplainerModel(nn.Module):
                 nn.init.constant_(mask, 0.0)
         return mask
 
-    def construct_edge_mask(self, num_nodes, init_strategy="normal", const_val=1.0):
+    def _build_edge_mask(self, num_nodes, init_strategy="normal", const_val=1.0):
         mask = nn.Parameter(torch.FloatTensor(num_nodes, num_nodes))
         if init_strategy == "normal":
             std = nn.init.calculate_gain("relu") * math.sqrt(
@@ -89,9 +103,6 @@ class ExplainerModel(nn.Module):
         sym_mask = (sym_mask + sym_mask.t()) / 2
         adj = self.adj.cuda() if self.cuda else self.adj
 
-        print('Adj:', adj.shape)
-        print('Sym mask:', sym_mask.shape)
-
         masked_adj = adj * sym_mask
         if self.mask_bias:
             bias = (self.mask_bias + self.mask_bias.t()) / 2
@@ -107,6 +118,7 @@ class ExplainerModel(nn.Module):
     def forward(self):
 
         self.masked_adj = self._masked_adj()
+
         feat_mask = (
             torch.sigmoid(self.feat_mask)
             if self.use_sigmoid
@@ -115,36 +127,16 @@ class ExplainerModel(nn.Module):
         x = self.x * feat_mask
 
         # build a graph from the new x & adjacency matrix...
-
-        ypred = self.model(self.masked_adj)
+        graph = [self.masked_adj, x]
+        ypred = self.model(graph)
         res = nn.Softmax(dim=0)(ypred)
 
         return res
-
-    def adj_feat_grad(self, pred_label_node):
-        self.model.zero_grad()
-        self.adj.requires_grad = True
-        self.x.requires_grad = True
-        if self.adj.grad is not None:
-            self.adj.grad.zero_()
-            self.x.grad.zero_()
-        if self.cuda:
-            adj = self.adj.cuda()
-            x = self.x.cuda()
-        else:
-            x, adj = self.x, self.adj
-        ypred, _ = self.model(x, adj)
-        logit = nn.Softmax(dim=0)(ypred[0])
-        logit = logit[pred_label_node]
-        loss = -torch.log(logit)
-        loss.backward()
-        return self.adj.grad, self.x.grad
 
     def loss(self, pred):
         """
         Args:
             pred: prediction made by current model
-            pred_label: the label predicted by the original model.
         """
 
         gt_label_node = self.label

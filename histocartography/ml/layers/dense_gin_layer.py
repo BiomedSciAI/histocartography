@@ -10,6 +10,7 @@ Original paper:
 
 import torch
 import torch.nn.functional as F
+import dgl
 
 from histocartography.ml.layers.mlp import MLP
 from histocartography.ml.layers.base_layer import BaseLayer
@@ -20,11 +21,10 @@ class DenseGINLayer(BaseLayer):
     def __init__(
             self,
             node_dim,
-            hidden_dim,
             out_dim,
             act,
             layer_id,
-            use_bn=True,
+            use_bn=False,
             config=None,
             verbose=False):
         """
@@ -43,7 +43,6 @@ class DenseGINLayer(BaseLayer):
             DenseGINLayer,
             self).__init__(
             node_dim,
-            hidden_dim,
             out_dim,
             act,
             layer_id)
@@ -51,13 +50,17 @@ class DenseGINLayer(BaseLayer):
         if verbose:
             print('Creating new GNN dense layer:')
 
+        self.out_dim = out_dim
+
         if config is not None:
             self.add_self = config['add_self'] if 'add_self' in config.keys(
             ) else True
             self.mean = config['mean'] if 'mean' in config.keys() else False
+            hidden_dim = config['hidden_dim']
         else:
             self.add_self = True
             self.mean = False
+            hidden_dim = 32
 
         self.mlp = MLP(
             node_dim,
@@ -75,6 +78,12 @@ class DenseGINLayer(BaseLayer):
         :param g: DGLGraph object. Node features in GNN_NODE_FEAT_IN_KEY
         :return: updated node features
         """
+
+        if isinstance(adj, dgl.DGLGraph):
+            adj = dgl.unbatch(adj)
+            assert(len(adj) == 1), "Batch size must be equal to 1 for processing Dense GIN Layers"
+            adj = adj[0].adjacency_matrix().to_dense().unsqueeze(dim=0)
+
         if self.add_self:
             adj = adj + torch.eye(adj.size(1)).to(adj.device)
 
@@ -85,7 +94,7 @@ class DenseGINLayer(BaseLayer):
         bs, n_nodes, dim = h_k_N.shape
         h_k_N = h_k_N.view(bs * n_nodes, dim)
         h_k = self.mlp(h_k_N)
-        h_k = h_k.view(bs, n_nodes, dim)
+        h_k = h_k.view(bs, n_nodes, self.out_dim)
         h_k = F.normalize(h_k, dim=2, p=2)
-        h_k = F.relu(h_k)
+        h_k = F.relu(h_k).squeeze()
         return h_k

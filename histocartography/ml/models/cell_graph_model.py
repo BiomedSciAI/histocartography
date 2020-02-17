@@ -1,3 +1,5 @@
+import dgl
+
 from histocartography.ml.layers.mlp import MLP
 from histocartography.ml.models.base_model import BaseModel
 from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
@@ -52,10 +54,15 @@ class CellGraphModel(BaseModel):
         Foward pass.
         :param data: tuple with (DGLGraph), cell graph
         """
-        # 1. GNN layers over the low level graph
-        cell_graph = data[0]
-        feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
-        graph_embeddings = self.cell_graph_gnn(cell_graph, feats, self.concat)
+
+        if isinstance(data[0], dgl.DGLGraph):
+            # 1. GNN layers over the low level graph
+            cell_graph = data[0]
+            feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
+            graph_embeddings = self.cell_graph_gnn(cell_graph, feats, self.concat)
+        else:
+            adj, feats = data[0], data[1]
+            graph_embeddings = self.cell_graph_gnn(adj, feats, self.concat)
 
         # 2. Run readout function
         logits = self.pred_layer(graph_embeddings)

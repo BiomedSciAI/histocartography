@@ -1,7 +1,6 @@
 import time
 import numpy as np
 import torch
-import torch.nn as nn
 
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
 from .explainer_model import ExplainerModel
@@ -29,7 +28,7 @@ class SingleInstanceExplainer:
 
         graph = data[0]
 
-        sub_adj = graph.adjacency_matrix().unsqueeze(dim=0)
+        sub_adj = graph.adjacency_matrix().to_dense().unsqueeze(dim=0)
         sub_feat = graph.ndata[GNN_NODE_FEAT_IN].unsqueeze(dim=0)
         sub_label = label
 
@@ -60,17 +59,16 @@ class SingleInstanceExplainer:
 
         begin_time = time.time()
         for epoch in range(self.train_params['num_epochs']):
-
             ypred = explainer()
-            loss = explainer.loss(ypred, pred_label, epoch)
+            loss = explainer.loss(ypred)
 
             explainer.zero_grad()
             explainer.optimizer.zero_grad()
             loss.backward()
             explainer.optimizer.step()
 
-            if explainer.scheduler is not None:
-                explainer.scheduler.step()
+            # if explainer.scheduler is not None:
+            #     explainer.scheduler.step()
 
         print("Training time: {} with density {}".format(
             time.time() - begin_time,
@@ -78,7 +76,9 @@ class SingleInstanceExplainer:
         )
 
         masked_adj = (
-                explainer.masked_adj[0].cpu().detach().numpy() * sub_adj.squeeze()
+                explainer.masked_adj[0].cpu().detach().numpy() * sub_adj.cpu().detach().numpy().squeeze()
         )
 
-        return masked_adj
+        masked_feats = explainer.x * explainer.feat_mask
+
+        return masked_adj, masked_feats

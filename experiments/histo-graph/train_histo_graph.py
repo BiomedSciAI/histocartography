@@ -137,7 +137,7 @@ def main(args):
     )
 
     # train the model with pytorch lightning
-    early_stop = pl.callbacks.EarlyStopping('avg_val_loss', patience=20)
+    early_stop = pl.callbacks.EarlyStopping('avg_val_loss', patience=40, mode='min')
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         filepath=model_path,
         monitor='avg_val_loss'
@@ -145,13 +145,13 @@ def main(args):
     if CUDA:
         trainer = pl.Trainer(
             gpus=[0],
-            max_nb_epochs=args.epochs,
+            max_epochs=args.epochs,
             early_stop_callback=early_stop,
             checkpoint_callback=checkpoint_callback
         )
     else:
         trainer = pl.Trainer(
-            max_nb_epochs=args.epochs,
+            max_epochs=args.epochs,
             early_stop_callback=early_stop,
             checkpoint_callback=checkpoint_callback
         )

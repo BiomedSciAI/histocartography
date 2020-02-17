@@ -8,9 +8,9 @@ entry_points:
       config_fpath: {type: string, default: ../../histocartography/config/superpx_graph_model_config/superpx_graph_model_config_0.json}
       data_path: {type: string, default: /dataT/pus/histocartography/Data/pascale/}
       number_of_workers: {type: int, default: 0}
-      model_name: {type string, default: model}
       batch_size: {type: int, default: 2}
       epochs: {type: int, default: 1}
       learning_rate: {type: float, default: 0.01}
+      model_path: {type: string, default: trained_model/}
     command: "python3 train_histo_graph.py --config_fpath {config_fpath} -d {data_path} --number_of_workers \
-    {number_of_workers} -n {model_name} -b {batch_size} -l {learning_rate} --epochs {epochs}"
+    {number_of_workers} -b {batch_size} -l {learning_rate} --epochs {epochs} --model_path {model_path}"

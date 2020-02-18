@@ -24,6 +24,8 @@ from histocartography.utils.graph import adj_to_networkx
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
 
+BASE_S3 = 's3://mlflow/'
+
 
 def main(args):
     """
@@ -56,7 +58,7 @@ def main(args):
         model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
             config['model_params'], num_cell_features).to(DEVICE)
         if args.pretrained_model:
-            fname = 's3://mlflow/fd2d1f71b3974e9a9afdab4112857a80/artifacts/trained_model/304279a8-e0a8-4a08-99b0-7ebc6264f48a'
+            fname = BASE_S3 + 'fd2d1f71b3974e9a9afdab4112857a80/artifacts/trained_model/304279a8-e0a8-4a08-99b0-7ebc6264f48a'
             mlflow_model = load_model(fname)
 
             def is_int(s):
@@ -75,7 +77,6 @@ def main(args):
                     else:
                         to_eval += '.'
                         to_eval += s
-                print('To execute:', to_eval)
                 exec(to_eval + '=' + 'p')
 
     else:
@@ -95,8 +96,8 @@ def main(args):
         'num_epochs': args.epochs,
         'lr': args.learning_rate,
         'weight_decay': 5e-4,
-        'opt_decay_step': 0.1,
-        'opt_decay_rate': 0.1
+        # 'opt_decay_step': 0.1,
+        # 'opt_decay_rate': 0.1
     }
     
     # declare explainer 
@@ -118,7 +119,7 @@ def main(args):
 
         explanation = adj_to_networkx(adj, feats, rm_iso_nodes=True)
 
-        print('Explanation:')
+        print('Output:')
         print('Original Graph: # nodes: {} # edges: {}'.format(
             cell_graph.number_of_nodes(),
             cell_graph.number_of_edges()

@@ -53,7 +53,7 @@ class ExplainerModel(nn.Module):
         self.coeffs = {
             "size": 0.005,
             "feat_size": 1.0,
-            "ent": 1.0,
+            "ent": 1.0
         }
 
     def _build_optimizer(self, params, train_params):
@@ -95,11 +95,13 @@ class ExplainerModel(nn.Module):
         return mask, mask_bias
 
     def _masked_adj(self):
-        sym_mask = self.mask
         if self.mask_act == "sigmoid":
             sym_mask = torch.sigmoid(self.mask)
         elif self.mask_act == "ReLU":
             sym_mask = nn.ReLU()(self.mask)
+        else:
+            raise ValueError('Unsupported mask activation {}. Options'
+                             'are "sigmoid", "ReLU"'.format(self.mask_act))
         sym_mask = (sym_mask + sym_mask.t()) / 2
         adj = self.adj.cuda() if self.cuda else self.adj
 
@@ -144,11 +146,13 @@ class ExplainerModel(nn.Module):
         pred_loss = -torch.log(logit)  # @TODO: change if multi class classification ?
 
         # size
-        mask = self.mask
         if self.mask_act == "sigmoid":
             mask = torch.sigmoid(self.mask)
         elif self.mask_act == "ReLU":
             mask = nn.ReLU()(self.mask)
+        else:
+            raise ValueError('Unsupported mask activation {}. Options'
+                             'are "sigmoid", "ReLU"'.format(self.mask_act))
         size_loss = self.coeffs["size"] * torch.sum(mask)
 
         feat_mask = (

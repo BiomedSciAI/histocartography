@@ -89,7 +89,7 @@ def main(args):
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=args.learning_rate,
-        weight_decay= 5e-4
+        weight_decay=5e-4
     )
 
     # define loss function

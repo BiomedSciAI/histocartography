@@ -86,7 +86,7 @@ def load_image(fname):
     return image
 
 
-def save_image(image, fname):
+def save_image(fname, image):
     image.save(fname)
 
 
@@ -139,6 +139,19 @@ def load_h5_fnames(base_path, tumor_type, extension, split):
     return h5_files
 
 
-def write_json(data, path):
+def write_json(path, data):
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def load_checkpoint(model, load_path=''):
+    model.load_state_dict(torch.load(load_path))
+    return model
+
+
+def save_checkpoint(model, save_path=''):
+    """
+    Save a checkpoint model.
+    """
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    torch.save(model.state_dict(), os.path.join(save_path))

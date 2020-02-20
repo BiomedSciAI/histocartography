@@ -8,11 +8,15 @@ import tempfile
 import importlib
 import torch
 import mlflow
-import pytorch_lightning as pl
-from brontes import Brontes
 import dgl
 import os
 import uuid
+from PIL import Image
+from tqdm import tqdm
+import mlflow.pytorch
+import pandas as pd
+import numpy as np
+import shutil
 
 from histocartography.utils.io import read_params, check_for_dir
 from histocartography.dataloader.pascale_dataloader import make_data_loader
@@ -22,9 +26,11 @@ from histocartography.evaluation.confusion_matrix import ConfusionMatrix
 from histocartography.evaluation.classification_report import ClassificationReport
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
-from histocartography.utils.io import get_device, get_filename, check_for_dir, complete_path, save_image
-import mlflow.pytorch
-import pandas as pd
+from histocartography.utils.io import (
+    get_device, get_filename, check_for_dir,
+    complete_path, save_image, load_checkpoint,
+    save_checkpoint, write_json, save_image
+)
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -42,6 +48,19 @@ log.addHandler(h1)
 # cuda support
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
+
+
+DATATYPE_TO_SAVEFN = {
+    dict: write_json,
+    np.ndarray: np.savetxt,
+    Image.Image: save_image
+}
+
+DATATYPE_TO_EXT = {
+    dict: '.json',
+    np.ndarray: '.txt',
+    Image.Image: '.png'
+}
 
 
 def main(args):
@@ -117,56 +136,127 @@ def main(args):
     metrics = {
         'accuracy': accuracy_evaluation,
         'weighted_f1_score': weighted_f1_score,
-               
     }
-    evaluator = {
+    evaluators = {
         'confusion_matrix': conf_matrix,
         'classification_report': class_report
     }
 
-    # define brontes model
-    brontes_model = Brontes(
-        model=model,
-        loss=loss_fn,
-        data_loaders=dataloaders,
-        optimizers=optimizer,
-        training_log_interval=10,
-        tracker_type='mlflow',
-        metrics=metrics,
-        evaluators=evaluator,
-        model_path=model_path,
-    )
+    # training loop
+    step = 0
+    best_val_loss = 10e5
+    best_val_accuracy = 0.
+    best_val_weighted_f1_score = 0.
 
-    # train the model with pytorch lightning
-    early_stop = pl.callbacks.EarlyStopping('avg_val_loss', patience=40, mode='min')
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filepath=model_path,
-        monitor='avg_val_loss'
-    )
-    if CUDA:
-        trainer = pl.Trainer(
-            gpus=[0],
-            max_epochs=args.epochs,
-            early_stop_callback=early_stop,
-            checkpoint_callback=checkpoint_callback
-        )
-    else:
-        trainer = pl.Trainer(
-            max_epochs=args.epochs,
-            early_stop_callback=early_stop,
-            checkpoint_callback=checkpoint_callback
-        )
+    for epoch in range(args.epochs):
+        # A.) train for 1 epoch
+        model.train()
+        for data, labels in tqdm(dataloaders['train'], desc='Epoch training {}'.format(epoch), unit='batch'):
 
-    trainer.fit(brontes_model)
-    
-    # restore best model and test
-    model_name = [file for file in os.listdir(model_path) if file.endswith(".ckpt")][0]
-    brontes_model.load_state_dict(
-        torch.load(
-            os.path.join(model_path, model_name)
-        )['state_dict']
-    )
-    trainer.test(brontes_model)
+            # 1. forward pass
+            labels = labels.to(DEVICE)
+            logits = model(data)
+
+            # 2. backward pass
+            loss = loss_fn(logits, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            # 3. compute & store metrics
+            mlflow.log_metric('loss', loss.item(), step=step)
+            for m_name, m_fn in metrics.items():
+                out = m_fn(logits, labels)
+                mlflow.log_metric(m_name, out.item(), step=step)
+
+            # 4. increment step
+            step += 1
+
+        # B.) validate
+        model.eval()
+        all_val_logits = []
+        all_val_labels = []
+        for data, labels in tqdm(dataloaders['val'], desc='Epoch validation {}'.format(epoch), unit='batch'):
+            with torch.no_grad():
+                labels = labels.to(DEVICE)
+                logits = model(data)
+            all_val_logits.append(logits)
+            all_val_labels.append(labels)
+
+        all_val_logits = torch.cat(all_val_logits).cpu()
+        all_val_labels = torch.cat(all_val_labels).cpu()
+
+        # compute & store loss + model
+        with torch.no_grad():
+            loss = loss_fn(all_val_logits, all_val_labels).item()
+        mlflow.log_metric('val_loss', loss, step=step)
+        if loss < best_val_loss:
+            best_val_loss = loss
+            save_checkpoint(model, complete_path(model_path, 'model_best_val_loss.pt'))
+
+        # compute & store accuracy + model
+        accuracy = metrics['accuracy'](all_val_logits, all_val_labels).item()
+        mlflow.log_metric('val_accuracy', accuracy, step=step)
+        if accuracy > best_val_accuracy:
+            best_val_accuracy = accuracy
+            save_checkpoint(model, complete_path(model_path, 'model_best_val_accuracy.pt'))
+
+        # compute & store weighted f1-score + model
+        weighted_f1_score = metrics['weighted_f1_score'](all_val_logits, all_val_labels).item()
+        mlflow.log_metric('val_weighted_f1_score', weighted_f1_score, step=step)
+        if weighted_f1_score > best_val_weighted_f1_score:
+            best_val_weighted_f1_score = weighted_f1_score
+            save_checkpoint(model, complete_path(model_path, 'model_best_val_weighted_f1_score.pt'))
+
+    # testing loop
+    model.eval()
+    for metric in ['best_val_loss', 'best_val_accuracy', 'best_val_weighted_f1_score']:
+
+        model_name = [file for file in os.listdir(model_path) if file.endswith(".pt") and metric in file][0]
+        load_checkpoint(model, complete_path(model_path, model_name))
+
+        all_test_logits = []
+        all_test_labels = []
+        for data, labels in tqdm(dataloaders['test'], desc='Testing: {}'.format(metric), unit='batch'):
+            with torch.no_grad():
+                labels = labels.to(DEVICE)
+                logits = model(data)
+            all_test_logits.append(logits)
+            all_test_labels.append(labels)
+
+        all_test_logits = torch.cat(all_test_logits).cpu()
+        all_test_labels = torch.cat(all_test_labels).cpu()
+
+        # compute & store loss
+        with torch.no_grad():
+            loss = loss_fn(all_test_logits, all_test_labels).item()
+        mlflow.log_metric('test_loss_' + metric, loss, step=step)
+
+        # compute & store accuracy
+        accuracy = metrics['accuracy'](all_test_logits, all_test_labels).item()
+        mlflow.log_metric('test_accuracy_' + metric, accuracy, step=step)
+
+        # compute & store weighted f1-score
+        weighted_f1_score = metrics['weighted_f1_score'](all_test_logits, all_test_labels).item()
+        mlflow.log_metric('test_weighted_f1_score_' + metric, weighted_f1_score, step=step)
+
+        # run external evaluators
+        for eval_name, eval_fn in evaluators.items():
+
+            out = eval_fn(all_test_logits, all_test_labels)
+
+            out_path = complete_path(model_path, eval_name)
+            out_path += DATATYPE_TO_EXT[type(out)]
+
+            DATATYPE_TO_SAVEFN[type(out)](out_path, out)
+
+            artifact_path = 'evaluators/{}_{}'.format(eval_name, metric)
+            mlflow.log_artifact(out_path, artifact_path=artifact_path)
+
+        # log MLflow models
+        mlflow.pytorch.log_model(model, 'model_' + metric)
+
+    shutil.rmtree(model_path)
 
 
 if __name__ == "__main__":

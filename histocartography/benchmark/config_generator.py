@@ -54,7 +54,7 @@ class ConfigGenerator:
             fname = model_type + '_config_' + str(i) + '.json'
             save_path = complete_path(self.save_path, model_type + '_config')
             check_for_dir(save_path)
-            write_json(params, complete_path(save_path, fname))
+            write_json(complete_path(save_path, fname), params)
 
     def _get_cell_graph_model_params(self):
         config = self._get_base_model_params()
@@ -135,7 +135,7 @@ class ConfigGenerator:
             {
                 "dropout": [0.0],
                 "num_classes": self._get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
-                "use_bn": [False, True],
+                "use_bn": [False],
                 "cat": [False, True],
                 "activation": ["relu"]
             }
@@ -151,8 +151,8 @@ class ConfigGenerator:
 
     def _get_gnn_params(self):
         gnn_config = self._get_gin_params()
-        gat_config = self._get_gat_params()
-        gnn_config.param_grid.append(gat_config.param_grid[0])
+        # gat_config = self._get_gat_params()
+        # gnn_config.param_grid.append(gat_config.param_grid[0])
         return gnn_config
 
     @staticmethod
@@ -162,8 +162,8 @@ class ConfigGenerator:
             {
                 "layer_type": ["gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [2, 3],
-                "neighbor_pooling_type": ["mean", "sum"],
+                "n_layers": [2, 3, 4],
+                "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [32],
                 "output_dim": [32]
             }
@@ -207,7 +207,7 @@ class ConfigGenerator:
             {
                 "graph_building_type": ["knn_graph_builder"],
                 "n_neighbors": [5],
-                "max_distance": [50, 100],
+                "max_distance": [50],
                 "edge_encoding": [False]
             }
         )

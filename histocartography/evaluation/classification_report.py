@@ -10,7 +10,7 @@ class ClassificationReport:
         :param num_classes: (int) number of classes
         """
 
-    def __call__(self, labels, logits):
+    def __call__(self, logits, labels):
         """
         Compute classification report using the labels and logits
         :param labels: (list of torch.LongTensor)
@@ -19,8 +19,8 @@ class ClassificationReport:
         """
 
         # get predictions
-        labels = torch.cat(labels, dim=0)
-        logits = torch.cat(logits, dim=0)
+        # labels = torch.cat(labels, dim=0)
+        # logits = torch.cat(logits, dim=0)
         predictions = torch.argmax(logits, dim=1)
 
         # get classification report

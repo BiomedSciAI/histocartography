@@ -17,7 +17,7 @@ class ConfusionMatrix:
         self.return_img = return_img
         self.formatting = '.3g'
 
-    def __call__(self, labels, logits):
+    def __call__(self, logits, labels):
         """
         Compute the confusion matrix using the labels and logits
         :param labels: (list of torch.LongTensor)
@@ -26,8 +26,8 @@ class ConfusionMatrix:
         """
 
         # get predictions
-        labels = torch.cat(labels, dim=0)
-        logits = torch.cat(logits, dim=0)
+        # labels = torch.cat(labels, dim=0)
+        # logits = torch.cat(logits, dim=0)
         predictions = torch.argmax(logits, dim=1)
 
         # get confusion matrix

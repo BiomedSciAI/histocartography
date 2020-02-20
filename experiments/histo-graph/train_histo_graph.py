@@ -150,9 +150,11 @@ def main(args):
 
     for epoch in range(args.epochs):
         # A.) train for 1 epoch
+        model.train()
         for data, labels in tqdm(dataloaders['train'], desc='Epoch training {}'.format(epoch), unit='batch'):
 
             # 1. forward pass
+            labels = labels.to(DEVICE)
             logits = model(data)
 
             # 2. backward pass
@@ -171,18 +173,22 @@ def main(args):
             step += 1
 
         # B.) validate
+        model.eval()
         all_val_logits = []
         all_val_labels = []
         for data, labels in tqdm(dataloaders['val'], desc='Epoch validation {}'.format(epoch), unit='batch'):
-            logits = model(data)
+            with torch.no_grad():
+                labels = labels.to(DEVICE)
+                logits = model(data)
             all_val_logits.append(logits)
             all_val_labels.append(labels)
 
-        all_val_logits = torch.cat(all_val_logits)
-        all_val_labels = torch.cat(all_val_labels)
+        all_val_logits = torch.cat(all_val_logits).cpu()
+        all_val_labels = torch.cat(all_val_labels).cpu()
 
         # compute & store loss + model
-        loss = loss_fn(all_val_logits, all_val_labels).item()
+        with torch.no_grad():
+            loss = loss_fn(all_val_logits, all_val_labels).item()
         mlflow.log_metric('val_loss', loss, step=step)
         if loss < best_val_loss:
             best_val_loss = loss
@@ -203,6 +209,7 @@ def main(args):
             save_checkpoint(model, complete_path(model_path, 'model_best_val_weighted_f1_score.pt'))
 
     # testing loop
+    model.eval()
     for metric in ['best_val_loss', 'best_val_accuracy', 'best_val_weighted_f1_score']:
 
         model_name = [file for file in os.listdir(model_path) if file.endswith(".pt") and metric in file][0]
@@ -211,15 +218,18 @@ def main(args):
         all_test_logits = []
         all_test_labels = []
         for data, labels in tqdm(dataloaders['test'], desc='Testing: {}'.format(metric), unit='batch'):
-            logits = model(data)
+            with torch.no_grad():
+                labels = labels.to(DEVICE)
+                logits = model(data)
             all_test_logits.append(logits)
             all_test_labels.append(labels)
 
-        all_test_logits = torch.cat(all_test_logits)
-        all_test_labels = torch.cat(all_test_labels)
+        all_test_logits = torch.cat(all_test_logits).cpu()
+        all_test_labels = torch.cat(all_test_labels).cpu()
 
         # compute & store loss
-        loss = loss_fn(all_test_logits, all_test_labels).item()
+        with torch.no_grad():
+            loss = loss_fn(all_test_logits, all_test_labels).item()
         mlflow.log_metric('test_loss_' + metric, loss, step=step)
 
         # compute & store accuracy

@@ -208,6 +208,32 @@ def main(args):
             best_val_weighted_f1_score = weighted_f1_score
             save_checkpoint(model, complete_path(model_path, 'model_best_val_weighted_f1_score.pt'))
 
+        # C) @TODO: log the testing acc at each epoch as well...
+        all_test_logits = []
+        all_test_labels = []
+        for data, labels in tqdm(dataloaders['test'], desc='Testing: {}'.format(epoch), unit='batch'):
+            with torch.no_grad():
+                labels = labels.to(DEVICE)
+                logits = model(data)
+            all_test_logits.append(logits)
+            all_test_labels.append(labels)
+
+        all_test_logits = torch.cat(all_test_logits).cpu()
+        all_test_labels = torch.cat(all_test_labels).cpu()
+
+        # compute & store loss
+        with torch.no_grad():
+            loss = loss_fn(all_test_logits, all_test_labels).item()
+        mlflow.log_metric('test_loss', loss, step=step)
+
+        # compute & store accuracy
+        accuracy = metrics['accuracy'](all_test_logits, all_test_labels).item()
+        mlflow.log_metric('test_accuracy', accuracy, step=step)
+
+        # compute & store weighted f1-score
+        weighted_f1_score = metrics['weighted_f1_score'](all_test_logits, all_test_labels).item()
+        mlflow.log_metric('test_weighted_f1_score', weighted_f1_score, step=step)
+
     # testing loop
     model.eval()
     for metric in ['best_val_loss', 'best_val_accuracy', 'best_val_weighted_f1_score']:
@@ -230,15 +256,15 @@ def main(args):
         # compute & store loss
         with torch.no_grad():
             loss = loss_fn(all_test_logits, all_test_labels).item()
-        mlflow.log_metric('test_loss_' + metric, loss, step=step)
+        mlflow.log_metric('best_test_loss_' + metric, loss, step=step)
 
         # compute & store accuracy
         accuracy = metrics['accuracy'](all_test_logits, all_test_labels).item()
-        mlflow.log_metric('test_accuracy_' + metric, accuracy, step=step)
+        mlflow.log_metric('best_test_accuracy_' + metric, accuracy, step=step)
 
         # compute & store weighted f1-score
         weighted_f1_score = metrics['weighted_f1_score'](all_test_logits, all_test_labels).item()
-        mlflow.log_metric('test_weighted_f1_score_' + metric, weighted_f1_score, step=step)
+        mlflow.log_metric('best_test_weighted_f1_score_' + metric, weighted_f1_score, step=step)
 
         # run external evaluators
         for eval_name, eval_fn in evaluators.items():

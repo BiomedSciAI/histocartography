@@ -35,6 +35,11 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
+        '--in_ram',
+        help='if the data should be stored in RAM.',
+        action='store_true',
+    )
+    parser.add_argument(
         '-b',
         '--batch_size',
         type=int,

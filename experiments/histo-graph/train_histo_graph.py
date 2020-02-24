@@ -76,7 +76,7 @@ def main(args):
     # set model path
     model_path = complete_path(args.model_path, str(uuid.uuid4()))
     check_for_dir(model_path)
-
+    
     # make data loaders (train & validation)
     dataloaders, num_cell_features = make_data_loader(
         batch_size=args.batch_size,
@@ -86,7 +86,9 @@ def main(args):
         cuda=CUDA,
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
-        load_image=False
+        load_image=False,
+        load_in_ram=args.in_ram,
+        show_superpx=False
     )
 
     # declare model

@@ -29,6 +29,7 @@ class PascaleDataset(BaseDataset):
             load_cell_graph=True,
             load_superpx_graph=True,
             load_image=False,
+            load_in_ram=False,
             show_superpx=False
     ):
         """
@@ -53,6 +54,7 @@ class PascaleDataset(BaseDataset):
         self.load_superpx_graph = load_superpx_graph
         self.load_image = load_image
         self.show_superpx = show_superpx
+        self.load_in_ram = load_in_ram
 
         # 2. load h5 fnames and labels (from h5 fname)
         self._load_h5_fnames_and_labels(data_path, split)
@@ -66,6 +68,9 @@ class PascaleDataset(BaseDataset):
             )
             self.num_cell_features = self._get_cell_features_dim()
             self._build_normaliser(graph_type='cell_graph')
+
+            if load_in_ram:
+                self._load_cell_graph_in_ram()
 
         if load_superpx_graph:
             self.superpx_graph_path = os.path.join(
@@ -81,10 +86,29 @@ class PascaleDataset(BaseDataset):
             self.num_superpx_features = self._get_superpx_features_dim()
             self._build_normaliser(graph_type='superpx_graph')
 
+            if load_in_ram:
+                self._load_superpx_graph_in_ram()
+
         if load_image:
             self.image_path = os.path.join(
                 self.data_path, 'Images_norm', self.dataset_name
             )
+
+    def _load_cell_graph_in_ram(self):
+        """
+        Load cell graphs in the RAM
+        """
+        self.cell_graphs = []
+        for i in range(self.num_samples):
+            self.cell_graphs.append(self._build_cell_graph(i))
+
+    def _load_superpx_graph_in_ram(self):
+        """
+        Load superpx graphs in the RAM
+        """
+        self.superpx_graphs = []
+        for i in range(self.num_samples):
+            self.superpx_graphs.append(self._build_superpx_graph(i))
 
     def _load_h5_fnames_and_labels(self, data_path, split):
         """
@@ -254,13 +278,19 @@ class PascaleDataset(BaseDataset):
 
         # 2. load cell graph
         if self.load_cell_graph:
-            cell_graph = self._build_cell_graph(index)
-            data.append(cell_graph)
+            if self.load_in_ram:
+                data.append(self.cell_graphs[index])
+            else:
+                cell_graph = self._build_cell_graph(index)
+                data.append(cell_graph)
 
         # 3. load superpx graph
         if self.load_superpx_graph:
-            superpx_graph = self._build_superpx_graph(index)
-            data.append(superpx_graph)
+            if self.load_in_ram:
+                data.append(self.superpx_graphs[index])
+            else:
+                superpx_graph = self._build_superpx_graph(index)
+                data.append(superpx_graph)
 
         # 5. load superpx map for viz
         if self.show_superpx:

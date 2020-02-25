@@ -89,10 +89,21 @@ class PascaleDataset(BaseDataset):
             if load_in_ram:
                 self._load_superpx_graph_in_ram()
 
+        if load_cell_graph and load_superpx_graph:
+            self._load_assignment_matrices_in_ram()
+
         if load_image:
             self.image_path = os.path.join(
                 self.data_path, 'Images_norm', self.dataset_name
             )
+
+    def _load_assignment_matrices_in_ram(self):
+        """
+        Load assignment matrices in the RAM
+        """
+        self.assignment_matrices = []
+        for i in range(self.num_samples):
+            self.assignments_matrices.append(self._build_assignment_matrix(i))
 
     def _load_cell_graph_in_ram(self):
         """
@@ -299,8 +310,11 @@ class PascaleDataset(BaseDataset):
 
         # 4. load assignment matrix to go from the cell graph to the the superpx graph
         if self.load_cell_graph and self.load_superpx_graph:
-            assignment_matrix = self._build_assignment_matrix(index)
-            data.append(assignment_matrix)
+            if self.load_in_ram:
+                data.append(self.assignment_matrices[index])
+            else:
+                assignment_matrix = self._build_assignment_matrix(index)
+                data.append(assignment_matrix)
 
         # 6. load the image if required
         if self.load_image:

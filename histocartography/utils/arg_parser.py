@@ -35,8 +35,20 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
+        '--dataloaders_path',
+        type=str,
+        help='path to where the dataloaders are saved.',
+        default='',
+        required=False
+    )
+    parser.add_argument(
         '--in_ram',
         help='if the data should be stored in RAM.',
+        action='store_true',
+    )
+    parser.add_argument(
+        '--pickle_dataloader',
+        help='if the dataloaders should be pickled.',
         action='store_true',
     )
     parser.add_argument(

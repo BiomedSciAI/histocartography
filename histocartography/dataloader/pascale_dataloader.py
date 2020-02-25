@@ -103,7 +103,7 @@ class PascaleDataset(BaseDataset):
         """
         self.assignment_matrices = []
         for i in range(self.num_samples):
-            self.assignments_matrices.append(self._build_assignment_matrix(i))
+            self.assignment_matrices.append(self._build_assignment_matrix(i))
 
     def _load_cell_graph_in_ram(self):
         """

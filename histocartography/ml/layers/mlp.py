@@ -15,7 +15,8 @@ class MLP(nn.Module):
         act="relu",
         use_bn=False,
         bias=True,
-        verbose=False
+        verbose=False,
+        dropout=0.
     ):
         """
         MLP Constructor
@@ -41,6 +42,9 @@ class MLP(nn.Module):
         # set batch norm
         self._set_batch_norm(use_bn, num_layers)
 
+        # set dropout
+        self._set_dropout(dropout, num_layers)
+
         # set bias terms
         self._set_biases(bias, num_layers)
 
@@ -53,7 +57,7 @@ class MLP(nn.Module):
             for layer_id in range(num_layers):
                 self.mlp.append(
                     self._build_layer(
-                        layer_id, act=layer_id == (
+                        layer_id, act=layer_id != (
                             num_layers - 1)))
         else:
             raise ValueError('The number of layers must be greater than 1.')
@@ -68,6 +72,7 @@ class MLP(nn.Module):
         :param layer_id: (int)
         :return: layer (Sequential)
         """
+        
         layer = Sequential()
         layer.add_module("fc",
                          Linear(self.dims[layer_id],
@@ -76,6 +81,9 @@ class MLP(nn.Module):
         if self.use_bn[0]:
             bn = nn.BatchNorm1d(self.dims[layer_id + 1])
             layer.add_module("bn", bn)
+
+        layer.add_module("dropout", nn.Dropout(self.dropout[layer_id]))
+
         if act:
             layer.add_module(self.act, self.activation)
         return layer
@@ -104,6 +112,16 @@ class MLP(nn.Module):
         else:
             raise ValueError(
                 "Unsupported type for batch norm. Needs to be of type bool.")
+
+    def _set_dropout(self, dropout, num_layers):
+        """
+        Set and control dropout params
+        """
+        if isinstance(dropout, float):
+            self.dropout = num_layers * [dropout]
+        else:
+            raise ValueError(
+                "Unsupported type for batch norm. Needs to be of type float.")
 
     def _set_mlp_dimensions(self, in_dim, h_dim, out_dim, num_layers):
         """

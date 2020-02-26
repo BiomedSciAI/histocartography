@@ -24,6 +24,7 @@ class BaseModel(Module):
             config['input_dim'] = input_dim
 
         config['use_bn'] = self.use_bn
+        config['dropout'] = self.dropout
 
     def _build_cell_graph_params(self, config):
         """

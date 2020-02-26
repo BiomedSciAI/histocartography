@@ -8,6 +8,7 @@ Original paper:
 """
 
 import torch
+import torch.nn.functional as F
 
 from histocartography.ml.layers.constants import (
     GNN_MSG, GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT,
@@ -56,12 +57,16 @@ class GINLayer(BaseLayer):
             ) else None
             hidden_dim = config['hidden_dim']
             use_bn = config['use_bn'] if 'use_bn' in config.keys() else True
+            dropout = config['dropout'] if 'dropout' in config.keys() else 0.
         else:
             eps = None
             neighbor_pooling_type = 'sum'
             learn_eps = None
             hidden_dim = 32
             use_bn = True
+            dropout = 0.
+
+        print('Config in GIN layer:', config)
 
         self.mlp = MLP(
             node_dim,
@@ -70,7 +75,10 @@ class GINLayer(BaseLayer):
             2,
             act,
             use_bn,
-            verbose=verbose)
+            verbose=verbose,
+            dropout=dropout
+        )
+
         self.eps = eps
         self.neighbor_pooling_type = neighbor_pooling_type
         self.learn_eps = learn_eps
@@ -104,6 +112,7 @@ class GINLayer(BaseLayer):
         """
         h = nodes.data[GNN_NODE_FEAT_OUT]
         h = self.mlp(h)
+        h = F.relu(h)
         return {GNN_NODE_FEAT_OUT: h}
 
     def forward(self, g, h):

@@ -97,7 +97,7 @@ def main(args):
         )
 
     if args.pickle_dataloader:
-        base_pickle = '../../data/'
+        base_pickle = '/dataT/gja/histocartography/data/'
         pickle_fname = 'data_'
         if load_cell_graph(config['model_type']):
             pickle_fname += 'CG'
@@ -106,7 +106,7 @@ def main(args):
         pickle_fname += '.pickle'
         with open(complete_path(base_pickle, pickle_fname), 'wb') as f:
             data = (dataloaders, num_cell_features)
-            pickle.dump(data, f)
+            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # declare model
     model_type = config[MODEL_TYPE]

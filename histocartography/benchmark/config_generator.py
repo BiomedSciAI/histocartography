@@ -133,7 +133,7 @@ class ConfigGenerator:
     def _get_base_model_params(self):
         config = ParameterGrid(
             {
-                "dropout": [0.0],
+                "dropout": [0.0, 0.5],
                 "num_classes": self._get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
                 "use_bn": [False],
                 "cat": [False, True],
@@ -162,7 +162,7 @@ class ConfigGenerator:
             {
                 "layer_type": ["gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [2, 3, 4],
+                "n_layers": [3, 4, 5],
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [32],
                 "output_dim": [32]

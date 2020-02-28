@@ -30,7 +30,8 @@ class PascaleDataset(BaseDataset):
             load_superpx_graph=True,
             load_image=False,
             load_in_ram=False,
-            show_superpx=False
+            show_superpx=False,
+            fold_id=None
     ):
         """
         Pascale dataset constructor.
@@ -55,6 +56,7 @@ class PascaleDataset(BaseDataset):
         self.load_image = load_image
         self.show_superpx = show_superpx
         self.load_in_ram = load_in_ram
+        self.fold_id = fold_id
 
         # 2. load h5 fnames and labels (from h5 fname)
         self._load_h5_fnames_and_labels(data_path, split)
@@ -128,7 +130,7 @@ class PascaleDataset(BaseDataset):
         self.labels = []
         extension = '.h5'
         tumor_type = self.dataset_name
-        self.h5_fnames = load_h5_fnames(data_path, tumor_type, extension, split)
+        self.h5_fnames = load_h5_fnames(data_path, tumor_type, extension, split, self.fold_id)
 
         for fname in self.h5_fnames:
             self._load_label(fname)

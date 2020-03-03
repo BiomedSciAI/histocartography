@@ -133,9 +133,9 @@ def load_h5_fnames(base_path, tumor_type, extension, split, fold_id=None):
     :param split: train
     :return:
     """
-    text_path = complete_path(base_path, 'data_split')
+    text_path = complete_path(base_path, 'data_split_cv')
     if fold_id is not None:
-        text_path = complete_path(text_path, 'fold' + str(fold_id))
+        text_path = complete_path(text_path, 'data_split_' + str(fold_id + 1))
     fname = split + '_list_' + tumor_type + '.txt'
     h5_files = read_txt(text_path, fname, extension)  # Loads all the .h5 files in the text file
     return h5_files

@@ -41,7 +41,8 @@ warnings.filterwarnings("ignore")
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
 
-NUM_FOLDS = 2  # @TODO: souble check number of folds used for the cross validation. 
+FOLD_IDS = [2, 3, 7, 11]  # @TODO: souble check number of folds used for the cross validation. 
+# FOLD_IDS = [7]
 
 def main(args):
     """
@@ -71,7 +72,7 @@ def main(args):
     model_path = complete_path(args.model_path, str(uuid.uuid4()))
     check_for_dir(model_path)
 
-    for fold_id in range(NUM_FOLDS):
+    for fold_id in FOLD_IDS:
 
         print('Start fold: {}'.format(fold_id))
 
@@ -101,8 +102,8 @@ def main(args):
             )
 
         if args.pickle_dataloader:
-            # base_pickle = '/dataT/gja/histocartography/data/'
-            base_pickle = '../../data/'
+            base_pickle = '/dataT/gja/histocartography/data/'
+            # base_pickle = '../../data/'
             pickle_fname = 'data_'
             if load_cell_graph(config['model_type']):
                 pickle_fname += 'CG'
@@ -248,8 +249,12 @@ def main(args):
         model.eval()
         for metric in ['best_val_loss', 'best_val_accuracy', 'best_val_weighted_f1_score']:
 
-            model_name = [file for file in os.listdir(model_path) if file.endswith(".pt") and metric in file][0]
+            model_name = [file for file in os.listdir(model_path) if file.endswith(".pt") and metric in file and str(fold_id) in file][0]
             load_checkpoint(model, complete_path(model_path, model_name))
+
+            # debug purposes 
+            print('Model name:', model_name)
+            print('Model path:', model_path)
 
             all_test_logits = []
             all_test_labels = []
@@ -292,12 +297,16 @@ def main(args):
             # log MLflow models
             mlflow.pytorch.log_model(model, 'model_' + metric + '_' + str(fold_id))
 
+        # delete dataloaders & model 
+        del dataloaders
+        del model 
+
     # loop over all the best metrics and compute average statistics
     client = mlflow.tracking.MlflowClient()
     data = client.get_run(mlflow.active_run().info.run_id).data.metrics
     for ref in ['best_val_loss', 'best_val_accuracy', 'best_val_weighted_f1_score']:
         for metric in ['best_test_loss', 'best_test_accuracy', 'best_test_weighted_f1_score']:
-            val = sum([data[metric + '_' + ref + '_' + str(id)] for id in range(NUM_FOLDS)]) / NUM_FOLDS
+            val = sum([data[metric + '_' + ref + '_' + str(id)] for id in FOLD_IDS]) / len(FOLD_IDS)
             mlflow.log_metric('avg_' + metric.replace('best_', '') + '_' + ref, val)
 
     shutil.rmtree(model_path)

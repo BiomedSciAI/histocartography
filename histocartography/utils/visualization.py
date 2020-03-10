@@ -13,7 +13,7 @@ class GraphVisualization:
         print('Initialize graph visualizer')
         self.show = show
         self.save = save
-        self.save_path = '../graphs'
+        self.save_path = '../../data/graphs'
 
     def __call__(self, show_cg, show_sg, show_superpx, data, size):
 
@@ -29,10 +29,10 @@ class GraphVisualization:
                     self.draw_superpx(superpx_map, draw)
                 superpx_graph = dgl.unbatch(data[1])[index] if show_cg else dgl.unbatch(data[0])[index]
 
-                # get centroids and edges
+                # # get centroids and edges
                 cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
-                self.draw_centroid(cent_sp, draw, (0, 255, 0))
-                self.draw_edges(cent_sp, edges_sp, draw, (0, 0, 255), 2)
+                self.draw_centroid(cent_sp, draw, (255, 0, 0))
+                # self.draw_edges(cent_sp, edges_sp, draw, (0, 0, 255), 2)
 
             if show_cg:
                 cell_graph = dgl.unbatch(data[0])[index]
@@ -49,7 +49,7 @@ class GraphVisualization:
 
             if self.save:
                 check_for_dir(self.save_path)
-                save_image(image, fname=complete_path(self.save_path, image_name + '.png'))
+                save_image(complete_path(self.save_path, image_name + '.png'), image)
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):

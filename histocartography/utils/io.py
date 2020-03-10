@@ -125,7 +125,7 @@ def read_txt(dir, fname, extension):
     return files
 
 
-def load_h5_fnames(base_path, tumor_type, extension, split):
+def load_h5_fnames(base_path, tumor_type, extension, split, fold_id=None):
     """
 
     :param path:  ../../data/data_split
@@ -133,7 +133,9 @@ def load_h5_fnames(base_path, tumor_type, extension, split):
     :param split: train
     :return:
     """
-    text_path = complete_path(base_path, 'data_split')
+    text_path = complete_path(base_path, 'data_split_cv')
+    if fold_id is not None:
+        text_path = complete_path(text_path, 'data_split_' + str(fold_id + 1))
     fname = split + '_list_' + tumor_type + '.txt'
     h5_files = read_txt(text_path, fname, extension)  # Loads all the .h5 files in the text file
     return h5_files
@@ -155,3 +157,17 @@ def save_checkpoint(model, save_path=''):
     """
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model.state_dict(), os.path.join(save_path))
+    
+    
+DATATYPE_TO_SAVEFN = {
+    dict: write_json,
+    np.ndarray: np.savetxt,
+    Image.Image: save_image
+}
+
+
+DATATYPE_TO_EXT = {
+    dict: '.json',
+    np.ndarray: '.txt',
+    Image.Image: '.png'
+}

@@ -104,6 +104,8 @@ class MultiLayerGNN(nn.Module):
         else:
             # concat
             if cat:
+                # h_concat = [h.unsqueeze(dim=0) if len(h.shape) < 3 else h for h in h_concat]
+                h_concat = [h.squeeze() for h in h_concat]
                 h = torch.cat(h_concat, dim=-1)
             # readout
             if with_readout:

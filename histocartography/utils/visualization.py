@@ -1,6 +1,10 @@
 from PIL import ImageDraw
 import numpy as np
 import dgl
+from dgl import BatchedDGLGraph
+from dgl import DGLGraph
+import networkx as nx 
+import torch 
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
 from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly
@@ -19,7 +23,7 @@ class GraphVisualization:
 
         for index in range(size):
 
-            image = data[-2][index]
+            image = data[-2][index].copy()
             image_name = data[-1][index]
 
             if show_sg:
@@ -45,7 +49,10 @@ class GraphVisualization:
             if show_cg:
                 canvas = image.copy()
                 draw = ImageDraw.Draw(canvas, 'RGBA')
-                cell_graph = dgl.unbatch(data[0])[index]
+                if isinstance(data[0], BatchedDGLGraph):
+                    cell_graph = dgl.unbatch(data[0])[index]
+                else:
+                    cell_graph = data[0]
 
                 # get centroids and edges
                 cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
@@ -63,6 +70,7 @@ class GraphVisualization:
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):
+        print('Number of centroids', centroids.shape)
         for centroid in centroids:
             centroid = [centroid[0].item(), centroid[1].item()]
             draw_ellipse(centroid, draw_bd, fill)
@@ -85,7 +93,17 @@ class GraphVisualization:
 
     @staticmethod
     def _get_centroid_and_edges(graph):
-        centroids = graph.ndata[CENTROID]
-        src, dst = graph.edges()
-        edges = [(s.item(), d.item()) for (s, d) in zip(src, dst)]
+        if isinstance(graph, DGLGraph):
+            centroids = graph.ndata[CENTROID]
+            src, dst = graph.edges()
+            edges = [(s.item(), d.item()) for (s, d) in zip(src, dst)]
+            print('Centroid', centroids.shape)
+            print('Edges', len(edges))
+        else:
+            centroids = nx.get_node_attributes(graph, 'centroid')
+            centroids = torch.stack([val for key, val in centroids.items()])
+            edges = graph.edges()
+            print('Centroid', centroids.shape)
+            print('Edges', len(edges))
+
         return centroids, edges

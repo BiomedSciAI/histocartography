@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F 
 
 
 class ExplainerModel(nn.Module):
@@ -53,7 +54,7 @@ class ExplainerModel(nn.Module):
         self.coeffs = {
             "size": 0.005,
             "feat_size": 1.0,
-            "ent": 1.0
+            "ent": 100.0
         }
 
     def _build_optimizer(self, params, train_params):
@@ -131,9 +132,10 @@ class ExplainerModel(nn.Module):
         # build a graph from the new x & adjacency matrix...
         graph = [self.masked_adj, x]
         ypred = self.model(graph)
-        res = nn.Softmax(dim=0)(ypred)
+        # print('Prediction:', ypred)
+        # res = nn.Softmax(dim=0)(ypred)
 
-        return res
+        return ypred
 
     def loss(self, pred):
         """
@@ -141,11 +143,10 @@ class ExplainerModel(nn.Module):
             pred: prediction made by current model
         """
 
-        gt_label_node = self.label
-        logit = pred[gt_label_node]
-        pred_loss = -torch.log(logit)  # @TODO: change if multi class classification ?
+        # 1. cross-entropy loss
+        pred_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label)
 
-        # size
+        # 2. size loss 
         if self.mask_act == "sigmoid":
             mask = torch.sigmoid(self.mask)
         elif self.mask_act == "ReLU":
@@ -155,15 +156,24 @@ class ExplainerModel(nn.Module):
                              'are "sigmoid", "ReLU"'.format(self.mask_act))
         size_loss = self.coeffs["size"] * torch.sum(mask)
 
-        feat_mask = (
-            torch.sigmoid(self.feat_mask) if self.use_sigmoid else self.feat_mask
-        )
-        feat_size_loss = self.coeffs["feat_size"] * torch.mean(feat_mask)
+        # # feature mask loss 
+        # feat_mask = (
+        #     torch.sigmoid(self.feat_mask) if self.use_sigmoid else self.feat_mask
+        # )
+        # feat_size_loss = self.coeffs["feat_size"] * torch.mean(feat_mask)
 
-        # entropy
-        mask_ent = -mask * torch.log(mask) - (1 - mask) * torch.log(1 - mask)
+        # mask entropy loss 
+        mask_ent = -mask * torch.log(mask) - (1 - mask) * torch.log(1 - mask)  
         mask_ent_loss = self.coeffs["ent"] * torch.mean(mask_ent)
 
-        loss = pred_loss + size_loss + mask_ent_loss + feat_size_loss
+        loss = pred_loss + size_loss + mask_ent_loss
+
+        print('Loss:', loss.item(), self.mask_density().item(), self.label == torch.argmax(pred))
+        # print('Pred loss:', pred_loss)
+        # print('Prediction:', pred)
+        # print('Label:', self.label)
+        # print('Size loss:', size_loss)
+        # print('Mask entropy loss:', mask_ent_loss)
+        # print('feat size loss:', feat_size_loss)
 
         return loss

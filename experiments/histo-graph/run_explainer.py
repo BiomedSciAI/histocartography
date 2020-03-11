@@ -9,9 +9,10 @@ Implementation derived from the GNN-Explainer (NeurIPS'19)
 import importlib
 import torch
 import mlflow
+import dgl 
 from mlflow.pytorch import load_model
 
-from histocartography.utils.io import read_params, unsafe_load_checkpoint
+from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.utils.arg_parser import parse_arguments
@@ -19,6 +20,7 @@ from histocartography.ml.models.constants import load_superpx_graph, load_cell_g
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.single_instance_explainer import SingleInstanceExplainer
 from histocartography.utils.graph import adj_to_networkx
+from histocartography.utils.visualization import GraphVisualization
 
 # cuda support
 CUDA = torch.cuda.is_available()
@@ -46,7 +48,8 @@ def main(args):
         cuda=CUDA,
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
-        load_image=False
+        load_image=True,
+        fold_id=3
     )
 
     # define GNN model
@@ -58,8 +61,8 @@ def main(args):
         model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
             config['model_params'], num_cell_features).to(DEVICE)
         if args.pretrained_model:
-            fname = BASE_S3 + 'fd2d1f71b3974e9a9afdab4112857a80/artifacts/trained_model/304279a8-e0a8-4a08-99b0-7ebc6264f48a'
-            mlflow_model = load_model(fname)
+            fname = BASE_S3 + 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3'
+            mlflow_model = load_model(fname,  map_location=torch.device('cpu'))
 
             def is_int(s):
                 try:
@@ -71,7 +74,7 @@ def main(args):
             for n, p in mlflow_model.named_parameters():
                 split = n.split('.')
                 to_eval = 'model'
-                for i, s in enumerate(split):
+                for s in split:
                     if is_int(s):
                         to_eval += '[' + s + ']'
                     else:
@@ -117,7 +120,7 @@ def main(args):
             label=label
         )
 
-        explanation = adj_to_networkx(adj, feats, rm_iso_nodes=True)
+        explanation = adj_to_networkx(adj, feats, rm_iso_nodes=True, centroids=data[0].ndata['centroid'].squeeze())
 
         print('Output:')
         print('Original Graph: # nodes: {} # edges: {}'.format(
@@ -129,6 +132,18 @@ def main(args):
             explanation.number_of_nodes(),
             explanation.number_of_edges()
         ))
+
+        # 1. visualize the original graph 
+        show_cg_flag = load_cell_graph(config['model_type'])
+        show_sp_flag = load_superpx_graph(config['model_type'])
+        show_sp_map = False
+        graph_visualizer = GraphVisualization()
+        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
+
+        # 2. visualize the explanation graph 
+        graph_visualizer = GraphVisualization()
+        data = (explanation, data[1], [data[2][0] + '_explanation'])
+        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
 
 
 if __name__ == "__main__":

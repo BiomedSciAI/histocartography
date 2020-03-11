@@ -1,7 +1,9 @@
 import networkx as nx
 
+MAX_NUM_EDGES = 100
 
-def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=False):
+
+def adj_to_networkx(adj, feat, threshold=0.05, max_component=False, rm_iso_nodes=True, centroids=None):
     """Cleaning a graph by thresholding its node values.
 
     Args:
@@ -19,17 +21,25 @@ def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=
 
     # set node features
     nx.set_node_attributes(graph, feat, 'feats')
+    if centroids is not None:
+        centroids_dict = {}
+        for node_id in range(num_nodes):
+            centroids_dict[node_id] = centroids[node_id, :]
+        nx.set_node_attributes(graph, centroids_dict, 'centroid')
 
     # prune edges
     weighted_edge_list = [
         (i, j, adj[i, j])
         for i in range(num_nodes)
         for j in range(num_nodes)
-        if adj[i, j] >= threshold
+        if adj[i, j] >= threshold and i <= j 
     ]
+    sorted_weighted_edge_list = sorted(weighted_edge_list, key=lambda x: x[2], reverse=True)
+    if len(sorted_weighted_edge_list) > MAX_NUM_EDGES:
+        sorted_weighted_edge_list = sorted_weighted_edge_list[:MAX_NUM_EDGES]
 
     # build topology
-    graph.add_weighted_edges_from(weighted_edge_list)
+    graph.add_weighted_edges_from(sorted_weighted_edge_list)
 
     # extract largest cc
     if max_component:
@@ -38,6 +48,8 @@ def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=
 
     # rm isolated nodes
     if rm_iso_nodes:
-        graph.remove_nodes_from(list(nx.isolates(graph)))
+        iso = list(nx.isolates(graph))
+        graph.remove_nodes_from(iso)
+        graph = nx.convert_node_labels_to_integers(graph)
 
     return graph

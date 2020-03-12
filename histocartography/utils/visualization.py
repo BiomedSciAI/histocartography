@@ -21,9 +21,10 @@ class GraphVisualization:
 
             image = data[-2][index]
             image_name = data[-1][index]
-            draw = ImageDraw.Draw(image, 'RGBA')
 
             if show_sg:
+                canvas = image.copy()
+                draw = ImageDraw.Draw(canvas, 'RGBA')
                 if show_superpx:
                     superpx_map = data[2][index] if show_cg else data[1][index]
                     self.draw_superpx(superpx_map, draw)
@@ -32,9 +33,18 @@ class GraphVisualization:
                 # # get centroids and edges
                 cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
                 self.draw_centroid(cent_sp, draw, (255, 0, 0))
-                # self.draw_edges(cent_sp, edges_sp, draw, (0, 0, 255), 2)
+                self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
+
+                if self.show:
+                    show_image(canvas)
+
+                if self.save:
+                    check_for_dir(self.save_path)
+                    save_image(complete_path(self.save_path, image_name + '_tissue_graph.png'), canvas)
 
             if show_cg:
+                canvas = image.copy()
+                draw = ImageDraw.Draw(canvas, 'RGBA')
                 cell_graph = dgl.unbatch(data[0])[index]
 
                 # get centroids and edges
@@ -44,12 +54,12 @@ class GraphVisualization:
                 self.draw_centroid(cent_cg, draw, (255, 0, 0))
                 self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
 
-            if self.show:
-                show_image(image)
+                if self.show:
+                    show_image(canvas)
 
-            if self.save:
-                check_for_dir(self.save_path)
-                save_image(complete_path(self.save_path, image_name + '.png'), image)
+                if self.save:
+                    check_for_dir(self.save_path)
+                    save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):

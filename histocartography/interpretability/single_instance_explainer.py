@@ -67,9 +67,6 @@ class SingleInstanceExplainer:
             loss.backward()
             explainer.optimizer.step()
 
-            # if explainer.scheduler is not None:
-            #     explainer.scheduler.step()
-
         print("Training time: {} with density {}".format(
             time.time() - begin_time,
             explainer.mask_density().item())
@@ -79,6 +76,6 @@ class SingleInstanceExplainer:
                 explainer.masked_adj[0].cpu().detach().numpy() * sub_adj.cpu().detach().numpy().squeeze()
         )
 
-        masked_feats = explainer.x * explainer.feat_mask
+        masked_feats = explainer.x
 
         return masked_adj, masked_feats

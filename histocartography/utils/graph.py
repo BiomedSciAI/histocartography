@@ -1,6 +1,6 @@
 import networkx as nx
 
-MAX_NUM_EDGES = 100
+MAX_NUM_EDGES = 1000
 
 
 def adj_to_networkx(adj, feat, threshold=0.05, max_component=False, rm_iso_nodes=True, centroids=None):

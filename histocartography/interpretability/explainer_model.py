@@ -20,7 +20,7 @@ class ExplainerModel(nn.Module):
 
         super(ExplainerModel, self).__init__()
 
-        # set data
+        # set data & model
         self.adj = adj
         self.x = x
         self.model = model
@@ -35,12 +35,12 @@ class ExplainerModel(nn.Module):
 
         # build learnable parameters: edge mask & feat mask
         num_nodes = adj.size()[1]
-        self.mask, self.mask_bias = self._build_edge_mask(num_nodes, init_strategy=init_strategy)
-        self.feat_mask = self._build_feat_mask(x.size(-1), init_strategy="constant")
+        self.num_nodes = num_nodes
+        self.mask, _ = self._build_edge_mask(num_nodes, init_strategy=init_strategy)
         self.diag_mask = torch.ones(num_nodes, num_nodes) - torch.eye(num_nodes)
 
         # group them
-        params = [self.mask, self.feat_mask]
+        params = [self.mask]
         if self.mask_bias is not None:
             params.append(self.mask_bias)
 
@@ -52,18 +52,12 @@ class ExplainerModel(nn.Module):
 
         # build loss reg weights
         self.coeffs = {
-            "size": 0.005,
-            "feat_size": 1.0,
-            "ent": 100.0
+            "size": 0.001,
+            "ent": 1.0
         }
 
     def _build_optimizer(self, params, train_params):
         self.optimizer = optim.Adam(params, lr=train_params['lr'], weight_decay=train_params['weight_decay'])
-        # self.scheduler = optim.lr_scheduler.StepLR(
-        #     self.optimizer,
-        #     step_size=train_params['opt_decay_step'],
-        #     gamma=train_params['opt_decay_rate']
-        # )
 
     def _build_feat_mask(self, feat_dim, init_strategy="normal"):
         mask = nn.Parameter(torch.FloatTensor(feat_dim))
@@ -96,6 +90,12 @@ class ExplainerModel(nn.Module):
         return mask, mask_bias
 
     def _masked_adj(self):
+
+        # @TODO: testing thresholding the adj to encourage even further sparsity
+        low_thresh = torch.zeros(self.num_nodes, self.num_nodes)
+        high_thresh = torch.ones(self.num_nodes, self.num_nodes)
+        self.mask.weight = torch.where(self.mask > 0.5, low_thresh, high_thresh)
+
         if self.mask_act == "sigmoid":
             sym_mask = torch.sigmoid(self.mask)
         elif self.mask_act == "ReLU":
@@ -104,14 +104,19 @@ class ExplainerModel(nn.Module):
             raise ValueError('Unsupported mask activation {}. Options'
                              'are "sigmoid", "ReLU"'.format(self.mask_act))
         sym_mask = (sym_mask + sym_mask.t()) / 2
+
         adj = self.adj.cuda() if self.cuda else self.adj
 
         masked_adj = adj * sym_mask
+
         if self.mask_bias:
             bias = (self.mask_bias + self.mask_bias.t()) / 2
             bias = nn.ReLU6()(bias * 6) / 6
             masked_adj += (bias + bias.t()) / 2
-        return masked_adj * self.diag_mask
+
+        masked_adj = masked_adj * self.diag_mask
+
+        return masked_adj
 
     def mask_density(self):
         mask_sum = torch.sum(self._masked_adj()).cpu()
@@ -121,19 +126,16 @@ class ExplainerModel(nn.Module):
     def forward(self):
 
         self.masked_adj = self._masked_adj()
-
-        feat_mask = (
-            torch.sigmoid(self.feat_mask)
-            if self.use_sigmoid
-            else self.feat_mask
-        )
-        x = self.x * feat_mask
+        x = self.x
 
         # build a graph from the new x & adjacency matrix...
         graph = [self.masked_adj, x]
+
+        # print number of non zero elements in the adjacency:
+        non_zero_elements = (self.masked_adj != 0).sum()
+        print('Number of non-zero elements:', non_zero_elements)
+
         ypred = self.model(graph)
-        # print('Prediction:', ypred)
-        # res = nn.Softmax(dim=0)(ypred)
 
         return ypred
 
@@ -146,34 +148,31 @@ class ExplainerModel(nn.Module):
         # 1. cross-entropy loss
         pred_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label)
 
-        # 2. size loss 
+        print('Prediction:', pred)
+
+        mask = ((self.adj != 0) * self.mask).squeeze()
+
+        # 2. size loss
         if self.mask_act == "sigmoid":
-            mask = torch.sigmoid(self.mask)
+            mask = torch.sigmoid(mask)
         elif self.mask_act == "ReLU":
-            mask = nn.ReLU()(self.mask)
+            mask = nn.ReLU()(mask)
         else:
             raise ValueError('Unsupported mask activation {}. Options'
                              'are "sigmoid", "ReLU"'.format(self.mask_act))
         size_loss = self.coeffs["size"] * torch.sum(mask)
 
-        # # feature mask loss 
-        # feat_mask = (
-        #     torch.sigmoid(self.feat_mask) if self.use_sigmoid else self.feat_mask
-        # )
-        # feat_size_loss = self.coeffs["feat_size"] * torch.mean(feat_mask)
-
-        # mask entropy loss 
-        mask_ent = -mask * torch.log(mask) - (1 - mask) * torch.log(1 - mask)  
+        # 3. mask entropy loss
+        mask_ent = -mask * torch.log(mask) - (1 - mask) * torch.log(1 - mask)
+        mask_ent[mask_ent != mask_ent] = 0
+        # print('Mask entropy:', mask_ent)
         mask_ent_loss = self.coeffs["ent"] * torch.mean(mask_ent)
 
-        loss = pred_loss + size_loss + mask_ent_loss
+        # entropy = torch.distributions.Categorical(probs=mask).entropy().mean()
 
-        print('Loss:', loss.item(), self.mask_density().item(), self.label == torch.argmax(pred))
-        # print('Pred loss:', pred_loss)
-        # print('Prediction:', pred)
-        # print('Label:', self.label)
-        # print('Size loss:', size_loss)
-        # print('Mask entropy loss:', mask_ent_loss)
-        # print('feat size loss:', feat_size_loss)
+        loss = pred_loss + size_loss
+
+        print('Loss:', loss.item(), self.mask_density().item(), self.label == torch.argmax(pred).item())
+        # print('Mask entropy loss:', mask_ent_loss.item())
 
         return loss

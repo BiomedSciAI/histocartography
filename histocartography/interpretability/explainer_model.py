@@ -52,7 +52,7 @@ class ExplainerModel(nn.Module):
 
         # build loss reg weights
         self.coeffs = {
-            "size": 0.001,
+            "size": 0.005,
             "ent": 1.0
         }
 
@@ -92,9 +92,9 @@ class ExplainerModel(nn.Module):
     def _masked_adj(self):
 
         # @TODO: testing thresholding the adj to encourage even further sparsity
-        low_thresh = torch.zeros(self.num_nodes, self.num_nodes)
-        high_thresh = torch.ones(self.num_nodes, self.num_nodes)
-        self.mask.weight = torch.where(self.mask > 0.5, low_thresh, high_thresh)
+        # low_thresh = torch.zeros(self.num_nodes, self.num_nodes)
+        # high_thresh = torch.ones(self.num_nodes, self.num_nodes)
+        # sym_mask = torch.where(self.mask > 0.5, low_thresh, high_thresh)
 
         if self.mask_act == "sigmoid":
             sym_mask = torch.sigmoid(self.mask)
@@ -103,6 +103,7 @@ class ExplainerModel(nn.Module):
         else:
             raise ValueError('Unsupported mask activation {}. Options'
                              'are "sigmoid", "ReLU"'.format(self.mask_act))
+
         sym_mask = (sym_mask + sym_mask.t()) / 2
 
         adj = self.adj.cuda() if self.cuda else self.adj
@@ -125,19 +126,19 @@ class ExplainerModel(nn.Module):
 
     def forward(self):
 
-        self.masked_adj = self._masked_adj()
+        masked_adj = self._masked_adj()
         x = self.x
 
         # build a graph from the new x & adjacency matrix...
-        graph = [self.masked_adj, x]
+        graph = [masked_adj, x]
 
         # print number of non zero elements in the adjacency:
-        non_zero_elements = (self.masked_adj != 0).sum()
+        non_zero_elements = (masked_adj != 0).sum()
         print('Number of non-zero elements:', non_zero_elements)
 
         ypred = self.model(graph)
 
-        return ypred
+        return ypred, masked_adj, x
 
     def loss(self, pred):
         """
@@ -148,11 +149,8 @@ class ExplainerModel(nn.Module):
         # 1. cross-entropy loss
         pred_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label)
 
-        print('Prediction:', pred)
-
-        mask = ((self.adj != 0) * self.mask).squeeze()
-
         # 2. size loss
+        mask = ((self.adj != 0) * self.mask).squeeze()
         if self.mask_act == "sigmoid":
             mask = torch.sigmoid(mask)
         elif self.mask_act == "ReLU":
@@ -165,14 +163,15 @@ class ExplainerModel(nn.Module):
         # 3. mask entropy loss
         mask_ent = -mask * torch.log(mask) - (1 - mask) * torch.log(1 - mask)
         mask_ent[mask_ent != mask_ent] = 0
-        # print('Mask entropy:', mask_ent)
         mask_ent_loss = self.coeffs["ent"] * torch.mean(mask_ent)
-
-        # entropy = torch.distributions.Categorical(probs=mask).entropy().mean()
 
         loss = pred_loss + size_loss
 
-        print('Loss:', loss.item(), self.mask_density().item(), self.label == torch.argmax(pred).item())
-        # print('Mask entropy loss:', mask_ent_loss.item())
+        print('Loss: {} | Mask density: {} | Prediction: {}'.format(
+            loss.item(),
+            self.mask_density().item(),
+            self.label == torch.argmax(pred).item()
+        ))
+        print('Prediction:', pred)
 
         return loss

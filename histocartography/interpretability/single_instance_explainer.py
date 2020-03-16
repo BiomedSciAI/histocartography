@@ -59,7 +59,7 @@ class SingleInstanceExplainer:
 
         begin_time = time.time()
         for epoch in range(self.train_params['num_epochs']):
-            ypred = explainer()
+            ypred, masked_adj, masked_feats = explainer()
             loss = explainer.loss(ypred)
 
             explainer.zero_grad()
@@ -67,15 +67,12 @@ class SingleInstanceExplainer:
             loss.backward()
             explainer.optimizer.step()
 
-        print("Training time: {} with density {}".format(
+        ypred = explainer()
+
+        print("Training time: {} with density {} | with prediction {}".format(
             time.time() - begin_time,
-            explainer.mask_density().item())
+            explainer.mask_density().item(),
+            ypred)
         )
 
-        masked_adj = (
-                explainer.masked_adj[0].cpu().detach().numpy() * sub_adj.cpu().detach().numpy().squeeze()
-        )
-
-        masked_feats = explainer.x
-
-        return masked_adj, masked_feats
+        return masked_adj.squeeze(), masked_feats

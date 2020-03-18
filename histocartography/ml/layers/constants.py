@@ -16,6 +16,7 @@ GNN_NODE_FEAT_IN = 'feat'
 GNN_NODE_FEAT_OUT = 'gnn_node_feat_out'
 GNN_AGG_MSG = 'gnn_agg_msg'
 GNN_EDGE_WEIGHT = 'gnn_edge_weight'
+GNN_EDGE_FEAT = 'gnn_edge_feat'
 CENTROID = 'centroid'
 
 AVAILABLE_LAYER_TYPES = {
@@ -23,7 +24,8 @@ AVAILABLE_LAYER_TYPES = {
     'diff_pool_layer': 'DiffPoolLayer',
     'dense_gin_layer': 'DenseGINLayer',
     'pooled_gin_layer': 'PooledGINLayer',
-    'gat_layer': 'GATLayer'
+    'gat_layer': 'GATLayer',
+    'edgnn': 'edGNNLayer'
 }
 
 GNN_MODULE = 'histocartography.ml.layers.{}'

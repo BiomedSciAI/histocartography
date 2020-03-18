@@ -42,7 +42,7 @@ def parse_arguments():
     parser.add_argument(
         '--show_superpx',
         type=bool,
-        default=False,
+        default=True,
         required=False
     )
 

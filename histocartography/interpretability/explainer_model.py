@@ -132,10 +132,6 @@ class ExplainerModel(nn.Module):
         # build a graph from the new x & adjacency matrix...
         graph = [masked_adj, x]
 
-        # print number of non zero elements in the adjacency:
-        non_zero_elements = (masked_adj != 0).sum()
-        print('Number of non-zero elements:', non_zero_elements)
-
         ypred = self.model(graph)
 
         return ypred, masked_adj, x
@@ -166,12 +162,5 @@ class ExplainerModel(nn.Module):
         mask_ent_loss = self.coeffs["ent"] * torch.mean(mask_ent)
 
         loss = pred_loss + size_loss
-
-        print('Loss: {} | Mask density: {} | Prediction: {}'.format(
-            loss.item(),
-            self.mask_density().item(),
-            self.label == torch.argmax(pred).item()
-        ))
-        print('Prediction:', pred)
 
         return loss

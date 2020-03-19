@@ -22,6 +22,10 @@ from histocartography.interpretability.single_instance_explainer import SingleIn
 from histocartography.utils.graph import adj_to_networkx
 from histocartography.utils.visualization import GraphVisualization
 
+# flush warnings 
+import warnings
+warnings.filterwarnings("ignore")
+
 # cuda support
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)

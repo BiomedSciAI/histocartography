@@ -1,0 +1,44 @@
+{
+    "graph_building": {
+        "cell_graph_builder": {
+            "edge_encoding": false,
+            "graph_building_type": "knn_graph_builder",
+            "max_distance": 50,
+            "n_neighbors": 5
+        }
+    },
+    "model_params": {
+        "activation": "relu",
+        "cat": true,
+        "dropout": 0.0,
+        "gnn_params": {
+            "cell_gnn": {
+                "activation": "relu",
+                "hidden_dim": 32,
+                "layer_type": "dense_gin_layer",
+                "n_layers": 3,
+                "neighbor_pooling_type": "mean",
+                "output_dim": 32
+            }
+        },
+        "num_classes": 5,
+        "readout": {
+            "hidden_dim": 64,
+            "num_layers": 2,
+            "neighbor_pooling_type": "mean"
+        },
+        "use_bn": false
+    },
+    "model_type": "cell_graph_model",
+    "explainer": {
+        "loss": {
+            "entropy_weight": 1.0,
+            "adj_size_weight": 0.005,
+            "feat_size_weight": 1.0
+        },
+        "init": "normal",
+        "mask_activation": "sigmoid"
+    }
+}
+
+

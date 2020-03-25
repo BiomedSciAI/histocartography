@@ -23,6 +23,10 @@ class SingleInstanceExplainer:
         self.cuda = cuda
         self.verbose = verbose
 
+        # threshold values for the adjacency and the node features 
+        self.adj_thresh = 0.1
+        self.node_thresh = 0.1
+
     def explain(self, data, label):
         """
         Explain a graph instance
@@ -40,11 +44,6 @@ class SingleInstanceExplainer:
         init_logits = self.model(data).cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits).numpy().squeeze()
         pred_label = np.argmax(init_logits, axis=0)
-
-        # print('Pred label {} | Groud truth label {}'.format(
-        #     pred_label,
-        #     label)
-        # )
 
         explainer = ExplainerModel(
             model=self.model,
@@ -64,19 +63,20 @@ class SingleInstanceExplainer:
         begin_time = time.time()
         # Init training stats
         init_non_zero_elements = (adj != 0).sum()
+        init_num_nodes = adj.shape[-1]
         density = 1.0
         loss = torch.FloatTensor([10000.])
-        desc = "Non-zero: {} / {} | Density: {} | Loss: {} | Label: {} | N: {} / {} | B: {} / {} | ATY: {} / {} | DCIS: {} / {} | I: {} / {}".format(
-            init_non_zero_elements,
-            init_non_zero_elements,
+        desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | N {} / {} | B {} / {} | ATY {} / {} | DCIS {} / {} | I {} / {}".format(
+            init_num_nodes, init_num_nodes,
+            init_non_zero_elements, init_non_zero_elements,
             density,
             loss.item(), 
             LABEL_TO_TUMOR_TYPE[str(label.item())],
-            round(float(init_probs[0]), 1), round(float(init_probs[0]), 1),
-            round(float(init_probs[1]), 1), round(float(init_probs[1]), 1),
-            round(float(init_probs[3]), 1), round(float(init_probs[3]), 1),
-            round(float(init_probs[4]), 1), round(float(init_probs[4]), 1),
-            round(float(init_probs[2]), 1), round(float(init_probs[2]), 1)
+            round(float(init_probs[0]), 2), round(float(init_probs[0]), 2),
+            round(float(init_probs[1]), 2), round(float(init_probs[1]), 2),
+            round(float(init_probs[3]), 2), round(float(init_probs[3]), 2),
+            round(float(init_probs[4]), 2), round(float(init_probs[4]), 2),
+            round(float(init_probs[2]), 2), round(float(init_probs[2]), 2)
         )
         pbar = tqdm(range(self.train_params['num_epochs']), desc=desc, unit='step')
     
@@ -90,43 +90,30 @@ class SingleInstanceExplainer:
             explainer.optimizer.step()
 
             # Compute number of non zero elements in the masked adjacency
+            masked_adj = (masked_adj > self.adj_thresh) * masked_adj
+            masked_feats = (masked_feats > self.node_thresh) * masked_feats
             probs = torch.nn.Softmax()(logits.cpu().squeeze()).detach().numpy()
             non_zero_elements = (masked_adj != 0).sum()
             density = round(non_zero_elements.item() / init_non_zero_elements.item(), 2)
-            desc = 'Non-zero: {} / {} | Density {} | Loss: {}'.format(
-                non_zero_elements,
-                init_non_zero_elements,
-                density,
-                round(loss.item(), 2))
-            
-            desc = "Non-zero: {} / {} | Density: {} | Loss: {} | Label: {} | N: {} / {} | B: {} / {} | ATY: {} / {} | DCIS: {} / {} | I: {} / {}".format(
-                non_zero_elements,
-                init_non_zero_elements,
+            num_nodes = torch.sum(masked_feats.sum(dim=-1) != 0.)
+
+            desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | N {} / {} | B {} / {} | ATY {} / {} | DCIS {} / {} | I {} / {}".format(
+                num_nodes, init_num_nodes,
+                non_zero_elements, init_non_zero_elements,
                 density,
                 round(loss.item(), 2),
                 LABEL_TO_TUMOR_TYPE[str(label.item())],
-                round(float(probs[0]), 1), round(float(init_probs[0]), 1),
-                round(float(probs[1]), 1), round(float(init_probs[1]), 1),
-                round(float(probs[3]), 1), round(float(init_probs[3]), 1),
-                round(float(probs[4]), 1), round(float(init_probs[4]), 1),
-                round(float(probs[2]), 1), round(float(init_probs[2]), 1)
+                round(float(probs[0]), 2), round(float(init_probs[0]), 2),
+                round(float(probs[1]), 2), round(float(init_probs[1]), 2),
+                round(float(probs[3]), 2), round(float(init_probs[3]), 2),
+                round(float(probs[4]), 2), round(float(init_probs[4]), 2),
+                round(float(probs[2]), 2), round(float(init_probs[2]), 2)
         )
 
             pbar.set_description(desc)
 
-            # print('Loss: {} | Mask density: {} | Prediction: {}'.format(
-            # loss.item(),
-            # self.mask_density().item(),
-            # self.label == torch.argmax(pred).item()
-            # ))
-            # print('Prediction:', pred)
+        _, masked_adj, masked_feats = explainer()
+        masked_adj = (masked_adj > self.adj_thresh) * masked_adj
+        masked_feats = (masked_feats > self.node_thresh) * masked_feats
 
-        ypred, _, _ = explainer()
-
-        # print("Training time: {} with density {} | with prediction {}".format(
-        #     time.time() - begin_time,
-        #     explainer.mask_density().item(),
-        #     ypred)
-        # )
-
-        return masked_adj.squeeze(), masked_feats
+        return masked_adj.squeeze(), masked_feats.squeeze()

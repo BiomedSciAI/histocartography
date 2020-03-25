@@ -52,14 +52,14 @@ TUMOR_TYPE_TO_LABEL = {
 }
 
 LABEL_TO_TUMOR_TYPE = {
-    '0': 'benign',
-    '1': 'pb+udh',
-    '2': 'dcis',
-    '3': 'malignant',
-    '4': 'adh+fea'
+    '0': 'N',
+    '1': 'B',
+    '2': 'DCIS',
+    '3': 'I',
+    '4': 'ATY'
 }
 
 
 # List of classes to discard for training
-DATASET_BLACKLIST = []
+DATASET_BLACKLIST = ['malignant']
 

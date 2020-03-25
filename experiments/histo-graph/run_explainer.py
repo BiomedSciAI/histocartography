@@ -124,18 +124,27 @@ def main(args):
             label=label
         )
 
-        explanation = adj_to_networkx(adj, feats, rm_iso_nodes=True, centroids=data[0].ndata['centroid'].squeeze())
+        node_idx = (feats.sum(dim=-1) != 0.).squeeze()
+        adj = adj[node_idx, :]
+        adj = adj[:, node_idx]
 
-        print('Output:')
-        print('Original Graph: # nodes: {} # edges: {}'.format(
-            cell_graph.number_of_nodes(),
-            cell_graph.number_of_edges()
-        ))
+        feats = feats[node_idx, :]
 
-        print('Explanation Graph: # nodes: {} # edges: {}'.format(
-            explanation.number_of_nodes(),
-            explanation.number_of_edges()
-        ))
+        centroids = data[0].ndata['centroid'].squeeze()
+        centroids = centroids[node_idx, :]
+
+        explanation = adj_to_networkx(adj, feats, rm_iso_nodes=False, centroids=centroids)
+
+        # print('Output:')
+        # print('Original Graph: # nodes: {} # edges: {}'.format(
+        #     cell_graph.number_of_nodes(),
+        #     cell_graph.number_of_edges()
+        # ))
+
+        # print('Explanation Graph: # nodes: {} # edges: {}'.format(
+        #     explanation.number_of_nodes(),
+        #     explanation.number_of_edges()
+        # ))
 
         # 1. visualize the original graph 
         show_cg_flag = load_cell_graph(config['model_type'])

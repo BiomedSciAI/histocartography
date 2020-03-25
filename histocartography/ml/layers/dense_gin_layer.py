@@ -53,9 +53,8 @@ class DenseGINLayer(BaseLayer):
         self.out_dim = out_dim
 
         if config is not None:
-            self.add_self = config['add_self'] if 'add_self' in config.keys(
-            ) else True
-            self.mean = config['mean'] if 'mean' in config.keys() else False
+            self.add_self = True
+            self.mean = config['neighbor_pooling_type'] == 'mean'
             hidden_dim = config['hidden_dim']
         else:
             self.add_self = True
@@ -79,22 +78,33 @@ class DenseGINLayer(BaseLayer):
         :return: updated node features
         """
 
+        # print('h', h)
+
         if isinstance(adj, dgl.DGLGraph):
             adj = dgl.unbatch(adj)
             assert(len(adj) == 1), "Batch size must be equal to 1 for processing Dense GIN Layers"
             adj = adj[0].adjacency_matrix().to_dense().unsqueeze(dim=0)
 
+        if self.mean:
+            degree = adj.sum(1, keepdim=True)
+            degree[degree==0.] = 1.
+            adj = adj / degree
+
+        # print the non-zero values 
+        # debug = adj[adj != 0.]
+        # print('Adj values:', debug)
+
         if self.add_self:
             adj = adj + torch.eye(adj.size(1)).to(adj.device)
 
-        if self.mean:
-            adj = adj / adj.sum(1, keepdim=True)
+        # adjust h dim
+        if len(h.shape) < 3:
+            h = h.unsqueeze(dim=0)
 
         h_k_N = torch.matmul(adj, h)
         bs, n_nodes, dim = h_k_N.shape
         h_k_N = h_k_N.view(bs * n_nodes, dim)
         h_k = self.mlp(h_k_N)
         h_k = h_k.view(bs, n_nodes, self.out_dim)
-        h_k = F.normalize(h_k, dim=2, p=2)
         h_k = F.relu(h_k).squeeze()
         return h_k

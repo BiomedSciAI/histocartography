@@ -78,21 +78,15 @@ class DenseGINLayer(BaseLayer):
         :return: updated node features
         """
 
-        # print('h', h)
-
         if isinstance(adj, dgl.DGLGraph):
             adj = dgl.unbatch(adj)
             assert(len(adj) == 1), "Batch size must be equal to 1 for processing Dense GIN Layers"
-            adj = adj[0].adjacency_matrix().to_dense().unsqueeze(dim=0)
+            adj = adj[0].adjacency_matrix().to_dense().unsqueeze(dim=0).to(h.device)
 
         if self.mean:
             degree = adj.sum(1, keepdim=True)
             degree[degree==0.] = 1.
             adj = adj / degree
-
-        # print the non-zero values 
-        # debug = adj[adj != 0.]
-        # print('Adj values:', debug)
 
         if self.add_self:
             adj = adj + torch.eye(adj.size(1)).to(adj.device)

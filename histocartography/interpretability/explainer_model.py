@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F 
 
+from histocartography.utils.io import get_device
+
 
 class ExplainerModel(nn.Module):
     def __init__(
@@ -28,6 +30,7 @@ class ExplainerModel(nn.Module):
 
         # set model parameters
         self.cuda = cuda
+        self.device = get_device(self.cuda)
         self.mask_act = model_params['mask_activation']
         init_strategy = model_params['init']
         self.mask_bias = None
@@ -104,7 +107,7 @@ class ExplainerModel(nn.Module):
                              'are "sigmoid", "ReLU"'.format(self.mask_act))
         sym_mask = (sym_mask + sym_mask.t()) / 2
         if with_zeroing:
-            sym_mask = ((self.adj != 0) * sym_mask)
+            sym_mask = ((self.adj != 0).to(self.device).to(torch.float) * sym_mask)
         return sym_mask        
 
     def _masked_adj(self):
@@ -140,7 +143,6 @@ class ExplainerModel(nn.Module):
 
         # build a graph from the new x & adjacency matrix...
         graph = [masked_adj, masked_x]
-
         ypred = self.model(graph)
 
         return ypred, masked_adj, masked_x

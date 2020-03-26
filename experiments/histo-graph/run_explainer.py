@@ -86,6 +86,8 @@ def main(args):
                         to_eval += s
                 exec(to_eval + '=' + 'p')
 
+            if CUDA:
+                model = model.cuda()
     else:
         raise ValueError(
             'Model: {} not recognized. Options are: {}'.format(
@@ -111,7 +113,8 @@ def main(args):
     explainer = SingleInstanceExplainer(
         model=model,
         train_params=train_params,
-        model_params=config['explainer']
+        model_params=config['explainer'],
+        cuda=CUDA
     )
 
     # explain instance from the train set

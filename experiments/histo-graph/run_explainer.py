@@ -9,10 +9,11 @@ Implementation derived from the GNN-Explainer (NeurIPS'19)
 import importlib
 import torch
 import mlflow
+import numpy as np
 import dgl 
 from mlflow.pytorch import load_model
 
-from histocartography.utils.io import read_params
+from histocartography.utils.io import read_params, write_json, complete_path
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.utils.arg_parser import parse_arguments
@@ -122,7 +123,7 @@ def main(args):
 
         cell_graph = data[0]
 
-        adj, feats = explainer.explain(
+        adj, feats, orig_pred, exp_pred = explainer.explain(
             data=data,
             label=label
         )
@@ -138,17 +139,6 @@ def main(args):
 
         explanation = adj_to_networkx(adj, feats, rm_iso_nodes=False, centroids=centroids)
 
-        # print('Output:')
-        # print('Original Graph: # nodes: {} # edges: {}'.format(
-        #     cell_graph.number_of_nodes(),
-        #     cell_graph.number_of_edges()
-        # ))
-
-        # print('Explanation Graph: # nodes: {} # edges: {}'.format(
-        #     explanation.number_of_nodes(),
-        #     explanation.number_of_edges()
-        # ))
-
         # 1. visualize the original graph 
         show_cg_flag = load_cell_graph(config['model_type'])
         show_sp_flag = load_superpx_graph(config['model_type'])
@@ -160,6 +150,20 @@ def main(args):
         graph_visualizer = GraphVisualization()
         data = (explanation, data[1], [data[2][0] + '_explanation'])
         graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
+
+        # 2. save meta data in json file
+        meta_data = {}
+        meta_data['config'] = config['explainer']  # @TODO set all the params from the config file...
+        meta_data['config']['number_of_epochs'] = args.epochs
+        meta_data['config']['learning_rate'] = args.learning_rate
+        meta_data['output'] = {}
+        meta_data['output']['number_of_nodes'] = explanation.number_of_nodes()
+        meta_data['output']['number_of_edges'] = explanation.number_of_edges()
+        meta_data['output']['original_prediction'] = str(list(np.around(orig_pred, 2)))
+        meta_data['output']['explanation_prediction'] = str(list(np.around(exp_pred, 2)))
+        write_json(complete_path('../../data/graphs', data[-1][0] + '.json'), meta_data)
+
+        print('Meta data', meta_data)
 
 
 if __name__ == "__main__":

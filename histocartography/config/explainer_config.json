@@ -32,10 +32,14 @@
     "model_type": "cell_graph_model",
     "explainer": {
         "loss": {
-            "entropy_weight": 1.0,
-            "adj_size_weight": 0.005,
-            "feat_size_weight": 1.0
+            "adj": 0.005,
+            "adj_ent": 1.0,
+            "node_ent": 1.0,
+            "node": 0.05,
+            "ce": 10.0
         },
+        "adj_thresh": 0.1,
+        "node_thresh": 0.1,
         "init": "normal",
         "mask_activation": "sigmoid"
     }

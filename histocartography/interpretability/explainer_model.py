@@ -54,14 +54,7 @@ class ExplainerModel(nn.Module):
         # build optimizer
         self._build_optimizer(params, train_params)
 
-        # build loss reg weights
-        self.coeffs = {
-            "adj": 0.005,
-            "adj_ent": 1.0,
-            "node_ent": 1.0,
-            "node": 0.05,
-            "ce": 10.0
-        }
+        self.coeffs = model_params['loss']
 
     def _build_optimizer(self, params, train_params):
         self.optimizer = optim.Adam(params, lr=train_params['lr'], weight_decay=train_params['weight_decay'])

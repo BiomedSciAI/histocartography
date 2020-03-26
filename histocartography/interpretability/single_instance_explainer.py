@@ -24,10 +24,8 @@ class SingleInstanceExplainer:
         self.cuda = cuda
         self.device = get_device(self.cuda)
         self.verbose = verbose
-
-        # threshold values for the adjacency and the node features 
-        self.adj_thresh = 0.1
-        self.node_thresh = 0.1
+        self.adj_thresh = model_params['adj_thresh']
+        self.node_thresh = model_params['node_thresh']
 
     def explain(self, data, label):
         """
@@ -112,8 +110,9 @@ class SingleInstanceExplainer:
 
             pbar.set_description(desc)
 
-        _, masked_adj, masked_feats = explainer()
+        logits, masked_adj, masked_feats = explainer()
+        probs = torch.nn.Softmax()(logits.cpu().squeeze()).detach().numpy()
         masked_adj = (masked_adj > self.adj_thresh).to(self.device).to(torch.float) * masked_adj
         masked_feats = (masked_feats > self.node_thresh).to(self.device).to(torch.float) * masked_feats
 
-        return masked_adj.squeeze(), masked_feats.squeeze()
+        return masked_adj.squeeze(), masked_feats.squeeze(), init_probs, probs

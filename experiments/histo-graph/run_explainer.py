@@ -137,13 +137,13 @@ def main(args):
         centroids = data[0].ndata['centroid'].squeeze()
         centroids = centroids[node_idx, :]
 
-        explanation = adj_to_networkx(adj, feats, rm_iso_nodes=False, centroids=centroids)
+        explanation = adj_to_networkx(adj, feats, threshold=config['explainer']['adj_thresh'], centroids=centroids)
 
         # 1. visualize the original graph 
         show_cg_flag = load_cell_graph(config['model_type'])
         show_sp_flag = load_superpx_graph(config['model_type'])
         show_sp_map = False
-        graph_visualizer = GraphVisualization()
+        graph_visualizer = GraphVisualization(save_path=args.out_path)
         graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
 
         # 2. visualize the explanation graph 
@@ -151,19 +151,30 @@ def main(args):
         data = (explanation, data[1], [data[2][0] + '_explanation'])
         graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
 
-        # 2. save meta data in json file
+        # 3. save meta data in json file
         meta_data = {}
+
+        # 3-a config file
         meta_data['config'] = config['explainer']  # @TODO set all the params from the config file...
         meta_data['config']['number_of_epochs'] = args.epochs
         meta_data['config']['learning_rate'] = args.learning_rate
-        meta_data['output'] = {}
-        meta_data['output']['number_of_nodes'] = explanation.number_of_nodes()
-        meta_data['output']['number_of_edges'] = explanation.number_of_edges()
-        meta_data['output']['original_prediction'] = str(list(np.around(orig_pred, 2)))
-        meta_data['output']['explanation_prediction'] = str(list(np.around(exp_pred, 2)))
-        write_json(complete_path('../../data/graphs', data[-1][0] + '.json'), meta_data)
 
-        print('Meta data', meta_data)
+        meta_data['output'] = {}
+
+        # 3-b original graph properties 
+        meta_data['output']['original'] = {}
+        meta_data['output']['original']['prediction'] = str(list(np.around(orig_pred, 2)))
+        meta_data['output']['original']['number_of_nodes'] = cell_graph.number_of_nodes()
+        meta_data['output']['original']['number_of_edges'] = cell_graph.number_of_edges()
+
+        # 2-c explanation graph properties 
+        meta_data['output']['explanation'] = {}
+        meta_data['output']['explanation']['number_of_nodes'] = explanation.number_of_nodes()
+        meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
+        meta_data['output']['explanation']['explanation_prediction'] = str(list(np.around(exp_pred, 2)))
+
+        # 2-d write to json 
+        write_json(complete_path(args.out_path, data[-1][0] + '.json'), meta_data)
 
 
 if __name__ == "__main__":

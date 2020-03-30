@@ -83,5 +83,12 @@ def parse_arguments():
         help='Path to pretrained GNN model.',
         default=''
     )
+    parser.add_argument(
+        '--out_path',
+        type=str,
+        help='path to where the output data are saved (currently only for the interpretability).',
+        default='../../data/graphs',
+        required=False
+    )
 
     return parser.parse_args()

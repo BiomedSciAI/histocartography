@@ -13,11 +13,13 @@ from histocartography.ml.layers.constants import CENTROID
 
 class GraphVisualization:
 
-    def __init__(self, show=False, save=True):
-        print('Initialize graph visualizer')
+    def __init__(self, show=False, save=True, save_path='../../data/graphs', verbose=False):
+        if verbose:
+            print('Initialize graph visualizer')
         self.show = show
         self.save = save
-        self.save_path = '../../data/graphs'
+        self.save_path = save_path
+        self.verbose = verbose
 
     def __call__(self, show_cg, show_sg, show_superpx, data, size):
 
@@ -70,7 +72,6 @@ class GraphVisualization:
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):
-        print('Number of centroids', centroids.shape)
         for centroid in centroids:
             centroid = [centroid[0].item(), centroid[1].item()]
             draw_ellipse(centroid, draw_bd, fill)
@@ -97,13 +98,9 @@ class GraphVisualization:
             centroids = graph.ndata[CENTROID]
             src, dst = graph.edges()
             edges = [(s.item(), d.item()) for (s, d) in zip(src, dst)]
-            print('Centroid', centroids.shape)
-            print('Edges', len(edges))
         else:
             centroids = nx.get_node_attributes(graph, 'centroid')
             centroids = torch.stack([val for key, val in centroids.items()])
             edges = graph.edges()
-            print('Centroid', centroids.shape)
-            print('Edges', len(edges))
 
         return centroids, edges

@@ -1,10 +1,9 @@
 import networkx as nx
 import numpy as np 
+import torch 
 
-MAX_NUM_EDGES = 1000
 
-
-def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=True, centroids=None):
+def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None):
     """Cleaning a graph by thresholding its node values.
 
     Args:
@@ -17,7 +16,7 @@ def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=
 
     # build nodes
     num_nodes = adj.shape[-1]
-    graph = nx.Graph()
+    graph = nx.DiGraph()
     graph.add_nodes_from(range(num_nodes))
 
     # set node features
@@ -28,16 +27,11 @@ def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=
             centroids_dict[node_id] = centroids[node_id, :]
         nx.set_node_attributes(graph, centroids_dict, 'centroid')
 
+    # build topology 
     adj[adj < threshold] = 0
     edge_list = np.nonzero(adj)
-    weights = adj[adj < threshold]
-    weighted_edge_list = [(from_, edge_list[1][idx], weights[idx]) for (idx, from_) in enumerate(edge_list[0]) if from_ <= edge_list[1][idx]]
-
-    # sorted_weighted_edge_list = sorted(weighted_edge_list, key=lambda x: x[2], reverse=True)
-    # if len(sorted_weighted_edge_list) > MAX_NUM_EDGES:
-    #     sorted_weighted_edge_list = sorted_weighted_edge_list[:MAX_NUM_EDGES]
-
-    # build topology
+    weights = adj[adj > threshold]
+    weighted_edge_list = [(from_.item(), to_.item(), weights[idx].item()) for (idx, (from_, to_)) in enumerate(edge_list)]  # if from_ <= to_
     graph.add_weighted_edges_from(weighted_edge_list)
 
     # extract largest cc

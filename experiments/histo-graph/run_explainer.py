@@ -21,6 +21,8 @@ from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.single_instance_explainer import SingleInstanceExplainer
 from histocartography.utils.graph import adj_to_networkx
 from histocartography.utils.visualization import GraphVisualization
+from histocartography.dataloader.constants import LABEL_TO_TUMOR_TYPE
+
 
 # flush warnings 
 import warnings
@@ -160,17 +162,24 @@ def main(args):
 
         meta_data['output'] = {}
 
+        # 3-b label
+        meta_data['output']['label_index'] = label.item()
+        meta_data['output']['label_set'] = [val for key, val in LABEL_TO_TUMOR_TYPE.items()]
+        meta_data['output']['label'] = LABEL_TO_TUMOR_TYPE[str(label.item())]
+
         # 3-b original graph properties 
         meta_data['output']['original'] = {}
-        meta_data['output']['original']['prediction'] = str(list(np.around(orig_pred, 2)))
+        meta_data['output']['original']['logits'] = str(list(np.around(orig_pred, 2)))
         meta_data['output']['original']['number_of_nodes'] = cell_graph.number_of_nodes()
         meta_data['output']['original']['number_of_edges'] = cell_graph.number_of_edges()
+        meta_data['output']['original']['prediction'] = LABEL_TO_TUMOR_TYPE[str(np.argmax(orig_pred))]
 
         # 2-c explanation graph properties 
         meta_data['output']['explanation'] = {}
         meta_data['output']['explanation']['number_of_nodes'] = explanation.number_of_nodes()
         meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
-        meta_data['output']['explanation']['explanation_prediction'] = str(list(np.around(exp_pred, 2)))
+        meta_data['output']['explanation']['logits'] = str(list(np.around(exp_pred, 2)))
+        meta_data['output']['explanation']['prediction'] = LABEL_TO_TUMOR_TYPE[str(np.argmax(exp_pred))]
 
         # 2-d write to json 
         write_json(complete_path(args.out_path, data[-1][0] + '.json'), meta_data)

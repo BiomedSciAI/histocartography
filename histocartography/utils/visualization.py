@@ -123,12 +123,12 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
     y_pos = np.arange(len(label_set))
 
     # 1. load image of the original graph
-    # print(complete_path(save_path, image_name + '_cell_graph.png'))
     plt.subplot(gs[0:5, 0])
-    original = plt.imread(complete_path(save_path, image_name.replace('explanation_', '') + '_cell_graph.png'))
+    original_image_name = image_name.replace('_explanation', '')
+    original = plt.imread(complete_path(save_path, original_image_name + '_cell_graph.png'))
     plt.imshow(original)
     plt.axis('off')
-    plt.title('Original cell graph')
+    plt.title('Original cell graph | Label: ' + meta_data['output']['label'])
 
     # 2. generate histogram of probability for the original prediction
     plt.subplot(gs[-1, 0])

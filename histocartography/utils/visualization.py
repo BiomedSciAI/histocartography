@@ -1,4 +1,7 @@
 from PIL import ImageDraw
+import matplotlib.pyplot as plt
+import matplotlib
+from matplotlib import gridspec
 import numpy as np
 import dgl
 from dgl import BatchedDGLGraph
@@ -104,3 +107,52 @@ class GraphVisualization:
             edges = graph.edges()
 
         return centroids, edges
+
+
+def agg_and_plot_interpretation(meta_data, save_path, image_name):
+
+    plt.figure(1)
+    plt.title('Explanation Visualization')
+    gs = gridspec.GridSpec(6, 2)
+    font = {'family': 'normal',
+            'weight': 'bold',
+            'size': 5}
+
+    matplotlib.rc('font', **font)
+    label_set = meta_data['output']['label_set']
+    y_pos = np.arange(len(label_set))
+
+    # 1. load image of the original graph
+    # print(complete_path(save_path, image_name + '_cell_graph.png'))
+    plt.subplot(gs[0:5, 0])
+    original = plt.imread(complete_path(save_path, image_name.replace('explanation_', '') + '_cell_graph.png'))
+    plt.imshow(original)
+    plt.axis('off')
+    plt.title('Original cell graph')
+
+    # 2. generate histogram of probability for the original prediction
+    plt.subplot(gs[-1, 0])
+    probs = list(meta_data['output']['original']['logits'])
+    probs = [100 * x for x in probs]
+
+    plt.bar(y_pos, probs, align='center')
+    plt.xticks(y_pos, label_set)
+    plt.title('Original probability predictions (%)')
+
+    # 3. load image of the explanation graph
+    plt.subplot(gs[0:5, 1])
+    explanation = plt.imread(complete_path(save_path, image_name + '_cell_graph.png'))
+    plt.imshow(explanation)
+    plt.axis('off')
+    plt.title('Explanation cell graph.')
+
+    # 4. generate histogram of probability for the explanation
+    plt.subplot(gs[-1, 1])
+    probs = list(meta_data['output']['explanation']['logits'])
+    probs = [100 * x for x in probs]
+    plt.bar(y_pos, probs, align='center')
+    plt.xticks(y_pos, label_set)
+    plt.title('Explanation probability predictions (%)')
+
+    # 5. save the image
+    plt.savefig(complete_path(save_path, image_name + '_summary_.pdf'), format='pdf', dpi=1200)

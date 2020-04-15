@@ -20,7 +20,7 @@ from histocartography.ml.models.constants import load_superpx_graph, load_cell_g
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.single_instance_explainer import SingleInstanceExplainer
 from histocartography.utils.graph import adj_to_networkx
-from histocartography.utils.visualization import GraphVisualization
+from histocartography.utils.visualization import GraphVisualization, agg_and_plot_interpretation
 from histocartography.dataloader.constants import LABEL_TO_TUMOR_TYPE
 
 
@@ -167,22 +167,25 @@ def main(args):
         meta_data['output']['label_set'] = [val for key, val in LABEL_TO_TUMOR_TYPE.items()]
         meta_data['output']['label'] = LABEL_TO_TUMOR_TYPE[str(label.item())]
 
-        # 3-b original graph properties 
+        # 3-c original graph properties
         meta_data['output']['original'] = {}
-        meta_data['output']['original']['logits'] = str(list(np.around(orig_pred, 2)))
+        meta_data['output']['original']['logits'] = list(np.around(orig_pred, 2).astype(float))
         meta_data['output']['original']['number_of_nodes'] = cell_graph.number_of_nodes()
         meta_data['output']['original']['number_of_edges'] = cell_graph.number_of_edges()
         meta_data['output']['original']['prediction'] = LABEL_TO_TUMOR_TYPE[str(np.argmax(orig_pred))]
 
-        # 2-c explanation graph properties 
+        # 3-d explanation graph properties
         meta_data['output']['explanation'] = {}
         meta_data['output']['explanation']['number_of_nodes'] = explanation.number_of_nodes()
         meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
-        meta_data['output']['explanation']['logits'] = str(list(np.around(exp_pred, 2)))
+        meta_data['output']['explanation']['logits'] = list(np.around(exp_pred, 2).astype(float))
         meta_data['output']['explanation']['prediction'] = LABEL_TO_TUMOR_TYPE[str(np.argmax(exp_pred))]
 
-        # 2-d write to json 
+        # 3-e write to json
         write_json(complete_path(args.out_path, data[-1][0] + '.json'), meta_data)
+
+        # 4. aggregate all the information in a single user-friendly image
+        agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-1][0])
 
 
 if __name__ == "__main__":

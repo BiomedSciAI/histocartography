@@ -10,7 +10,6 @@ import importlib
 import torch
 import mlflow
 import numpy as np
-import dgl 
 from mlflow.pytorch import load_model
 
 from histocartography.utils.io import read_params, write_json, complete_path

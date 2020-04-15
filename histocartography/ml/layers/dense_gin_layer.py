@@ -85,7 +85,7 @@ class DenseGINLayer(BaseLayer):
 
         if self.mean:
             degree = adj.sum(1, keepdim=True)
-            degree[degree==0.] = 1.
+            degree[degree == 0.] = 1.
             adj = adj / degree
 
         if self.add_self:

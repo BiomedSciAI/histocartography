@@ -46,7 +46,8 @@ class ConfigGenerator:
             {
                 'graph_building': getattr(self, MODEL_TYPE_TO_GRAPH_BUILDING_PARAMS[model_type])(),
                 'model_params': getattr(self, MODEL_TYPE_TO_MODEL_PARAMS[model_type])(),
-                'model_type': [model_type]
+                'model_type': [model_type],
+                'explainer': self._get_explainer_params()
             }
         )
 
@@ -133,10 +134,10 @@ class ConfigGenerator:
     def _get_base_model_params(self):
         config = ParameterGrid(
             {
-                "dropout": [0.0, 0.5],
+                "dropout": [0.0],
                 "num_classes": self._get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
                 "use_bn": [False],
-                "cat": [False, True],
+                "cat": [True],
                 "activation": ["relu"]
             }
         )
@@ -150,9 +151,7 @@ class ConfigGenerator:
         return [n_classes]
 
     def _get_gnn_params(self):
-        gnn_config = self._get_gin_params()
-        # gat_config = self._get_gat_params()
-        # gnn_config.param_grid.append(gat_config.param_grid[0])
+        gnn_config = self._get_dense_gin_params()
         return gnn_config
 
     @staticmethod
@@ -166,6 +165,43 @@ class ConfigGenerator:
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [32],
                 "output_dim": [32]
+            }
+        )
+
+        return config
+
+    @staticmethod
+    def _get_dense_gin_params():
+
+        config = ParameterGrid(
+            {
+                "layer_type": ["dense_gin_layer"],
+                "activation": ["relu"],
+                "n_layers": [3],
+                "neighbor_pooling_type": ["mean"],
+                "hidden_dim": [32],
+                "output_dim": [32]
+            }
+        )
+
+        return config
+
+    @staticmethod
+    def _get_explainer_params():
+
+        config = ParameterGrid(
+            {
+                "loss": {
+                    "adj": [0.05, 0.005],
+                    "adj_ent": [1.0],
+                    "node_ent": [1.0],
+                    "node": [0.05, 0.005],
+                    "ce": [10.0]
+                },
+                "adj_thresh": [0.1],
+                "node_thresh": [0.1],
+                "init": ["normal"],
+                "mask_activation": ["sigmoid"]
             }
         )
 

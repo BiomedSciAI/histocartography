@@ -92,7 +92,7 @@ class ExplainerModel(nn.Module):
 
     def _get_adj_mask(self, with_zeroing=False):
         if self.mask_act == "sigmoid":
-            sym_mask = torch.sigmoid(self.mask)
+            sym_mask = self.sigmoid(self.mask, t=2)
         elif self.mask_act == "ReLU":
             sym_mask = nn.ReLU()(self.mask)
         else:
@@ -116,13 +116,17 @@ class ExplainerModel(nn.Module):
 
     def _get_node_feats_mask(self):
         if self.mask_act == "sigmoid":
-            node_mask = torch.sigmoid(self.node_mask)
+            node_mask = self.sigmoid(self.node_mask, t=10)
         elif self.mask_act == "ReLU":
             node_mask = nn.ReLU()(self.node_mask)
         else:
             raise ValueError('Unsupported mask activation {}. Options'
                              'are "sigmoid", "ReLU"'.format(self.mask_act))
         return node_mask
+
+    @staticmethod
+    def sigmoid(x, t=1):
+        return 1 / (1 + torch.exp(-t * x))
 
     def _masked_node_feats(self):
         node_mask = self._get_node_feats_mask()

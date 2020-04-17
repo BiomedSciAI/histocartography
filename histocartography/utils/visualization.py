@@ -8,6 +8,7 @@ from dgl import BatchedDGLGraph
 from dgl import DGLGraph
 import networkx as nx 
 import torch 
+import os
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
 from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly
@@ -110,6 +111,8 @@ class GraphVisualization:
 
 
 def agg_and_plot_interpretation(meta_data, save_path, image_name):
+
+    print('image image_name', image_name)
 
     plt.figure(1)
     plt.title('Explanation Visualization')

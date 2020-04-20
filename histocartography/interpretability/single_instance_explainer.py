@@ -1,5 +1,6 @@
 import torch
 from tqdm import tqdm
+import numpy as np
 
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
 from ..dataloader.constants import get_label_to_tumor_type
@@ -28,7 +29,8 @@ class SingleInstanceExplainer:
 
         self.adj_explanation = None
         self.node_feats_explanation = None
-        self.logit_explanation = None
+        self.probs_explanation = None
+        self.node_importance = None
 
     def explain(self, data, label):
         """
@@ -47,9 +49,6 @@ class SingleInstanceExplainer:
         init_logits = self.model(data).cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits).numpy().squeeze()
         init_pred_label = torch.argmax(init_logits, axis=1).squeeze()
-        self.adj_explanation = adj
-        self.node_feats_explanation = x
-        self.logit_explanation = init_logits
 
         explainer = ExplainerModel(
             model=self.model,
@@ -60,6 +59,11 @@ class SingleInstanceExplainer:
             train_params=self.train_params,
             cuda=self.cuda
         ).to(self.device)
+
+        self.adj_explanation = adj
+        self.node_feats_explanation = x
+        self.probs_explanation = init_probs
+        self.node_importance = explainer._get_node_feats_mask().cpu().detach().numpy()
 
         self.model.eval()
         explainer.train()
@@ -92,7 +96,9 @@ class SingleInstanceExplainer:
 
             # Compute number of non zero elements in the masked adjacency
             masked_adj = (masked_adj > self.adj_thresh).to(self.device).to(torch.float) * masked_adj
-            masked_feats = (masked_feats > self.node_thresh).to(self.device).to(torch.float) * masked_feats
+            node_importance = explainer._get_node_feats_mask()
+            node_weights = (node_importance > self.node_thresh)
+            masked_feats = masked_feats * torch.stack(masked_feats.shape[-1] * [node_weights], dim=1).unsqueeze(dim=0)
             probs = torch.nn.Softmax()(logits.cpu().squeeze()).detach().numpy()
             non_zero_elements = (masked_adj != 0).sum()
             density = round(non_zero_elements.item() / init_non_zero_elements.item(), 2)
@@ -119,7 +125,8 @@ class SingleInstanceExplainer:
             if pred_label.item() == init_pred_label:
                 self.adj_explanation = masked_adj
                 self.node_feats_explanation = masked_feats
-                self.logit_explanation = logits
+                self.probs_explanation = probs
+                self.node_importance = node_importance.cpu().detach().numpy()
             else:
                 print('Predicted label changed. Early stopping.')
                 break
@@ -129,9 +136,4 @@ class SingleInstanceExplainer:
             loss.backward()
             explainer.optimizer.step()
 
-        # forward pass
-        probs = torch.nn.Softmax()(self.logit_explanation.cpu().squeeze()).detach().numpy()
-        masked_adj = (self.adj_explanation > self.adj_thresh).to(self.device).to(torch.float) * self.adj_explanation
-        masked_feats = (self.node_feats_explanation > self.node_thresh).to(self.device).to(torch.float) * self.node_feats_explanation
-
-        return masked_adj.squeeze(), masked_feats.squeeze(), init_probs, probs
+        return self.adj_explanation.squeeze(), self.node_feats_explanation.squeeze(), init_probs, probs, self.node_importance

@@ -129,6 +129,6 @@ def get_dataset_black_list(num_classes=5):
 
 NUM_CLASSES_TO_MODEL_URL = {
     2: '9eab3cda4e324254b5044fe4c0b90368/artifacts/model_best_val_weighted_f1_score_3',
-    3: 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3',
+    3: '0550391249d941588ed547235ca84046/artifacts/model_best_val_weighted_f1_score_3',
     5: 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3'
 }

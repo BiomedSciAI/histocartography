@@ -130,7 +130,7 @@ def main(args):
 
         cell_graph = data[0]
 
-        adj, feats, orig_pred, exp_pred = explainer.explain(
+        adj, feats, orig_pred, exp_pred, node_importance = explainer.explain(
             data=data,
             label=label
         )
@@ -140,6 +140,7 @@ def main(args):
         adj = adj[:, node_idx]
 
         feats = feats[node_idx, :]
+        node_importance = node_importance[node_idx]
 
         centroids = data[0].ndata['centroid'].squeeze()
         centroids = centroids[node_idx, :]
@@ -156,7 +157,7 @@ def main(args):
         # 2. visualize the explanation graph 
         graph_visualizer = GraphVisualization(save_path=args.out_path)
         data = (explanation, data[1], [data[2][0] + '_explanation'])
-        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
+        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1, node_importance)
 
         # 3. save meta data in json file
         meta_data = {}

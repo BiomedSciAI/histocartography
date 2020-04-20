@@ -11,7 +11,7 @@ import torch
 import os
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
-from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly
+from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle
 from histocartography.ml.layers.constants import CENTROID
 
 
@@ -25,7 +25,7 @@ class GraphVisualization:
         self.save_path = save_path
         self.verbose = verbose
 
-    def __call__(self, show_cg, show_sg, show_superpx, data, size):
+    def __call__(self, show_cg, show_sg, show_superpx, data, size, node_importance=None):
 
         for index in range(size):
 
@@ -40,7 +40,7 @@ class GraphVisualization:
                     self.draw_superpx(superpx_map, draw)
                 superpx_graph = dgl.unbatch(data[1])[index] if show_cg else dgl.unbatch(data[0])[index]
 
-                # # get centroids and edges
+                # get centroids and edges
                 cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
                 self.draw_centroid(cent_sp, draw, (255, 0, 0))
                 self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
@@ -66,6 +66,13 @@ class GraphVisualization:
                 # draw centroids
                 self.draw_centroid(cent_cg, draw, (255, 0, 0))
                 self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
+
+                # draw large circles around highly important nodes
+                if node_importance is not None:
+                    important_node_indices = np.argwhere(node_importance > 0.9)
+                    for idx in important_node_indices:
+                        centroid = [cent_cg[idx].squeeze()[0].item(), cent_cg[idx].squeeze()[1].item()]
+                        draw_large_circle(centroid, draw)
 
                 if self.show:
                     show_image(canvas)

@@ -7,6 +7,11 @@ def draw_ellipse(centroid, draw, fill_col):
                  outline=(0, 0, 0))
 
 
+def draw_large_circle(centroid, draw):
+    draw.ellipse((centroid[0] - 25, centroid[1] - 25, centroid[0] + 25, centroid[1] + 25),
+                 outline='blue')
+
+
 def draw_line(source_centroid, dest_centroid, draw, fill_col, line_wid):
     draw.line((source_centroid[0], source_centroid[1], dest_centroid[0], dest_centroid[1]),
               fill=fill_col,

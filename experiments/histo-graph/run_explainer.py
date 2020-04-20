@@ -108,8 +108,6 @@ def main(args):
     for key, val in inter_config.items():
         mlflow.log_param(key, val)
 
-    print('Model is', model)
-
     # agg training parameters
     train_params = {
         'num_epochs': args.epochs,

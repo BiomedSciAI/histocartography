@@ -69,19 +69,21 @@ class SingleInstanceExplainer:
         init_num_nodes = adj.shape[-1]
         density = 1.0
         loss = torch.FloatTensor([10000.])
-        desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {}" \
-               "| N {} / {} | B {} / {} | ATY {} / {} | DCIS {} / {} | I {} / {}".format(
+
+        # log description
+        desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | ".format(
             init_num_nodes, init_num_nodes,
             init_non_zero_elements, init_non_zero_elements,
             density,
-            loss.item(), 
-            self.label_to_tumor_type[str(label.item())],
-            round(float(init_probs[0]), 2), round(float(init_probs[0]), 2),
-            round(float(init_probs[1]), 2), round(float(init_probs[1]), 2),
-            round(float(init_probs[3]), 2), round(float(init_probs[3]), 2),
-            round(float(init_probs[4]), 2), round(float(init_probs[4]), 2),
-            round(float(init_probs[2]), 2), round(float(init_probs[2]), 2)
+            loss.item(),
+            self.label_to_tumor_type[str(label.item())]
         )
+        for label_idx, label_name in self.label_to_tumor_type.items():
+            desc += ' ' + label_name + ' {} / {} | '.format(
+                round(float(init_probs[int(label_idx)]), 2),
+                round(float(init_probs[int(label_idx)]), 2)
+            )
+
         pbar = tqdm(range(self.train_params['num_epochs']), desc=desc, unit='step')
     
         for step in pbar:
@@ -97,19 +99,19 @@ class SingleInstanceExplainer:
             num_nodes = torch.sum(masked_feats.sum(dim=-1) != 0.)
             pred_label = torch.argmax(logits, axis=0).squeeze()
 
-            desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {}" \
-                   "| N {} / {} | B {} / {} | ATY {} / {} | DCIS {} / {} | I {} / {}".format(
+            # update description
+            desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | ".format(
                 num_nodes, init_num_nodes,
                 non_zero_elements, init_non_zero_elements,
                 density,
                 round(loss.item(), 2),
-                self.label_to_tumor_type[str(label.item())],
-                round(float(probs[0]), 2), round(float(init_probs[0]), 2),
-                round(float(probs[1]), 2), round(float(init_probs[1]), 2),
-                round(float(probs[3]), 2), round(float(init_probs[3]), 2),
-                round(float(probs[4]), 2), round(float(init_probs[4]), 2),
-                round(float(probs[2]), 2), round(float(init_probs[2]), 2)
+                self.label_to_tumor_type[str(label.item())]
             )
+            for label_idx, label_name in self.label_to_tumor_type.items():
+                desc += ' ' + label_name + ' {} / {} | '.format(
+                    round(float(probs[int(label_idx)]), 2),
+                    round(float(init_probs[int(label_idx)]), 2)
+                )
 
             pbar.set_description(desc)
 

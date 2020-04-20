@@ -112,8 +112,6 @@ class GraphVisualization:
 
 def agg_and_plot_interpretation(meta_data, save_path, image_name):
 
-    print('image image_name', image_name)
-
     plt.figure(1)
     plt.title('Explanation Visualization')
     gs = gridspec.GridSpec(6, 2)
@@ -137,8 +135,6 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
     plt.subplot(gs[-1, 0])
     probs = list(meta_data['output']['original']['logits'])
     probs = [100 * x for x in probs]
-
-    print('Viz:', y_pos, probs)
 
     plt.bar(y_pos, probs, align='center')
     plt.xticks(y_pos, label_set)

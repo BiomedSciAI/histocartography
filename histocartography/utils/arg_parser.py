@@ -90,5 +90,12 @@ def parse_arguments():
         default='../../data/graphs',
         required=False
     )
+    parser.add_argument(
+        '--num_classes',
+        type=int,
+        help='Number of classes.',
+        default=None,
+        required=False
+    )
 
     return parser.parse_args()

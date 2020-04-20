@@ -1,10 +1,8 @@
-import time
-import numpy as np
 import torch
 from tqdm import tqdm
 
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
-from ..dataloader.constants import LABEL_TO_TUMOR_TYPE
+from ..dataloader.constants import get_label_to_tumor_type
 from .explainer_model import ExplainerModel
 from histocartography.utils.io import get_device
 
@@ -21,6 +19,7 @@ class SingleInstanceExplainer:
         self.model = model
         self.train_params = train_params
         self.model_params = model_params
+        self.label_to_tumor_type = get_label_to_tumor_type(model_params['num_classes'])
         self.cuda = cuda
         self.device = get_device(self.cuda)
         self.verbose = verbose
@@ -76,7 +75,7 @@ class SingleInstanceExplainer:
             init_non_zero_elements, init_non_zero_elements,
             density,
             loss.item(), 
-            LABEL_TO_TUMOR_TYPE[str(label.item())],
+            self.label_to_tumor_type[str(label.item())],
             round(float(init_probs[0]), 2), round(float(init_probs[0]), 2),
             round(float(init_probs[1]), 2), round(float(init_probs[1]), 2),
             round(float(init_probs[3]), 2), round(float(init_probs[3]), 2),
@@ -104,7 +103,7 @@ class SingleInstanceExplainer:
                 non_zero_elements, init_non_zero_elements,
                 density,
                 round(loss.item(), 2),
-                LABEL_TO_TUMOR_TYPE[str(label.item())],
+                self.label_to_tumor_type[str(label.item())],
                 round(float(probs[0]), 2), round(float(init_probs[0]), 2),
                 round(float(probs[1]), 2), round(float(init_probs[1]), 2),
                 round(float(probs[3]), 2), round(float(init_probs[3]), 2),

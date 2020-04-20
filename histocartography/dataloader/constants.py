@@ -1,6 +1,7 @@
 import dgl
 import torch
 
+
 NORMALIZATION_FACTORS = {
     'cell_graph': {'mean': torch.tensor([9.4237e+01, 5.7058e+01, 4.0923e+02, 5.8869e-01, 4.2775e+00, 2.8502e+03,
                                          5.5121e+01, 2.1028e+01, 5.6037e+02, 7.2949e-01, 3.5301e+02, 2.6564e+01,
@@ -41,25 +42,93 @@ COLLATE_FN = {
 }
 
 
-TUMOR_TYPE_TO_LABEL = {
-    'benign': 0,
-    'pathologicalbenign': 1,
-    'udh': 1,
-    'dcis': 2,
-    'malignant': 3,
-    'adh': 4,
-    'fea': 4
+def get_tumor_type_to_label(num_classes=5):
+
+    if num_classes == 2:
+        tumor_type_to_label = {
+            'benign': 0,
+            'pathologicalbenign': 0,
+            'udh': 0,
+            'dcis': 1,
+            'malignant': 1
+        }
+
+    elif num_classes == 3:
+        tumor_type_to_label = {
+            'benign': 0,
+            'pathologicalbenign': 0,
+            'udh': 0,
+            'dcis': 1,
+            'malignant': 1,
+            'adh': 2,
+            'fea': 2
+        }
+
+    elif num_classes == 5:
+        tumor_type_to_label = {
+            'benign': 0,
+            'pathologicalbenign': 1,
+            'udh': 1,
+            'dcis': 2,
+            'malignant': 3,
+            'adh': 4,
+            'fea': 4
+        }
+
+    else:
+        raise ValueError('Number of classes can 2, 3 or 5.')
+
+    return tumor_type_to_label
+
+
+def get_label_to_tumor_type(num_classes=5):
+
+    if num_classes == 2:
+        label_to_tumor_type = {
+            '0': 'N',
+            '1': 'I',
+        }
+
+    elif num_classes == 3:
+        label_to_tumor_type = {
+            '0': 'N',
+            '1': 'I',
+            '2': 'ATY'
+        }
+
+    elif num_classes == 5:
+        label_to_tumor_type = {
+            '0': 'N',
+            '1': 'B',
+            '2': 'DCIS',
+            '3': 'I',
+            '4': 'ATY'
+        }
+
+    else:
+        raise ValueError('Number of classes can 2, 3 or 5.')
+
+    return label_to_tumor_type
+
+
+def get_dataset_black_list(num_classes=5):
+    if num_classes == 2:
+        dataset_blacklist = ['fea', 'adh']
+
+    elif num_classes == 3:
+        dataset_blacklist = []
+
+    elif num_classes == 5:
+        dataset_blacklist = []
+
+    else:
+        raise ValueError('Number of classes can 2, 3 or 5.')
+
+    return dataset_blacklist
+
+
+NUM_CLASSES_TO_MODEL_URL = {
+    2: 'a2f387ebe35c4bb98989470af00c12a3/artifacts/model_best_val_loss_3',
+    3: 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3',
+    5: 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3'
 }
-
-LABEL_TO_TUMOR_TYPE = {
-    '0': 'N',
-    '1': 'B',
-    '2': 'DCIS',
-    '3': 'I',
-    '4': 'ATY'
-}
-
-
-# List of classes to discard for training
-DATASET_BLACKLIST = ['malignant']
-

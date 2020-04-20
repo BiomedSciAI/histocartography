@@ -21,7 +21,7 @@ from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.single_instance_explainer import SingleInstanceExplainer
 from histocartography.utils.graph import adj_to_networkx
 from histocartography.utils.visualization import GraphVisualization, agg_and_plot_interpretation
-from histocartography.dataloader.constants import LABEL_TO_TUMOR_TYPE
+from histocartography.dataloader.constants import get_label_to_tumor_type, NUM_CLASSES_TO_MODEL_URL
 
 
 # flush warnings 
@@ -45,12 +45,19 @@ def main(args):
     # load config file
     config = read_params(args.config_fpath, verbose=True)
 
+    if args.num_classes is not None:
+        config['model_params']['num_classes'] = args.num_classes
+
+    # constants
+    label_to_tumor_type = get_label_to_tumor_type(config['model_params']['num_classes'])
+
     # make data loaders
     dataloaders, num_cell_features = make_data_loader(
         batch_size=1,
         num_workers=args.number_of_workers,
         path=args.data_path,
         config=config,
+        num_classes=config['model_params']['num_classes'],
         cuda=CUDA,
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
@@ -66,30 +73,29 @@ def main(args):
         )
         model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
             config['model_params'], num_cell_features).to(DEVICE)
-        if args.pretrained_model:
-            fname = BASE_S3 + 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3'
-            mlflow_model = load_model(fname,  map_location=torch.device('cpu'))
+        fname = BASE_S3 + NUM_CLASSES_TO_MODEL_URL[config['model_params']['num_classes']]
+        mlflow_model = load_model(fname,  map_location=torch.device('cpu'))
 
-            def is_int(s):
-                try:
-                    int(s)
-                    return True
-                except:
-                    return False
+        def is_int(s):
+            try:
+                int(s)
+                return True
+            except:
+                return False
 
-            for n, p in mlflow_model.named_parameters():
-                split = n.split('.')
-                to_eval = 'model'
-                for s in split:
-                    if is_int(s):
-                        to_eval += '[' + s + ']'
-                    else:
-                        to_eval += '.'
-                        to_eval += s
-                exec(to_eval + '=' + 'p')
+        for n, p in mlflow_model.named_parameters():
+            split = n.split('.')
+            to_eval = 'model'
+            for s in split:
+                if is_int(s):
+                    to_eval += '[' + s + ']'
+                else:
+                    to_eval += '.'
+                    to_eval += s
+            exec(to_eval + '=' + 'p')
 
-            if CUDA:
-                model = model.cuda()
+        if CUDA:
+            model = model.cuda()
     else:
         raise ValueError(
             'Model: {} not recognized. Options are: {}'.format(
@@ -102,14 +108,16 @@ def main(args):
     for key, val in inter_config.items():
         mlflow.log_param(key, val)
 
+    print('Model is', model)
+
     # agg training parameters
     train_params = {
         'num_epochs': args.epochs,
         'lr': args.learning_rate,
         'weight_decay': 5e-4,
-        # 'opt_decay_step': 0.1,
-        # 'opt_decay_rate': 0.1
     }
+
+    config['explainer']['num_classes'] = config['model_params']['num_classes']
     
     # declare explainer 
     explainer = SingleInstanceExplainer(
@@ -164,22 +172,22 @@ def main(args):
 
         # 3-b label
         meta_data['output']['label_index'] = label.item()
-        meta_data['output']['label_set'] = [val for key, val in LABEL_TO_TUMOR_TYPE.items()]
-        meta_data['output']['label'] = LABEL_TO_TUMOR_TYPE[str(label.item())]
+        meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
+        meta_data['output']['label'] = label_to_tumor_type[str(label.item())]
 
         # 3-c original graph properties
         meta_data['output']['original'] = {}
         meta_data['output']['original']['logits'] = list(np.around(orig_pred, 2).astype(float))
         meta_data['output']['original']['number_of_nodes'] = cell_graph.number_of_nodes()
         meta_data['output']['original']['number_of_edges'] = cell_graph.number_of_edges()
-        meta_data['output']['original']['prediction'] = LABEL_TO_TUMOR_TYPE[str(np.argmax(orig_pred))]
+        meta_data['output']['original']['prediction'] = label_to_tumor_type[str(np.argmax(orig_pred))]
 
         # 3-d explanation graph properties
         meta_data['output']['explanation'] = {}
         meta_data['output']['explanation']['number_of_nodes'] = explanation.number_of_nodes()
         meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
         meta_data['output']['explanation']['logits'] = list(np.around(exp_pred, 2).astype(float))
-        meta_data['output']['explanation']['prediction'] = LABEL_TO_TUMOR_TYPE[str(np.argmax(exp_pred))]
+        meta_data['output']['explanation']['prediction'] = label_to_tumor_type[str(np.argmax(exp_pred))]
 
         # 3-e write to json
         write_json(complete_path(args.out_path, data[-1][0] + '.json'), meta_data)

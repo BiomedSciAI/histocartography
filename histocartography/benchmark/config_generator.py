@@ -2,7 +2,7 @@ from sklearn.model_selection import ParameterGrid
 
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES
 from histocartography.utils.io import write_json, complete_path, check_for_dir
-from histocartography.dataloader.constants import TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST
+from histocartography.dataloader.constants import get_tumor_type_to_label, get_dataset_black_list
 import numpy as np
 
 
@@ -23,12 +23,15 @@ MODEL_TYPE_TO_GRAPH_BUILDING_PARAMS = {
 
 class ConfigGenerator:
 
-    def __init__(self, save_path):
+    def __init__(self, save_path, num_classes=5, gnn_layer_type='gin_layer'):
         """
         Config Generator constructor
         """
 
         self.save_path = save_path
+        self.tumor_type_to_label = get_tumor_type_to_label(num_classes)
+        self.dataset_blacklist = get_dataset_black_list(num_classes)
+        self.gnn_layer_type = gnn_layer_type
 
     def __call__(self, model_type):
         """
@@ -135,7 +138,7 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "dropout": [0.0],
-                "num_classes": self._get_number_classes(DATASET_BLACKLIST, TUMOR_TYPE_TO_LABEL),
+                "num_classes": self._get_number_classes(self.dataset_blacklist, self.tumor_type_to_label),
                 "use_bn": [False],
                 "cat": [True],
                 "activation": ["relu"]
@@ -151,7 +154,12 @@ class ConfigGenerator:
         return [n_classes]
 
     def _get_gnn_params(self):
-        gnn_config = self._get_dense_gin_params()
+        if self.gnn_layer_type == 'dense_gin_layer':
+            gnn_config = self._get_dense_gin_params()
+        elif self.gnn_layer_type == 'gin_layer':
+            gnn_config = self._get_gin_params()
+        else:
+            raise NotImplementedError('Other GNN layers not implemented.')
         return gnn_config
 
     @staticmethod

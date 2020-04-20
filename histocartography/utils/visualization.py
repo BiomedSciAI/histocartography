@@ -138,6 +138,8 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
     probs = list(meta_data['output']['original']['logits'])
     probs = [100 * x for x in probs]
 
+    print('Viz:', y_pos, probs)
+
     plt.bar(y_pos, probs, align='center')
     plt.xticks(y_pos, label_set)
     plt.title('Original probability predictions (%)')

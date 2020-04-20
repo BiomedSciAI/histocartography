@@ -10,8 +10,9 @@ from histocartography.utils.io import (
     load_h5_fnames, get_dir_in_folder
 )
 from histocartography.dataloader.constants import (
-    NORMALIZATION_FACTORS, COLLATE_FN,
-    TUMOR_TYPE_TO_LABEL, DATASET_BLACKLIST)
+    NORMALIZATION_FACTORS, COLLATE_FN)
+from histocartography.dataloader.constants import get_tumor_type_to_label
+from histocartography.dataloader.constants import get_dataset_black_list
 from histocartography.utils.vector import compute_normalization_factor
 from histocartography.utils.io import load_image
 
@@ -24,6 +25,7 @@ class PascaleDataset(BaseDataset):
             data_path,
             dataset_name,
             split,
+            num_classes,
             config,
             cuda=False,
             load_cell_graph=True,
@@ -57,6 +59,7 @@ class PascaleDataset(BaseDataset):
         self.show_superpx = show_superpx
         self.load_in_ram = load_in_ram
         self.fold_id = fold_id
+        self.tumor_type_to_label = get_tumor_type_to_label(num_classes)
 
         # 2. load h5 fnames and labels (from h5 fname)
         self._load_h5_fnames_and_labels(data_path, split)
@@ -147,7 +150,7 @@ class PascaleDataset(BaseDataset):
         """
         tumor_type = fpath.split('_')[1]
 
-        self.labels.append(TUMOR_TYPE_TO_LABEL[tumor_type])
+        self.labels.append(self.tumor_type_to_label[tumor_type])
 
     def _load_feat_indices(self, fpath):
         """
@@ -365,7 +368,7 @@ def collate(batch):
     return data, labels
 
 
-def build_datasets(path, *args, **kwargs):
+def build_datasets(path, num_classes, *args, **kwargs):
     """
     Builds dataset from text files that contain train:test:validation split
 
@@ -373,8 +376,11 @@ def build_datasets(path, *args, **kwargs):
         PASCALE datasets for train, validation and testing
     """
 
+    print('num classes', num_classes)
+
+    dataset_blacklist = get_dataset_black_list(num_classes)
     data_dir = get_dir_in_folder(complete_path(path, 'nuclei_info'))
-    data_dir = list(filter(lambda x: all(b not in x for b in DATASET_BLACKLIST), data_dir))
+    data_dir = list(filter(lambda x: all(b not in x for b in dataset_blacklist), data_dir))
 
     datasets = {}
 
@@ -385,6 +391,7 @@ def build_datasets(path, *args, **kwargs):
                     path,
                     dir,
                     data_split,
+                    num_classes,
                     *args, **kwargs
                 )
                 for dir in data_dir

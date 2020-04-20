@@ -2,24 +2,18 @@
 """
 Script for training graph-based histocartography models
 """
-import logging
-import sys
-import tempfile
 import importlib
 import torch
 import mlflow
-import dgl
 import os
 import pickle
 import uuid
-from PIL import Image
 from tqdm import tqdm
 import mlflow.pytorch
 import pandas as pd
-import numpy as np
 import shutil
 
-from histocartography.utils.io import read_params, check_for_dir
+from histocartography.utils.io import read_params
 from histocartography.utils.io import DATATYPE_TO_EXT, DATATYPE_TO_SAVEFN
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
@@ -29,9 +23,9 @@ from histocartography.evaluation.classification_report import ClassificationRepo
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import (
-    get_device, get_filename, check_for_dir,
-    complete_path, save_image, load_checkpoint,
-    save_checkpoint, write_json, save_image
+    get_device, check_for_dir,
+    complete_path, load_checkpoint,
+    save_checkpoint
 )
 
 import warnings
@@ -41,8 +35,9 @@ warnings.filterwarnings("ignore")
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
 
-FOLD_IDS = [2, 3, 7, 11]  # @TODO: souble check number of folds used for the cross validation. 
+FOLD_IDS = [2, 3, 7, 11]
 # FOLD_IDS = [7]
+
 
 def main(args):
     """
@@ -53,6 +48,9 @@ def main(args):
 
     # load config file
     config = read_params(args.config_fpath, verbose=True)
+
+    if args.num_classes is not None:
+        config['model_params']['num_classes'] = args.num_classes
 
     # mlflow log parameters
     mlflow.log_params({
@@ -91,6 +89,7 @@ def main(args):
                 batch_size=args.batch_size,
                 num_workers=args.number_of_workers,
                 path=args.data_path,
+                num_classes=config['model_params']['num_classes'],
                 config=config,
                 cuda=CUDA,
                 load_cell_graph=load_cell_graph(config['model_type']),

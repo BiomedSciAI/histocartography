@@ -1,6 +1,5 @@
 import networkx as nx
 import numpy as np 
-import torch 
 
 
 def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None):

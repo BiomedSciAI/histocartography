@@ -21,7 +21,7 @@
                 "output_dim": 32
             }
         },
-        "num_classes": 5,
+        "num_classes": 2,
         "readout": {
             "hidden_dim": 64,
             "num_layers": 2,

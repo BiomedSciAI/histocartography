@@ -50,7 +50,7 @@ class ConfigGenerator:
                 'graph_building': getattr(self, MODEL_TYPE_TO_GRAPH_BUILDING_PARAMS[model_type])(),
                 'model_params': getattr(self, MODEL_TYPE_TO_MODEL_PARAMS[model_type])(),
                 'model_type': [model_type],
-                'explainer': self._get_explainer_params()
+                # 'explainer': self._get_explainer_params()
             }
         )
 
@@ -149,7 +149,8 @@ class ConfigGenerator:
     @staticmethod
     def _get_number_classes(blacklist, labels):
         for i in range(len(blacklist)):
-            del labels[blacklist[i]]
+            # del labels[blacklist[i]]
+            labels.pop(blacklist[i], None)
         n_classes = len(np.unique(list(labels.values())))
         return [n_classes]
 
@@ -200,10 +201,10 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "loss": {
-                    "adj": [0.05, 0.005],
+                    "adj": [0.005],
                     "adj_ent": [1.0],
                     "node_ent": [1.0],
-                    "node": [0.05, 0.005],
+                    "node": [0.05],
                     "ce": [10.0]
                 },
                 "adj_thresh": [0.1],

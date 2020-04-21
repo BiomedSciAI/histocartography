@@ -98,7 +98,7 @@ class SingleInstanceExplainer:
             masked_adj = (masked_adj > self.adj_thresh).to(self.device).to(torch.float) * masked_adj
             node_importance = explainer._get_node_feats_mask()
             node_weights = (node_importance > self.node_thresh)
-            masked_feats = masked_feats * torch.stack(masked_feats.shape[-1] * [node_weights], dim=1).unsqueeze(dim=0)
+            masked_feats = masked_feats * torch.stack(masked_feats.shape[-1] * [node_weights], dim=1).unsqueeze(dim=0).to(torch.float)
             probs = torch.nn.Softmax()(logits.cpu().squeeze()).detach().numpy()
             non_zero_elements = (masked_adj != 0).sum()
             density = round(non_zero_elements.item() / init_non_zero_elements.item(), 2)

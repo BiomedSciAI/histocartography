@@ -135,7 +135,7 @@ def main(args):
             label=label
         )
 
-        node_idx = (feats.sum(dim=-1) != 0.).squeeze()
+        node_idx = (feats.sum(dim=-1) != 0.).squeeze().cpu()
         adj = adj[node_idx, :]
         adj = adj[:, node_idx]
 

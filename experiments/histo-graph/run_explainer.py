@@ -62,6 +62,7 @@ def main(args):
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
         load_image=True,
+        load_nuclei_seg_map=True,
         fold_id=3
     )
 
@@ -156,8 +157,12 @@ def main(args):
 
         # 2. visualize the explanation graph 
         graph_visualizer = GraphVisualization(save_path=args.out_path)
-        data = (explanation, data[1], [data[2][0] + '_explanation'])
-        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1, node_importance)
+        instance_map = data[-1][0]
+        pruned_instance_map = np.zeros(instance_map.shape)
+        for node_id in np.nonzero(node_idx):
+            pruned_instance_map += instance_map * (instance_map == node_id.item() + 1)
+        data = (explanation, data[1], [data[2][0] + '_explanation'], [pruned_instance_map])
+        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1, node_importance=node_importance)
 
         # 3. save meta data in json file
         meta_data = {}
@@ -189,10 +194,10 @@ def main(args):
         meta_data['output']['explanation']['prediction'] = label_to_tumor_type[str(np.argmax(exp_pred))]
 
         # 3-e write to json
-        write_json(complete_path(args.out_path, data[-1][0] + '.json'), meta_data)
+        write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)
 
         # 4. aggregate all the information in a single user-friendly image
-        agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-1][0])
+        agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-2][0])
 
 
 if __name__ == "__main__":

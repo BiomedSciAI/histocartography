@@ -32,8 +32,8 @@
     "model_type": "cell_graph_model",
     "explainer": {
         "loss": {
-            "adj": 0.005,
-            "adj_ent": 1.0,
+            "adj": 0.0,
+            "adj_ent": 0.0,
             "node_ent": 1.0,
             "node": 0.05,
             "ce": 10.0

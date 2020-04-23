@@ -37,7 +37,8 @@ class PascaleDataset(BaseDataset):
             load_image=False,
             load_in_ram=False,
             show_superpx=False,
-            fold_id=None
+            fold_id=None,
+            load_nuclei_seg_map=False
     ):
         """
         Pascale dataset constructor.
@@ -60,6 +61,7 @@ class PascaleDataset(BaseDataset):
         self.load_cell_graph = load_cell_graph
         self.load_superpx_graph = load_superpx_graph
         self.load_image = load_image
+        self.load_nuclei_seg_map = load_nuclei_seg_map
         self.show_superpx = show_superpx
         self.load_in_ram = load_in_ram
         self.fold_id = fold_id
@@ -165,11 +167,11 @@ class PascaleDataset(BaseDataset):
                 dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
         except:
             print('Warning: List of DGL graphs is empty. Tentative dimension set to 2050.')
-            dim = 2050  # corresponds to resnet50 + location embeddings 
+            dim = 2050  # corresponds to resnet50 + location embeddings
         return dim
 
     def _get_edge_cell_features_dim(self):
-        return 4 if self.encode_cg_edges else None 
+        return 4 if self.encode_cg_edges else None
 
     def _get_superpx_features_dim(self):
         try:
@@ -186,11 +188,11 @@ class PascaleDataset(BaseDataset):
                 dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
         except:
             print('Warning: List of DGL graphs is empty. Tentative dimension set to 2050.')
-            dim = 2050  # corresponds to resnet50 + location embeddings 
+            dim = 2050  # corresponds to resnet50 + location embeddings
         return dim
 
     def _get_edge_superpx_features_dim(self):
-        return 4 if self.encode_tg_edges else None 
+        return 4 if self.encode_tg_edges else None
 
     def _get_superpx_map(self, index):
         with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
@@ -216,16 +218,23 @@ class PascaleDataset(BaseDataset):
         g, _ = load_graphs(graph_fname)
         g = g[0]
 
-        # keep/drop edge features 
+        # keep/drop edge features
         if not self.encode_cg_edges and GNN_EDGE_FEAT in g.edata.keys():
             del g.edata[GNN_EDGE_FEAT]
 
-        # keep/drop appearance features 
+        # keep/drop appearance features
         if self.drop_cg_appearance_features:
             subfeats = g.ndata.pop(GNN_NODE_FEAT_IN)[:, -2:]
             g.ndata[GNN_NODE_FEAT_IN] = subfeats
 
         return g
+
+    def _load_nuclei_seg_map(self, index):
+        # extract the image size, centroid, cell features and label
+        with h5py.File(complete_path(self.cell_graph_path, self.h5_fnames[index]), 'r') as f:
+            seg_map = h5_to_tensor(f['detected_instance_map'], 'cpu').numpy()
+            f.close()
+        return seg_map
 
     def _build_superpx_graph(self, index):
         """
@@ -240,11 +249,11 @@ class PascaleDataset(BaseDataset):
         g, _ = load_graphs(graph_fname)
         g = g[0]
 
-        # keep/drop appearance features 
+        # keep/drop appearance features
         if not self.encode_tg_edges and GNN_EDGE_FEAT in g.edata.keys():
             del g.edata[GNN_EDGE_FEAT]
 
-        # keep/drop appearance features 
+        # keep/drop appearance features
         if self.drop_tg_appearance_features:
             subfeats = g.ndata.pop(GNN_NODE_FEAT_IN)[:, -2:]
             g.ndata[GNN_NODE_FEAT_IN] = subfeats
@@ -260,7 +269,7 @@ class PascaleDataset(BaseDataset):
                 )
             )
         return torch.FloatTensor(data).t()
-        
+
     def __getitem__(self, index):
         """
         Get an example.
@@ -315,6 +324,11 @@ class PascaleDataset(BaseDataset):
             image, image_name = self._load_image(self.h5_fnames[index].replace('.h5', ''))
             data.append(image)
             data.append(image_name)
+
+        # 7. load nuclei segmentation map if required
+        if self.load_nuclei_seg_map:
+            seg_map = self._load_nuclei_seg_map(index)
+            data.append(seg_map)
 
         return data, label
 

@@ -135,7 +135,8 @@ class ExplainerModel(nn.Module):
 
     def forward(self):
 
-        masked_adj = self._masked_adj()
+        # masked_adj = self._masked_adj()  # @TODO: hack alert: not mask over the edges
+        masked_adj = self.adj
         masked_x = self._masked_node_feats()
 
         # build a graph from the new x & adjacency matrix...
@@ -143,6 +144,11 @@ class ExplainerModel(nn.Module):
         ypred = self.model(graph)
 
         return ypred, masked_adj, masked_x
+
+    def distillation_loss(self, inner_logits):
+        log_output = nn.LogSoftmax(dim=1)(inner_logits)
+        cross_entropy = self.label * log_output
+        return -torch.mean(torch.sum(cross_entropy, dim=1))
 
     def loss(self, pred):
         """
@@ -152,6 +158,7 @@ class ExplainerModel(nn.Module):
 
         # 1. cross-entropy loss
         pred_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label) * self.coeffs['ce']
+        # pred_loss = self.distillation_loss(pred.unsqueeze(dim=0))
 
         # 2. size loss
         adj_mask = self._get_adj_mask(with_zeroing=True)

@@ -9,6 +9,8 @@ from dgl import DGLGraph
 import networkx as nx 
 import torch 
 import os
+from PIL import ImageFilter
+from PIL import Image
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
 from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle
@@ -29,8 +31,12 @@ class GraphVisualization:
 
         for index in range(size):
 
-            image = data[-2][index].copy()
-            image_name = data[-1][index]
+            image = data[-3][index].copy()
+            image_name = data[-2][index]
+            try:
+                seg_map = data[-1][index]
+            except:
+                seg_map = None
 
             if show_sg:
                 canvas = image.copy()
@@ -73,6 +79,15 @@ class GraphVisualization:
                     for idx in important_node_indices:
                         centroid = [cent_cg[idx].squeeze()[0].item(), cent_cg[idx].squeeze()[1].item()]
                         draw_large_circle(centroid, draw)
+
+                if seg_map is not None:
+                    seg_map = seg_map.squeeze()
+                    mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
+                    alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
+                    alpha = Image.fromarray(alpha).convert('L')
+                    alpha = alpha.filter(ImageFilter.FIND_EDGES)
+                    mask.putalpha(alpha)
+                    canvas.paste(mask, (0, 0), mask)
 
                 if self.show:
                     show_image(canvas)

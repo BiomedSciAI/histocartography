@@ -201,7 +201,7 @@ def main(args):
             # 4. aggregate all the information in a single user-friendly image
             agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-2][0])
 
-        else:
+        except:
             print('An error occured in viz...')
 
 

@@ -236,6 +236,13 @@ class PascaleDataset(BaseDataset):
             f.close()
         return seg_map
 
+    def _load_nuclei_seg_map(self, index):
+        # extract the image size, centroid, cell features and label
+        with h5py.File(complete_path(self.cell_graph_path, self.h5_fnames[index]), 'r') as f:
+            seg_map = h5_to_tensor(f['detected_instance_map'], 'cpu').numpy()
+            f.close()
+        return seg_map
+
     def _build_superpx_graph(self, index):
         """
         Build the super pixel graph

@@ -24,7 +24,7 @@ from histocartography.utils.visualization import GraphVisualization, agg_and_plo
 from histocartography.dataloader.constants import get_label_to_tumor_type, NUM_CLASSES_TO_MODEL_URL
 
 
-# flush warnings 
+# flush warnings
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -117,8 +117,8 @@ def main(args):
     }
 
     config['explainer']['num_classes'] = config['model_params']['num_classes']
-    
-    # declare explainer 
+
+    # declare explainer
     explainer = SingleInstanceExplainer(
         model=model,
         train_params=train_params,
@@ -148,14 +148,14 @@ def main(args):
 
         explanation = adj_to_networkx(adj, feats, threshold=config['explainer']['adj_thresh'], centroids=centroids)
 
-        # 1. visualize the original graph 
+        # 1. visualize the original graph
         show_cg_flag = load_cell_graph(config['model_type'])
         show_sp_flag = load_superpx_graph(config['model_type'])
         show_sp_map = False
         graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=True)
         graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
 
-        # 2. visualize the explanation graph 
+        # 2. visualize the explanation graph
         graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=False)
         instance_map = data[-1][0]
         pruned_instance_map = np.zeros(instance_map.shape)

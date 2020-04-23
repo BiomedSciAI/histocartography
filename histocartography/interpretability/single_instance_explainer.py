@@ -54,7 +54,7 @@ class SingleInstanceExplainer:
             model=self.model,
             adj=adj,
             x=x,
-            label=init_pred_label.unsqueeze(dim=0),
+            label=init_pred_label.unsqueeze(dim=0).to(self.device),
             model_params=self.model_params,
             train_params=self.train_params,
             cuda=self.cuda

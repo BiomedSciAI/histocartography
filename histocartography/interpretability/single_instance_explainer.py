@@ -1,6 +1,5 @@
 import torch
 from tqdm import tqdm
-import numpy as np
 
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
 from ..dataloader.constants import get_label_to_tumor_type
@@ -47,14 +46,14 @@ class SingleInstanceExplainer:
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
         label = torch.tensor(sub_label, dtype=torch.long).to(self.device)
         init_logits = self.model(data).cpu().detach()
-        init_probs = torch.nn.Softmax()(init_logits).numpy().squeeze()
+        init_probs = torch.nn.Softmax()(init_logits)
         init_pred_label = torch.argmax(init_logits, axis=1).squeeze()
 
         explainer = ExplainerModel(
             model=self.model,
             adj=adj,
             x=x,
-            label=init_pred_label.unsqueeze(dim=0).to(self.device),
+            init_probs=init_probs.to(self.device),
             model_params=self.model_params,
             train_params=self.train_params,
             cuda=self.cuda
@@ -69,6 +68,7 @@ class SingleInstanceExplainer:
         explainer.train()
 
         # Init training stats
+        init_probs = init_probs.numpy().squeeze()
         init_non_zero_elements = (adj != 0).sum()
         init_num_nodes = adj.shape[-1]
         density = 1.0

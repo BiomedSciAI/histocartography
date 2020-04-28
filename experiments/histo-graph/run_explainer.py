@@ -152,11 +152,11 @@ def main(args):
         show_cg_flag = load_cell_graph(config['model_type'])
         show_sp_flag = load_superpx_graph(config['model_type'])
         show_sp_map = False
-        graph_visualizer = GraphVisualization(save_path=args.out_path)
+        graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=True)
         graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
 
         # 2. visualize the explanation graph 
-        graph_visualizer = GraphVisualization(save_path=args.out_path)
+        graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=False)
         instance_map = data[-1][0]
         pruned_instance_map = np.zeros(instance_map.shape)
         for node_id in np.nonzero(node_idx):

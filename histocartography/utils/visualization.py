@@ -19,10 +19,11 @@ from histocartography.ml.layers.constants import CENTROID
 
 class GraphVisualization:
 
-    def __init__(self, show=False, save=True, save_path='../../data/graphs', verbose=False):
+    def __init__(self, show=False, show_centroid=True, save=True, save_path='../../data/graphs', verbose=False):
         if verbose:
             print('Initialize graph visualizer')
         self.show = show
+        self.show_centroid = show_centroid
         self.save = save
         self.save_path = save_path
         self.verbose = verbose
@@ -70,7 +71,8 @@ class GraphVisualization:
                 cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
                 # draw centroids
-                self.draw_centroid(cent_cg, draw, (255, 0, 0))
+                if self.show_centroid:
+                    self.draw_centroid(cent_cg, draw, (255, 0, 0))
                 self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
 
                 # draw large circles around highly important nodes

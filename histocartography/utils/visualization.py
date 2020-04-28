@@ -70,6 +70,10 @@ class GraphVisualization:
                 # get centroids and edges
                 cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
+                # @TODO: hack alert store the centroid and the edges
+                self.centroid_cg = cent_cg
+                self.edges_cg = edges_cg
+
                 # draw centroids
                 if self.show_centroid:
                     self.draw_centroid(cent_cg, draw, (255, 0, 0))

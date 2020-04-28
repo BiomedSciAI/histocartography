@@ -163,6 +163,7 @@ class ExplainerModel(nn.Module):
         distillation_loss = self.distillation_loss(pred.unsqueeze(dim=0))
         alpha = torch.FloatTensor([entropy(torch.nn.Softmax()(pred).cpu().detach().numpy())]) /\
                 torch.log(torch.FloatTensor([self.init_probs.shape[1]]))
+        alpha = alpha.to(self.device)
         pred_loss = self.coeffs['ce'] * (alpha * ce_loss + (1 - alpha) * distillation_loss)
 
         # 2. size loss

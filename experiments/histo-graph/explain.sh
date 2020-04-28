@@ -11,7 +11,7 @@ mkdir -p ../../runs
 
 # Set input parameters
 LEARNING_RATES=(0.01)
-NUM_CLASSES=(2)
+NUM_CLASSES=(3 5)
 queue="prod.med"
 
 # Training loop

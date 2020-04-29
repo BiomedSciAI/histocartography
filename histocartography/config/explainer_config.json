@@ -18,7 +18,8 @@
                 "layer_type": "dense_gin_layer",
                 "n_layers": 3,
                 "neighbor_pooling_type": "mean",
-                "output_dim": 32
+                "output_dim": 32,
+                "return_last_layer": true
             }
         },
         "num_classes": 2,

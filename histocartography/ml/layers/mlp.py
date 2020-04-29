@@ -16,7 +16,8 @@ class MLP(nn.Module):
         use_bn=False,
         bias=True,
         verbose=False,
-        dropout=0.
+        dropout=0.,
+        return_last_layer=False
     ):
         """
         MLP Constructor
@@ -32,6 +33,10 @@ class MLP(nn.Module):
         :param verbose: (bool) verbosity level
         """
         super(MLP, self).__init__()
+
+        # optional argument
+        self.return_last_layer = return_last_layer
+        self.num_layers = num_layers
 
         # set activations
         self._set_activations(act)
@@ -159,6 +164,12 @@ class MLP(nn.Module):
         :return: out: MLP output
         """
         out = feats
-        for layer in self.mlp:
+        for layer_id, layer in enumerate(self.mlp):
             out = layer(out)
+            if self.return_last_layer and layer_id == self.num_layers -2:
+                embeddings = out
+
+        if self.return_last_layer:
+            return out, embeddings
+
         return out

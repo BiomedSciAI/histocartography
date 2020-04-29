@@ -46,7 +46,8 @@ class CellGraphModel(BaseModel):
             in_dim=emd_dim,
             h_dim=self.readout_params['hidden_dim'],
             out_dim=self.num_classes,
-            num_layers=self.readout_params['num_layers']
+            num_layers=self.readout_params['num_layers'],
+            return_last_layer=self.gnn_params['return_last_layer']
         )
 
     def forward(self, data):
@@ -65,6 +66,6 @@ class CellGraphModel(BaseModel):
             graph_embeddings = self.cell_graph_gnn(adj, feats)
 
         # 2. Run readout function
-        logits = self.pred_layer(graph_embeddings)
+        out = self.pred_layer(graph_embeddings)
 
-        return logits
+        return out

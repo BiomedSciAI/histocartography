@@ -45,7 +45,8 @@ class SingleInstanceExplainer:
         adj = torch.tensor(sub_adj, dtype=torch.float).to(self.device)
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
         label = torch.tensor(sub_label, dtype=torch.long).to(self.device)
-        init_logits = self.model(data).cpu().detach()
+        init_logits, init_embeddings = self.model(data)
+        init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
         init_pred_label = torch.argmax(init_logits, axis=1).squeeze()
 
@@ -54,6 +55,7 @@ class SingleInstanceExplainer:
             adj=adj,
             x=x,
             init_probs=init_probs.to(self.device),
+            init_embeddings=init_embeddings,
             model_params=self.model_params,
             train_params=self.train_params,
             cuda=self.cuda
@@ -91,8 +93,8 @@ class SingleInstanceExplainer:
         pbar = tqdm(range(self.train_params['num_epochs']), desc=desc, unit='step')
     
         for step in pbar:
-            logits, masked_adj, masked_feats = explainer()
-            loss = explainer.loss(logits)
+            logits, embeddings, masked_adj, masked_feats = explainer()
+            loss = explainer.loss(logits, embeddings)
 
             # Compute number of non zero elements in the masked adjacency
             masked_adj = (masked_adj > self.adj_thresh).to(self.device).to(torch.float) * masked_adj
@@ -133,7 +135,7 @@ class SingleInstanceExplainer:
 
             explainer.zero_grad()
             explainer.optimizer.zero_grad()
-            loss.backward()
+            loss.backward(retain_graph=True)
             explainer.optimizer.step()
 
         return self.adj_explanation.squeeze(), self.node_feats_explanation.squeeze(), init_probs, probs, self.node_importance

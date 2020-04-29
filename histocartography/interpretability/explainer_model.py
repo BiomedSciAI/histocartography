@@ -15,6 +15,7 @@ class ExplainerModel(nn.Module):
         adj,
         x,
         init_probs,
+        init_embeddings,
         model_params,
         train_params,
         cuda=False,
@@ -28,6 +29,7 @@ class ExplainerModel(nn.Module):
         self.x = x
         self.model = model
         self.init_probs = init_probs
+        self.init_embeddings = init_embeddings
         self.label = torch.argmax(init_probs, axis=1)
 
         # set model parameters
@@ -143,20 +145,34 @@ class ExplainerModel(nn.Module):
 
         # build a graph from the new x & adjacency matrix...
         graph = [masked_adj, masked_x]
-        ypred = self.model(graph)
+        ypred, embeddings = self.model(graph)
 
-        return ypred, masked_adj, masked_x
+        return ypred, embeddings, masked_adj, masked_x
 
     def distillation_loss(self, inner_logits):
         log_output = nn.LogSoftmax(dim=1)(inner_logits)
         cross_entropy = self.init_probs * log_output
         return -torch.mean(torch.sum(cross_entropy, dim=1))
 
-    def loss(self, pred):
+    def loss(self, pred, embeddings):
         """
         Args:
             pred: prediction made by current model
         """
+
+        # debug purposes look at the cosine similarity
+        criterion = torch.nn.CosineEmbeddingLoss()
+        cosine_similarity = criterion(self.init_embeddings.unsqueeze(dim=0), embeddings.unsqueeze(dim=0), torch.LongTensor([1]))
+        criterion = torch.nn.MSELoss()
+        l2_loss = criterion(self.init_embeddings.unsqueeze(dim=0), embeddings.unsqueeze(dim=0))
+        l1_norm = torch.norm(self.init_embeddings - embeddings, p=1, dim=1)
+        dot_product = torch.sum(self.init_embeddings * embeddings)
+
+        # # print('ZEmbeddings', self.init_embeddings)
+        # print('Cosine similarity:', cosine_similarity)
+        # print('L2 norm:', l2_loss)
+        # print('L1 norm:', l1_norm)
+        # print('DOT PRODUCT', dot_product)
 
         # 1. cross-entropy + distillation loss
         ce_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label)

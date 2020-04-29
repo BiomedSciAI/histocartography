@@ -194,6 +194,12 @@ def main(args):
             meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
             meta_data['output']['explanation']['logits'] = list(np.around(exp_pred, 2).astype(float))
             meta_data['output']['explanation']['prediction'] = label_to_tumor_type[str(np.argmax(exp_pred))]
+<<<<<<< HEAD
+=======
+            meta_data['output']['explanation']['node_importance'] = str(list(node_importance))
+            meta_data['output']['explanation']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
+            meta_data['output']['explanation']['edges'] = str(list(graph_visualizer.edges_cg))
+>>>>>>> put back the exception handling
 
             # 3-e write to json
             write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)

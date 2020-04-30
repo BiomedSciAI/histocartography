@@ -36,12 +36,12 @@
             "adj": 0.0,
             "adj_ent": 0.0,
             "node_ent": 1.0,
-            "node": 0.05,
-            "ce": 10.0
+            "node": 0.0005,
+            "ce": 1.0
         },
         "adj_thresh": 0.05,
         "node_thresh": 0.05,
         "init": "normal",
-        "mask_activation": "sigmoid"
+        "mask_activation": "relu"
     }
 }

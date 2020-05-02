@@ -134,7 +134,7 @@ def main(args):
     )
 
     # explain instance from the train set
-    for data, label in dataloaders['test']:
+    for data, label in dataloaders[args.split]:
 
         cell_graph = data[0]
 

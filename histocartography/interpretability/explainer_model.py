@@ -30,7 +30,7 @@ class ExplainerModel(nn.Module):
         self.model = model
         self.init_probs = init_probs
         self.init_embeddings = init_embeddings
-        self.label = torch.argmax(init_probs, axis=1)
+        self.label = torch.argmax(init_probs, dim=1)
 
         # set model parameters
         self.cuda = cuda
@@ -161,12 +161,12 @@ class ExplainerModel(nn.Module):
         """
 
         # debug purposes look at the cosine similarity
-        criterion = torch.nn.CosineEmbeddingLoss()
-        cosine_similarity = criterion(self.init_embeddings.unsqueeze(dim=0), embeddings.unsqueeze(dim=0), torch.LongTensor([1]))
-        criterion = torch.nn.MSELoss()
-        l2_loss = criterion(self.init_embeddings.unsqueeze(dim=0), embeddings.unsqueeze(dim=0))
-        l1_norm = torch.norm(self.init_embeddings - embeddings, p=1, dim=1)
-        dot_product = torch.sum(self.init_embeddings * embeddings)
+        #criterion = torch.nn.CosineEmbeddingLoss()
+        #cosine_similarity = criterion(self.init_embeddings.unsqueeze(dim=0), embeddings.unsqueeze(dim=0), torch.LongTensor([1]))
+        #criterion = torch.nn.MSELoss()
+        #l2_loss = criterion(self.init_embeddings.unsqueeze(dim=0), embeddings.unsqueeze(dim=0))
+        #l1_norm = torch.norm(self.init_embeddings - embeddings, p=1, dim=1)
+        #dot_product = torch.sum(self.init_embeddings * embeddings)
 
         # # print('ZEmbeddings', self.init_embeddings)
         # print('Cosine similarity:', cosine_similarity)

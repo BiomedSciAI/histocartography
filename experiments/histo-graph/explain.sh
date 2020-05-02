@@ -12,22 +12,24 @@ mkdir -p ../../runs
 # Set input parameters
 LEARNING_RATES=(0.01)
 NUM_CLASSES=(3 5)
+SPLITS=("test" "val" "train")
 queue="prod.med"
 
-# Training loop
-for lr in "${LEARNING_RATES[@]}"
-do
-	for num_classes in "${NUM_CLASSES[@]}"
+for split in "${SPLITS[@]}"
+	for lr in "${LEARNING_RATES[@]}"
 	do
-		echo "$lr"
-		echo "$num_classes"
+		for num_classes in "${NUM_CLASSES[@]}"
+		do
+			echo "$lr"
+			echo "$num_classes"
 
-		bsub -R "rusage [ngpus_excl_p=1]" \
-		    -J  "explainer" \
-		    -o "../../runs/lsf_logs.%J.stdout" \
-		    -e "../../runs/lsf_logs.%J.stderr" \
-		    -q "$queue" \
-		    "python run_explainer.py -d /dataT/pus/histocartography/Data/pascale/ -conf ../../histocartography/config/explainer_config.json --epochs 1000  -l $lr --out_path /dataT/gja/histocartography/data/explanations/${num_classes}_classes/fold_4 --num_classes $num_classes"
-		sleep 0.1 
+			bsub -R "rusage [ngpus_excl_p=1]" \
+			    -J  "explainer" \
+			    -o "../../runs/lsf_logs.%J.stdout" \
+			    -e "../../runs/lsf_logs.%J.stderr" \
+			    -q "$queue" \
+			    "python run_explainer.py -d /dataT/pus/histocartography/Data/pascale/ -conf ../../histocartography/config/explainer_config.json --epochs 1000  -l $lr --out_path /dataT/gja/histocartography/data/explanations/${num_classes}_classes/${split}/fold_4 --num_classes $num_classes --split $split"
+			sleep 0.1 
+		done
 	done
 done

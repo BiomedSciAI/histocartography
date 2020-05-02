@@ -36,7 +36,7 @@ class RandomModel:
                 size=(num_nodes,),
                 p=[1-keep_prob, keep_prob]
             )
-        )
+        ).to(self.device)
         x = x * torch.stack(x.shape[-1]*[node_mask], dim=1).unsqueeze(dim=0)
         return x 
 

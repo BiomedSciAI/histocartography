@@ -48,7 +48,7 @@ class SingleInstanceExplainer:
         init_logits, init_embeddings = self.model(data)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
-        init_pred_label = torch.argmax(init_logits, axis=1).squeeze()
+        init_pred_label = torch.argmax(init_logits, dim=1).squeeze()
 
         explainer = ExplainerModel(
             model=self.model,
@@ -105,7 +105,7 @@ class SingleInstanceExplainer:
             non_zero_elements = (masked_adj != 0).sum()
             density = round(non_zero_elements.item() / init_non_zero_elements.item(), 2)
             num_nodes = torch.sum(masked_feats.sum(dim=-1) != 0.)
-            pred_label = torch.argmax(logits, axis=0).squeeze()
+            pred_label = torch.argmax(logits, dim=0).squeeze()
 
             # update description
             desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | ".format(

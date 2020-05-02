@@ -19,6 +19,7 @@ from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.single_instance_explainer import SingleInstanceExplainer
+from histocartography.interpretability.random_model import RandomModel
 from histocartography.utils.graph import adj_to_networkx
 from histocartography.utils.visualization import GraphVisualization, agg_and_plot_interpretation
 from histocartography.dataloader.constants import get_label_to_tumor_type, NUM_CLASSES_TO_MODEL_URL
@@ -126,31 +127,48 @@ def main(args):
         cuda=CUDA
     )
 
+    # declare random selector
+    random_selector = RandomModel(
+        model=model,
+        cuda=CUDA
+    )
+
     # explain instance from the train set
     for data, label in dataloaders['test']:
 
         cell_graph = data[0]
 
-        adj, feats, orig_pred, exp_pred, node_importance = explainer.explain(
-            data=data,
-            label=label
-        )
+        # Write config and base properties
+        meta_data = {}
+
+        # 3-a config file
+        meta_data['config'] = config['explainer']  # @TODO set all the params from the config file...
+        meta_data['config']['number_of_epochs'] = args.epochs
+        meta_data['config']['learning_rate'] = args.learning_rate
+        meta_data['output'] = {}
+        # 3-b label
+        meta_data['output']['label_index'] = label.item()
+        meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
+        meta_data['output']['label'] = label_to_tumor_type[str(label.item())]
 
         try:
+
+            # 1. Run explainer
+            adj, feats, orig_pred, exp_pred, node_importance = explainer.explain(
+                data=data,
+                label=label
+            )
 
             node_idx = (feats.sum(dim=-1) != 0.).squeeze().cpu()
             adj = adj[node_idx, :]
             adj = adj[:, node_idx]
-
             feats = feats[node_idx, :]
             node_importance = node_importance[node_idx]
-
             centroids = data[0].ndata['centroid'].squeeze()
-            centroids = centroids[node_idx, :]
+            pruned_centroids = centroids[node_idx, :]
+            explanation = adj_to_networkx(adj, feats, threshold=config['explainer']['adj_thresh'], centroids=pruned_centroids)
 
-            explanation = adj_to_networkx(adj, feats, threshold=config['explainer']['adj_thresh'], centroids=centroids)
-
-            # 1. visualize the original graph
+            # a. visualize the original graph
             show_cg_flag = load_cell_graph(config['model_type'])
             show_sp_flag = load_superpx_graph(config['model_type'])
             show_sp_map = False
@@ -163,23 +181,8 @@ def main(args):
             pruned_instance_map = np.zeros(instance_map.shape)
             for node_id in np.nonzero(node_idx):
                 pruned_instance_map += instance_map * (instance_map == node_id.item() + 1)
-            data = (explanation, data[1], [data[2][0] + '_explanation'], [pruned_instance_map])
-            graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1, node_importance=node_importance)
-
-            # 3. save meta data in json file
-            meta_data = {}
-
-            # 3-a config file
-            meta_data['config'] = config['explainer']  # @TODO set all the params from the config file...
-            meta_data['config']['number_of_epochs'] = args.epochs
-            meta_data['config']['learning_rate'] = args.learning_rate
-
-            meta_data['output'] = {}
-
-            # 3-b label
-            meta_data['output']['label_index'] = label.item()
-            meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
-            meta_data['output']['label'] = label_to_tumor_type[str(label.item())]
+            tmp_data = (explanation, data[1], [data[2][0] + '_explanation'], [pruned_instance_map])
+            graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, tmp_data, 1, node_importance=None)
 
             # 3-c original graph properties
             meta_data['output']['original'] = {}
@@ -194,12 +197,40 @@ def main(args):
             meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
             meta_data['output']['explanation']['logits'] = list(np.around(exp_pred, 2).astype(float))
             meta_data['output']['explanation']['prediction'] = label_to_tumor_type[str(np.argmax(exp_pred))]
-<<<<<<< HEAD
-=======
             meta_data['output']['explanation']['node_importance'] = str(list(node_importance))
             meta_data['output']['explanation']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
             meta_data['output']['explanation']['edges'] = str(list(graph_visualizer.edges_cg))
->>>>>>> put back the exception handling
+
+            # 2. run random nuclei selector
+            rand_adj, rand_feats, orig_pred, rand_pred = random_selector.run(
+                graph=cell_graph,
+                keep_prob=explanation.number_of_nodes() / cell_graph.number_of_nodes()
+            )
+
+            node_idx = (rand_feats.sum(dim=-1) != 0.).squeeze().cpu()
+            rand_adj = rand_adj[node_idx, :]
+            rand_adj = rand_adj[:, node_idx]
+            rand_feats = rand_feats[node_idx, :]
+            pruned_centroids = centroids[node_idx, :]
+            explanation = adj_to_networkx(rand_adj, rand_feats, threshold=config['explainer']['adj_thresh'], centroids=pruned_centroids)
+
+            # b. visualize the explanation graph
+            graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=False, show_edges=True)
+            instance_map = data[-1][0]
+            pruned_instance_map = np.zeros(instance_map.shape)
+            for node_id in np.nonzero(node_idx):
+                pruned_instance_map += instance_map * (instance_map == node_id.item() + 1)
+            tmp_data = (explanation, data[1], [data[2][0] + '_random'], [pruned_instance_map])
+            graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, tmp_data, 1)
+
+            # 3-d explanation graph properties
+            meta_data['output']['random'] = {}
+            meta_data['output']['random']['number_of_nodes'] = explanation.number_of_nodes()
+            meta_data['output']['random']['number_of_edges'] = explanation.number_of_edges()
+            meta_data['output']['random']['logits'] = list(np.around(rand_pred, 2).astype(float))
+            meta_data['output']['random']['prediction'] = label_to_tumor_type[str(np.argmax(rand_pred))]
+            meta_data['output']['random']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
+            meta_data['output']['random']['edges'] = str(list(graph_visualizer.edges_cg))
 
             # 3-e write to json
             write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)

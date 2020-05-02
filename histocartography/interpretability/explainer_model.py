@@ -200,6 +200,6 @@ class ExplainerModel(nn.Module):
         node_ent_loss = self.coeffs["node_ent"] * torch.mean(node_ent)
 
         # sum all the losses
-        loss = pred_loss + node_loss + adj_loss  #  + node_ent_loss + adj_ent_loss
+        loss = pred_loss + node_loss + adj_loss + node_ent_loss + adj_ent_loss
 
         return loss

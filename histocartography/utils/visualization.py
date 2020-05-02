@@ -8,7 +8,6 @@ from dgl import BatchedDGLGraph
 from dgl import DGLGraph
 import networkx as nx 
 import torch 
-import os
 from PIL import ImageFilter
 from PIL import Image
 
@@ -19,11 +18,12 @@ from histocartography.ml.layers.constants import CENTROID
 
 class GraphVisualization:
 
-    def __init__(self, show=False, show_centroid=True, save=True, save_path='../../data/graphs', verbose=False):
+    def __init__(self, show=False, show_centroid=True, show_edges=True, save=True, save_path='../../data/graphs', verbose=False):
         if verbose:
             print('Initialize graph visualizer')
         self.show = show
         self.show_centroid = show_centroid
+        self.show_edges = show_edges
         self.save = save
         self.save_path = save_path
         self.verbose = verbose
@@ -77,7 +77,6 @@ class GraphVisualization:
                 # draw centroids
                 if self.show_centroid:
                     self.draw_centroid(cent_cg, draw, (255, 0, 0))
-                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
 
                 # draw large circles around highly important nodes
                 if node_importance is not None:
@@ -91,9 +90,13 @@ class GraphVisualization:
                     mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
                     alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
                     alpha = Image.fromarray(alpha).convert('L')
+                    # alpha = alpha.filter(ImageFilter.MinFilter(21))
                     alpha = alpha.filter(ImageFilter.FIND_EDGES)
                     mask.putalpha(alpha)
                     canvas.paste(mask, (0, 0), mask)
+
+                if self.show_edges:
+                    self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
 
                 if self.show:
                     show_image(canvas)
@@ -142,7 +145,7 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
 
     plt.figure(1)
     plt.title('Explanation Visualization')
-    gs = gridspec.GridSpec(6, 2)
+    gs = gridspec.GridSpec(6, 3)
     font = {'family': 'normal',
             'weight': 'bold',
             'size': 5}
@@ -170,7 +173,7 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
 
     # 3. load image of the explanation graph
     plt.subplot(gs[0:5, 1])
-    explanation = plt.imread(complete_path(save_path, image_name + '_cell_graph.png'))
+    explanation = plt.imread(complete_path(save_path, image_name + '_explanation_cell_graph.png'))
     plt.imshow(explanation)
     plt.axis('off')
     plt.title('Explanation cell graph.')
@@ -183,5 +186,21 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
     plt.xticks(y_pos, label_set)
     plt.title('Explanation probability predictions (%)')
 
-    # 5. save the image
+    # 5. load image of the explanation graph
+    plt.subplot(gs[0:5, 2])
+    print('image name', image_name)
+    random = plt.imread(complete_path(save_path, image_name + '_random_cell_graph.png'))
+    plt.imshow(random)
+    plt.axis('off')
+    plt.title('Random cell graph.')
+
+    # 6. generate histogram of probability for the explanation
+    plt.subplot(gs[-1, 2])
+    probs = list(meta_data['output']['random']['logits'])
+    probs = [100 * x for x in probs]
+    plt.bar(y_pos, probs, align='center')
+    plt.xticks(y_pos, label_set)
+    plt.title('Random probability predictions (%)')
+
+    # 7. save the image
     plt.savefig(complete_path(save_path, image_name + '_summary_.pdf'), format='pdf', dpi=1200)

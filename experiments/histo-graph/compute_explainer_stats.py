@@ -60,7 +60,7 @@ def main(args):
 
         # edge reduction
         original_num_edges = data['output']['original']['number_of_edges']
-        explain_num_edges = data['output']['original']['number_of_edges']
+        explain_num_edges = data['output']['explanation']['number_of_edges']
         all_edge_reductions.append(float(explain_num_edges) / float(original_num_edges))
 
         # label
@@ -97,10 +97,10 @@ def main(args):
 
     # 3. Overall accuracy/metrics
     print('CLASS: ALL')
-    print('- Average node reduction:', np.mean(all_node_reductions))
-    print('- Average edge reduction:', np.mean(all_edge_reductions))
-    print('- Average original cross entropy:', np.mean(all_original_cross_entropies))
-    print('- Average explanation cross entropy:', np.mean(all_explanation_cross_entropies))
+    print('- Average node reduction:', np.mean(all_node_reductions), ' +/- ', np.std(all_node_reductions))
+    print('- Average edge reduction:', np.mean(all_edge_reductions), ' +/- ', np.std(all_edge_reductions))
+    print('- Average original cross entropy:', np.mean(all_original_cross_entropies), ' +/- ', np.std(all_original_cross_entropies))
+    print('- Average explanation cross entropy:', np.mean(all_explanation_cross_entropies), ' +/- ', np.std(all_explanation_cross_entropies))
     print('- Weighted F1-score:', f1_score(all_labels, all_predictions, average='weighted'), '\n')
 
     # 4. Per-class accuracy/metrics
@@ -112,10 +112,10 @@ def main(args):
         per_class_explanation_cross_entropies = all_explanation_cross_entropies[per_class_labels]
 
         print('CLASS:', cls_id)
-        print('- Average node reduction:', np.mean(per_class_node_reduction))
-        print('- Average edge reduction:', np.mean(per_class_edge_reduction))
-        print('- Average original cross entropy:', np.mean(per_class_original_cross_entropies))
-        print('- Average explanation cross entropy:', np.mean(per_class_explanation_cross_entropies))
+        print('- Average node reduction:', np.mean(per_class_node_reduction), ' +/- ', np.std(per_class_node_reduction))
+        print('- Average edge reduction:', np.mean(per_class_edge_reduction), ' +/- ', np.std(per_class_edge_reduction))
+        print('- Average original cross entropy:', np.mean(per_class_original_cross_entropies), ' +/- ', np.std(per_class_original_cross_entropies))
+        print('- Average explanation cross entropy:', np.mean(per_class_explanation_cross_entropies), ' +/- ', np.std(per_class_explanation_cross_entropies))
 
     # 4 classification report
     print("Classification report (for the per-class F1-score):", classification_report(all_labels, all_predictions))

@@ -38,7 +38,7 @@ def get_device(cuda=False):
     return'cuda:0' if cuda else 'cpu'
 
 
-def get_files_in_folder(path, extension):
+def get_files_in_folder(path, extension, with_ext=True):
     """Returns all the file names in a folder, (Relative to the parent folder)
     with a given extension. E.g. if extension == 'svg' it will only return
     svg files.
@@ -50,10 +50,14 @@ def get_files_in_folder(path, extension):
     Returns:
         list of file names.
     """
-    return [
+    fnames = [
         f for f in os.listdir(path)
         if os.path.isfile(complete_path(path, f)) and f.endswith(extension)
     ]
+
+    if not with_ext:
+        fnames = [f.replace(extension, "") for f in fnames]
+    return fnames
 
 
 def get_dir_in_folder(path):
@@ -91,7 +95,7 @@ def load_image(fname):
 
 
 def save_image(fname, image):
-    image.save(fname)
+    image.save(fname, quality=95)
 
 
 def show_image(image):

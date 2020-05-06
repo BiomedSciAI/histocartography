@@ -38,7 +38,8 @@ class PascaleDataset(BaseDataset):
             load_in_ram=False,
             show_superpx=False,
             fold_id=None,
-            load_nuclei_seg_map=False
+            load_nuclei_seg_map=False,
+            use_node_features=True
     ):
         """
         Pascale dataset constructor.

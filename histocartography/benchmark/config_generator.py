@@ -156,7 +156,7 @@ class ConfigGenerator:
                                 # "pathologicalbenignVSudh",                                  # B vs U
                                 # "adh+feaVSdcis",                                          # D vs (A, F)
                                 # "adhVSfea"                                                # A vs F
-                                ],                                                          
+                                ],
                 "use_bn": [True],
                 "activation": ["relu"]
             }
@@ -234,7 +234,8 @@ class ConfigGenerator:
                 "n_layers": [3, 4],
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [32],
-                "output_dim": [32]
+                "output_dim": [32],
+                "return_last_layer": [False]
             }
         )
 
@@ -301,10 +302,10 @@ class ConfigGenerator:
                 "max_distance": [50],
                 "edge_encoding": [False],
                 'node_feature_types': [
-                    # ['features_cnn_resnet50_mask_True_'], 
-                    # ['features_cnn_resnet34_mask_True_'], 
-                    # ['features_cnn_resnet50_mask_False_'], 
-                    # ['features_cnn_resnet34_mask_False_'], 
+                    # ['features_cnn_resnet50_mask_True_'],
+                    # ['features_cnn_resnet34_mask_True_'],
+                    # ['features_cnn_resnet50_mask_False_'],
+                    # ['features_cnn_resnet34_mask_False_'],
                     ['features_hc_']
                 ]
             }

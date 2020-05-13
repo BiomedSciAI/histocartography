@@ -11,11 +11,12 @@ mkdir -p ../../runs
 
 # Set input parameters
 LEARNING_RATES=(0.01)
-NUM_CLASSES=(3 5)
-SPLITS=("test" "val" "train")
+NUM_CLASSES=(2 3 5)
+SPLITS=("test")
 queue="prod.med"
 
 for split in "${SPLITS[@]}"
+	do
 	for lr in "${LEARNING_RATES[@]}"
 	do
 		for num_classes in "${NUM_CLASSES[@]}"

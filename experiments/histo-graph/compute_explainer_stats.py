@@ -45,6 +45,7 @@ def main(args):
     all_edge_reductions = []
     all_original_cross_entropies = []
     all_explanation_cross_entropies = []
+    all_random_cross_entropies = []
     all_labels = []
     all_predictions = []
 
@@ -87,11 +88,20 @@ def main(args):
             )
         )
 
+        # random selection cross entropy
+        random_probs = torch.FloatTensor(data['output']['random']['logits'])
+        all_random_cross_entropies.append(
+            cross_entropy_loss(
+                label, random_probs
+            )
+        )
+
     # 2. convert list to numpy array
     all_node_reductions = np.array(all_node_reductions)
     all_edge_reductions = np.array(all_edge_reductions)
     all_original_cross_entropies = np.array(all_original_cross_entropies)
     all_explanation_cross_entropies = np.array(all_explanation_cross_entropies)
+    all_random_cross_entropies = np.array(all_random_cross_entropies)
     all_labels = np.array(all_labels)
     all_predictions = np.array(all_predictions)
 
@@ -101,6 +111,7 @@ def main(args):
     print('- Average edge reduction:', np.mean(all_edge_reductions), ' +/- ', np.std(all_edge_reductions))
     print('- Average original cross entropy:', np.mean(all_original_cross_entropies), ' +/- ', np.std(all_original_cross_entropies))
     print('- Average explanation cross entropy:', np.mean(all_explanation_cross_entropies), ' +/- ', np.std(all_explanation_cross_entropies))
+    print('- Average random cross entropy:', np.mean(all_random_cross_entropies), ' +/- ', np.std(all_random_cross_entropies))
     print('- Weighted F1-score:', f1_score(all_labels, all_predictions, average='weighted'), '\n')
 
     # 4. Per-class accuracy/metrics
@@ -110,12 +121,14 @@ def main(args):
         per_class_edge_reduction = all_edge_reductions[per_class_labels]
         per_class_original_cross_entropies = all_original_cross_entropies[per_class_labels]
         per_class_explanation_cross_entropies = all_explanation_cross_entropies[per_class_labels]
+        per_class_random_cross_entropies = all_random_cross_entropies[per_class_labels]
 
         print('CLASS:', cls_id)
         print('- Average node reduction:', np.mean(per_class_node_reduction), ' +/- ', np.std(per_class_node_reduction))
         print('- Average edge reduction:', np.mean(per_class_edge_reduction), ' +/- ', np.std(per_class_edge_reduction))
         print('- Average original cross entropy:', np.mean(per_class_original_cross_entropies), ' +/- ', np.std(per_class_original_cross_entropies))
         print('- Average explanation cross entropy:', np.mean(per_class_explanation_cross_entropies), ' +/- ', np.std(per_class_explanation_cross_entropies))
+        print('- Average random cross entropy:', np.mean(per_class_random_cross_entropies), ' +/- ', np.std(per_class_random_cross_entropies))
 
     # 4 classification report
     print("Classification report (for the per-class F1-score):", classification_report(all_labels, all_predictions))

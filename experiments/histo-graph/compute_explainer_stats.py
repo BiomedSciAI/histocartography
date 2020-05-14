@@ -107,8 +107,8 @@ def main(args):
 
     # 3. Overall accuracy/metrics
     print('CLASS: ALL')
-    print('- Average node reduction:', np.mean(all_node_reductions), ' +/- ', np.std(all_node_reductions))
-    print('- Average edge reduction:', np.mean(all_edge_reductions), ' +/- ', np.std(all_edge_reductions))
+    print('- Average node reduction:', 1 - np.mean(all_node_reductions), ' +/- ', np.std(all_node_reductions))
+    print('- Average edge reduction:', 1 - np.mean(all_edge_reductions), ' +/- ', np.std(all_edge_reductions))
     print('- Average original cross entropy:', np.mean(all_original_cross_entropies), ' +/- ', np.std(all_original_cross_entropies))
     print('- Average explanation cross entropy:', np.mean(all_explanation_cross_entropies), ' +/- ', np.std(all_explanation_cross_entropies))
     print('- Average random cross entropy:', np.mean(all_random_cross_entropies), ' +/- ', np.std(all_random_cross_entropies))
@@ -124,8 +124,8 @@ def main(args):
         per_class_random_cross_entropies = all_random_cross_entropies[per_class_labels]
 
         print('CLASS:', cls_id)
-        print('- Average node reduction:', np.mean(per_class_node_reduction), ' +/- ', np.std(per_class_node_reduction))
-        print('- Average edge reduction:', np.mean(per_class_edge_reduction), ' +/- ', np.std(per_class_edge_reduction))
+        print('- Average node reduction:', 1 - np.mean(per_class_node_reduction), ' +/- ', np.std(per_class_node_reduction))
+        print('- Average edge reduction:', 1 - np.mean(per_class_edge_reduction), ' +/- ', np.std(per_class_edge_reduction))
         print('- Average original cross entropy:', np.mean(per_class_original_cross_entropies), ' +/- ', np.std(per_class_original_cross_entropies))
         print('- Average explanation cross entropy:', np.mean(per_class_explanation_cross_entropies), ' +/- ', np.std(per_class_explanation_cross_entropies))
         print('- Average random cross entropy:', np.mean(per_class_random_cross_entropies), ' +/- ', np.std(per_class_random_cross_entropies))

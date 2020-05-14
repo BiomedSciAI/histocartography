@@ -196,7 +196,7 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
 
     # 6. generate histogram of probability for the explanation
     plt.subplot(gs[-1, 2])
-    probs = list(meta_data['output']['random']['logits'])
+    probs = list(meta_data['output']['random']['res'][0]['logits'])
     probs = [100 * x for x in probs]
     plt.bar(y_pos, probs, align='center')
     plt.xticks(y_pos, label_set)

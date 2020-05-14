@@ -99,7 +99,11 @@ class SingleInstanceExplainer:
             # Compute number of non zero elements in the masked adjacency
             masked_adj = (masked_adj > self.adj_thresh).to(self.device).to(torch.float) * masked_adj
             node_importance = explainer._get_node_feats_mask()
-            node_weights = (node_importance > self.node_thresh)
+            node_weights = (node_importance > self.node_thresh)  # keep always 10 whatever
+            if torch.sum(node_weights).item() <= 10:
+                largest_node_indices = node_importance.argsort(descending=True)[:10]
+                node_weights = torch.zeros(node_weights.shape, dtype=torch.bool).to(self.device)
+                node_weights[largest_node_indices] = True
             masked_feats = masked_feats * torch.stack(masked_feats.shape[-1] * [node_weights], dim=1).unsqueeze(dim=0).to(torch.float)
             probs = torch.nn.Softmax()(logits.cpu().squeeze()).detach().numpy()
             non_zero_elements = (masked_adj != 0).sum()

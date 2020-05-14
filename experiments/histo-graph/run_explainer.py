@@ -151,7 +151,7 @@ def main(args):
         meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
         meta_data['output']['label'] = label_to_tumor_type[str(label.item())]
 
-        try:
+        # try:
 
             # 1. Run explainer
             adj, feats, orig_pred, exp_pred, node_importance = explainer.explain(
@@ -212,34 +212,36 @@ def main(args):
             rand_adj = rand_adj[:, node_idx]
             rand_feats = rand_feats[node_idx, :]
             pruned_centroids = centroids[node_idx, :]
-            explanation = adj_to_networkx(rand_adj, rand_feats, threshold=config['explainer']['adj_thresh'], centroids=pruned_centroids)
+            random_graph = adj_to_networkx(rand_adj, rand_feats, threshold=config['explainer']['adj_thresh'], centroids=pruned_centroids)
 
-            # b. visualize the explanation graph
+            # b. visualize the random graph (only the 1st one)
             graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=False, show_edges=True)
             instance_map = data[-1][0]
             pruned_instance_map = np.zeros(instance_map.shape)
             for node_id in np.nonzero(node_idx):
                 pruned_instance_map += instance_map * (instance_map == node_id.item() + 1)
-            tmp_data = (explanation, data[1], [data[2][0] + '_random'], [pruned_instance_map])
+            tmp_data = (random_graph, data[1], [data[2][0] + '_random'], [pruned_instance_map])
             graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, tmp_data, 1)
 
-            # 3-d explanation graph properties
-            meta_data['output']['random'] = {}
-            meta_data['output']['random']['number_of_nodes'] = explanation.number_of_nodes()
-            meta_data['output']['random']['number_of_edges'] = explanation.number_of_edges()
-            meta_data['output']['random']['logits'] = list(np.around(rand_pred, 2).astype(float))
-            meta_data['output']['random']['prediction'] = label_to_tumor_type[str(np.argmax(rand_pred))]
-            meta_data['output']['random']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
-            meta_data['output']['random']['edges'] = str(list(graph_visualizer.edges_cg))
+            # 3-d random_graph graph properties
+            rand_res = {
+                'number_of_nodes': random_graph.number_of_nodes(),
+                'number_of_edges': random_graph.number_of_edges(),
+                'logits': list(np.around(rand_pred, 2).astype(float)),
+                'prediction': label_to_tumor_type[str(np.argmax(rand_pred))],
+                'centroids': str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg]),
+                'edges': str(list(graph_visualizer.edges_cg))
+            }
+            meta_data['output']['random']['res'].append(rand_res)
 
-            # 3-e write to json
-            write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)
+        # 3-e write to json
+        write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)
 
-            # 4. aggregate all the information in a single user-friendly image
-            agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-2][0])
+        # 4. aggregate all the information in a single user-friendly image
+        agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-2][0])
 
-        except:
-            print('An error occured in viz...')
+        # except:
+        #     print('An error occured')
 
 
 if __name__ == "__main__":

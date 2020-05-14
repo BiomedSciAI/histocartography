@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import random
 
 from histocartography.utils.io import get_device
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
@@ -43,6 +44,7 @@ class RandomModel:
     def run(self, graph, keep_prob=0.1):
 
         print('Running with keep probability:', keep_prob)
+        np.random.seed(random.randint(0, 10e6))
 
         # extract dense adjacency and node features
         adj = graph.adjacency_matrix().to_dense().unsqueeze(dim=0)

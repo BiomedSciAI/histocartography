@@ -60,8 +60,8 @@ class GraphVisualization:
                     save_image(complete_path(self.save_path, image_name + '_tissue_graph.png'), canvas)
 
             if show_cg:
-                canvas = image.copy()
-                draw = ImageDraw.Draw(canvas, 'RGBA')
+                # canvas = image.copy()
+                # draw = ImageDraw.Draw(canvas, 'RGBA')
                 if isinstance(data[0], BatchedDGLGraph):
                     cell_graph = dgl.unbatch(data[0])[index]
                 else:
@@ -70,40 +70,40 @@ class GraphVisualization:
                 # get centroids and edges
                 cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
-                # @TODO: hack alert store the centroid and the edges
+                # # @TODO: hack alert store the centroid and the edges
                 self.centroid_cg = cent_cg
                 self.edges_cg = edges_cg
-
-                # draw centroids
-                if self.show_centroid:
-                    self.draw_centroid(cent_cg, draw, (255, 0, 0))
-
-                # draw large circles around highly important nodes
-                if node_importance is not None:
-                    important_node_indices = np.argwhere(node_importance > 0.9)
-                    for idx in important_node_indices:
-                        centroid = [cent_cg[idx].squeeze()[0].item(), cent_cg[idx].squeeze()[1].item()]
-                        draw_large_circle(centroid, draw)
-
-                if seg_map is not None:
-                    seg_map = seg_map.squeeze()
-                    mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
-                    alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
-                    alpha = Image.fromarray(alpha).convert('L')
-                    # alpha = alpha.filter(ImageFilter.MinFilter(21))
-                    alpha = alpha.filter(ImageFilter.FIND_EDGES)
-                    mask.putalpha(alpha)
-                    canvas.paste(mask, (0, 0), mask)
-
-                if self.show_edges:
-                    self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
-
-                if self.show:
-                    show_image(canvas)
-
-                if self.save:
-                    check_for_dir(self.save_path)
-                    save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
+                #
+                # # draw centroids
+                # if self.show_centroid:
+                #     self.draw_centroid(cent_cg, draw, (255, 0, 0))
+                #
+                # # draw large circles around highly important nodes
+                # if node_importance is not None:
+                #     important_node_indices = np.argwhere(node_importance > 0.9)
+                #     for idx in important_node_indices:
+                #         centroid = [cent_cg[idx].squeeze()[0].item(), cent_cg[idx].squeeze()[1].item()]
+                #         draw_large_circle(centroid, draw)
+                #
+                # if seg_map is not None:
+                #     seg_map = seg_map.squeeze()
+                #     mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
+                #     alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
+                #     alpha = Image.fromarray(alpha).convert('L')
+                #     # alpha = alpha.filter(ImageFilter.MinFilter(21))
+                #     alpha = alpha.filter(ImageFilter.FIND_EDGES)
+                #     mask.putalpha(alpha)
+                #     canvas.paste(mask, (0, 0), mask)
+                #
+                # if self.show_edges:
+                #     self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
+                #
+                # if self.show:
+                #     show_image(canvas)
+                #
+                # if self.save:
+                #     check_for_dir(self.save_path)
+                #     save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):

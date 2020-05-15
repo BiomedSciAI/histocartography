@@ -268,7 +268,7 @@ def main(args):
             write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)
 
             # 4. aggregate all the information in a single user-friendly image
-            agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-2][0])
+            # agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-2][0])
 
         except:
             print('An error occured')

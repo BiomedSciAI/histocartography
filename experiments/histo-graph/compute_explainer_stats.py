@@ -89,7 +89,7 @@ def main(args):
         )
 
         # random selection cross entropy
-        random_probs = torch.FloatTensor(data['output']['random']['logits'])
+        random_probs = torch.FloatTensor(data['output']['random']['res'][0]['logits'])
         all_random_cross_entropies.append(
             cross_entropy_loss(
                 label, random_probs

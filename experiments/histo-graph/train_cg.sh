@@ -7,15 +7,15 @@ export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 source ../_set_mlflow.sh
 
 # export experiment 
-export MLFLOW_EXPERIMENT_NAME=gja_histo_3_classes
+export MLFLOW_EXPERIMENT_NAME=gja_vae_nodefeats
 # mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT_NAME}
 
 # Create dir for output logs
 mkdir -p ../../runs
 
 # Set input parameters
-LEARNING_RATES=(0.001)
-BATCH_SIZES=(16)
+LEARNING_RATES=(0.001 0.0005)
+BATCH_SIZES=(16 32)
 BASE_CONFIG="cell_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
 queue="prod.med"
@@ -35,7 +35,7 @@ do
 			    -o "../../runs/lsf_logs.%J.stdout" \
 			    -e "../../runs/lsf_logs.%J.stderr" \
 			    -q "$queue" \
-			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/pascale/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram"
+			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/PASCALE_NEW/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram"
 			sleep 0.1 
 		done 
 	done

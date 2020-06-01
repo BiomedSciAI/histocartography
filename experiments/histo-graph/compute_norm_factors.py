@@ -3,12 +3,13 @@ import os
 
 if __name__ == "__main__":
 
-    dir_path = '/Users/frd/Documents/Code/Projects/Experiments/histocartography/data/'
+    dir_path = '/dataT/pus/histocartography/Data/PASCALE_NEW/nuclei_info/nuclei_vae_features'
 
     dirs = [name for name in os.listdir(dir_path) if os.path.isdir(os.path.join(dir_path, name))]
     h5_names = []
     for _dir in dirs:
-        g = os.path.join(dir_path, _dir, '_h5')
+        print(_dir)
+        g = os.path.join(dir_path, _dir)
         files = os.listdir(g)
         for file in files:
             if file.endswith('.h5'):
@@ -18,4 +19,3 @@ if __name__ == "__main__":
 
     norm = compute_norm(h5_names)
     print(norm)
-

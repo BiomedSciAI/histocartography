@@ -50,6 +50,7 @@ class ConfigGenerator:
                 'graph_building': getattr(self, MODEL_TYPE_TO_GRAPH_BUILDING_PARAMS[model_type])(),
                 'model_params': getattr(self, MODEL_TYPE_TO_MODEL_PARAMS[model_type])(),
                 'model_type': [model_type],
+                'node_feature_type': ['vae']
                 # 'explainer': self._get_explainer_params()
             }
         )

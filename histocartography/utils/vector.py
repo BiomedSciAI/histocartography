@@ -52,13 +52,13 @@ def compute_normalization_factor(path, fnames):
 
 
 def compute_norm(fnames):
-    sum_ = torch.zeros([16], dtype=torch.float)  # torch.FloatTensor([0.0])
-    std_ = torch.zeros([16], dtype=torch.float)
+    sum_ = torch.zeros([32], dtype=torch.float)  # torch.FloatTensor([0.0])
+    std_ = torch.zeros([32], dtype=torch.float)
     num_nodes = 0
 
     for fname in fnames:
         with h5py.File(fname, 'r') as f:
-            node_features = h5_to_tensor(f['instance_features'], device='cpu')
+            node_features = h5_to_tensor(f['vae_embeddings'], device='cpu')
             sum_ += torch.sum(node_features, dim=0)
             std_ += torch.std(node_features, dim=0)
             num_nodes += node_features.size(0)

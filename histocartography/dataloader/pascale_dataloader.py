@@ -13,7 +13,7 @@ from histocartography.dataloader.constants import (
     NORMALIZATION_FACTORS, COLLATE_FN)
 from histocartography.dataloader.constants import get_tumor_type_to_label
 from histocartography.dataloader.constants import get_dataset_black_list
-from histocartography.dataloader.constants import NODE_FEATURE_TYPE_TO_DIRNAME
+from histocartography.dataloader.constants import NODE_FEATURE_TYPE_TO_DIRNAME, NODE_FEATURE_TYPE_TO_H5
 from histocartography.utils.vector import compute_normalization_factor
 from histocartography.utils.io import load_image
 
@@ -61,7 +61,7 @@ class PascaleDataset(BaseDataset):
         self.load_in_ram = load_in_ram
         self.fold_id = fold_id
         self.tumor_type_to_label = get_tumor_type_to_label(num_classes)
-        self.node_feature_type = config['node_feature_type']
+        self.node_feature_types = config['node_feature_types']
 
         # 2. load h5 fnames and labels (from h5 fname)
         self._load_h5_fnames_and_labels(data_path, split)
@@ -70,22 +70,8 @@ class PascaleDataset(BaseDataset):
         self.num_samples = len(self.h5_fnames)
 
         if load_cell_graph:
-            self.cell_graph_features_path = os.path.join(
-                self.data_path,
-                'nuclei_info',
-                NODE_FEATURE_TYPE_TO_DIRNAME[self.node_feature_type],
-                self.dataset_name
-            )
-            self.cell_graph_centroids_path = os.path.join(
-                self.data_path,
-                'nuclei_info',
-                'nuclei_detected',
-                'centroids',
-                self.dataset_name
-            )
+            self.base_cell_graph_features_path = os.path.join(self.data_path, 'nuclei_info')
             self.num_cell_features = self._get_cell_features_dim()
-            self._build_normaliser(graph_type='cell_graph')
-
             if load_in_ram:
                 self._load_cell_graph_in_ram()
 
@@ -175,14 +161,17 @@ class PascaleDataset(BaseDataset):
             return indices
 
     def _get_cell_features_dim(self):
-
-        with h5py.File(complete_path(self.cell_graph_features_path, self.h5_fnames[0]), 'r') as f:
-            cell_features = h5_to_tensor(f['vae_embeddings'], self.device)            
-            f.close()
-        with h5py.File(complete_path(self.cell_graph_centroids_path, self.h5_fnames[0]), 'r') as f:
-            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
-            f.close()
-        return cell_features.shape[1] + centroid.shape[1]
+        total_dim = 0
+        for feat_type in self.node_feature_types:
+            feat_path = os.path.join(
+                self.base_cell_graph_features_path,
+                NODE_FEATURE_TYPE_TO_DIRNAME[feat_type],
+                self.dataset_name
+            )
+            with h5py.File(complete_path(feat_path, self.h5_fnames[0]), 'r') as f:
+                total_dim += h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5[feat_type]], self.device).shape[1]            
+                f.close()
+        return total_dim
 
     def _get_superpx_features_dim(self):
 
@@ -200,18 +189,6 @@ class PascaleDataset(BaseDataset):
             f.close()
         return sp_map
 
-    def _build_normaliser(self, graph_type):
-        """
-        Build normalizers to normalize the node features (ie, mean=0, std=1)
-        """
-        if not NORMALIZATION_FACTORS[self.node_feature_type][graph_type]:
-            print('Undefined behaviour. Consider computing the norm beforehand.')
-            vars(self)[graph_type + '_transform'] = compute_normalization_factor(
-                self.data_path, self.h5_fnames
-            )
-        else:
-            vars(self)[graph_type + '_transform'] = NORMALIZATION_FACTORS[self.node_feature_type][graph_type]
-
     def _load_image(self, img_name):
         return load_image(os.path.join(self.image_path, img_name + '.png')), img_name
 
@@ -219,28 +196,42 @@ class PascaleDataset(BaseDataset):
         """
         Build the cell graph
         """
-        # extract the image size, centroid, cell features and label
-        with h5py.File(complete_path(self.cell_graph_features_path, self.h5_fnames[index]), 'r') as f:
-            cell_features = h5_to_tensor(f['vae_embeddings'], self.device)
-            f.close()
 
-        with h5py.File(complete_path(self.cell_graph_centroids_path, self.h5_fnames[index]), 'r') as f:
-            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
-            image_size = h5_to_tensor(f['image_dimension'], self.device)
-            image_size = image_size.type(torch.float32)
-            norm_centroid = centroid / image_size[:-1]
-            f.close()
+        # A. Load and process nodes
+        all_node_features = []
+        for feat_type in self.node_feature_types:
+            feat_path = os.path.join(
+                self.base_cell_graph_features_path,
+                NODE_FEATURE_TYPE_TO_DIRNAME[feat_type],
+                self.dataset_name
+            )
+            with h5py.File(complete_path(feat_path, self.h5_fnames[0]), 'r') as f:
+                # 1. extract the raw features
+                feats = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5[feat_type]], 'cpu')
+                # 2. normalise them 
+                if feat_type == 'centroid':
+                    image_size = h5_to_tensor(f['image_dimension'], 'cpu')
+                    image_size = image_size.type(torch.float32)
+                    feats = feats / image_size[:-1]
+                else:         
+                    feats = (feats - NORMALIZATION_FACTORS[feat_type]['cell_graph']['mean']) / \
+                        NORMALIZATION_FACTORS[feat_type]['cell_graph']['std']
+                # 3. append and close 
+                all_node_features.append(feats)
+                f.close()
 
-        # normalize the cell features
-        cell_features = \
-            (cell_features - self.cell_graph_transform['mean'].to(self.device)) / \
-            (self.cell_graph_transform['std']).to(self.device)
+        # B. Concat features
+        cell_features = torch.cat(all_node_features, dim=1).to(self.device)
 
-        # concat spatial + appearance features
-        cell_features = torch.cat((cell_features, norm_centroid), dim=1)
-
-        # build topology
-        cell_graph = self.cell_graph_builder(cell_features, centroid)
+        # C. Build graph topology
+        with h5py.File(os.path.join(
+            self.base_cell_graph_features_path,
+            NODE_FEATURE_TYPE_TO_DIRNAME['centroid'],
+            self.dataset_name,
+            self.h5_fnames[0]), 'r') as f:
+                centroids = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5['centroid']], self.device)
+                f.close()
+        cell_graph = self.cell_graph_builder(cell_features, centroids)
 
         return cell_graph
 
@@ -395,9 +386,8 @@ def build_datasets(path, num_classes, node_feature_type, *args, **kwargs):
     """
 
     dataset_blacklist = get_dataset_black_list(num_classes)
-    data_dir = get_dir_in_folder(complete_path(complete_path(path, 'nuclei_info'), NODE_FEATURE_TYPE_TO_DIRNAME[node_feature_type]))
+    data_dir = get_dir_in_folder(os.path.join(path, 'nuclei_info', NODE_FEATURE_TYPE_TO_DIRNAME[node_feature_type[0]]))
     data_dir = list(filter(lambda x: all(b not in x for b in dataset_blacklist), data_dir))
-
     datasets = {}
 
     for data_split in ['train', 'val', 'test']:

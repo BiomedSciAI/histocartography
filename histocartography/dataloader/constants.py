@@ -1,5 +1,6 @@
 import dgl
 import torch
+import os 
 
 
 NORMALIZATION_FACTORS = {
@@ -82,9 +83,15 @@ COLLATE_FN = {
 
 NODE_FEATURE_TYPE_TO_DIRNAME = {
     'vae': 'nuclei_vae_features',
-    'hc': 'nuclei_hc_features'
+    'hc': 'nuclei_hc_features',
+    'centroid': os.path.join('nuclei_detected', 'centroids')
 }
 
+NODE_FEATURE_TYPE_TO_H5 = {
+    'vae': 'vae_embeddings',
+    'hc': 'hc_embeddings',
+    'centroid': 'instance_centroid_location'
+}
 
 
 def get_tumor_type_to_label(num_classes=5):

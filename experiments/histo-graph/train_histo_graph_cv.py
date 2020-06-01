@@ -90,7 +90,7 @@ def main(args):
                 num_workers=args.number_of_workers,
                 path=args.data_path,
                 num_classes=config['model_params']['num_classes'],
-                node_feature_type=config['node_feature_type'],
+                node_feature_type=config['node_feature_types'],
                 config=config,
                 cuda=CUDA,
                 load_cell_graph=load_cell_graph(config['model_type']),

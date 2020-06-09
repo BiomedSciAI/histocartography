@@ -72,11 +72,20 @@ class MultiLayerGNN(nn.Module):
             config=config)
         )
 
+        # readout op
+        self.readout_op = config["agg_operator"]
+        if self.readout_op == "lstm":
+            self.lstm = nn.LSTM(
+                out_dim, (num_layers * out_dim) // 2,
+                bidirectional=True,
+                batch_first=True)
+            self.att =nn.Linear(2 * ((num_layers * out_dim) // 2), 1)
+
         # readout function
         self.readout_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys(
         ) else 'sum'
 
-    def forward(self, g, h, cat=False, with_readout=True):
+    def forward(self, g, h, with_readout=True):
         """
         Forward pass.
         :param g: (DGLGraph)
@@ -90,11 +99,19 @@ class MultiLayerGNN(nn.Module):
             h_concat.append(h)
 
         if isinstance(g, dgl.DGLGraph):
-            # concat
-            if cat:
+
+            # aggregate the multi-scale node representations 
+            if self.readout_op == "concat":
                 g.ndata[GNN_NODE_FEAT_OUT] = torch.cat(h_concat, dim=-1)
+            elif self.readout_op == "lstm":
+                x = torch.stack(h_concat, dim=1)  # [num_nodes, num_layers, num_channels]
+                alpha, _ = self.lstm(x)
+                alpha = self.att(alpha).squeeze(-1)  # [num_nodes, num_layers]
+                alpha = torch.softmax(alpha, dim=-1)
+                g.ndata[GNN_NODE_FEAT_OUT] = (x * alpha.unsqueeze(-1)).sum(dim=1)
             else:
                 g.ndata[GNN_NODE_FEAT_OUT] = h
+
             # readout
             if with_readout:
                 return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)

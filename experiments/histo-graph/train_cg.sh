@@ -35,7 +35,7 @@ do
 			    -o "../../runs/lsf_logs.%J.stdout" \
 			    -e "../../runs/lsf_logs.%J.stderr" \
 			    -q "$queue" \
-			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/PASCALE_NEW/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram"
+			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/PASCALE_NEW/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 200 --in_ram"
 			sleep 0.1 
 		done 
 	done

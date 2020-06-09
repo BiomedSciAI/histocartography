@@ -205,7 +205,7 @@ class PascaleDataset(BaseDataset):
                 NODE_FEATURE_TYPE_TO_DIRNAME[feat_type],
                 self.dataset_name
             )
-            with h5py.File(complete_path(feat_path, self.h5_fnames[0]), 'r') as f:
+            with h5py.File(complete_path(feat_path, self.h5_fnames[index]), 'r') as f:
                 # 1. extract the raw features
                 feats = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5[feat_type]], 'cpu')
                 # 2. normalise them 
@@ -229,7 +229,7 @@ class PascaleDataset(BaseDataset):
             self.base_cell_graph_features_path,
             NODE_FEATURE_TYPE_TO_DIRNAME['centroid'],
             self.dataset_name,
-            self.h5_fnames[0]), 'r') as f:
+            self.h5_fnames[index]), 'r') as f:
                 centroids = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5['centroid']], 'cpu')
                 f.close()
         cell_graph = self.cell_graph_builder(cell_features, centroids)

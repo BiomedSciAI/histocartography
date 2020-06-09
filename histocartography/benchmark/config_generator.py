@@ -52,12 +52,14 @@ class ConfigGenerator:
                 'model_type': [model_type],
                 'node_feature_types': [
                     # ['features_cnn_resnet101_mask_False_', 'centroid'], 
-                    ['features_cnn_resnet50_mask_False_', 'centroid', 'features_hc_'], 
+                    ['features_cnn_resnet50_mask_False_', 'centroid'], 
+                    ['features_cnn_resnet34_mask_False_', 'centroid'], 
                     # ['features_cnn_vgg16_mask_False_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_False_', 'centroid'], 
                     # ['features_hc_', 'centroid'], 
                     # ['features_cnn_resnet101_mask_True_', 'centroid'], 
-                    ['features_cnn_resnet50_mask_True_', 'centroid', 'features_hc_'], 
+                    ['features_cnn_resnet50_mask_True_', 'centroid'], 
+                    ['features_cnn_resnet34_mask_True_', 'centroid'], 
                     # ['features_cnn_vgg16_mask_True_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_True_', 'centroid'], 
                     # ['nuclei_vae_features', 'centroid']
@@ -150,8 +152,7 @@ class ConfigGenerator:
             {
                 "dropout": [0.0],
                 "num_classes": self._get_number_classes(self.dataset_blacklist, self.tumor_type_to_label),
-                "use_bn": [False],
-                "cat": [True],
+                "use_bn": [True, False],
                 "activation": ["relu"]
             }
         )
@@ -181,10 +182,11 @@ class ConfigGenerator:
             {
                 "layer_type": ["gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [5],
+                "n_layers": [3, 4, 5],
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [64],
-                "output_dim": [64]
+                "output_dim": [64],
+                "agg_operator": ["lstm", "concat"]
             }
         )
 
@@ -252,7 +254,7 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "num_layers": [2],
-                "hidden_dim": [64]
+                "hidden_dim": [128]
             }
         )
         return config

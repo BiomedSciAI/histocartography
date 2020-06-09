@@ -35,7 +35,7 @@ class CellGraphModel(BaseModel):
         """
         Build classification parameters
         """
-        if self.concat:
+        if self.readout_agg_op == "concat":
             # emd_dim = self.gnn_params['input_dim'] + \
             #     self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
             #     self.gnn_params['output_dim']
@@ -61,10 +61,10 @@ class CellGraphModel(BaseModel):
             # 1. GNN layers over the low level graph
             cell_graph = data[0]
             feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
-            graph_embeddings = self.cell_graph_gnn(cell_graph, feats, self.concat)
+            graph_embeddings = self.cell_graph_gnn(cell_graph, feats)
         else:
             adj, feats = data[0], data[1]
-            graph_embeddings = self.cell_graph_gnn(adj, feats, self.concat)
+            graph_embeddings = self.cell_graph_gnn(adj, feats)
 
         # 2. Run readout function
         logits = self.pred_layer(graph_embeddings)

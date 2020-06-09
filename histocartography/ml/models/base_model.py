@@ -14,7 +14,7 @@ class BaseModel(Module):
         self.num_classes = config['num_classes']
         self.dropout = config['dropout']
         self.use_bn = config['use_bn']
-        self.concat = config['cat']
+        self.readout_agg_op = config['gnn_params']['cell_gnn']['agg_operator']
 
     def _update_config(self, config, input_dim=None):
         """

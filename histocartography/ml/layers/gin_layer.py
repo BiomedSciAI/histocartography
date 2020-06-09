@@ -134,4 +134,8 @@ class GINLayer(BaseLayer):
 
         g.apply_nodes(func=self.node_update_fn)
 
+        # debug purposes 
+        if GNN_AGG_MSG in g.ndata.keys():
+            del g.ndata[GNN_AGG_MSG]
+
         return g.ndata.pop(GNN_NODE_FEAT_OUT)

@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np 
+import dgl 
 
 
 def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None):
@@ -45,3 +46,35 @@ def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=
         graph = nx.convert_node_labels_to_integers(graph)
 
     return graph
+
+
+def set_graph_on_cuda(graph):
+    cuda_graph = dgl.DGLGraph()
+    cuda_graph.add_nodes(graph.number_of_nodes())
+    cuda_graph.add_edges(graph.edges()[0], graph.edges()[1])
+    for key_graph, val_graph in graph.ndata.items():
+        tmp = graph.ndata[key_graph].clone()
+        cuda_graph.ndata[key_graph] = tmp.cuda()
+    for key_graph, val_graph in graph.edata.items():
+        cuda_graph.edata[key_graph] = graph.edata[key_graph].clone().cuda()
+    return cuda_graph
+
+
+def set_graph_on_cpu(graph):
+    for key_graph, val_graph in graph.ndata.items():
+        tmp = graph.ndata.pop(key_graph)
+        graph.ndata[key_graph] = tmp.cpu()
+    for key_graph, val_graph in graph.edata.items():
+        graph.edata[key_graph] = graph.edata.pop(key_graph).cpu()
+    return graph
+
+
+def to_cpu(x):
+    if isinstance(x, dgl.DGLGraph):
+        return set_graph_on_cpu(x)
+
+
+def to_device(x):
+    if isinstance(x, dgl.DGLGraph):
+        return set_graph_on_cuda(x)
+

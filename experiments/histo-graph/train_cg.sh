@@ -7,15 +7,15 @@ export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 source ../_set_mlflow.sh
 
 # export experiment 
-export MLFLOW_EXPERIMENT_NAME=gja_vae_nodefeats
+export MLFLOW_EXPERIMENT_NAME=gja_nodefeats_exp
 # mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT_NAME}
 
 # Create dir for output logs
 mkdir -p ../../runs
 
 # Set input parameters
-LEARNING_RATES=(0.001 0.0005)
-BATCH_SIZES=(16 32)
+LEARNING_RATES=(0.001)
+BATCH_SIZES=(16)
 BASE_CONFIG="cell_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
 queue="prod.med"

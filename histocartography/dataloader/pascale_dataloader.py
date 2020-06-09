@@ -16,6 +16,7 @@ from histocartography.dataloader.constants import get_dataset_black_list
 from histocartography.dataloader.constants import NODE_FEATURE_TYPE_TO_DIRNAME, NODE_FEATURE_TYPE_TO_H5
 from histocartography.utils.vector import compute_normalization_factor
 from histocartography.utils.io import load_image
+from histocartography.utils.graph import set_graph_on_cuda
 
 
 class PascaleDataset(BaseDataset):
@@ -27,8 +28,8 @@ class PascaleDataset(BaseDataset):
             dataset_name,
             split,
             num_classes,
+            cuda,
             config,
-            cuda=False,
             load_cell_graph=True,
             load_superpx_graph=True,
             load_image=False,
@@ -147,7 +148,6 @@ class PascaleDataset(BaseDataset):
         Load the label by inspecting the filename
         """
         tumor_type = fpath.split('_')[1]
-
         self.labels.append(self.tumor_type_to_label[tumor_type])
 
     def _load_feat_indices(self, fpath):
@@ -169,7 +169,7 @@ class PascaleDataset(BaseDataset):
                 self.dataset_name
             )
             with h5py.File(complete_path(feat_path, self.h5_fnames[0]), 'r') as f:
-                total_dim += h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5[feat_type]], self.device).shape[1]            
+                total_dim += h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5[feat_type]], 'cpu').shape[1]            
                 f.close()
         return total_dim
 
@@ -212,16 +212,17 @@ class PascaleDataset(BaseDataset):
                 if feat_type == 'centroid':
                     image_size = h5_to_tensor(f['image_dimension'], 'cpu')
                     image_size = image_size.type(torch.float32)
-                    feats = feats / image_size[:-1]
-                else:         
-                    feats = (feats - NORMALIZATION_FACTORS[feat_type]['cell_graph']['mean']) / \
-                        NORMALIZATION_FACTORS[feat_type]['cell_graph']['std']
+                    feats = feats / torch.flip(image_size[:-1], dims=[0])
+                else:
+                    if feat_type in NORMALIZATION_FACTORS.keys():
+                        feats = (feats - NORMALIZATION_FACTORS[feat_type]['cell_graph']['mean']) / \
+                            NORMALIZATION_FACTORS[feat_type]['cell_graph']['std']
                 # 3. append and close 
                 all_node_features.append(feats)
                 f.close()
 
         # B. Concat features
-        cell_features = torch.cat(all_node_features, dim=1).to(self.device)
+        cell_features = torch.cat(all_node_features, dim=1).to('cpu')
 
         # C. Build graph topology
         with h5py.File(os.path.join(
@@ -229,7 +230,7 @@ class PascaleDataset(BaseDataset):
             NODE_FEATURE_TYPE_TO_DIRNAME['centroid'],
             self.dataset_name,
             self.h5_fnames[0]), 'r') as f:
-                centroids = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5['centroid']], self.device)
+                centroids = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5['centroid']], 'cpu')
                 f.close()
         cell_graph = self.cell_graph_builder(cell_features, centroids)
 
@@ -300,14 +301,15 @@ class PascaleDataset(BaseDataset):
         label = self.labels[index]
 
         data = []
-
         # 2. load cell graph
         if self.load_cell_graph:
             if self.load_in_ram:
-                data.append(self.cell_graphs[index])
+                cell_graph = self.cell_graphs[index]
             else:
                 cell_graph = self._build_cell_graph(index)
-                data.append(cell_graph)
+            if self.cuda:
+                cell_graph = set_graph_on_cuda(cell_graph)
+            data.append(cell_graph)
 
         # 3. load superpx graph
         if self.load_superpx_graph:
@@ -377,7 +379,7 @@ def collate(batch):
     return data, labels
 
 
-def build_datasets(path, num_classes, node_feature_type, *args, **kwargs):
+def build_datasets(path, num_classes, node_feature_type, cuda, *args, **kwargs):
     """
     Builds dataset from text files that contain train:test:validation split
 
@@ -398,6 +400,7 @@ def build_datasets(path, num_classes, node_feature_type, *args, **kwargs):
                     dir,
                     data_split,
                     num_classes,
+                    cuda,
                     *args, **kwargs
                 )
                 for dir in data_dir

@@ -4,7 +4,7 @@ import os
 
 
 NORMALIZATION_FACTORS = {
-    'hc': {
+    'features_hc_': {
         'cell_graph': {
             'mean':
             torch.tensor([
@@ -82,14 +82,34 @@ COLLATE_FN = {
 
 
 NODE_FEATURE_TYPE_TO_DIRNAME = {
-    'vae': 'nuclei_vae_features',
-    'hc': 'nuclei_hc_features',
+    'features_cnn_resnet34_mask_True_': os.path.join('nuclei_features', 'features_cnn_resnet34_mask_True_'), 
+    'features_cnn_resnet34_mask_False_': os.path.join('nuclei_features', 'features_cnn_resnet34_mask_False_'), 
+    'features_cnn_resnet101_mask_False_': os.path.join('nuclei_features', 'features_cnn_resnet101_mask_False_'), 
+    'features_cnn_resnet50_mask_False_': os.path.join('nuclei_features', 'features_cnn_resnet50_mask_False_'), 
+    'features_cnn_vgg16_mask_False_': os.path.join('nuclei_features', 'features_cnn_vgg16_mask_False_'), 
+    'features_cnn_vgg19_mask_False_': os.path.join('nuclei_features', 'features_cnn_vgg19_mask_False_'), 
+    'features_hc_': os.path.join('nuclei_features', 'features_hc_'), 
+    'features_cnn_resnet101_mask_True_': os.path.join('nuclei_features', 'features_cnn_resnet101_mask_True_'), 
+    'features_cnn_resnet50_mask_True_': os.path.join('nuclei_features', 'features_cnn_resnet50_mask_True_'), 
+    'features_cnn_vgg16_mask_True_': os.path.join('nuclei_features', 'features_cnn_vgg16_mask_True_'), 
+    'features_cnn_vgg19_mask_True_': os.path.join('nuclei_features', 'features_cnn_vgg19_mask_True_'), 
+    'nuclei_vae_features': os.path.join('nuclei_features', 'nuclei_vae_features'),
     'centroid': os.path.join('nuclei_detected', 'centroids')
 }
 
 NODE_FEATURE_TYPE_TO_H5 = {
-    'vae': 'vae_embeddings',
-    'hc': 'hc_embeddings',
+    'features_cnn_resnet34_mask_True_': 'embeddings', 
+    'features_cnn_resnet34_mask_False_': 'embeddings', 
+    'features_cnn_resnet101_mask_False_': 'embeddings', 
+    'features_cnn_resnet50_mask_False_': 'embeddings', 
+    'features_cnn_vgg16_mask_False_': 'embeddings', 
+    'features_cnn_vgg19_mask_False_': 'embeddings', 
+    'features_hc_': 'instance_features', 
+    'features_cnn_resnet101_mask_True_': 'embeddings', 
+    'features_cnn_resnet50_mask_True_': 'embeddings', 
+    'features_cnn_vgg16_mask_True_': 'embeddings', 
+    'features_cnn_vgg19_mask_True_': 'embeddings', 
+    'nuclei_vae_features': 'vae_embeddings',
     'centroid': 'instance_centroid_location'
 }
 

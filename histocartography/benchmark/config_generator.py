@@ -50,8 +50,18 @@ class ConfigGenerator:
                 'graph_building': getattr(self, MODEL_TYPE_TO_GRAPH_BUILDING_PARAMS[model_type])(),
                 'model_params': getattr(self, MODEL_TYPE_TO_MODEL_PARAMS[model_type])(),
                 'model_type': [model_type],
-                'node_feature_type': ['vae']
-                # 'explainer': self._get_explainer_params()
+                'node_feature_types': [
+                    # ['features_cnn_resnet101_mask_False_', 'centroid'], 
+                    ['features_cnn_resnet50_mask_False_', 'centroid', 'features_hc_'], 
+                    # ['features_cnn_vgg16_mask_False_', 'centroid'], 
+                    # ['features_cnn_vgg19_mask_False_', 'centroid'], 
+                    # ['features_hc_', 'centroid'], 
+                    # ['features_cnn_resnet101_mask_True_', 'centroid'], 
+                    ['features_cnn_resnet50_mask_True_', 'centroid', 'features_hc_'], 
+                    # ['features_cnn_vgg16_mask_True_', 'centroid'], 
+                    # ['features_cnn_vgg19_mask_True_', 'centroid'], 
+                    # ['nuclei_vae_features', 'centroid']
+                ]
             }
         )
 
@@ -171,10 +181,10 @@ class ConfigGenerator:
             {
                 "layer_type": ["gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [3, 4, 5],
+                "n_layers": [5],
                 "neighbor_pooling_type": ["mean"],
-                "hidden_dim": [32],
-                "output_dim": [32]
+                "hidden_dim": [64],
+                "output_dim": [64]
             }
         )
 

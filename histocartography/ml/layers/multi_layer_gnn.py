@@ -84,7 +84,7 @@ class MultiLayerGNN(nn.Module):
         :param cat: (bool) if concat the features at each conv layer
         :return:
         """
-        h_concat = [h]
+        h_concat = []
         for layer in self.layers:
             h = layer(g, h)
             h_concat.append(h)

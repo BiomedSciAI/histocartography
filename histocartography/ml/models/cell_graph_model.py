@@ -36,8 +36,10 @@ class CellGraphModel(BaseModel):
         Build classification parameters
         """
         if self.concat:
-            emd_dim = self.gnn_params['input_dim'] + \
-                self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
+            # emd_dim = self.gnn_params['input_dim'] + \
+            #     self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
+            #     self.gnn_params['output_dim']
+            emd_dim = self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
                 self.gnn_params['output_dim']
         else:
             emd_dim = self.gnn_params['output_dim']

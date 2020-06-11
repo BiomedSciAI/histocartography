@@ -131,7 +131,9 @@ def main(args):
             )
 
         # debug purposes
-        print('Model', model)
+        # print('Model', model)
+        # num_train_params = sum(p.numel() for p in model.parameters())
+        # print('Model has {} parameters'.format(num_train_params) if p.requires_grad)
 
         # build optimizer
         optimizer = torch.optim.Adam(

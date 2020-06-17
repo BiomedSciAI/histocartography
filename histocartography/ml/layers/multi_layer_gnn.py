@@ -41,6 +41,7 @@ class MultiLayerGNN(nn.Module):
         out_dim = config['output_dim']
         num_layers = config['n_layers']
         activation = config['activation']
+        edge_dim = config['edge_dim']
 
         self.layers = nn.ModuleList()
 
@@ -50,7 +51,8 @@ class MultiLayerGNN(nn.Module):
             out_dim=hidden_dim,
             act=activation,
             layer_id=0,
-            config=config)
+            config=config,
+            edge_dim=edge_dim)
         )
         # hidden layers
         for i in range(1, num_layers - 1):
@@ -62,14 +64,17 @@ class MultiLayerGNN(nn.Module):
                     out_dim=hidden_dim,
                     act=activation,
                     layer_id=i,
-                    config=config))
+                    config=config,
+                    edge_dim=edge_dim)
+                )
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=hidden_dim,
             out_dim=out_dim,
             act=activation,
             layer_id=num_layers - 1,
-            config=config)
+            config=config,
+            edge_dim=edge_dim)
         )
 
         # readout op

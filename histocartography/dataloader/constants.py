@@ -153,6 +153,9 @@ def get_tumor_type_to_label(num_classes=5):
     return tumor_type_to_label
 
 
+ALL_DATASET_NAMES = ['adh', 'benign', 'dcis', 'fea', 'malignant', 'pathologicalbenign', 'udh']
+
+
 def get_label_to_tumor_type(num_classes=5):
 
     if num_classes == 2:

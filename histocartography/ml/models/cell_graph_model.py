@@ -10,7 +10,7 @@ class CellGraphModel(BaseModel):
     Cell Graph Model. Apply a GNN at the cell graph level.
     """
 
-    def __init__(self, config, node_dim):
+    def __init__(self, config, input_feature_dims):
         """
         CellGraphModel model constructor
         :param config: (dict) configuration parameters
@@ -21,9 +21,10 @@ class CellGraphModel(BaseModel):
 
         # 1- set class attributes
         self.config = config
-        self.ll_node_dim = node_dim
+        self.ll_node_dim, self.edge_dim = input_feature_dims
         self.gnn_params = config['gnn_params']['cell_gnn']
         self.readout_params = self.config['readout']
+        self.readout_agg_op = config['gnn_params']['cell_gnn']['agg_operator']
 
         # 2- build cell graph params
         self._build_cell_graph_params(self.gnn_params)
@@ -36,9 +37,6 @@ class CellGraphModel(BaseModel):
         Build classification parameters
         """
         if self.readout_agg_op == "concat":
-            # emd_dim = self.gnn_params['input_dim'] + \
-            #     self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
-            #     self.gnn_params['output_dim']
             emd_dim = self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
                 self.gnn_params['output_dim']
         else:

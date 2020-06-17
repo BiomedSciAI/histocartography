@@ -8,7 +8,7 @@ class SuperpxGraphModel(BaseModel):
     Superpx Graph Model. Apply a GNN at the super pixel graph level.
     """
 
-    def __init__(self, config, node_dim):
+    def __init__(self, config, inut_feature_dims):
         """
         SuperpxGraphMddel model constructor
         :param config: (dict) configuration parameters
@@ -19,9 +19,10 @@ class SuperpxGraphModel(BaseModel):
 
         # 1- set class attributes
         self.config = config
-        self.hl_node_dim = node_dim
+        self.hl_node_dim, self.edge_dim = inut_feature_dims
         self.gnn_params = config['gnn_params']['superpx_gnn']
         self.readout_params = self.config['readout']
+        self.readout_agg_op = config['gnn_params']['superpx_gnn']['agg_operator']
 
         # 2- build cell graph params
         self._build_superpx_graph_params(
@@ -36,7 +37,7 @@ class SuperpxGraphModel(BaseModel):
         """
         Build classification parameters
         """
-        if self.concat:
+        if self.readout_agg_op == "concat":
             emd_dim = self.gnn_params['input_dim'] + \
                 self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
                 self.gnn_params['output_dim']
@@ -58,7 +59,7 @@ class SuperpxGraphModel(BaseModel):
         # 1. GNN layers over the high level graph (super pixel graph)
         superpx_graph = data[0]
         feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
-        graph_embeddings = self.superpx_gnn(superpx_graph, feats, self.concat)
+        graph_embeddings = self.superpx_gnn(superpx_graph, feats)
 
         # 2. Run readout function
         logits = self.pred_layer(graph_embeddings)

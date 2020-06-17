@@ -7,7 +7,7 @@ export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 source ../_set_mlflow.sh
 
 # export experiment 
-export MLFLOW_EXPERIMENT_NAME=gja_train_spxg
+export MLFLOW_EXPERIMENT_NAME=gja_train_tg_cnn
 # mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT_NAME}
 
 # Create dir for output logs
@@ -33,11 +33,11 @@ do
 			echo "$bs"
 			echo "$conf"
 			bsub -R "rusage [ngpus_excl_p=1]" \
-			    -J  "CG_training" \
+			    -J  "TG_train" \
 			    -o "../../runs/lsf_logs.%J.stdout" \
 			    -e "../../runs/lsf_logs.%J.stderr" \
 			    -q "$queue" \
-			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/pascale/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram --dataloaders_path /dataT/gja/histocartography/data"
+			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/PASCALE_NEW/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram"
 			sleep 0.1 
 		done 
 	done

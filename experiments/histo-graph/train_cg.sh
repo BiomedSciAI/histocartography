@@ -7,7 +7,7 @@ export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 source ../_set_mlflow.sh
 
 # export experiment 
-export MLFLOW_EXPERIMENT_NAME=gja_nodefeats_exp
+export MLFLOW_EXPERIMENT_NAME=gja_train_cg_cnn
 # mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT_NAME}
 
 # Create dir for output logs
@@ -31,7 +31,7 @@ do
 			echo "$bs"
 			echo "$conf"
 			bsub -R "rusage [ngpus_excl_p=1]" \
-			    -J  "CG_training" \
+			    -J  "CG_train" \
 			    -o "../../runs/lsf_logs.%J.stdout" \
 			    -e "../../runs/lsf_logs.%J.stderr" \
 			    -q "$queue" \

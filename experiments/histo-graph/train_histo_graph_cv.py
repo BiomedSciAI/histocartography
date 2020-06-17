@@ -84,14 +84,13 @@ def main(args):
                 pickle_fname += 'SPXG'
             pickle_fname += '_' + str(fold_id) + '.pickle'
             with open(complete_path(args.dataloaders_path, pickle_fname), 'rb') as f:
-                dataloaders, num_cell_features = pickle.load(f)
+                dataloaders, input_feature_dims = pickle.load(f)
         else:
-            dataloaders, num_cell_features = make_data_loader(
+            dataloaders, input_feature_dims = make_data_loader(
                 batch_size=args.batch_size,
                 num_workers=args.number_of_workers,
                 path=args.data_path,
                 num_classes=config['model_params']['num_classes'],
-                node_feature_type=config['node_feature_types'],
                 config=config,
                 cuda=CUDA,
                 load_cell_graph=load_cell_graph(config['model_type']),
@@ -112,7 +111,7 @@ def main(args):
                 pickle_fname += 'SPXG'
             pickle_fname += '_' + str(fold_id) + '.pickle'
             with open(complete_path(base_pickle, pickle_fname), 'wb') as f:
-                data = (dataloaders, num_cell_features)
+                data = (dataloaders, input_feature_dims)
                 pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         # declare model
@@ -122,7 +121,7 @@ def main(args):
                 MODEL_MODULE.format(model_type)
             )
             model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
-                config['model_params'], num_cell_features).to(DEVICE)
+                config['model_params'], input_feature_dims).to(DEVICE)
         else:
             raise ValueError(
                 'Model: {} not recognized. Options are: {}'.format(
@@ -131,9 +130,9 @@ def main(args):
             )
 
         # debug purposes
-        # print('Model', model)
-        # num_train_params = sum(p.numel() for p in model.parameters())
-        # print('Model has {} parameters'.format(num_train_params) if p.requires_grad)
+        print('Model', model)
+        num_train_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print('Model has {} parameters'.format(num_train_params))
 
         # build optimizer
         optimizer = torch.optim.Adam(
@@ -172,10 +171,6 @@ def main(args):
             model.train()
             for data, labels in tqdm(dataloaders['train'], desc='Epoch training {}'.format(epoch), unit='batch'):
 
-                # debug purposes
-                # print('Cell node/edges:', data[0].number_of_nodes(), data[0].number_of_edges())
-                # print('Node data', data[0].ndata)
-
                 # 1. forward pass
                 labels = labels.to(DEVICE)
                 logits = model(data)
@@ -184,15 +179,7 @@ def main(args):
                 loss = loss_fn(logits, labels)
                 optimizer.zero_grad()
                 loss.backward()
-                # torch.nn.utils.clip_grad_norm(model.parameters(), 1)
                 optimizer.step()
-
-                # debug purposes
-                total_norm = 0.
-                for p in model.parameters():
-                    param_norm = p.grad.data.norm(2)
-                    total_norm += param_norm.item() ** 2
-                # print('Total gradient norm is ', total_norm)
 
                 # 3. compute & store metrics
                 mlflow.log_metric('loss_' + str(fold_id), loss.item(), step=step)

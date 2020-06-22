@@ -83,6 +83,7 @@ class PascaleDataset(BaseDataset):
             self.superpx_node_feature_types = config['graph_building']['superpx_graph_builder']['node_feature_types']
             self.encode_tg_edges = config['graph_building']['superpx_graph_builder']['edge_encoding']
             self.base_superpx_graph_path = os.path.join(self.data_path, 'graphs', 'tissue_graphs')
+            self.base_superpx_h5_path = os.path.join(self.data_path, 'super_pixel_info')
             self.num_superpx_features = self._get_superpx_features_dim()
             self.num_edge_superpx_features = self._get_edge_superpx_features_dim()
 
@@ -259,11 +260,21 @@ class PascaleDataset(BaseDataset):
 
     def _build_assignment_matrix(self, index):
 
-        with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
-            sp_map = h5_to_tensor(f['sp_map'], self.device) - 1   # indexing starts from 0
+        with h5py.File(
+            os.path.join(
+                self.base_superpx_h5_path, 'sp_merged_detected', 'merging_hc', 'instance_map', self.dataset_name, self.h5_fnames[index]
+            ), 'r') as f:
+
+            sp_map = h5_to_tensor(f['detected_instance_map'], self.device) - 1   # indexing starts from 0
             f.close()
 
-        with h5py.File(complete_path(self.cell_graph_features_path, self.h5_fnames[index]), 'r') as f:
+        # @TODO: change this path as well
+        cell_centroid_path = os.path.join(
+                self.base_cell_graph_features_path,
+                NODE_FEATURE_TYPE_TO_DIRNAME['centroid'],
+                self.dataset_name
+            )
+        with h5py.File(os.path.join(cell_centroid_path, self.h5_fnames[index]), 'r') as f:
             cell_location = torch.floor(h5_to_tensor(f['instance_centroid_location'], self.device)).to(torch.long)
             f.close()
 

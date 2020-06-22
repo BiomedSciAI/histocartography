@@ -168,12 +168,12 @@ class ConfigGenerator:
             {
                 "layer_type": ["gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [3, 4, 5],
+                "n_layers": [4],  # [3, 4, 5]
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [64],
                 "output_dim": [64],
                 "graph_norm": [True],
-                "agg_operator": ["lstm", "concat"]
+                "agg_operator": ["lstm"]  # "concat"
             }
         )
 
@@ -186,10 +186,10 @@ class ConfigGenerator:
             {
                 "layer_type": ["pna_layer"],
                 "activation": ["relu"],
-                "n_layers": [3, 4, 5],
+                "n_layers": [4],
                 "hidden_dim": [64],
                 "output_dim": [64],
-                "agg_operator": ["lstm", "concat"],
+                "agg_operator": ["lstm"],
                 "residual": [True],
                 "graph_norm": [True],
                 "aggregators": ["mean max min std"],
@@ -279,7 +279,7 @@ class ConfigGenerator:
                 "graph_building_type": ["knn_graph_builder"],
                 "n_neighbors": [5],
                 "max_distance": [50],
-                "edge_encoding": [False],
+                "edge_encoding": [True],
                 'node_feature_types': [
                     # ['features_cnn_resnet101_mask_False_', 'centroid'], 
                     # ['features_cnn_resnet50_mask_False_', 'centroid'], 
@@ -288,7 +288,7 @@ class ConfigGenerator:
                     # ['features_cnn_vgg19_mask_False_', 'centroid'], 
                     # ['features_hc_', 'centroid'], 
                     # ['features_cnn_resnet101_mask_True_', 'centroid'], 
-                    ['features_cnn_resnet50_mask_False_', 'centroid'], 
+                    # ['features_cnn_resnet50_mask_False_', 'centroid'], 
                     ['features_cnn_resnet34_mask_False_', 'centroid'], 
                     # ['features_cnn_vgg16_mask_True_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_True_', 'centroid'], 

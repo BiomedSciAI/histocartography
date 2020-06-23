@@ -15,6 +15,7 @@ from histocartography.dataloader.constants import (
 from histocartography.dataloader.constants import get_tumor_type_to_label
 from histocartography.dataloader.constants import get_dataset_black_list
 from histocartography.dataloader.constants import NODE_FEATURE_TYPE_TO_DIRNAME, NODE_FEATURE_TYPE_TO_H5, ALL_DATASET_NAMES
+from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN, GNN_EDGE_FEAT
 from histocartography.utils.vector import compute_normalization_factor
 from histocartography.utils.io import load_image
 from histocartography.utils.graph import set_graph_on_cuda
@@ -73,7 +74,7 @@ class PascaleDataset(BaseDataset):
         if load_cell_graph:
             self.cell_node_feature_types = config['graph_building']['cell_graph_builder']['node_feature_types']
             self.encode_cg_edges = config['graph_building']['cell_graph_builder']['edge_encoding']
-            self.base_cell_graph_features_path = os.path.join(self.data_path, 'nuclei_info')
+            self.base_cell_graph_path = os.path.join(self.data_path, 'graphs', 'cell_graphs')
             self.num_cell_features = self._get_cell_features_dim()
             self.num_edge_cell_features = self._get_edge_cell_features_dim()
             if load_in_ram:
@@ -91,6 +92,7 @@ class PascaleDataset(BaseDataset):
                 self._load_superpx_graph_in_ram()
 
         if load_cell_graph and load_superpx_graph:
+            self.base_assignment_matrix_path = os.path.join(self.data_path, 'assignment_matrix')
             self._load_assignment_matrices_in_ram()
 
         if load_image:
@@ -134,12 +136,6 @@ class PascaleDataset(BaseDataset):
         for fname in self.h5_fnames:
             self._load_label(fname)
 
-    def _load_graph(self, graph_name):
-        """
-        Load dgl graphs from path
-        """
-        return os.path.join(self.base_superpx_graph_path, self.superpx_node_feature_types[0], self.dataset_name, graph_name + '.bin')
-
     def _load_label(self, fpath):
         """
         Load the label by inspecting the filename
@@ -158,25 +154,28 @@ class PascaleDataset(BaseDataset):
     #         return indices
 
     def _get_cell_features_dim(self):
-        total_dim = 0
-        for feat_type in self.cell_node_feature_types:
-            feat_path = os.path.join(
-                self.base_cell_graph_features_path,
-                NODE_FEATURE_TYPE_TO_DIRNAME[feat_type],
-                self.dataset_name
-            )
-            with h5py.File(complete_path(feat_path, self.h5_fnames[0]), 'r') as f:
-                total_dim += h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5[feat_type]], 'cpu').shape[1]            
-                f.close()
-        return total_dim
+        graph_fname = os.path.join(
+            self.base_cell_graph_path,
+            self.cell_node_feature_types[0],
+            self.dataset_name,
+            self.h5_fnames[0].replace('.h5', '.bin')
+        )
+        g, _ = load_graphs(graph_fname)
+        return g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
 
     def _get_edge_cell_features_dim(self):
         return 4 if self.encode_cg_edges else None 
 
     def _get_superpx_features_dim(self):
-        graph_file = self._load_graph(self.h5_fnames[0].replace('.h5', ''))
-        g = self.superpx_graph_builder(None, None, graph_file)
-        return g.ndata['feat'].shape[1]
+        graph_fname = os.path.join(
+            self.base_superpx_graph_path,
+            self.superpx_node_feature_types[0],
+            self.dataset_name,
+            self.h5_fnames[0].replace('.h5', '.bin')
+        )
+        print('Graph fname:', graph_fname)
+        g, _ = load_graphs(graph_fname)
+        return g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
 
     def _get_edge_superpx_features_dim(self):
         return 4 if self.encode_tg_edges else None 
@@ -196,94 +195,44 @@ class PascaleDataset(BaseDataset):
         Build the cell graph
         """
 
-        # A. Load and process nodes
-        all_node_features = []
-        for feat_type in self.cell_node_feature_types:
-            feat_path = os.path.join(
-                self.base_cell_graph_features_path,
-                NODE_FEATURE_TYPE_TO_DIRNAME[feat_type],
-                self.dataset_name
-            )
-            with h5py.File(complete_path(feat_path, self.h5_fnames[index]), 'r') as f:
-                # 1. extract the raw features
-                feats = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5[feat_type]], 'cpu')
-                # 2. normalise them 
-                if feat_type == 'centroid':
-                    image_size = h5_to_tensor(f['image_dimension'], 'cpu')
-                    image_size = image_size.type(torch.float32)
-                    feats = feats / torch.flip(image_size[:-1], dims=[0])
-                else:
-                    if feat_type in NORMALIZATION_FACTORS.keys():
-                        feats = (feats - NORMALIZATION_FACTORS[feat_type]['cell_graph']['mean']) / \
-                            NORMALIZATION_FACTORS[feat_type]['cell_graph']['std']
-                # 3. append and close 
-                all_node_features.append(feats)
-                f.close()
-
-        # B. Concat features
-        cell_features = torch.cat(all_node_features, dim=1).to('cpu')
-
-        # C. Build graph topology
-        with h5py.File(os.path.join(
-            self.base_cell_graph_features_path,
-            NODE_FEATURE_TYPE_TO_DIRNAME['centroid'],
+        graph_fname = os.path.join(
+            self.base_cell_graph_path,
+            self.cell_node_feature_types[0],
             self.dataset_name,
-            self.h5_fnames[index]), 'r') as f:
-                centroids = h5_to_tensor(f[NODE_FEATURE_TYPE_TO_H5['centroid']], 'cpu')
-                f.close()
-
-        # D. Extract edge features (if required)
-        if self.encode_cg_edges:
-            edge_feats_path = os.path.join(
-                self.base_cell_graph_features_path,
-                'nuclei_detected',
-                'bounding_boxes',
-                self.dataset_name
-            )
-            with h5py.File(complete_path(edge_feats_path, self.h5_fnames[index]), 'r') as f:
-                # 1. extract the raw features
-                bounding_boxes = h5_to_tensor(f['bounding_boxes'], 'cpu').to(torch.float)
-        else:
-            bounding_boxes = None
-
-        cell_graph = self.cell_graph_builder(cell_features, centroids, bounding_boxes)
-
-        return cell_graph
+            self.h5_fnames[index].replace('.h5', '.bin')
+        )
+        g, _ = load_graphs(graph_fname)
+        g = g[0]
+        if not self.encode_cg_edges:
+            del g.edata[GNN_EDGE_FEAT]
+        return g
 
     def _build_superpx_graph(self, index):
         """
         Build the super pixel graph
         """
-        graph_file = self._load_graph(self.h5_fnames[index].replace('.h5', ''))
-        superpx_graph = self.superpx_graph_builder(None, None, graph_file)
-        return superpx_graph
+        graph_fname = os.path.join(
+            self.base_superpx_graph_path,
+            self.superpx_node_feature_types[0],
+            self.dataset_name,
+            self.h5_fnames[index].replace('.h5', '.bin')
+        )
+        g, _ = load_graphs(graph_fname)
+        g = g[0]
+        if not self.encode_tg_edges:
+            del g.edata[GNN_EDGE_FEAT]
+        return g
 
     def _build_assignment_matrix(self, index):
-
-        with h5py.File(
+        with np.load(
             os.path.join(
-                self.base_superpx_h5_path, 'sp_merged_detected', 'merging_hc', 'instance_map', self.dataset_name, self.h5_fnames[index]
-            ), 'r') as f:
-
-            sp_map = h5_to_tensor(f['detected_instance_map'], self.device) - 1   # indexing starts from 0
-            f.close()
-
-        # @TODO: change this path as well
-        cell_centroid_path = os.path.join(
-                self.base_cell_graph_features_path,
-                NODE_FEATURE_TYPE_TO_DIRNAME['centroid'],
-                self.dataset_name
-            )
-        with h5py.File(os.path.join(cell_centroid_path, self.h5_fnames[index]), 'r') as f:
-            cell_location = torch.floor(h5_to_tensor(f['instance_centroid_location'], self.device)).to(torch.long)
-            f.close()
-
-        cell_to_superpx = sp_map[cell_location[:, 1], cell_location[:, 0]].cpu().to(torch.long).numpy()
-        assignment_matrix = np.zeros((int(cell_to_superpx.shape[0]), 1 + int(torch.max(sp_map).item())))
-        assignment_matrix[np.arange(cell_to_superpx.size), cell_to_superpx] = 1
-
-        return torch.from_numpy(assignment_matrix).float().t().to(self.device)
-
+                self.base_assignment_matrix_path,
+                self.dataset_name,
+                self.h5_fnames[index].replace('h5', 'npy')
+                )
+            ) as data:
+            return data
+        
     def __getitem__(self, index):
         """
         Get an example.

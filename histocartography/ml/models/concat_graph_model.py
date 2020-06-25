@@ -16,7 +16,7 @@ class ConcatGraphModel(BaseModel):
 
     """
 
-    def __init__(self, config, node_dims):
+    def __init__(self, config, input_feature_dims):
         """
         MultiLevelGraph model constructor
         :param config: (dict) configuration parameters
@@ -27,11 +27,11 @@ class ConcatGraphModel(BaseModel):
 
         # 1- set class attributes
         self.config = config
-        self.ll_node_dim = node_dims[0]
-        self.hl_node_dim = node_dims[1]
+        self.ll_node_dim, self.hl_node_dim, self.edge_dim, _ = input_feature_dims
         self.cell_gnn_params = config['gnn_params']['cell_gnn']
         self.superpx_gnn_params = config['gnn_params']['superpx_gnn']
         self.readout_params = self.config['readout']
+        self.readout_agg_op = config['gnn_params']['cell_gnn']['agg_operator']
 
         # 2- build cell graph params
         self._build_cell_graph_params(self.cell_gnn_params)
@@ -84,11 +84,11 @@ class ConcatGraphModel(BaseModel):
 
         # 1. GNN layers over the low level graph
         ll_feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
-        ll_graph_emb = self.cell_graph_gnn(cell_graph, ll_feats, self.concat)
+        ll_graph_emb = self.cell_graph_gnn(cell_graph, ll_feats)
 
         # 3. GNN layers over the high level graph
         hl_feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
-        hl_graph_emb = self.superpx_gnn(superpx_graph, hl_feats, self.concat)
+        hl_graph_emb = self.superpx_gnn(superpx_graph, hl_feats)
 
         # 4. Classification layers
         graph_embeddings = torch.cat((ll_graph_emb, hl_graph_emb), dim=1)

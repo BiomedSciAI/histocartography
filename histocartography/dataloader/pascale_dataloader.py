@@ -87,13 +87,13 @@ class PascaleDataset(BaseDataset):
             self.base_superpx_h5_path = os.path.join(self.data_path, 'super_pixel_info')
             self.num_superpx_features = self._get_superpx_features_dim()
             self.num_edge_superpx_features = self._get_edge_superpx_features_dim()
-
             if load_in_ram:
                 self._load_superpx_graph_in_ram()
 
         if load_cell_graph and load_superpx_graph:
-            self.base_assignment_matrix_path = os.path.join(self.data_path, 'assignment_matrix')
-            self._load_assignment_matrices_in_ram()
+            self.base_assignment_matrix_path = os.path.join(self.data_path, 'assignment_mat')
+            if load_in_ram:
+                self._load_assignment_matrices_in_ram()
 
         if load_image:
             self.image_path = os.path.join(
@@ -173,7 +173,6 @@ class PascaleDataset(BaseDataset):
             self.dataset_name,
             self.h5_fnames[0].replace('.h5', '.bin')
         )
-        print('Graph fname:', graph_fname)
         g, _ = load_graphs(graph_fname)
         return g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
 
@@ -224,14 +223,14 @@ class PascaleDataset(BaseDataset):
         return g
 
     def _build_assignment_matrix(self, index):
-        with np.load(
+        data = np.load(
             os.path.join(
                 self.base_assignment_matrix_path,
                 self.dataset_name,
-                self.h5_fnames[index].replace('h5', 'npy')
+                self.h5_fnames[index].replace('.h5', '.npy')
                 )
-            ) as data:
-            return data
+            )
+        return torch.FloatTensor(data).t()
         
     def __getitem__(self, index):
         """
@@ -275,10 +274,12 @@ class PascaleDataset(BaseDataset):
         # 4. load assignment matrix to go from the cell graph to the the superpx graph
         if self.load_cell_graph and self.load_superpx_graph:
             if self.load_in_ram:
-                data.append(self.assignment_matrices[index])
+                assignment_matrix = self.assignment_matrices[index]
             else:
                 assignment_matrix = self._build_assignment_matrix(index)
-                data.append(assignment_matrix)
+            if self.cuda:
+                assignment_matrix = assignment_matrix.cuda()
+            data.append(assignment_matrix)
 
         # 6. load the image if required
         if self.load_image:

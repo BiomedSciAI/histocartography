@@ -76,43 +76,20 @@ def main(args):
         print('Start fold: {}'.format(fold_id))
 
         # make data loaders (train & validation)
-        if args.dataloaders_path:  # @TODO: change to cope with fold id 
-            pickle_fname = 'data_'
-            if load_cell_graph(config['model_type']):
-                pickle_fname += 'CG'
-            if load_superpx_graph(config['model_type']):
-                pickle_fname += 'SPXG'
-            pickle_fname += '_' + str(fold_id) + '.pickle'
-            with open(complete_path(args.dataloaders_path, pickle_fname), 'rb') as f:
-                dataloaders, input_feature_dims = pickle.load(f)
-        else:
-            dataloaders, input_feature_dims = make_data_loader(
-                batch_size=args.batch_size,
-                num_workers=args.number_of_workers,
-                path=args.data_path,
-                num_classes=config['model_params']['num_classes'],
-                config=config,
-                cuda=CUDA,
-                load_cell_graph=load_cell_graph(config['model_type']),
-                load_superpx_graph=load_superpx_graph(config['model_type']),
-                load_image=False,
-                load_in_ram=args.in_ram,
-                show_superpx=False,
-                fold_id=fold_id
-            )
-
-        if args.pickle_dataloader:
-            base_pickle = '/dataT/gja/histocartography/data/'
-            # base_pickle = '../../data/'
-            pickle_fname = 'data_'
-            if load_cell_graph(config['model_type']):
-                pickle_fname += 'CG'
-            if load_superpx_graph(config['model_type']):
-                pickle_fname += 'SPXG'
-            pickle_fname += '_' + str(fold_id) + '.pickle'
-            with open(complete_path(base_pickle, pickle_fname), 'wb') as f:
-                data = (dataloaders, input_feature_dims)
-                pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        dataloaders, input_feature_dims = make_data_loader(
+            batch_size=args.batch_size,
+            num_workers=args.number_of_workers,
+            path=args.data_path,
+            num_classes=config['model_params']['num_classes'],
+            config=config,
+            cuda=CUDA,
+            load_cell_graph=load_cell_graph(config['model_type']),
+            load_superpx_graph=load_superpx_graph(config['model_type']),
+            load_image=False,
+            load_in_ram=args.in_ram,
+            show_superpx=False,
+            fold_id=fold_id
+        )
 
         # declare model
         model_type = config[MODEL_TYPE]
@@ -171,9 +148,13 @@ def main(args):
             model.train()
             for data, labels in tqdm(dataloaders['train'], desc='Epoch training {}'.format(epoch), unit='batch'):
 
+                # print('Data:', data[0].ndata['feat'])
+
                 # 1. forward pass
                 labels = labels.to(DEVICE)
                 logits = model(data)
+
+                # print('Logits', logits)
 
                 # 2. backward pass
                 loss = loss_fn(logits, labels)

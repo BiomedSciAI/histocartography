@@ -94,8 +94,8 @@ class ConfigGenerator:
     def _get_superpx_cell_gnn_params(self):
         config = ParameterGrid(
             {
-                "cell_gnn": self._get_gnn_params(),
-                "superpx_gnn": self._get_gnn_params()
+                "cell_gnn": self._get_pna_params(),
+                "superpx_gnn": self._get_pna_params()
             }
         )
         return config
@@ -103,7 +103,7 @@ class ConfigGenerator:
     def _get_superpx_gnn_params(self):
         config = ParameterGrid(
             {
-                "superpx_gnn": self._get_gnn_params()
+                "superpx_gnn": self._get_pna_params()
             }
         )
         return config
@@ -189,7 +189,7 @@ class ConfigGenerator:
                 "n_layers": [4],
                 "hidden_dim": [64],
                 "output_dim": [64],
-                "agg_operator": ["lstm"],
+                "agg_operator": ["lstm", "concat"],
                 "residual": [True],
                 "graph_norm": [True],
                 "aggregators": ["mean max min std"],
@@ -212,7 +212,7 @@ class ConfigGenerator:
             {
                 "layer_type": ["dense_gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [3],
+                "n_layers": [3, 4, 5],
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [32],
                 "output_dim": [32]
@@ -279,17 +279,17 @@ class ConfigGenerator:
                 "graph_building_type": ["knn_graph_builder"],
                 "n_neighbors": [5],
                 "max_distance": [50],
-                "edge_encoding": [True],
+                "edge_encoding": [False],
                 'node_feature_types': [
                     # ['features_cnn_resnet101_mask_False_', 'centroid'], 
-                    # ['features_cnn_resnet50_mask_False_', 'centroid'], 
-                    # ['features_cnn_resnet34_mask_False_', 'centroid'], 
+                    #['features_cnn_resnet50_mask_True_'], 
+                    #['features_cnn_resnet34_mask_True_'], 
                     # ['features_cnn_vgg16_mask_False_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_False_', 'centroid'], 
                     # ['features_hc_', 'centroid'], 
                     # ['features_cnn_resnet101_mask_True_', 'centroid'], 
-                    # ['features_cnn_resnet50_mask_False_', 'centroid'], 
-                    ['features_cnn_resnet34_mask_False_', 'centroid'], 
+                    #['features_cnn_resnet50_mask_False_'], 
+                    ['features_cnn_resnet34_mask_False_'], 
                     # ['features_cnn_vgg16_mask_True_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_True_', 'centroid'], 
                     # ['nuclei_vae_features', 'centroid']
@@ -306,7 +306,9 @@ class ConfigGenerator:
                 "edge_encoding": [False],
                 'node_feature_types': [
                     ['merging_hc_features_cnn_resnet34_mask_False_'],
-                    ['merging_hc_features_cnn_resnet50_mask_False_']
+                    #['merging_hc_features_cnn_resnet50_mask_False_'],
+                    #['merging_hc_features_cnn_resnet34_mask_True_'],
+                    #['merging_hc_features_cnn_resnet50_mask_True_']
                 ]
             }
         )

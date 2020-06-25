@@ -30,6 +30,7 @@ class BaseModel(Module):
         """
         Build cell graph multi layer GNN
         """
+        print("self.ll_node_dim, self.edge_dim", self.ll_node_dim, self.edge_dim)
         self._update_config(config, self.ll_node_dim, self.edge_dim)
         self.cell_graph_gnn = MultiLayerGNN(config=config)
 

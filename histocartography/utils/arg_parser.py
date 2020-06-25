@@ -31,24 +31,12 @@ def parse_arguments():
         '--model_path',
         type=str,
         help='path to where the model is saved.',
-        default='trained_model',
-        required=False
-    )
-    parser.add_argument(
-        '--dataloaders_path',
-        type=str,
-        help='path to where the dataloaders are saved.',
-        default='',
+        default='/dataT/gja/histocartography/models',
         required=False
     )
     parser.add_argument(
         '--in_ram',
         help='if the data should be stored in RAM.',
-        action='store_true',
-    )
-    parser.add_argument(
-        '--pickle_dataloader',
-        help='if the dataloaders should be pickled.',
         action='store_true',
     )
     parser.add_argument(

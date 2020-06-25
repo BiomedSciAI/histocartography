@@ -114,92 +114,37 @@ NODE_FEATURE_TYPE_TO_H5 = {
 }
 
 
-def get_tumor_type_to_label(num_classes=5):
+def get_tumor_type_to_label(class_split):
 
-    if num_classes == 2:
-        tumor_type_to_label = {
-            'benign': 0,
-            'pathologicalbenign': 0,
-            'udh': 0,
-            'dcis': 1,
-            'malignant': 1
-        }
+    # get the classes 
+    grouped_classes = class_split.split('VS')
 
-    elif num_classes == 3:
-        tumor_type_to_label = {
-            'benign': 0,
-            'pathologicalbenign': 0,
-            'udh': 0,
-            'dcis': 1,
-            'malignant': 1,
-            'adh': 2,
-            'fea': 2
-        }
+    # build mapping 
+    tumor_type_to_label = {c: group_idx for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
+    return tumor_type_to_label
 
-    elif num_classes == 5:
-        tumor_type_to_label = {
-            'benign': 0,
-            'pathologicalbenign': 1,
-            'udh': 1,
-            'dcis': 2,
-            'malignant': 3,
-            'adh': 4,
-            'fea': 4
-        }
 
-    else:
-        raise ValueError('Number of classes can 2, 3 or 5.')
+def get_number_of_classes(class_split):
+    return len(class_split.split('VS'))
 
+
+def get_label_to_tumor_type(class_split):
+
+    # get the classes 
+    grouped_classes = class_split.split('VS')
+
+    # build mapping 
+    tumor_type_to_label = {group_idx: str(c) for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
     return tumor_type_to_label
 
 
 ALL_DATASET_NAMES = ['adh', 'benign', 'dcis', 'fea', 'malignant', 'pathologicalbenign', 'udh']
 
 
-def get_label_to_tumor_type(num_classes=5):
-
-    if num_classes == 2:
-        label_to_tumor_type = {
-            '0': 'N',
-            '1': 'I',
-        }
-
-    elif num_classes == 3:
-        label_to_tumor_type = {
-            '0': 'N',
-            '1': 'I',
-            '2': 'ATY'
-        }
-
-    elif num_classes == 5:
-        label_to_tumor_type = {
-            '0': 'N',
-            '1': 'B',
-            '2': 'DCIS',
-            '3': 'I',
-            '4': 'ATY'
-        }
-
-    else:
-        raise ValueError('Number of classes can 2, 3 or 5.')
-
-    return label_to_tumor_type
-
-
-def get_dataset_black_list(num_classes=5):
-    if num_classes == 2:
-        dataset_blacklist = ['fea', 'adh']
-
-    elif num_classes == 3:
-        dataset_blacklist = []
-
-    elif num_classes == 5:
-        dataset_blacklist = []
-
-    else:
-        raise ValueError('Number of classes can 2, 3 or 5.')
-
-    return dataset_blacklist
+def get_dataset_black_list(class_split):
+    white_classes = class_split.replace('VS', '+').split('+')
+    black_classes = [item for item in ALL_DATASET_NAMES if item not in white_classes]
+    return black_classes
 
 
 NUM_CLASSES_TO_MODEL_URL = {

@@ -23,14 +23,11 @@ MODEL_TYPE_TO_GRAPH_BUILDING_PARAMS = {
 
 class ConfigGenerator:
 
-    def __init__(self, save_path, num_classes=5, gnn_layer_type='gin_layer'):
+    def __init__(self, save_path, gnn_layer_type='gin_layer'):
         """
         Config Generator constructor
         """
-
         self.save_path = save_path
-        self.tumor_type_to_label = get_tumor_type_to_label(num_classes)
-        self.dataset_blacklist = get_dataset_black_list(num_classes)
         self.gnn_layer_type = gnn_layer_type
 
     def __call__(self, model_type):
@@ -137,7 +134,7 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "dropout": [0.0],
-                "num_classes": self._get_number_classes(self.dataset_blacklist, self.tumor_type_to_label),
+                "class_split": ["benignVSpathologicalbenign+udhVSadh+feaVSdcisVSmalignant"],
                 "use_bn": [True],
                 "activation": ["relu"]
             }

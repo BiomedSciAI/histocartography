@@ -41,6 +41,7 @@ class MultiLayerGNN(nn.Module):
         out_dim = config['output_dim']
         num_layers = config['n_layers']
         activation = config['activation']
+        edge_dim = config['edge_dim']
 
         self.layers = nn.ModuleList()
 
@@ -50,7 +51,8 @@ class MultiLayerGNN(nn.Module):
             out_dim=hidden_dim,
             act=activation,
             layer_id=0,
-            config=config)
+            config=config,
+            edge_dim=edge_dim)
         )
         # hidden layers
         for i in range(1, num_layers - 1):
@@ -62,21 +64,33 @@ class MultiLayerGNN(nn.Module):
                     out_dim=hidden_dim,
                     act=activation,
                     layer_id=i,
-                    config=config))
+                    config=config,
+                    edge_dim=edge_dim)
+                )
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=hidden_dim,
             out_dim=out_dim,
             act=activation,
             layer_id=num_layers - 1,
-            config=config)
+            config=config,
+            edge_dim=edge_dim)
         )
+
+        # readout op
+        self.readout_op = config["agg_operator"]
+        if self.readout_op == "lstm":
+            self.lstm = nn.LSTM(
+                out_dim, (num_layers * out_dim) // 2,
+                bidirectional=True,
+                batch_first=True)
+            self.att =nn.Linear(2 * ((num_layers * out_dim) // 2), 1)
 
         # readout function
         self.readout_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys(
         ) else 'sum'
 
-    def forward(self, g, h, cat=False, with_readout=True):
+    def forward(self, g, h, with_readout=True):
         """
         Forward pass.
         :param g: (DGLGraph)
@@ -84,17 +98,25 @@ class MultiLayerGNN(nn.Module):
         :param cat: (bool) if concat the features at each conv layer
         :return:
         """
-        h_concat = [h]
+        h_concat = []
         for layer in self.layers:
             h = layer(g, h)
             h_concat.append(h)
 
         if isinstance(g, dgl.DGLGraph):
-            # concat
-            if cat:
+
+            # aggregate the multi-scale node representations 
+            if self.readout_op == "concat":
                 g.ndata[GNN_NODE_FEAT_OUT] = torch.cat(h_concat, dim=-1)
+            elif self.readout_op == "lstm":
+                x = torch.stack(h_concat, dim=1)  # [num_nodes, num_layers, num_channels]
+                alpha, _ = self.lstm(x)
+                alpha = self.att(alpha).squeeze(-1)  # [num_nodes, num_layers]
+                alpha = torch.softmax(alpha, dim=-1)
+                g.ndata[GNN_NODE_FEAT_OUT] = (x * alpha.unsqueeze(-1)).sum(dim=1)
             else:
                 g.ndata[GNN_NODE_FEAT_OUT] = h
+
             # readout
             if with_readout:
                 return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)

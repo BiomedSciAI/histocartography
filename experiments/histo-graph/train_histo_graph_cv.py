@@ -14,6 +14,7 @@ import pandas as pd
 import shutil
 
 from histocartography.utils.io import read_params
+from histocartography.utils.graph import to_cpu, to_device
 from histocartography.utils.io import DATATYPE_TO_EXT, DATATYPE_TO_SAVEFN
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
@@ -75,43 +76,20 @@ def main(args):
         print('Start fold: {}'.format(fold_id))
 
         # make data loaders (train & validation)
-        if args.dataloaders_path:  # @TODO: change to cope with fold id 
-            pickle_fname = 'data_'
-            if load_cell_graph(config['model_type']):
-                pickle_fname += 'CG'
-            if load_superpx_graph(config['model_type']):
-                pickle_fname += 'SPXG'
-            pickle_fname += '_' + str(fold_id) + '.pickle'
-            with open(complete_path(args.dataloaders_path, pickle_fname), 'rb') as f:
-                dataloaders, num_cell_features = pickle.load(f)
-        else:
-            dataloaders, num_cell_features = make_data_loader(
-                batch_size=args.batch_size,
-                num_workers=args.number_of_workers,
-                path=args.data_path,
-                num_classes=config['model_params']['num_classes'],
-                config=config,
-                cuda=CUDA,
-                load_cell_graph=load_cell_graph(config['model_type']),
-                load_superpx_graph=load_superpx_graph(config['model_type']),
-                load_image=False,
-                load_in_ram=args.in_ram,
-                show_superpx=False,
-                fold_id=fold_id
-            )
-
-        if args.pickle_dataloader:
-            base_pickle = '/dataT/gja/histocartography/data/'
-            # base_pickle = '../../data/'
-            pickle_fname = 'data_'
-            if load_cell_graph(config['model_type']):
-                pickle_fname += 'CG'
-            if load_superpx_graph(config['model_type']):
-                pickle_fname += 'SPXG'
-            pickle_fname += '_' + str(fold_id) + '.pickle'
-            with open(complete_path(base_pickle, pickle_fname), 'wb') as f:
-                data = (dataloaders, num_cell_features)
-                pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        dataloaders, input_feature_dims = make_data_loader(
+            batch_size=args.batch_size,
+            num_workers=args.number_of_workers,
+            path=args.data_path,
+            num_classes=config['model_params']['num_classes'],
+            config=config,
+            cuda=CUDA,
+            load_cell_graph=load_cell_graph(config['model_type']),
+            load_superpx_graph=load_superpx_graph(config['model_type']),
+            load_image=False,
+            load_in_ram=args.in_ram,
+            show_superpx=False,
+            fold_id=fold_id
+        )
 
         # declare model
         model_type = config[MODEL_TYPE]
@@ -120,13 +98,18 @@ def main(args):
                 MODEL_MODULE.format(model_type)
             )
             model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
-                config['model_params'], num_cell_features).to(DEVICE)
+                config['model_params'], input_feature_dims).to(DEVICE)
         else:
             raise ValueError(
                 'Model: {} not recognized. Options are: {}'.format(
                     model_type, list(AVAILABLE_MODEL_TYPES.keys())
                 )
             )
+
+        # debug purposes
+        print('Model', model)
+        num_train_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print('Model has {} parameters'.format(num_train_params))
 
         # build optimizer
         optimizer = torch.optim.Adam(
@@ -160,12 +143,18 @@ def main(args):
 
         for epoch in range(args.epochs):
             # A.) train for 1 epoch
+            torch.cuda.empty_cache()
+            model = model.to(DEVICE)
             model.train()
             for data, labels in tqdm(dataloaders['train'], desc='Epoch training {}'.format(epoch), unit='batch'):
+
+                # print('Data:', data[0].ndata['feat'])
 
                 # 1. forward pass
                 labels = labels.to(DEVICE)
                 logits = model(data)
+
+                # print('Logits', logits)
 
                 # 2. backward pass
                 loss = loss_fn(logits, labels)
@@ -207,6 +196,7 @@ def main(args):
             # compute & store accuracy + model
             accuracy = metrics['accuracy'](all_val_logits, all_val_labels).item()
             mlflow.log_metric('val_accuracy_' + str(fold_id), accuracy, step=step)
+            print('Val accuracy {}'.format(accuracy))
             if accuracy > best_val_accuracy:
                 best_val_accuracy = accuracy
                 save_checkpoint(model, complete_path(model_path, 'model_best_val_accuracy_' + str(fold_id) + '.pt'))
@@ -214,11 +204,12 @@ def main(args):
             # compute & store weighted f1-score + model
             weighted_f1_score = metrics['weighted_f1_score'](all_val_logits, all_val_labels).item()
             mlflow.log_metric('val_weighted_f1_score_' + str(fold_id), weighted_f1_score, step=step)
+            print('Weighted F1 score {}'.format(weighted_f1_score))
             if weighted_f1_score > best_val_weighted_f1_score:
                 best_val_weighted_f1_score = weighted_f1_score
                 save_checkpoint(model, complete_path(model_path, 'model_best_val_weighted_f1_score_' + str(fold_id) + '.pt'))
 
-            # C) @TODO: log the testing acc at each epoch as well...
+            # C) testing (at each epoch as a indication -- not used for final model prediction)
             all_test_logits = []
             all_test_labels = []
             for data, labels in tqdm(dataloaders['test'], desc='Testing: {}'.format(epoch), unit='batch'):

@@ -3,6 +3,7 @@ import os
 import h5py
 import torch.utils.data
 import numpy as np
+from dgl.data.utils import load_graphs
 
 from histocartography.dataloader.base_dataloader import BaseDataset
 from histocartography.utils.io import (
@@ -13,8 +14,11 @@ from histocartography.dataloader.constants import (
     NORMALIZATION_FACTORS, COLLATE_FN)
 from histocartography.dataloader.constants import get_tumor_type_to_label
 from histocartography.dataloader.constants import get_dataset_black_list
+from histocartography.dataloader.constants import NODE_FEATURE_TYPE_TO_DIRNAME, NODE_FEATURE_TYPE_TO_H5, ALL_DATASET_NAMES
+from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN, GNN_EDGE_FEAT
 from histocartography.utils.vector import compute_normalization_factor
 from histocartography.utils.io import load_image
+from histocartography.utils.graph import set_graph_on_cuda
 
 
 class PascaleDataset(BaseDataset):
@@ -26,8 +30,8 @@ class PascaleDataset(BaseDataset):
             dataset_name,
             split,
             num_classes,
+            cuda,
             config,
-            cuda=False,
             load_cell_graph=True,
             load_superpx_graph=True,
             load_image=False,
@@ -68,34 +72,28 @@ class PascaleDataset(BaseDataset):
         self.num_samples = len(self.h5_fnames)
 
         if load_cell_graph:
-            self.cell_graph_path = os.path.join(
-                self.data_path, 'nuclei_info', self.dataset_name, '_h5'
-            )
+            self.cell_node_feature_types = config['graph_building']['cell_graph_builder']['node_feature_types']
+            self.encode_cg_edges = config['graph_building']['cell_graph_builder']['edge_encoding']
+            self.base_cell_graph_path = os.path.join(self.data_path, 'graphs', 'cell_graphs')
             self.num_cell_features = self._get_cell_features_dim()
-            self._build_normaliser(graph_type='cell_graph')
-
+            self.num_edge_cell_features = self._get_edge_cell_features_dim()
             if load_in_ram:
                 self._load_cell_graph_in_ram()
 
         if load_superpx_graph:
-            self.superpx_graph_path = os.path.join(
-                self.data_path, 'super_pixel_info', 'main_sp', 'prob_thr_0.8', self.dataset_name)
-            # Path to dgl graphs
-            self.graph_path = os.path.join(self.data_path, 'super_pixel_info', 'dgl_graphs', 'prob_thr_0.8',
-                                           self.dataset_name)
-            # get indices of features
-            self.top_feat_path = os.path.join(self.data_path, 'misc_utils', 'main_sp_classification',
-                                              'sp_classifier')
-            self.top_feat_ind = self._load_feat_indices(self.top_feat_path)
-
+            self.superpx_node_feature_types = config['graph_building']['superpx_graph_builder']['node_feature_types']
+            self.encode_tg_edges = config['graph_building']['superpx_graph_builder']['edge_encoding']
+            self.base_superpx_graph_path = os.path.join(self.data_path, 'graphs', 'tissue_graphs')
+            self.base_superpx_h5_path = os.path.join(self.data_path, 'super_pixel_info')
             self.num_superpx_features = self._get_superpx_features_dim()
-            self._build_normaliser(graph_type='superpx_graph')
-
+            self.num_edge_superpx_features = self._get_edge_superpx_features_dim()
             if load_in_ram:
                 self._load_superpx_graph_in_ram()
 
         if load_cell_graph and load_superpx_graph:
-            self._load_assignment_matrices_in_ram()
+            self.base_assignment_matrix_path = os.path.join(self.data_path, 'assignment_mat')
+            if load_in_ram:
+                self._load_assignment_matrices_in_ram()
 
         if load_image:
             self.image_path = os.path.join(
@@ -138,46 +136,48 @@ class PascaleDataset(BaseDataset):
         for fname in self.h5_fnames:
             self._load_label(fname)
 
-    def _load_graph(self, graph_name):
-        """
-        Load dgl graphs from path
-        """
-        return os.path.join(self.graph_path, graph_name + '.bin')
-
     def _load_label(self, fpath):
         """
         Load the label by inspecting the filename
         """
         tumor_type = fpath.split('_')[1]
-
         self.labels.append(self.tumor_type_to_label[tumor_type])
 
-    def _load_feat_indices(self, fpath):
-        """
+    # def _load_feat_indices(self, fpath):
+    #     """
 
-       Returns indices of top 24 features to be selected
-        """
-        with np.load(os.path.join(fpath, 'feature_ids.npz')) as data:
-            indices = data['indices'][:24]
-            indices = torch.from_numpy(indices).to(self.device)
-            return indices
+    #    Returns indices of top 24 features to be selected
+    #     """
+    #     with np.load(os.path.join(fpath, 'feature_ids.npz')) as data:
+    #         indices = data['indices'][:24]
+    #         indices = torch.from_numpy(indices).to(self.device)
+    #         return indices
 
     def _get_cell_features_dim(self):
+        graph_fname = os.path.join(
+            self.base_cell_graph_path,
+            self.cell_node_feature_types[0],
+            self.dataset_name,
+            self.h5_fnames[0].replace('.h5', '.bin')
+        )
+        g, _ = load_graphs(graph_fname)
+        return g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
 
-        with h5py.File(complete_path(self.cell_graph_path, self.h5_fnames[0]), 'r') as f:
-            cell_features = h5_to_tensor(f['instance_features'], self.device)
-            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
-            f.close()
-        return cell_features.shape[1] + centroid.shape[1]
+    def _get_edge_cell_features_dim(self):
+        return 4 if self.encode_cg_edges else None 
 
     def _get_superpx_features_dim(self):
+        graph_fname = os.path.join(
+            self.base_superpx_graph_path,
+            self.superpx_node_feature_types[0],
+            self.dataset_name,
+            self.h5_fnames[0].replace('.h5', '.bin')
+        )
+        g, _ = load_graphs(graph_fname)
+        return g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
 
-        with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[0]), 'r') as f:
-            feat = h5_to_tensor(f['sp_features'], self.device)
-            centroid = h5_to_tensor(f['sp_centroids'], self.device)
-            select_feat = torch.index_select(feat, 1, self.top_feat_ind).to(self.device)
-            f.close()
-        return select_feat.shape[1] + centroid.shape[1]
+    def _get_edge_superpx_features_dim(self):
+        return 4 if self.encode_tg_edges else None 
 
     def _get_superpx_map(self, index):
         with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
@@ -186,17 +186,6 @@ class PascaleDataset(BaseDataset):
             f.close()
         return sp_map
 
-    def _build_normaliser(self, graph_type):
-        """
-        Build normalizers to normalize the node features (ie, mean=0, std=1)
-        """
-        if not NORMALIZATION_FACTORS[graph_type]:
-            vars(self)[graph_type + '_transform'] = compute_normalization_factor(
-                self.data_path, self.h5_fnames
-            )
-        else:
-            vars(self)[graph_type + '_transform'] = NORMALIZATION_FACTORS[graph_type]
-
     def _load_image(self, img_name):
         return load_image(os.path.join(self.image_path, img_name + '.png')), img_name
 
@@ -204,79 +193,45 @@ class PascaleDataset(BaseDataset):
         """
         Build the cell graph
         """
-        # extract the image size, centroid, cell features and label
-        with h5py.File(complete_path(self.cell_graph_path, self.h5_fnames[index]), 'r') as f:
-            image_size = h5_to_tensor(f['image_dimension'], self.device)
-            cell_features = h5_to_tensor(f['instance_features'], self.device)
-            centroid = h5_to_tensor(f['instance_centroid_location'], self.device)
-            image_size = image_size.type(torch.float32)
-            norm_centroid = centroid / image_size[:-1]
-            f.close()
 
-        # normalize the cell features
-        cell_features = \
-            (cell_features - self.cell_graph_transform['mean'].to(self.device)) / \
-            (self.cell_graph_transform['std']).to(self.device)
-
-        # concat spatial + appearance features
-        cell_features = torch.cat((cell_features, norm_centroid), dim=1)
-
-        # build topology
-        cell_graph = self.cell_graph_builder(cell_features, centroid)
-
-        return cell_graph
+        graph_fname = os.path.join(
+            self.base_cell_graph_path,
+            self.cell_node_feature_types[0],
+            self.dataset_name,
+            self.h5_fnames[index].replace('.h5', '.bin')
+        )
+        g, _ = load_graphs(graph_fname)
+        g = g[0]
+        if not self.encode_cg_edges:
+            del g.edata[GNN_EDGE_FEAT]
+        return g
 
     def _build_superpx_graph(self, index):
         """
         Build the super pixel graph
         """
-        # extract the image size, centroid, cell features and label
-        with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
-            d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
-            feat = h5_to_tensor(f['sp_features'], self.device).type(d_type)
-            select_feat = torch.index_select(feat, 1, self.top_feat_ind).to(self.device)
-            centroid = h5_to_tensor(f['sp_centroids'], self.device).type(d_type)
-            # converting centroid coord from [y, x] to [x, y]
-            centroid = torch.index_select(centroid, 1, torch.LongTensor([1, 0]).to(self.device)).to(self.device)
-
-            sp_map = h5_to_tensor(f['sp_map'], self.device).type(d_type)
-            image_size = torch.FloatTensor(list(sp_map.shape)).to(self.device)
-            norm_centroid = centroid / image_size
-            f.close()
-
-        # choose indices of norm factors
-        norm_mean = torch.index_select(self.superpx_graph_transform['mean'], 0, self.top_feat_ind.cpu())
-        norm_stddev = torch.index_select(self.superpx_graph_transform['std'], 0, self.top_feat_ind.cpu())
-
-        # normalize the cell features
-        features = \
-            (select_feat - norm_mean.to(self.device)) / norm_stddev.to(self.device)
-
-        # concat spatial + appearance features
-        features = torch.cat((features, norm_centroid), dim=1).to(torch.float)
-
-        # build topology
-        graph_file = self._load_graph(self.h5_fnames[index].replace('.h5', ''))
-        superpx_graph = self.superpx_graph_builder(features, centroid, graph_file)
-
-        return superpx_graph
+        graph_fname = os.path.join(
+            self.base_superpx_graph_path,
+            self.superpx_node_feature_types[0],
+            self.dataset_name,
+            self.h5_fnames[index].replace('.h5', '.bin')
+        )
+        g, _ = load_graphs(graph_fname)
+        g = g[0]
+        if not self.encode_tg_edges:
+            del g.edata[GNN_EDGE_FEAT]
+        return g
 
     def _build_assignment_matrix(self, index):
-
-        with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
-            sp_map = h5_to_tensor(f['sp_map'], self.device) - 1   # indexing starts from 0
-            f.close()
-
-        with h5py.File(complete_path(self.cell_graph_path, self.h5_fnames[index]), 'r') as f:
-            cell_location = torch.floor(h5_to_tensor(f['instance_centroid_location'], self.device)).to(torch.long)
-            f.close()
-
-        cell_to_superpx = sp_map[cell_location[:, 1], cell_location[:, 0]].cpu().to(torch.long).numpy()
-        assignment_matrix = np.zeros((int(cell_to_superpx.shape[0]), 1 + int(torch.max(sp_map).item())))
-        assignment_matrix[np.arange(cell_to_superpx.size), cell_to_superpx] = 1
-
-        return torch.from_numpy(assignment_matrix).float().t().to(self.device)
-
+        data = np.load(
+            os.path.join(
+                self.base_assignment_matrix_path,
+                self.dataset_name,
+                self.h5_fnames[index].replace('.h5', '.npy')
+                )
+            )
+        return torch.FloatTensor(data).t()
+        
     def __getitem__(self, index):
         """
         Get an example.
@@ -291,22 +246,25 @@ class PascaleDataset(BaseDataset):
         label = self.labels[index]
 
         data = []
-
         # 2. load cell graph
         if self.load_cell_graph:
             if self.load_in_ram:
-                data.append(self.cell_graphs[index])
+                cell_graph = self.cell_graphs[index]
             else:
                 cell_graph = self._build_cell_graph(index)
-                data.append(cell_graph)
+            if self.cuda:
+                cell_graph = set_graph_on_cuda(cell_graph)
+            data.append(cell_graph)
 
         # 3. load superpx graph
         if self.load_superpx_graph:
             if self.load_in_ram:
-                data.append(self.superpx_graphs[index])
+                superpx_graph = self.superpx_graphs[index]
             else:
                 superpx_graph = self._build_superpx_graph(index)
-                data.append(superpx_graph)
+            if self.cuda:
+                superpx_graph = set_graph_on_cuda(superpx_graph)
+            data.append(superpx_graph)
 
         # 5. load superpx map for viz
         if self.show_superpx:
@@ -316,10 +274,12 @@ class PascaleDataset(BaseDataset):
         # 4. load assignment matrix to go from the cell graph to the the superpx graph
         if self.load_cell_graph and self.load_superpx_graph:
             if self.load_in_ram:
-                data.append(self.assignment_matrices[index])
+                assignment_matrix = self.assignment_matrices[index]
             else:
                 assignment_matrix = self._build_assignment_matrix(index)
-                data.append(assignment_matrix)
+            if self.cuda:
+                assignment_matrix = assignment_matrix.cuda()
+            data.append(assignment_matrix)
 
         # 6. load the image if required
         if self.load_image:
@@ -335,11 +295,11 @@ class PascaleDataset(BaseDataset):
 
     def get_node_dims(self):
         if hasattr(self, 'num_cell_features') and hasattr(self, 'num_superpx_features'):
-            return self.num_cell_features, self.num_superpx_features
+            return self.num_cell_features, self.num_superpx_features, self.num_edge_cell_features, self.num_edge_superpx_features
         elif hasattr(self, 'num_cell_features'):
-            return self.num_cell_features
+            return self.num_cell_features, self.num_edge_cell_features
         elif hasattr(self, 'num_superpx_features'):
-            return self.num_superpx_features
+            return self.num_superpx_features, self.num_edge_superpx_features
 
 
 def collate(batch):
@@ -368,7 +328,7 @@ def collate(batch):
     return data, labels
 
 
-def build_datasets(path, num_classes, *args, **kwargs):
+def build_datasets(path, num_classes, cuda, *args, **kwargs):
     """
     Builds dataset from text files that contain train:test:validation split
 
@@ -376,12 +336,8 @@ def build_datasets(path, num_classes, *args, **kwargs):
         PASCALE datasets for train, validation and testing
     """
 
-    print('num classes', num_classes)
-
     dataset_blacklist = get_dataset_black_list(num_classes)
-    data_dir = get_dir_in_folder(complete_path(path, 'nuclei_info'))
-    data_dir = list(filter(lambda x: all(b not in x for b in dataset_blacklist), data_dir))
-
+    data_dir = list(filter(lambda x: all(b not in x for b in dataset_blacklist), ALL_DATASET_NAMES))
     datasets = {}
 
     for data_split in ['train', 'val', 'test']:
@@ -392,6 +348,7 @@ def build_datasets(path, num_classes, *args, **kwargs):
                     dir,
                     data_split,
                     num_classes,
+                    cuda,
                     *args, **kwargs
                 )
                 for dir in data_dir

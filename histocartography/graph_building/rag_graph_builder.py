@@ -28,7 +28,6 @@ class RAGGraphBuilder(BaseGraphBuilder):
         """
         Loads the dgl graph from file
         """
-
         g, label_dict = load_graphs(dgl_graph_file)
 
         return g[0]

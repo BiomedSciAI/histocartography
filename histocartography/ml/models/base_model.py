@@ -14,15 +14,15 @@ class BaseModel(Module):
         self.num_classes = config['num_classes']
         self.dropout = config['dropout']
         self.use_bn = config['use_bn']
-        self.concat = config['cat']
 
-    def _update_config(self, config, input_dim=None):
+    def _update_config(self, config, input_dim=None, egde_dim=None):
         """
         Update config params with data-dependent parameters
         """
         if input_dim is not None:
             config['input_dim'] = input_dim
 
+        config['edge_dim'] = self.edge_dim
         config['use_bn'] = self.use_bn
         config['dropout'] = self.dropout
 
@@ -30,15 +30,16 @@ class BaseModel(Module):
         """
         Build cell graph multi layer GNN
         """
-        self._update_config(config, self.ll_node_dim)
+        print("self.ll_node_dim, self.edge_dim", self.ll_node_dim, self.edge_dim)
+        self._update_config(config, self.ll_node_dim, self.edge_dim)
         self.cell_graph_gnn = MultiLayerGNN(config=config)
 
-    def _build_superpx_graph_params(self, superpx_config, input_dim=None):
+    def _build_superpx_graph_params(self, superpx_config, input_dim=None, edge_dim=None):
         """
         Build super pixel multi layer GNN
         """
         if input_dim is not None:
-            self._update_config(superpx_config, input_dim)
+            self._update_config(superpx_config, input_dim, edge_dim)
         self.superpx_gnn = MultiLayerGNN(config=superpx_config)
 
     def _build_classification_params(self):

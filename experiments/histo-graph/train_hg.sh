@@ -7,7 +7,7 @@ export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 source ../_set_mlflow.sh
 
 # export experiment 
-export MLFLOW_EXPERIMENT_NAME=gja_train_hg
+export MLFLOW_EXPERIMENT_NAME=gja_train_hg_cnn
 # mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT_NAME}
 
 # Create dir for output logs
@@ -15,7 +15,6 @@ mkdir -p ../../runs
 
 # Set input parameters
 LEARNING_RATES=(0.001)
-# LEARNING_RATES=(0.001)
 BATCH_SIZES=(16)
 BASE_CONFIG="multi_level_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
@@ -33,11 +32,11 @@ do
 			echo "$bs"
 			echo "$conf"
 			bsub -R "rusage [ngpus_excl_p=1]" \
-			    -J  "CG_training" \
+			    -J  "HG_training" \
 			    -o "../../runs/lsf_logs.%J.stdout" \
 			    -e "../../runs/lsf_logs.%J.stderr" \
 			    -q "$queue" \
-			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/pascale/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram --dataloaders_path /dataT/gja/histocartography/data"
+			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/PASCALE_NEW/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram"
 			sleep 0.1 
 		done 
 	done

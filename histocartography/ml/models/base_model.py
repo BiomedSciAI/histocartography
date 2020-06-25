@@ -1,6 +1,7 @@
 from torch.nn import Module
 
 from histocartography.ml.layers.multi_layer_gnn import MultiLayerGNN
+from histocartography.dataloader.constants import get_number_of_classes
 
 
 class BaseModel(Module):
@@ -11,7 +12,7 @@ class BaseModel(Module):
         """
         super(BaseModel, self).__init__()
 
-        self.num_classes = config['num_classes']
+        self.num_classes = get_number_of_classes(config['class_split'])
         self.dropout = config['dropout']
         self.use_bn = config['use_bn']
 

@@ -80,7 +80,7 @@ def main(args):
             batch_size=args.batch_size,
             num_workers=args.number_of_workers,
             path=args.data_path,
-            num_classes=config['model_params']['num_classes'],
+            class_split=config['model_params']['class_split'],
             config=config,
             cuda=CUDA,
             load_cell_graph=load_cell_graph(config['model_type']),
@@ -148,13 +148,9 @@ def main(args):
             model.train()
             for data, labels in tqdm(dataloaders['train'], desc='Epoch training {}'.format(epoch), unit='batch'):
 
-                # print('Data:', data[0].ndata['feat'])
-
                 # 1. forward pass
                 labels = labels.to(DEVICE)
                 logits = model(data)
-
-                # print('Logits', logits)
 
                 # 2. backward pass
                 loss = loss_fn(logits, labels)
@@ -241,10 +237,6 @@ def main(args):
 
             model_name = [file for file in os.listdir(model_path) if file.endswith(".pt") and metric in file and str(fold_id) in file][0]
             load_checkpoint(model, complete_path(model_path, model_name))
-
-            # debug purposes 
-            print('Model name:', model_name)
-            print('Model path:', model_path)
 
             all_test_logits = []
             all_test_labels = []

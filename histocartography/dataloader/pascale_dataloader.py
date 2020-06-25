@@ -29,7 +29,7 @@ class PascaleDataset(BaseDataset):
             data_path,
             dataset_name,
             split,
-            num_classes,
+            class_split,
             cuda,
             config,
             load_cell_graph=True,
@@ -63,7 +63,7 @@ class PascaleDataset(BaseDataset):
         self.show_superpx = show_superpx
         self.load_in_ram = load_in_ram
         self.fold_id = fold_id
-        self.tumor_type_to_label = get_tumor_type_to_label(num_classes)
+        self.tumor_type_to_label = get_tumor_type_to_label(class_split)
 
         # 2. load h5 fnames and labels (from h5 fname)
         self._load_h5_fnames_and_labels(data_path, split)
@@ -328,7 +328,7 @@ def collate(batch):
     return data, labels
 
 
-def build_datasets(path, num_classes, cuda, *args, **kwargs):
+def build_datasets(path, class_split, cuda, *args, **kwargs):
     """
     Builds dataset from text files that contain train:test:validation split
 
@@ -336,7 +336,7 @@ def build_datasets(path, num_classes, cuda, *args, **kwargs):
         PASCALE datasets for train, validation and testing
     """
 
-    dataset_blacklist = get_dataset_black_list(num_classes)
+    dataset_blacklist = get_dataset_black_list(class_split)
     data_dir = list(filter(lambda x: all(b not in x for b in dataset_blacklist), ALL_DATASET_NAMES))
     datasets = {}
 
@@ -347,7 +347,7 @@ def build_datasets(path, num_classes, cuda, *args, **kwargs):
                     path,
                     dir,
                     data_split,
-                    num_classes,
+                    class_split,
                     cuda,
                     *args, **kwargs
                 )

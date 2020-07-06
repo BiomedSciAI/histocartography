@@ -95,6 +95,12 @@ class ConfigGenerator:
                 "superpx_gnn": self._get_pna_params()
             }
         )
+
+        def is_valid(c):
+            if c['cell_gnn']['agg_operator'] == c['superpx_gnn']['agg_operator'] and c['cell_gnn']['n_layers'] == c['superpx_gnn']['n_layers']:
+                return True
+            return False
+        config = [c for c in list(config) if is_valid(c)]
         return config
 
     def _get_superpx_gnn_params(self):
@@ -128,6 +134,11 @@ class ConfigGenerator:
                 "cell_graph_builder": self._get_knn_graph_building_params()
             }
         )
+        def is_valid(c):
+            if c['cell_graph_builder']['node_feature_types'][0] in c['superpx_graph_builder']['node_feature_types'][0]:
+                return True
+            return False
+        config = [c for c in list(config) if is_valid(c)]
         return config
 
     def _get_base_model_params(self):
@@ -183,7 +194,7 @@ class ConfigGenerator:
             {
                 "layer_type": ["pna_layer"],
                 "activation": ["relu"],
-                "n_layers": [4],
+                "n_layers": [3, 4, 5],
                 "hidden_dim": [64],
                 "output_dim": [64],
                 "agg_operator": ["lstm", "concat"],
@@ -279,13 +290,13 @@ class ConfigGenerator:
                 "edge_encoding": [False],
                 'node_feature_types': [
                     # ['features_cnn_resnet101_mask_False_', 'centroid'], 
-                    #['features_cnn_resnet50_mask_True_'], 
-                    #['features_cnn_resnet34_mask_True_'], 
+                    ['features_cnn_resnet50_mask_True_'], 
+                    ['features_cnn_resnet34_mask_True_'], 
                     # ['features_cnn_vgg16_mask_False_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_False_', 'centroid'], 
                     # ['features_hc_', 'centroid'], 
                     # ['features_cnn_resnet101_mask_True_', 'centroid'], 
-                    #['features_cnn_resnet50_mask_False_'], 
+                    ['features_cnn_resnet50_mask_False_'], 
                     ['features_cnn_resnet34_mask_False_'], 
                     # ['features_cnn_vgg16_mask_True_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_True_', 'centroid'], 
@@ -303,9 +314,9 @@ class ConfigGenerator:
                 "edge_encoding": [False],
                 'node_feature_types': [
                     ['merging_hc_features_cnn_resnet34_mask_False_'],
-                    #['merging_hc_features_cnn_resnet50_mask_False_'],
-                    #['merging_hc_features_cnn_resnet34_mask_True_'],
-                    #['merging_hc_features_cnn_resnet50_mask_True_']
+                    ['merging_hc_features_cnn_resnet50_mask_False_'],
+                    ['merging_hc_features_cnn_resnet34_mask_True_'],
+                    ['merging_hc_features_cnn_resnet50_mask_True_']
                 ]
             }
         )

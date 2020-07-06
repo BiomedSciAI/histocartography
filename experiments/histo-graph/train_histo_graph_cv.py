@@ -36,8 +36,7 @@ warnings.filterwarnings("ignore")
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
 
-FOLD_IDS = [2, 3, 7, 11]
-# FOLD_IDS = [7]
+FOLD_IDS = [0]
 
 
 def main(args):

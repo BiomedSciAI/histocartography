@@ -44,7 +44,7 @@ class MultiLevelGraphModel(BaseModel):
         self._build_cell_graph_params(self.cell_gnn_params)
 
         # 3- build super pixel graph params
-        if self.readout_agg_op == "concat":
+        if self.readout_agg_op == "concat" and not self.pna_assignment:
             superpx_input_dim = self.hl_node_dim +\
                                 self.cell_gnn_params['output_dim'] +\
                                 self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) +\
@@ -60,9 +60,12 @@ class MultiLevelGraphModel(BaseModel):
         if self.pna_assignment:
             self.aggregators = [AGGREGATORS[aggr] for aggr in config['gnn_params']['cell_gnn']['aggregators'].split()]
             self.scalers = [SCALERS[scale] for scale in config['gnn_params']['cell_gnn']['scalers'].split()]
+            in_dim = (len(self.aggregators) * len(self.scalers)) * self.cell_gnn_params['output_dim']
+            if self.readout_agg_op == "concat":
+                in_dim *= self.cell_gnn_params['n_layers']
             self.assignment_mapper = nn.Sequential(
                 MLP(
-                    in_dim=(len(self.aggregators) * len(self.scalers)) * self.cell_gnn_params['output_dim'],
+                    in_dim=in_dim,
                     h_dim=self.cell_gnn_params['output_dim'],
                     out_dim=self.cell_gnn_params['output_dim'],
                     num_layers=1,
@@ -115,7 +118,7 @@ class MultiLevelGraphModel(BaseModel):
                         h_agg_row = torch.cat([aggregate(subfeats) for aggregate in self.aggregators], dim=1)
                         h_agg_row = torch.cat([scale(h_agg_row, D=degree, avg_d=self.avg_d) for scale in self.scalers], dim=1).squeeze()
                     else:
-                        h_agg_row = torch.zeros(len(self.aggregators) * len(self.scalers) * self.cell_gnn_params['output_dim']).to(feats.get_device())
+                        h_agg_row = torch.zeros(len(self.aggregators) * len(self.scalers) * subfeats.shape[-1]).to(feats.get_device())
                     h_agg.append(h_agg_row.unsqueeze(dim=0))
                 h_agg = torch.cat(h_agg, dim=0)
             else:

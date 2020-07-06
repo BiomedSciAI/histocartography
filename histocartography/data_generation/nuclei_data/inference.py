@@ -87,6 +87,7 @@ class Inferer(Config):
             mini_batch = sub_patches[:self.inf_batch_size]
             sub_patches = sub_patches[self.inf_batch_size:]
             mini_output = predictor(mini_batch)[0]
+            print('new mini output')
             mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
             pred_map.extend(mini_output)
         if len(sub_patches) != 0:
@@ -126,6 +127,9 @@ class Inferer(Config):
         self.create_directory(save_dir)
         save_dir += '_mat/'
         self.create_directory(save_dir)
+
+        print(self.inf_data_dir)
+        print(self.inf_imgs_ext)
 
         file_list = glob.glob('%s/*%s' % (self.inf_data_dir, self.inf_imgs_ext))
         file_list.sort()

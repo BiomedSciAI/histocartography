@@ -1,27 +1,28 @@
 import numpy as np
 from PIL import Image
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 import os
 import glob
 import time
 import argparse
+from tqdm import tqdm
+
 parser = argparse.ArgumentParser()
-parser.add_argument('data_param')                # local, dataT
-parser.add_argument('norm_method')               # macenko_nofit, macenko_fit, vahadane_fit
-parser.add_argument('tumor_type')                # benign, pathologicalbenign, udh, adh, fea, dcis, malignant
-parser.add_argument('chunk_id')                  # 0, 1, ...
+parser.add_argument('--data_param')                # local, dataT
+parser.add_argument('--norm_method')               # macenko_nofit, macenko_fit, vahadane_fit
 
 args = parser.parse_args()
 data_param = args.data_param
 norm_method = args.norm_method
-tumor_type = args.tumor_type
-chunk_id = int(args.chunk_id)
 
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 
 def create_directory(path):
     if not os.path.isdir(path):
         os.mkdir(path)
-#enddef
+
 
 if norm_method == 'macenko_nofit':
     from stainNorm_Macenko_nofit import stainingNorm_Macenko_nofit
@@ -47,65 +48,44 @@ elif norm_method == 'vahadane_fit':
     norm_fit.fit(img_target)
 
 
-#-----------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 # MAIN CODE
-#-----------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 if data_param == 'local':
-    base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/'
+    base_path = '/Users/gja/Documents/PhD/histocartography/data/Scan6_7_8_9_10/'
 elif data_param == 'dataT':
     base_path = '/dataT/pus/histocartography/Data/PASCALE/'
 
-base_img_path = base_path + 'Images/' + tumor_type + '/'
-base_save_path = base_path + 'Images_norm/'
-create_directory(base_save_path)
-base_save_path += tumor_type + '/'
-create_directory(base_save_path)
+TUMOR_TYPES = os.listdir(os.path.join(base_path, 'Images'))
 
-#---------------------------------------------------------------------------------------------------- Load file paths
-n_chunks = 10
+print('Tumor types to process: {}'.format(TUMOR_TYPES))
 
-filepaths = glob.glob(base_img_path + '*.png')
-filepaths.sort()
+for tumor_type in TUMOR_TYPES:
+    print('Start processing tumor type:', tumor_type)
 
-idx = np.array_split(np.arange(len(filepaths)), n_chunks)
-idx = idx[chunk_id]
+    base_img_path = os.path.join(base_path, 'Images', tumor_type)
+    base_save_path = os.path.join(base_path, 'Images_norm')
+    create_directory(base_save_path)
+    base_save_path = os.path.join(base_save_path, tumor_type)
+    create_directory(base_save_path)
 
-filepaths = [filepaths[x] for x in idx]
+    filepaths = glob.glob(os.path.join(base_img_path, '*.png'))
+    filepaths.sort()
 
+    for i in tqdm(range(len(filepaths))):
 
-for i in range(len(filepaths)):
-    start_time = time.time()
-    filename = os.path.basename(filepaths[i])
+        start_time = time.time()
+        filename = os.path.basename(filepaths[i])
+        img_rgb = Image.open(filepaths[i])
+        img_rgb = np.array(img_rgb).astype(np.uint8)
 
-    img_rgb_ = Image.open(filepaths[i])
-    img_rgb = np.asarray(img_rgb_)
-    img_rgb_.close()
+        if norm_method == 'macenko_nofit':
+            normalized = stainingNorm_Macenko_nofit(img_rgb)
 
-    if norm_method == 'macenko_nofit':
-        normalized = stainingNorm_Macenko_nofit(img_rgb)
+        elif norm_method == 'macenko_fit':
+            normalized = norm_fit.transform(img_rgb)
 
-    elif norm_method == 'macenko_fit':
-        normalized = norm_fit.transform(img_rgb)
+        elif norm_method == 'vahadane_fit':
+            normalized = norm_fit.transform(img_rgb)
 
-    elif norm_method == 'vahadane_fit':
-        normalized = norm_fit.transform(img_rgb)
-    #endif
-
-    Image.fromarray(normalized).save(base_save_path + filename)
-    print('#', i, ' : ', filename, ' time: ', round(time.time() - start_time, 2), 's')
-#endfor
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        Image.fromarray(normalized).save(os.path.join(base_save_path, filename))

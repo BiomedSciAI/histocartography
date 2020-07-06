@@ -4,15 +4,15 @@ import tensorflow as tf
 
 class Config(object):
     def __init__(self):
-        self.data_param = 'dataT'
+        self.data_param = 'local'
         self.type_classification = False
 
-        tumor_type = 'benign'    # benign, pathologicalbenign, udh, adh, fea, dcis, malignant
+        tumor_type = '0_benign'    # benign, pathologicalbenign, udh, adh, fea, dcis, malignant
 
         if self.data_param == 'local':
-            self.inf_model_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/misc_utils/nuclei_detection/hover_seg_Kumar.npz'
-            self.inf_data_dir = '/Users/pus/Desktop/Projects/Data/Hiastocartography/PASCALE/Images_norm/' + tumor_type + '/'
-            self.inf_output_dir = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/nuclei_info/Predictions/' + tumor_type + '/'
+            self.inf_model_path = '/Users/gja/Documents/PhD/histocartography/data/Scan6_7_8_9_10/hover_seg_Kumar.npz'
+            self.inf_data_dir = '/Users/gja/Documents/PhD/histocartography/data/Scan6_7_8_9_10/Images_norm/' + tumor_type + '/'
+            self.inf_output_dir = '/Users/gja/Documents/PhD/histocartography/data/Scan6_7_8_9_10/nuclei_info/Predictions/' + tumor_type + '/'
 
         elif self.data_param == 'dataT':
             self.inf_model_path = '/dataT/pus/histocartography/Data/pascale/misc_utils/nuclei_detection/hover_seg_Kumar.npz'

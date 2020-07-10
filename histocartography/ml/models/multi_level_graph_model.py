@@ -10,6 +10,9 @@ from histocartography.ml.layers.constants import (
     )   
 from histocartography.ml.layers.mlp import MLP
 
+# debug purposes 
+import time 
+
 
 class MultiLevelGraphModel(BaseModel):
     """
@@ -39,6 +42,7 @@ class MultiLevelGraphModel(BaseModel):
         self.readout_params = self.config['readout']
         self.readout_agg_op = config['gnn_params']['cell_gnn']['agg_operator']
         self.pna_assignment = config['gnn_params']['cell_gnn']['layer_type'] == 'pna_layer'
+        self.pna_assignment = False
 
         # 2- build cell graph params
         self._build_cell_graph_params(self.cell_gnn_params)
@@ -47,8 +51,8 @@ class MultiLevelGraphModel(BaseModel):
         if self.readout_agg_op == "concat" and not self.pna_assignment:
             superpx_input_dim = self.hl_node_dim +\
                                 self.cell_gnn_params['output_dim'] +\
-                                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) +\
-                                self.cell_gnn_params['input_dim']
+                                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) #  +\
+                                # self.cell_gnn_params['input_dim']
         else:
             superpx_input_dim = self.hl_node_dim + self.cell_gnn_params['output_dim']
         self._build_superpx_graph_params(

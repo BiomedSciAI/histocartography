@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#BSUB -q prod.short
+#BSUB -n 1
+#BSUB -R "rusage [ngpus_excl_p=1]"
+
+module load Anaconda3
+source .setup_MLflow.sh
+export PYTHONPATH='/dataT/pus/histocartography/histocartography/:$PYTHONPATH'
+
+#BSUB -J "resnet_1"
+#BSUB -o "resnet_1"
+#BSUB -e "resnet_1.stderr"
+
+python3 -u main.py --data_param=dataT --model_name=1_resnet --model_type=base --num_epochs=2 --batch_size=16 --learning_rate=0.001

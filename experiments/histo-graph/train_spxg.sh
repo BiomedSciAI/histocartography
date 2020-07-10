@@ -7,7 +7,7 @@ export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 source ../_set_mlflow.sh
 
 # export experiment 
-export MLFLOW_EXPERIMENT_NAME=gja_bracs_l_tg
+export MLFLOW_EXPERIMENT_NAME=gja_bracs_l_tg_7
 # mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT_NAME}
 
 # Create dir for output logs
@@ -15,7 +15,6 @@ mkdir -p ../../runs
 
 # Set input parameters
 LEARNING_RATES=(0.001)
-# LEARNING_RATES=(0.001)
 BATCH_SIZES=(16)
 BASE_CONFIG="superpx_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))

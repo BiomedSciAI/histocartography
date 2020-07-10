@@ -31,7 +31,7 @@ def parse_arguments():
         '--model_path',
         type=str,
         help='path to where the model is saved.',
-        default='/dataT/gja/histocartography/models',
+        default='/u/gja/projects/histocartography/experiments/histo-graph',
         required=False
     )
     parser.add_argument(

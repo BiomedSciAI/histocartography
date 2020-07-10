@@ -97,7 +97,9 @@ class ConfigGenerator:
         )
 
         def is_valid(c):
-            if c['cell_gnn']['agg_operator'] == c['superpx_gnn']['agg_operator'] and c['cell_gnn']['n_layers'] == c['superpx_gnn']['n_layers']:
+            if c['cell_gnn']['agg_operator'] == c['superpx_gnn']['agg_operator'] and c['cell_gnn']['n_layers'] == c['superpx_gnn']['n_layers'] \
+               and c['cell_gnn']['hidden_dim'] == c['cell_gnn']['output_dim'] and c['superpx_gnn']['hidden_dim'] == c['superpx_gnn']['output_dim']\
+               and c['cell_gnn']['hidden_dim'] == c['superpx_gnn']['output_dim']:
                 return True
             return False
         config = [c for c in list(config) if is_valid(c)]
@@ -145,7 +147,7 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "dropout": [0.0],
-                "class_split": ["benignVSpathologicalbenign+udhVSadh+feaVSdcisVSmalignant"],
+                "class_split": ["benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant"],
                 "use_bn": [True],
                 "activation": ["relu"]
             }
@@ -220,7 +222,7 @@ class ConfigGenerator:
             {
                 "layer_type": ["dense_gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [3, 4, 5],
+                "n_layers": [3, 4],
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [32],
                 "output_dim": [32]
@@ -290,13 +292,13 @@ class ConfigGenerator:
                 "edge_encoding": [False],
                 'node_feature_types': [
                     # ['features_cnn_resnet101_mask_False_', 'centroid'], 
-                    ['features_cnn_resnet50_mask_True_'], 
-                    ['features_cnn_resnet34_mask_True_'], 
+                    # ['features_cnn_resnet50_mask_True_'], 
+                    # ['features_cnn_resnet34_mask_True_'], 
                     # ['features_cnn_vgg16_mask_False_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_False_', 'centroid'], 
                     # ['features_hc_', 'centroid'], 
                     # ['features_cnn_resnet101_mask_True_', 'centroid'], 
-                    ['features_cnn_resnet50_mask_False_'], 
+                    # ['features_cnn_resnet50_mask_False_'], 
                     ['features_cnn_resnet34_mask_False_'], 
                     # ['features_cnn_vgg16_mask_True_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_True_', 'centroid'], 
@@ -314,9 +316,9 @@ class ConfigGenerator:
                 "edge_encoding": [False],
                 'node_feature_types': [
                     ['merging_hc_features_cnn_resnet34_mask_False_'],
-                    ['merging_hc_features_cnn_resnet50_mask_False_'],
-                    ['merging_hc_features_cnn_resnet34_mask_True_'],
-                    ['merging_hc_features_cnn_resnet50_mask_True_']
+                    # ['merging_hc_features_cnn_resnet50_mask_False_'],
+                    # ['merging_hc_features_cnn_resnet34_mask_True_'],
+                    # ['merging_hc_features_cnn_resnet50_mask_True_']
                 ]
             }
         )

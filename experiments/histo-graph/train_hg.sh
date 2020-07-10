@@ -14,8 +14,8 @@ export MLFLOW_EXPERIMENT_NAME=gja_bracs_l_hact_5
 mkdir -p ../../runs
 
 # Set input parameters
-LEARNING_RATES=(0.001)
-BATCH_SIZES=(16)
+LEARNING_RATES=(0.005 0.001 0.0005)
+BATCH_SIZES=(8 16 32)
 BASE_CONFIG="multi_level_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
 queue="prod.med"

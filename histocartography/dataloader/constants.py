@@ -141,10 +141,15 @@ def get_label_to_tumor_type(class_split):
 ALL_DATASET_NAMES = ['adh', 'benign', 'dcis', 'fea', 'malignant', 'pathologicalbenign', 'udh']
 
 
-def get_dataset_black_list(class_split):
+def get_dataset_white_list(class_split):
     white_classes = class_split.replace('VS', '+').split('+')
-    black_classes = [item for item in ALL_DATASET_NAMES if item not in white_classes]
-    return black_classes
+    return white_classes
+
+
+# def get_dataset_black_list(class_split):
+#     white_classes = class_split.replace('VS', '+').split('+')
+#     black_classes = [item for item in ALL_DATASET_NAMES if item not in white_classes]
+#     return black_classes
 
 
 NUM_CLASSES_TO_MODEL_URL = {

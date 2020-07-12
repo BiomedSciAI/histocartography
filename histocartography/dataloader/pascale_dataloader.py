@@ -13,7 +13,7 @@ from histocartography.utils.io import (
 from histocartography.dataloader.constants import (
     NORMALIZATION_FACTORS, COLLATE_FN)
 from histocartography.dataloader.constants import get_tumor_type_to_label
-from histocartography.dataloader.constants import get_dataset_black_list
+from histocartography.dataloader.constants import get_dataset_white_list
 from histocartography.dataloader.constants import NODE_FEATURE_TYPE_TO_DIRNAME, NODE_FEATURE_TYPE_TO_H5, ALL_DATASET_NAMES
 from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN, GNN_EDGE_FEAT
 from histocartography.utils.vector import compute_normalization_factor
@@ -336,9 +336,11 @@ def build_datasets(path, class_split, cuda, *args, **kwargs):
         PASCALE datasets for train, validation and testing
     """
 
-    dataset_blacklist = get_dataset_black_list(class_split)
-    data_dir = list(filter(lambda x: all(b not in x for b in dataset_blacklist), ALL_DATASET_NAMES))
+    # data_dir = get_dataset_white_list(class_split)
+    data_dir = get_dataset_white_list(class_split)
     datasets = {}
+
+    print('data dir are:', data_dir)
 
     for data_split in ['train', 'val', 'test']:
         datasets[data_split] = torch.utils.data.ConcatDataset(

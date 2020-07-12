@@ -2,7 +2,7 @@ from sklearn.model_selection import ParameterGrid
 
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES
 from histocartography.utils.io import write_json, complete_path, check_for_dir
-from histocartography.dataloader.constants import get_tumor_type_to_label, get_dataset_black_list
+from histocartography.dataloader.constants import get_tumor_type_to_label
 import numpy as np
 
 
@@ -147,7 +147,14 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "dropout": [0.0],
-                "class_split": ["benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant"],
+                "class_split": [
+                                # "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant",  # I vs (N,B,U,A,F,D)
+                                # "benign+pathologicalbenign+udhVSadh+fea+dcis",            # Non-atypical (N, B, U) vs Atypical (A, F, D)
+                                # "benignVSpathologicalbenign+udh",                         # N vs (B, U)
+                                "pathologicalbenignVSudh",                                  # B vs U
+                                # "adh+feaVSdcis",                                          # D vs (A, F)
+                                # "adhVSfea"                                                # A vs F
+                                ],                                                          
                 "use_bn": [True],
                 "activation": ["relu"]
             }

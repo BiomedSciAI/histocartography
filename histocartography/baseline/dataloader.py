@@ -3,11 +3,13 @@ import os
 import torch
 import numpy as np
 import dgl
+import pickle
 import torch.utils.data as data
 from PIL import Image
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
-
+from dgl.nn.pytorch.factory import KNNGraph
+from tqdm import tqdm 
 
 # --------------------------
 # Supporting functions
@@ -242,102 +244,102 @@ class PatchDataLoader(data.Dataset):
 
 
 def troi_loaders(config, models, mode):
+
+    preprocessed_patch_gnn_data = os.path.join(config.base_path, 'patches_info_' + str(config.patch_size))
+    preprocessed_patch_gnn_data = os.path.join(preprocessed_patch_gnn_data, 'split' + str(config.split))
+
+    print('preprocessed_patch_gnn_data', preprocessed_patch_gnn_data)
+
+    def collate(batch):
+        data = dgl.batch([example[0] for example in batch])
+        labels = torch.LongTensor([example[1] for example in batch]).to(config.device)
+        return data, labels
+
     if not (
-        os.path.isfile(
-            config.model_save_path +
-            'train_data_' +
-            mode +
-            '.npz') and os.path.isfile(
-            config.model_save_path +
-            'val_data_' +
-            mode +
-            '.npz') and os.path.isfile(
-                config.model_save_path +
-                'test_data_' +
-                mode +
-            '.npz')):
+        os.path.isfile(os.path.join(preprocessed_patch_gnn_data, 'spie_train_data.pickle')) and 
+        os.path.isfile(os.path.join(preprocessed_patch_gnn_data, 'spie_val_data.pickle')) and 
+        os.path.isfile(os.path.join(preprocessed_patch_gnn_data, 'spie_test_data.pickle'))
+            ):
 
         dataset_train = TROIDataLoader(config=config, models=models, mode='train')
         dataset_val = TROIDataLoader(config=config, models=models, mode='val')
         dataset_test = TROIDataLoader(config=config, models=models, mode='test')
 
-        def get_data(loader):
-            embedding = np.zeros(shape=(1, config.num_features))
+        # create dataloader from the dataset 
+        train_dataloader = torch.utils.data.DataLoader(
+                dataset_train,
+                batch_size=config.batch_size,
+                shuffle=True,
+                collate_fn=collate
+            )
+        val_dataloader = torch.utils.data.DataLoader(
+                dataset_val,
+                batch_size=config.batch_size,
+                shuffle=False,
+                collate_fn=collate
+            )
+        test_dataloader = torch.utils.data.DataLoader(
+                dataset_test,
+                batch_size=config.batch_size,
+                shuffle=False,
+                collate_fn=collate
+            )
 
-            labels = []
-            for i in range(len(loader)):
-                emb, lb = loader.__getitem__(i)
-                embedding = np.vstack(
-                    (embedding, np.reshape(
-                        emb, newshape=(
-                            1, config.num_features))))
-                labels.append(lb)
+        save_data = True
+        if save_data:
+            # pickle train dataloader 
+            with open(os.path.join(preprocessed_patch_gnn_data, 'spie_train_data.pickle'), 'wb') as f:
+                pickle.dump(dataset_train, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-                if i % 100 == 0:
-                    print(i)
+            # pickle val dataloader 
+            with open(os.path.join(preprocessed_patch_gnn_data, 'spie_val_data.pickle'), 'wb') as f:
+                pickle.dump(dataset_val, f, protocol=pickle.HIGHEST_PROTOCOL)
+                
+            # pickle test dataloader
+            with open(os.path.join(preprocessed_patch_gnn_data, 'spie_test_data.pickle'), 'wb') as f:
+                pickle.dump(dataset_test, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-            embedding = np.delete(embedding, 0, axis=0)
-            return embedding, labels
+        return train_dataloader, val_dataloader, test_dataloader
 
-        print('Extracting train features...')
-        train_data, train_labels = get_data(dataset_train)
-        print('Train: data=', train_data.shape, ' label=', len(train_labels))
-
-        print('Extracting val features...')
-        val_data, val_labels = get_data(dataset_val)
-        print('Val: data=', val_data.shape, ' label=', len(val_labels))
-
-        print('Extracting test features...')
-        test_data, test_labels = get_data(dataset_test)
-        print('Test: data=', test_data.shape, ' label=', len(test_labels))
-        print('DONE')
-
-        np.savez(
-            config.model_save_path +
-            'train_data_' +
-            mode +
-            '.npz',
-            data=train_data,
-            labels=train_labels)
-        np.savez(
-            config.model_save_path +
-            'val_data_' +
-            mode +
-            '.npz',
-            data=val_data,
-            labels=val_labels)
-        np.savez(
-            config.model_save_path +
-            'test_data_' +
-            mode +
-            '.npz',
-            data=test_data,
-            labels=test_labels)
-
-        return train_data, train_labels, val_data, val_labels, test_data, test_labels
     else:
-        data = np.load(config.model_save_path + 'train_data_' + mode + '.npz')
-        train_data = data['data']
-        train_labels = data['labels']
-        print('Train: data=', train_data.shape, ' label=', len(train_labels))
+        # load train dataloder
+        with open(os.path.join(preprocessed_patch_gnn_data, 'spie_train_data.pickle'), 'rb') as f:
+            dataset_train = pickle.load(f)
+            # create dataloader from the dataset 
+            train_dataloader = torch.utils.data.DataLoader(
+                dataset_train,
+                batch_size=config.batch_size,
+                shuffle=True,
+                collate_fn=collate
+            )
 
-        data = np.load(config.model_save_path + 'val_data_' + mode + '.npz')
-        val_data = data['data']
-        val_labels = data['labels']
-        print('Val: data=', val_data.shape, ' label=', len(val_labels))
+        # load val  dataloder
+        with open(os.path.join(preprocessed_patch_gnn_data, 'spie_val_data.pickle'), 'rb') as f:
+            dataset_val = pickle.load(f)
+            val_dataloader = torch.utils.data.DataLoader(
+                dataset_val,
+                batch_size=config.batch_size,
+                shuffle=False,
+                collate_fn=collate
+            )
 
-        data = np.load(config.model_save_path + 'test_data_' + mode + '.npz')
-        test_data = data['data']
-        test_labels = data['labels']
-        print('Test: data=', test_data.shape, ' label=', len(test_labels))
+        # load test dataloder
+        with open(os.path.join(preprocessed_patch_gnn_data, 'spie_test_data.pickle'), 'rb') as f:
+            dataset_test = pickle.load(f)
+            test_dataloader = torch.utils.data.DataLoader(
+                dataset_test,
+                batch_size=config.batch_size,
+                shuffle=False,
+                collate_fn=collate
+            )
 
-        return train_data, train_labels, val_data, val_labels, test_data, test_labels
+        return train_dataloader, val_dataloader, test_dataloader
 
 
 class TROIDataLoader(data.Dataset):
     def __init__(self, config, models, mode):
         self.base_img_path = config.base_img_path
-        self.base_patches_path = config.base_patches_path
+        self.base_patches_path = os.path.join(config.base_patches_path, 'split' + str(config.split))
         self.base_data_split_path = config.base_data_split_path
         self.tumor_types = config.tumor_types
         self.classes = config.tumor_types
@@ -346,8 +348,10 @@ class TROIDataLoader(data.Dataset):
         self.num_classes = config.num_classes
         self.num_features = config.num_features
         self.device = config.device
-        self.as_graph = config.as_graph
+        self.as_graph = config.troi_as_graph
         self.mode = mode
+        self.split = config.split 
+        self.in_ram = config.in_ram 
 
         self.troi_list = self.get_troi_list(config=config)
         self.data_transform = get_transform(
@@ -358,11 +362,59 @@ class TROIDataLoader(data.Dataset):
 
         self.embedding_model, self.classifier_model = models
         self.embedding_model = self.embedding_model.to(self.device)
-        self.classifier_model = self.classifier_model.to(self.device)
         self.embedding_model.eval()
-        self.classifier_model.eval()
+        if self.classifier_model is not None:
+            self.classifier_model = self.classifier_model.to(self.device)
+            self.classifier_model.eval()
 
-        self.avgpool = torch.nn.AdaptiveAvgPool1d(self.num_features)
+        if self.in_ram and self.as_graph:
+            self.all_graphs = []
+            self.all_labels = []
+            print('In RAM data loading & processing...')
+            for index in tqdm(range(len(self.troi_list))):
+                class_label = self.troi_list[index].split('_')[1]
+                basename = self.troi_list[index]
+                label = self.class_to_idx[self.classes.index(class_label)]
+                patches_list = glob.glob(
+                    self.base_patches_path +
+                    '/' + 
+                    self.mode + 
+                    '/' + 
+                    class_label +
+                    '/' +
+                    basename +
+                    '_*.png')
+
+                patches = []
+                patch_coords = []
+                for i in range(len(patches_list)):
+                    img_ = Image.open(patches_list[i])
+                    img = self.data_transform(img_)
+                    img_.close()
+                    patches.append(img)
+                    x = patches_list[i].split('_')[-2]
+                    y = patches_list[i].split('_')[-1].split('.')[0]
+                    patch_coords.append([float(x), float(y)])
+
+                num_patches = len(patches)
+                if num_patches != 0:
+                    patches = torch.stack(patches)
+                    patches = patches.to(self.device)
+
+                    with torch.no_grad():
+                        embedding = self.embedding_model(patches)
+                        embedding = embedding.squeeze(dim=2)
+                        embedding = embedding.squeeze(dim=2)
+                        self.dim = embedding.shape[1]
+                        del patches
+                        self.graph_builder = KNNGraph(k=min(8, num_patches))
+                        graph = self.graph_builder(torch.tensor(patch_coords))
+                        graph.ndata['h'] = embedding
+                        self.all_graphs.append(graph)
+                        self.all_labels.append(label)
+
+        if not self.as_graph:
+            self.avgpool = torch.nn.AdaptiveAvgPool1d(self.num_features)
 
     def get_troi_list(self, config):
         troi_ids = []
@@ -377,24 +429,35 @@ class TROIDataLoader(data.Dataset):
         return troi_ids
 
     def __getitem__(self, index):
+        if self.in_ram:
+            return self.all_graphs[index], self.all_labels[index]
+
         class_label = self.troi_list[index].split('_')[1]
         basename = self.troi_list[index]
         label = self.class_to_idx[self.classes.index(class_label)]
         patches_list = glob.glob(
             self.base_patches_path +
+            '/' + 
+            self.mode + 
+            '/' + 
             class_label +
             '/' +
             basename +
             '_*.png')
 
         patches = []
+        patch_coords = []
         for i in range(len(patches_list)):
             img_ = Image.open(patches_list[i])
             img = self.data_transform(img_)
             img_.close()
             patches.append(img)
+            x = patches_list[i].split('_')[-2]
+            y = patches_list[i].split('_')[-1].split('.')[0]
+            patch_coords.append([float(x), float(y)])
 
-        if len(patches) != 0:
+        num_patches = len(patches)
+        if num_patches != 0:
             patches = torch.stack(patches)
             patches = patches.to(self.device)
 
@@ -404,6 +467,12 @@ class TROIDataLoader(data.Dataset):
                 embedding = embedding.squeeze(dim=2)
                 self.dim = embedding.shape[1]
                 del patches
+
+                if self.as_graph:
+                    self.graph_builder = KNNGraph(k=min(8, num_patches))
+                    graph = self.graph_builder(torch.tensor(patch_coords))
+                    graph.ndata['h'] = embedding
+                    return graph, label
 
                 if self.weight_merge:
                     probabilities = self.classifier_model(embedding)
@@ -417,18 +486,7 @@ class TROIDataLoader(data.Dataset):
 
                 embedding_wt = (emb * prob).flatten()
                 embedding_wt = embedding_wt.unsqueeze(dim=0)
-                embedding_wt = embedding_wt.unsqueeze(dim=0)
-                embedding_wt = self.avgpool(embedding_wt).squeeze().cpu().detach().numpy()
-                embedding_wt = embedding_wt.view(size=(-1, self.num_features))
-
-                if self.as_graph:
-                    graph = dgl.DGLGraph()
-                    graph.add_nodes(embedding.shape[0])
-                    graph.ndata['h'] = embedding_wt
-                    centroid = []
-                    # build topology based on the centroid or the patch bounding box
-                    graph.add_edges([0, 1], [0, 1])
-                    return graph, label
+                embedding_wt = self.avgpool(embedding_wt)
 
                 return embedding_wt, label
 

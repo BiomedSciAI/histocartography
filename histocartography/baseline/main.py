@@ -1,8 +1,7 @@
 from histocartography.baseline.evaluation import (
     evaluate_troi_majority_voting,
     evaluate_troi_weighted_embedding,
-    evaluate_patch,
-    evaluate_troi_gnn_embedding
+    evaluate_patch
 )
 from histocartography.baseline.evaluation import PatchEvaluation
 from histocartography.baseline.models import ModelsComponents, TwoLayerGNNCls
@@ -14,7 +13,9 @@ import torch.optim as optim
 from warnings import filterwarnings
 import numpy as np
 import time
+import dgl
 from sklearn.metrics import f1_score
+from tqdm import tqdm 
 filterwarnings('ignore')
 
 
@@ -51,7 +52,12 @@ parser.add_argument(
     default='False',
     help='Flag to trigger patch extraction',
     required=False)
-
+parser.add_argument(
+    '--in_ram',
+    default=False,
+    type=bool,
+    help='Load all the data in RAM if enable',
+    required=False)
 parser.add_argument(
     '--model_name',
     help='Model name: example: 1_resnet',
@@ -246,35 +252,31 @@ if __name__ == '__main__':
         emb_model = torch.load(
             config.model_save_path +
             'embedding_model_best_' +
-            'test' +
-            '.pt')
-        classifier_model = torch.load(
-            config.model_save_path +
-            'classifier_model_best_' +
-            'test' +
+            'f1' +
             '.pt')
 
         # 2. build TRoI dataloader
-        train_data, train_labels, val_data, val_labels, test_data, test_labels = troi_loaders(
-            config, models=[emb_model, classifier_model], mode='f1')
+        train_dataloader, val_dataloader, test_dataloader = troi_loaders(
+            config, models=[emb_model, None], mode='f1')
 
         # 3. build GNN classifier
-        gnn_model = TwoLayerGNNCls(32, 5).to(config.device)  # @TODO: 2-layer GNN: check input dimension
+        gnn_model = TwoLayerGNNCls(512, 7).to(config.device)  
 
         # 4. training loop
         criterion = torch.nn.CrossEntropyLoss().to(config.device)
-        optimizer = optim.Adam(gnn_model, lr=config.learning_rate, weight_decay=0.0001)
+        optimizer = optim.Adam(gnn_model.parameters(), lr=config.learning_rate, weight_decay=0.0001)
 
-        best_val_f1 = 0
+        best_val_f1 = -1.
         reduce_lr_count = 0
         early_stopping_count = 0
         min_reduce_lr_reached = False
         log_train_f1 = np.array([])
         log_val_f1 = np.array([])
+        log_val_loss = np.array([]) 
 
         for epoch in range(config.num_epochs):
             start_time = time.time()
-            print('Epoch {}/{}'.format(epoch + 1, self.num_epochs))
+            print('Epoch {}/{}'.format(epoch + 1, config.num_epochs))
 
             # self.adjust_learning_rate(optimizer=optimizer)
             # if self.min_reduce_lr_reached:
@@ -284,26 +286,29 @@ if __name__ == '__main__':
             gnn_model.train()
 
             train_loss = 0.0
+            loss = torch.FloatTensor([10e4])
             true_labels = np.array([])
             predicted_labels = np.array([])
 
-            for batch_idx, (inputs, targets) in enumerate(zip(train_data, train_labels)):  # @TODO: TRoI should return a pytorch dataloder on the appropriate device
-                targets = targets.view(targets.shape[0])
+            pbar = tqdm(train_dataloader, desc='Loss {}'.format(loss.item()))
+
+            for inputs, targets in pbar: 
                 optimizer.zero_grad()
 
                 predictions = gnn_model(inputs)
                 loss = criterion(predictions, targets)
 
                 # measure accuracy and record loss
-                predicted_labels_ = torch.argmax(outputs, dim=1)
+                predicted_labels_ = torch.argmax(predictions, dim=1)
                 true_labels = np.concatenate(
                     (true_labels, targets.cpu().detach().numpy()))
                 predicted_labels = np.concatenate(
                     (predicted_labels, predicted_labels_.cpu().detach().numpy()))
-                train_loss += loss.cpu().detach().numpy() * inputs.shape[0]
+                train_loss += loss.cpu().detach().numpy() * len(dgl.unbatch(inputs))
 
                 loss.backward()
                 optimizer.step()
+                pbar.set_description('Loss {}'.format(round(loss.item(), 3)))
 
             train_f1 = f1_score(
                 true_labels,
@@ -311,7 +316,6 @@ if __name__ == '__main__':
                 average='weighted')
             train_loss = train_loss / len(true_labels)
             log_train_f1 = np.append(log_train_f1, train_f1)
-            log_train_loss = np.append(log_train_loss, train_loss)
 
             # ------------ EVAL MODE
             gnn_model.eval()
@@ -320,7 +324,7 @@ if __name__ == '__main__':
             predicted_labels = np.array([])
 
             with torch.no_grad():
-                for batch_idx, (inputs, targets) in enumerate(zip(val_data, val_labels)):
+                for inputs, targets in tqdm(val_dataloader):
 
                     outputs = gnn_model(inputs)
                     loss = criterion(outputs, targets)
@@ -330,7 +334,7 @@ if __name__ == '__main__':
                         (true_labels, targets.cpu().detach().numpy()))
                     predicted_labels = np.concatenate(
                         (predicted_labels, predicted_labels_.cpu().detach().numpy()))
-                    val_loss += loss.cpu().detach().numpy() * inputs.shape[0]
+                    val_loss += loss.cpu().detach().numpy() * len(dgl.unbatch(inputs))
 
             val_f1 = f1_score(
                 true_labels,
@@ -345,7 +349,8 @@ if __name__ == '__main__':
                     'val_f1 improved from', round(
                         best_val_f1, 4), 'to', round(
                         val_f1, 4), 'saving models to', config.model_save_path)
-                torch.save(gnn_model, config.model_save_path + 'embedding_model_best_f1.pt')
+                torch.save(gnn_model, config.model_save_path + 'patch_gnn_model_best_f1.pt')
+                print('Model save pathL', config.model_save_path + 'patch_gnn_model_best_f1.pt')
                 best_val_f1 = val_f1
 
             print(' - ' + str(int(time.time() - start_time)) + 's - loss:',
@@ -367,14 +372,14 @@ if __name__ == '__main__':
         # 5. Testing on the best model
         gnn_model = torch.load(
             config.model_save_path +
-            'embedding_model_best_' +
-            'test' +
-            '.pt')
+            'patch_gnn_model_best_f1.pt'
+            )
 
+        test_loss = 0.0
         true_labels = np.array([])
         predicted_labels = np.array([])
         with torch.no_grad():
-            for batch_idx, (inputs, targets) in enumerate(zip(test_data, test_labels)):
+            for inputs, targets in tqdm(test_dataloader):
                 outputs = gnn_model(inputs)
                 loss = criterion(outputs, targets)
 
@@ -383,11 +388,11 @@ if __name__ == '__main__':
                     (true_labels, targets.cpu().detach().numpy()))
                 predicted_labels = np.concatenate(
                     (predicted_labels, predicted_labels_.cpu().detach().numpy()))
-                val_loss += loss.cpu().detach().numpy() * inputs.shape[0]
+                test_loss += loss.cpu().detach().numpy() * len(dgl.unbatch(inputs))
 
         test_f1 = f1_score(
             true_labels,
             predicted_labels,
             average='weighted')
-        test_loss = val_loss / len(true_labels)
-        print('Testing F1-score {} | Loss {}'.format(test_f1, test_loss)
+        test_loss = test_loss / len(true_labels)
+        print('Testing F1-score {} | Loss {}'.format(test_f1, test_loss))

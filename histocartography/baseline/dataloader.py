@@ -10,6 +10,7 @@ from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from dgl.nn.pytorch.factory import KNNGraph
 from tqdm import tqdm 
+from histocartography.dataloader.constants import get_tumor_type_to_label, ALL_DATASET_NAMES, get_dataset_white_list
 
 # --------------------------
 # Supporting functions
@@ -214,9 +215,7 @@ def patch_collate_fn(batch):
 class PatchDataLoader(data.Dataset):
     def __init__(self, mode, config, is_pretrained, is_train):
         self.mode = mode
-        self.classes = config.tumor_types
-        self.class_to_idx = config.class_to_idx
-        self.tumor_types = config.tumor_types
+        self.tumor_type_to_label = config.tumor_type_to_label
         self.base_patches_path = config.base_patches_path
         self.base_data_split_path = config.base_data_split_path
 
@@ -231,7 +230,7 @@ class PatchDataLoader(data.Dataset):
         img_.close()
 
         class_label = os.path.basename(os.path.dirname(self.file_list[index]))
-        label = self.class_to_idx[self.classes.index(class_label)]
+        label = self.tumor_type_to_label[class_label]
         return img, label
 
     def __len__(self):
@@ -245,113 +244,53 @@ class PatchDataLoader(data.Dataset):
 
 def troi_loaders(config, models, mode):
 
-    preprocessed_patch_gnn_data = os.path.join(config.base_path, 'patches_info_' + str(config.patch_size))
-    preprocessed_patch_gnn_data = os.path.join(preprocessed_patch_gnn_data, 'split' + str(config.split))
-
-    print('preprocessed_patch_gnn_data', preprocessed_patch_gnn_data)
-
     def collate(batch):
         data = dgl.batch([example[0] for example in batch])
         labels = torch.LongTensor([example[1] for example in batch]).to(config.device)
         return data, labels
 
-    if not (
-        os.path.isfile(os.path.join(preprocessed_patch_gnn_data, 'spie_train_data.pickle')) and 
-        os.path.isfile(os.path.join(preprocessed_patch_gnn_data, 'spie_val_data.pickle')) and 
-        os.path.isfile(os.path.join(preprocessed_patch_gnn_data, 'spie_test_data.pickle'))
-            ):
+    dataset_train = TROIDataLoader(config=config, models=models, mode='train')
+    dataset_val = TROIDataLoader(config=config, models=models, mode='val')
+    dataset_test = TROIDataLoader(config=config, models=models, mode='test')
 
-        dataset_train = TROIDataLoader(config=config, models=models, mode='train')
-        dataset_val = TROIDataLoader(config=config, models=models, mode='val')
-        dataset_test = TROIDataLoader(config=config, models=models, mode='test')
+    # create dataloader from the dataset 
+    train_dataloader = torch.utils.data.DataLoader(
+            dataset_train,
+            batch_size=config.batch_size,
+            shuffle=True,
+            collate_fn=collate
+        )
+    val_dataloader = torch.utils.data.DataLoader(
+            dataset_val,
+            batch_size=config.batch_size,
+            shuffle=False,
+            collate_fn=collate
+        )
+    test_dataloader = torch.utils.data.DataLoader(
+            dataset_test,
+            batch_size=config.batch_size,
+            shuffle=False,
+            collate_fn=collate
+        )
 
-        # create dataloader from the dataset 
-        train_dataloader = torch.utils.data.DataLoader(
-                dataset_train,
-                batch_size=config.batch_size,
-                shuffle=True,
-                collate_fn=collate
-            )
-        val_dataloader = torch.utils.data.DataLoader(
-                dataset_val,
-                batch_size=config.batch_size,
-                shuffle=False,
-                collate_fn=collate
-            )
-        test_dataloader = torch.utils.data.DataLoader(
-                dataset_test,
-                batch_size=config.batch_size,
-                shuffle=False,
-                collate_fn=collate
-            )
-
-        save_data = True
-        if save_data:
-            # pickle train dataloader 
-            with open(os.path.join(preprocessed_patch_gnn_data, 'spie_train_data.pickle'), 'wb') as f:
-                pickle.dump(dataset_train, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-            # pickle val dataloader 
-            with open(os.path.join(preprocessed_patch_gnn_data, 'spie_val_data.pickle'), 'wb') as f:
-                pickle.dump(dataset_val, f, protocol=pickle.HIGHEST_PROTOCOL)
-                
-            # pickle test dataloader
-            with open(os.path.join(preprocessed_patch_gnn_data, 'spie_test_data.pickle'), 'wb') as f:
-                pickle.dump(dataset_test, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-        return train_dataloader, val_dataloader, test_dataloader
-
-    else:
-        # load train dataloder
-        with open(os.path.join(preprocessed_patch_gnn_data, 'spie_train_data.pickle'), 'rb') as f:
-            dataset_train = pickle.load(f)
-            # create dataloader from the dataset 
-            train_dataloader = torch.utils.data.DataLoader(
-                dataset_train,
-                batch_size=config.batch_size,
-                shuffle=True,
-                collate_fn=collate
-            )
-
-        # load val  dataloder
-        with open(os.path.join(preprocessed_patch_gnn_data, 'spie_val_data.pickle'), 'rb') as f:
-            dataset_val = pickle.load(f)
-            val_dataloader = torch.utils.data.DataLoader(
-                dataset_val,
-                batch_size=config.batch_size,
-                shuffle=False,
-                collate_fn=collate
-            )
-
-        # load test dataloder
-        with open(os.path.join(preprocessed_patch_gnn_data, 'spie_test_data.pickle'), 'rb') as f:
-            dataset_test = pickle.load(f)
-            test_dataloader = torch.utils.data.DataLoader(
-                dataset_test,
-                batch_size=config.batch_size,
-                shuffle=False,
-                collate_fn=collate
-            )
-
-        return train_dataloader, val_dataloader, test_dataloader
+    return train_dataloader, val_dataloader, test_dataloader
 
 
 class TROIDataLoader(data.Dataset):
     def __init__(self, config, models, mode):
         self.base_img_path = config.base_img_path
-        self.base_patches_path = os.path.join(config.base_patches_path, 'split' + str(config.split))
+        self.base_patches_path = config.base_patches_path
         self.base_data_split_path = config.base_data_split_path
-        self.tumor_types = config.tumor_types
-        self.classes = config.tumor_types
-        self.class_to_idx = config.class_to_idx
+        self.tumor_type_to_label = get_tumor_type_to_label(config.class_split)
         self.weight_merge = config.weight_merge
         self.num_classes = config.num_classes
         self.num_features = config.num_features
         self.device = config.device
-        self.as_graph = config.troi_as_graph
+        self.as_graph = True
         self.mode = mode
         self.split = config.split 
         self.in_ram = config.in_ram 
+        self.patch_size = config.patch_size
 
         self.troi_list = self.get_troi_list(config=config)
         self.data_transform = get_transform(
@@ -373,17 +312,17 @@ class TROIDataLoader(data.Dataset):
             print('In RAM data loading & processing...')
             for index in tqdm(range(len(self.troi_list))):
                 class_label = self.troi_list[index].split('_')[1]
+                label = self.tumor_type_to_label[class_label]
                 basename = self.troi_list[index]
-                label = self.class_to_idx[self.classes.index(class_label)]
+                # label = self.class_to_idx[self.classes.index(class_label)]
                 patches_list = glob.glob(
-                    self.base_patches_path +
-                    '/' + 
-                    self.mode + 
-                    '/' + 
-                    class_label +
-                    '/' +
-                    basename +
-                    '_*.png')
+                    os.path.join(
+                        self.base_patches_path,
+                        class_label,
+                        config.patch_size,
+                        basename + '_*.png'
+                    )
+                )
 
                 patches = []
                 patch_coords = []
@@ -418,11 +357,12 @@ class TROIDataLoader(data.Dataset):
 
     def get_troi_list(self, config):
         troi_ids = []
-        for t in range(len(self.tumor_types)):
+        datasets = get_dataset_white_list(config.class_split)
+        for t in range(len(datasets)):
             ids = get_troi_ids(
                 config=config,
                 mode=self.mode,
-                tumor_type=self.tumor_types[t])
+                tumor_type=datasets[t])
             troi_ids.append(ids)
 
         troi_ids = [item for sublist in troi_ids for item in sublist]
@@ -433,17 +373,16 @@ class TROIDataLoader(data.Dataset):
             return self.all_graphs[index], self.all_labels[index]
 
         class_label = self.troi_list[index].split('_')[1]
+        label = self.tumor_type_to_label[class_label]
         basename = self.troi_list[index]
-        label = self.class_to_idx[self.classes.index(class_label)]
         patches_list = glob.glob(
-            self.base_patches_path +
-            '/' + 
-            self.mode + 
-            '/' + 
-            class_label +
-            '/' +
-            basename +
-            '_*.png')
+            os.path.join(
+                self.base_patches_path,
+                class_label,
+                self.patch_size,
+                basename + '_*.png'
+            )
+        )
 
         patches = []
         patch_coords = []

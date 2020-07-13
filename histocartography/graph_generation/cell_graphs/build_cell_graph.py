@@ -13,8 +13,7 @@ from tqdm import tqdm
 from histocartography.graph_generation.constants import AVAILABLE_GRAPH_BUILDERS
 from histocartography.dataloader.constants import NORMALIZATION_FACTORS
 from histocartography.utils.io import read_params, h5_to_tensor
-from histocartography.graph_generation.utils.utils_build import feature_normalization, build_graph, \
-    save_graph_file, get_data_aug
+from histocartography.graph_generation.utils.utils_build import feature_normalization, build_graph, save_graph_file
 
 
 class BuildCellGraph(object):
@@ -48,8 +47,8 @@ class BuildCellGraph(object):
         """
         Build normalizers to normalize the node features (ie, mean=0, std=1)
         """
-        if False and self.features_used in NORMALIZATION_FACTORS[graph_type].keys():  # by-pass the normalization part for now 
-            vars(self)[graph_type + '_transform'] = NORMALIZATION_FACTORS[graph_type][self.features_used]
+        if self.features_used in NORMALIZATION_FACTORS.keys():  # by-pass the normalization part for now 
+            vars(self)[graph_type + '_transform'] = NORMALIZATION_FACTORS[self.features_used][graph_type]
 
     def _construct_graph_builder(self, config, name):
         """
@@ -118,10 +117,11 @@ class BuildCellGraph(object):
 
                 # feature normalisation for original cell features
                 cell_features = feature_normalization(cell_centroid, cell_features, image_size,
-                                                      None, self.device)
-
+                                                      self.cell_graph_model_transform, self.device)
                 # build graph
                 cell_graph = build_graph(self.cell_graph_builder, self.config, cell_features, cell_centroid, instance_map)
 
                 # save graph
                 save_graph_file(self.save_path, tumor_type, self.config, features_type, cent_filename, cell_graph)
+
+

@@ -5,7 +5,7 @@ import os
 
 NORMALIZATION_FACTORS = {
     'features_hc_': {
-        'cell_graph': {
+        'cell_graph_model': {
             'mean':
             torch.tensor([
                 9.4237e+01, 5.7058e+01, 4.0923e+02, 5.8869e-01, 4.2775e+00,
@@ -21,7 +21,7 @@ NORMALIZATION_FACTORS = {
                 5.5668e+01
             ])
         },
-        'superpx_graph': {
+        'superpx_graph_model': {
             'mean':
             torch.tensor([
                 2.1981e+04, 3.7003e+04, 7.0996e-01, 1.1810e+02, 9.0075e-01,

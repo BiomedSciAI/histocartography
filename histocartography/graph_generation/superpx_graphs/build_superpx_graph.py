@@ -12,9 +12,7 @@ from tqdm import tqdm
 from histocartography.graph_generation.constants import AVAILABLE_GRAPH_BUILDERS, NORMALIZATION_FACTORS
 from histocartography.dataloader.constants import NORMALIZATION_FACTORS
 from histocartography.utils.io import read_params, h5_to_tensor
-from histocartography.graph_generation.utils.utils_build import feature_normalization, build_graph, \
-    save_graph_file, get_data_aug_sp
-from histocartography.utils.vector import compute_normalization_factor_sp
+from histocartography.graph_generation.utils.utils_build import feature_normalization, build_graph, save_graph_file
 
 
 class BuildSPGraph(object):

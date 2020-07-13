@@ -5,7 +5,7 @@ from dgl.data.utils import save_graphs
 import torch
 
 
-def feature_normalization(centroids, features, image_dim, transformer, device):
+def feature_normalization(centroids, features, image_dim, transformer=None, device='cpu'):
     #image_dim = image_dim[[1, 0]]  # flipping image size to be [y,x]
 
     image_dim = image_dim.type(torch.float32)
@@ -13,9 +13,10 @@ def feature_normalization(centroids, features, image_dim, transformer, device):
     image_dim = image_dim.type(torch.float32)
     norm_centroid = centroids / image_dim
 
-    # normalize the cell features @TODO: by pass normalization 
-    # features = \
-    #     ((features - transformer['mean'].to(device)) / (transformer['std'].to(device)))
+    if transformer is not None:
+        # normalize the cell features @TODO: by pass normalization 
+        features = \
+            ((features - transformer['mean'].to(device)) / (transformer['std'].to(device)))
 
     features = torch.cat((features, norm_centroid), dim=1)
     return features

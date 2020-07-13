@@ -7,10 +7,14 @@ from histocartography.baseline.evaluation import PatchEvaluation
 from histocartography.baseline.models import ModelsComponents, TwoLayerGNNCls
 from histocartography.baseline.dataloader import patch_loaders, troi_loaders
 from histocartography.baseline.configuration import Config
+import torch.nn as nn 
 import argparse
 import torch
 import torch.optim as optim
+import mlflow 
+import mlflow.pytorch
 from warnings import filterwarnings
+import torchvision
 import numpy as np
 import time
 import dgl
@@ -59,10 +63,6 @@ parser.add_argument(
     help='Load all the data in RAM if enable',
     required=False)
 parser.add_argument(
-    '--model_name',
-    help='Model name: example: 1_resnet',
-    required=True)
-parser.add_argument(
     '--model_type',
     help='Model type: options are: base, base_pt, spie',
     required=True)
@@ -77,26 +77,26 @@ parser.add_argument(
 
 parser.add_argument(
     '--patch_size',
-    type=int,
-    default=224,
+    type=str,
+    default='10x',
     help='Patch Size',
     required=False)
 parser.add_argument(
     '--patch_scale',
-    type=int,
-    default=224,
+    type=str,
+    default='10x',
     help='Patch Scale',
     required=False)
 parser.add_argument(
     '--num_epochs',
     type=int,
-    default=100,
+    default=150,
     help='max epoch',
     required=False)
 parser.add_argument(
     '--batch_size',
     type=int,
-    default=32,
+    default=16,
     help='batch size',
     required=False)
 parser.add_argument(
@@ -132,6 +132,12 @@ parser.add_argument(
     default=-1,
     help='gpu index',
     required=False)
+parser.add_argument(
+    '--class_split',
+    type=str,
+    default='benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant',
+    help='String defining how to split the classes. Default 7-class scenario.',
+    required=False)
 
 args = parser.parse_args()
 
@@ -145,8 +151,6 @@ print('*************************************************************************
 print(
     '-split:',
     config.split,
-    '-model_name:',
-    config.model_name,
     '-model_type:',
     config.model_type,
     '-pre_trained:',
@@ -248,19 +252,21 @@ if __name__ == '__main__':
 
     elif config.mode == 'gnn_merge':
 
+        mlflow.log_params({
+            'class_split': args.class_split,
+            'patch_size': args.patch_size
+        })
+
         # 1. load pre-train patch classifier
-        emb_model = torch.load(
-            config.model_save_path +
-            'embedding_model_best_' +
-            'f1' +
-            '.pt')
+        resnet34 = torchvision.models.resnet34(pretrained=True)
+        emb_model = nn.Sequential(*list(resnet34.children())[:-1])
 
         # 2. build TRoI dataloader
         train_dataloader, val_dataloader, test_dataloader = troi_loaders(
             config, models=[emb_model, None], mode='f1')
 
         # 3. build GNN classifier
-        gnn_model = TwoLayerGNNCls(512, 7).to(config.device)  
+        gnn_model = TwoLayerGNNCls(512, config.num_classes).to(config.device)  
 
         # 4. training loop
         criterion = torch.nn.CrossEntropyLoss().to(config.device)
@@ -268,7 +274,6 @@ if __name__ == '__main__':
 
         best_val_f1 = -1.
         reduce_lr_count = 0
-        early_stopping_count = 0
         min_reduce_lr_reached = False
         log_train_f1 = np.array([])
         log_val_f1 = np.array([])
@@ -277,10 +282,6 @@ if __name__ == '__main__':
         for epoch in range(config.num_epochs):
             start_time = time.time()
             print('Epoch {}/{}'.format(epoch + 1, config.num_epochs))
-
-            # self.adjust_learning_rate(optimizer=optimizer)
-            # if self.min_reduce_lr_reached:
-            #     break
 
             # --------TRAIN MODE
             gnn_model.train()
@@ -364,10 +365,8 @@ if __name__ == '__main__':
                         4),
                   '\n')
 
-            # ------------------------------------------------------------------- EARLY STOPPING
-            if early_stopping_count == config.early_stopping_patience:
-                print('Early stopping count reached patience limit')
-                break
+            mlflow.log_metric('val_loss', val_loss.item(), step=epoch)
+            mlflow.log_metric('val_f1', val_f1.item(), step=epoch)
 
         # 5. Testing on the best model
         gnn_model = torch.load(
@@ -396,3 +395,6 @@ if __name__ == '__main__':
             average='weighted')
         test_loss = test_loss / len(true_labels)
         print('Testing F1-score {} | Loss {}'.format(test_f1, test_loss))
+        mlflow.log_metric('test_f1', test_f1.item())
+        mlflow.pytorch.log_model(gnn_model, 'model_best_val_f1_score')
+

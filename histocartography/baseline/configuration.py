@@ -2,6 +2,8 @@ import os
 import sys
 import torch
 
+from histocartography.dataloader.constants import get_tumor_type_to_label, get_number_of_classes, get_label_to_tumor_type
+
 
 class Config:
     def __init__(self, args):
@@ -9,12 +11,11 @@ class Config:
         self.data_param = args.data_param
         self.split = int(args.split)
         self.is_extraction = eval(args.is_extraction)
-        self.model_name = args.model_name
         self.model_type = args.model_type
         self.is_pretrained = eval(args.is_pretrained)
 
-        self.patch_size = int(args.patch_size)
-        self.patch_scale = int(args.patch_scale)
+        self.patch_size = args.patch_size
+        self.patch_scale = args.patch_scale
         self.num_epochs = int(args.num_epochs)
         self.batch_size = int(args.batch_size)
         self.loss = args.loss
@@ -23,6 +24,8 @@ class Config:
         self.dropout = float(args.dropout)
         self.weight_merge = eval(args.weight_merge)
         self.num_features = -1
+        self.in_ram = args.in_ram
+        self.class_split = args.class_split
 
         # set device
         cuda = torch.cuda.is_available()
@@ -41,37 +44,19 @@ class Config:
         sys.path.append('../evaluation/')
 
         if self.data_param == 'local':
-            self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/'
-            self.base_patches_path = '/Users/pus/Desktop/Projects/Data/Histocartography/PASCALE/patches_info_' + \
-                str(self.patch_size) + '/'
+            self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/BRACS_L/'
+            self.base_patches_path = '/Users/pus/Desktop/Projects/Data/Histocartography/BRACS_L/baseline_patches'
         elif self.data_param == 'dataT':
-            self.base_path = '/dataT/pus/histocartography/Data/pascale/'
-            self.base_patches_path = '/dataT/pus/histocartography/Data/pascale/patches_info_' + \
-                str(self.patch_size) + '/'
+            self.base_path = '/dataT/pus/histocartography/Data/BRACS_L/'
+            self.base_patches_path = os.path.join(self.base_path, 'baseline_patches')
 
         self.base_img_path = self.base_path + 'Images_norm/'
         self.base_data_split_path = self.base_path + \
             'data_split_cv/data_split_' + str(self.split) + '/'
         self.base_model_save_path = self.base_path + 'models/'
-
-        self.tumor_types = [
-            'benign',
-            'pathologicalbenign',
-            'udh',
-            'adh',
-            'fea',
-            'dcis',
-            'malignant']
-        self.class_to_idx = [0, 1, 1, 4, 4, 2, 3]
-
-        self.num_classes = len(set(self.class_to_idx))
-
-        if self.is_pretrained:
-            self.experiment_name = self.model_name + '_' + self.model_type + '_ps' + str(self.patch_size) + '_s' + str(
-                self.patch_scale) + '_bs' + str(self.batch_size) + '_lr' + str(self.learning_rate) + '_pt'
-        else:
-            self.experiment_name = self.model_name + '_' + self.model_type + '_ps' + \
-                str(self.patch_size) + '_s' + str(self.patch_scale) + '_bs' + str(self.batch_size) + '_lr' + str(self.learning_rate)
+        self.tumor_type_to_label = get_tumor_type_to_label(self.class_split)
+        self.num_classes = get_number_of_classes(self.class_split)
+        self.experiment_name = 'resnet34_' + '_ps' + self.patch_size + '_class_split_' + self.class_split + '_pt'
 
         self.create_directories()
     # enddef

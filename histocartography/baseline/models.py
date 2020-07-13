@@ -1,6 +1,7 @@
 import torch
 import torchvision
 from torch import nn
+import dgl 
 
 from histocartography.ml.layers.gin_layer import GINLayer
 from histocartography.ml.layers.mlp import MLP
@@ -8,13 +9,12 @@ from histocartography.ml.layers.mlp import MLP
 
 class ModelsComponents:
     def __init__(self, config):
-        self.model_name = config.model_name
         self.experiment_name = config.experiment_name
         self.patch_size = config.patch_size
         self.num_classes = config.num_classes
         self.is_pretrained = config.is_pretrained
 
-        self.model_config = int(self.model_name.split('_')[0])
+        self.model_config = 1
         self._set_default_parameters()
         self.num_features = -1
 
@@ -277,12 +277,17 @@ class ModelsStage2:
 class TwoLayerGNNCls(torch.nn.Module):
 
     def __init__(self, input_dimension, num_classes, hidden_dimension=32):
+        
+        super(TwoLayerGNNCls, self).__init__()
         self.gnn1 = GINLayer(input_dimension, hidden_dimension, 'relu', 0, config=None, verbose=False)
         self.gnn2 = GINLayer(hidden_dimension, hidden_dimension, 'relu', 0, config=None, verbose=False)
         self.cls = MLP(hidden_dimension, hidden_dimension, num_classes, 2)
 
     def forward(self, x):
-        x = self.gnn1(x)
-        x = self.gnn2(x)
-        out = self.cls(x)
+        h = x.ndata['h']
+        h = self.gnn1(x, h)
+        h = self.gnn2(x, h)
+        x.ndata['h'] = h 
+        h_g = dgl.mean_nodes(x, 'h')
+        out = self.cls(h_g)
         return out

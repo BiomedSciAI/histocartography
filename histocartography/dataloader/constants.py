@@ -171,22 +171,22 @@ TREE_CLASS_SPLIT = [
 CLASS_SPLIT_TO_MODEL_URL = {
     'cell_graph_model': {
         "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "47697a64ed104a2d97eebcaf2eda9188/artifacts/model_best_val_weighted_f1_score_0", # 7-class 
-        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",    # 4-class 
-        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",      # 2-class: I vs (N,B,U,A,F,D)
-        "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",                # 2-class: Non-atypical (N, B, U) vs Atypical (A, F, D)
-        "benignVSpathologicalbenign+udh": "something",,                            # 2-class: N vs (B, U)
-        "pathologicalbenignVSudh": "something",,                                   # 2-class: B vs U
-        "adh+feaVSdcis": "something",,                                             # 2-class: D vs (A, F)
-        "adhVSfea": "something"                                                    # 2-class: A vs F
+        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "f5be8cc7f4dd4089988e50d28f2908ec/artifacts/model_best_val_weighted_f1_score_0",    # 4-class 
+        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "82ac51e8568041cc8bf9bf332ec30d5f/artifacts/model_best_val_weighted_f1_score_0",      # 2-class: I vs (N,B,U,A,F,D)
+        "benign+pathologicalbenign+udhVSadh+fea+dcis": "72d367ec0a574154a0e3b028dabcb2d0/artifacts/model_best_val_weighted_f1_score_0",                # 2-class: Non-atypical (N, B, U) vs Atypical (A, F, D)
+        "benignVSpathologicalbenign+udh": "2d285b686765400584bedfe60b0d726a/artifacts/model_best_val_weighted_f1_score_0",                             # 2-class: N vs (B, U)
+        "pathologicalbenignVSudh": "4fb48475715a4ac2ac71585d5e2513f1/artifacts/model_best_val_weighted_f1_score_0",                                    # 2-class: B vs U
+        "adh+feaVSdcis": "f2db9a010c4a493985608808a97e5360/artifacts/model_best_val_weighted_f1_score_0",                                              # 2-class: D vs (A, F)
+        "adhVSfea": "7d4e2a070dd94267a854e146c3ae439c/artifacts/model_best_val_weighted_f1_score_0"                                                    # 2-class: A vs F
     },
     'superpx_graph_model': {
         "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "something", # 
         "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",    # 
         "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
         "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
-        "benignVSpathologicalbenign+udh": "something",,                           # N vs (B, U)
-        "pathologicalbenignVSudh": "something",,                                  # B vs U
-        "adh+feaVSdcis": "something",,                                            # D vs (A, F)
+        "benignVSpathologicalbenign+udh": "something",                            # N vs (B, U)
+        "pathologicalbenignVSudh": "something",                                   # B vs U
+        "adh+feaVSdcis": "something",                                             # D vs (A, F)
         "adhVSfea": "something"                                                   # A vs F
     },
     'multi_level_graph_model': {
@@ -194,9 +194,9 @@ CLASS_SPLIT_TO_MODEL_URL = {
         "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",     # 
         "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
         "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
-        "benignVSpathologicalbenign+udh": "something",,                           # N vs (B, U)
-        "pathologicalbenignVSudh": "something",,                                  # B vs U
-        "adh+feaVSdcis": "something",,                                            # D vs (A, F)
+        "benignVSpathologicalbenign+udh": "something",                            # N vs (B, U)
+        "pathologicalbenignVSudh": "something",                                   # B vs U
+        "adh+feaVSdcis": "something",                                             # D vs (A, F)
         "adhVSfea": "something"                                                   # A vs F
     },
     'concat_graph_model': {
@@ -204,9 +204,9 @@ CLASS_SPLIT_TO_MODEL_URL = {
         "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",    # 
         "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
         "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
-        "benignVSpathologicalbenign+udh": "something",,                           # N vs (B, U)
-        "pathologicalbenignVSudh": "something",,                                  # B vs U
-        "adh+feaVSdcis": "something",,                                            # D vs (A, F)
+        "benignVSpathologicalbenign+udh": "something",                            # N vs (B, U)
+        "pathologicalbenignVSudh": "something",                                   # B vs U
+        "adh+feaVSdcis": "something",                                             # D vs (A, F)
         "adhVSfea": "something"                                                   # A vs F
     }
 }

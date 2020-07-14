@@ -12,14 +12,15 @@ from tqdm import tqdm
 import mlflow.pytorch
 import pandas as pd
 import shutil
+from mlflow.pytorch import load_model
 
 from histocartography.utils.io import read_params
 from histocartography.utils.graph import to_cpu, to_device
 from histocartography.utils.io import DATATYPE_TO_EXT, DATATYPE_TO_SAVEFN
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
-from histocartography.dataloader.constants import CLASS_SPLIT_TO_MODEL_URL, TREE_CLASS_SPLIT, get_label_to_tumor_type
-from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
+from histocartography.dataloader.constants import CLASS_SPLIT_TO_MODEL_URL, TREE_CLASS_SPLIT, get_label_to_tumor_type, get_tumor_type_to_label
+from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1, ExpectedClassShiftWithHardPred, ExpectedClassShiftWithLogits
 from histocartography.evaluation.confusion_matrix import ConfusionMatrix
 from histocartography.evaluation.classification_report import ClassificationReport
 from histocartography.utils.arg_parser import parse_arguments
@@ -36,25 +37,27 @@ warnings.filterwarnings("ignore")
 # cuda support
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
-
+BASE_S3 = "s3://mlflow/"
 FOLD_IDS = [0]
 
 
-def get_predictions(dataloader, mode='one-shot', model_name='cell_graph_model'):  # mode = {7_class_one_shot, 4_class_one_shot, tree}
+def get_predictions(dataloader, mode='one_shot', model_name='cell_graph_model'):  # mode = {7_class_one_shot, 4_class_one_shot, tree}
 
-    if mode == '7_class_one_shot':
+    if mode == 'one_shot':
         model = load_mlflow_model(model_name, 'benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant')
         all_test_logits = []
         all_test_labels = []
-        for data, labels in tqdm(dataloader, desc='Testing: {}'.format(epoch), unit='batch'):
+        for data, labels in tqdm(dataloader, desc='Testing:', unit='batch'):
             with torch.no_grad():
                 labels = labels.to(DEVICE)
                 logits = model(data)
             all_test_logits.append(logits)
             all_test_labels.append(labels)
 
-        all_test_logits = torch.cat(all_test_logits).cpu()
-        all_test_labels = torch.cat(all_test_labels).cpu()
+        all_test_logits = torch.cat(all_test_logits).cpu().to(float)
+        all_test_labels = torch.cat(all_test_labels).cpu().to(float)
+
+        return all_test_logits, all_test_labels
 
     elif mode == 'tree':
         # A. load all the binary classification models 
@@ -63,27 +66,34 @@ def get_predictions(dataloader, mode='one-shot', model_name='cell_graph_model'):
         # B. forward pass over all the binary classification models 
         all_test_predictions = []
         all_test_labels = []
-        for data, label in tqdm(dataloader, desc='Testing: {}'.format(epoch), unit='batch'):
+        counter = 0
+        for data, label in tqdm(dataloader, desc='Testing:', unit='batch'):
+            counter += 1
             with torch.no_grad():
                 label = label.to(DEVICE)
                 current_class_split = 'benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant'
                 while current_class_split is not None:
                     # 1/ get prediction for the current class split 
+                    # print('Forward pass with class split:', current_class_split)
+                    # print('Label:', get_label_to_tumor_type('benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant')[label.item()])
                     logits = all_tree_models[current_class_split](data)
                     _, prediction = torch.max(logits, dim=1)
                     prediction = get_label_to_tumor_type(current_class_split)[prediction.item()]
+                    # print('Prediction:', prediction)
                     # 2/ update the class split -- stop if None 
                     current_class_split = find_next_class_split(current_class_split, logits)
+            # # debug purposes 
+            # if counter >= 20:
+            #     break 
+            all_test_predictions.append(get_tumor_type_to_label('benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant')[prediction])
+            all_test_labels.append(label.item())
 
-            all_test_predictions.append(prediction)
-            all_test_labels.append(label)
-
-        all_test_logits = torch.cat(all_test_logits).cpu()
-        all_test_labels = torch.cat(all_test_labels).cpu()
+        all_test_predictions = torch.FloatTensor(all_test_predictions).cpu()
+        all_test_labels = torch.FloatTensor(all_test_labels).cpu()
+        return all_test_predictions, all_test_labels
 
     else:
         raise NotImplementedError('Unsupported mode:', mode)
-    return all_test_logits, all_test_labels
 
 
 def find_next_class_split(current_class_split, logits):
@@ -105,37 +115,12 @@ def load_tree_models(model_name):
 
 
 def load_mlflow_model(model_name, class_split):
-    model_type = config[MODEL_TYPE]
-    if model_type in list(AVAILABLE_MODEL_TYPES.keys()):
-        # module = importlib.import_module(
-        #     MODEL_MODULE.format(model_type)
-        # )
-        # model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(
-        #     config['model_params'], num_cell_features).to(DEVICE)
-        fname = BASE_S3 + CLASS_SPLIT_TO_MODEL_URL[model_name][class_split] 
+    if model_name in list(AVAILABLE_MODEL_TYPES.keys()):
+        fname = os.path.join(BASE_S3, CLASS_SPLIT_TO_MODEL_URL[model_name][class_split])
+        print('Load model {} at location {}'.format(class_split, fname))
         model = load_model(fname,  map_location=torch.device('cpu'))
-
-        # def is_int(s):
-        #     try:
-        #         int(s)
-        #         return True
-        #     except:
-        #         return False
-
-        # for n, p in mlflow_model.named_parameters():
-        #     split = n.split('.')
-        #     to_eval = 'model'
-        #     for s in split:
-        #         if is_int(s):
-        #             to_eval += '[' + s + ']'
-        #         else:
-        #             to_eval += '.'
-        #             to_eval += s
-        #     exec(to_eval + '=' + 'p')
-
         if CUDA:
             model = model.cuda()
-
         return model
     else:
         raise ValueError(
@@ -152,30 +137,22 @@ def main(args):
         args (Namespace): parsed arguments.
     """
 
-    # load config file
-    config = read_params(args.config_fpath, verbose=True)
+    # @TODO: hardcode required input parameters 
+    model_type = 'cell_graph_model' 
 
-    if args.num_classes is not None:
-        config['model_params']['num_classes'] = args.num_classes
-
-    # mlflow log parameters
-    mlflow.log_params({
-        'number_of_workers': args.number_of_workers,
-        'batch_size': args.batch_size
-    })
-
-    df = pd.io.json.json_normalize(config)
-    rep = {"graph_building.": "", "model_params.": "", "gnn_params.": ""} # replacement for shorter key names
-    for i, j in rep.items():
-        df.columns = df.columns.str.replace(i, j)
-    flatten_config = df.to_dict(orient='records')[0]
-    for key, val in flatten_config.items():
-        mlflow.log_params({key: str(val)})
-
-    # set model path
-    model_path = complete_path(args.model_path, str(uuid.uuid4()))
-    check_for_dir(model_path)
-
+    base_config = {
+        "graph_building": {
+            "cell_graph_builder": {
+                "edge_encoding": False,
+                "graph_building_type": "knn_graph_builder",
+                "max_distance": 50,
+                "n_neighbors": 5,
+                "node_feature_types": ["features_cnn_resnet34_mask_False_"]
+            }
+        },
+        "model_type": "cell_graph_model"
+    }
+    
     for fold_id in FOLD_IDS:
 
         print('Start fold: {}'.format(fold_id))
@@ -186,26 +163,39 @@ def main(args):
             num_workers=args.number_of_workers,
             path=args.data_path,
             class_split="benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant",  # 7-class problem default split
-            config=config,
+            config=base_config,
             cuda=CUDA,
-            load_cell_graph=load_cell_graph(config['model_type']),
-            load_superpx_graph=load_superpx_graph(config['model_type']),
+            load_cell_graph=load_cell_graph(model_type),
+            load_superpx_graph=load_superpx_graph(model_type),
             load_image=False,
             load_in_ram=args.in_ram,
             show_superpx=False,
             fold_id=fold_id
         )
 
-        # get predictions 
-        logits, labels = get_predictions(model, dataloaders['test'])
+        # get 7-class predictions 
+        logits, labels = get_predictions(dataloaders['test'], mode='one_shot', model_name=model_type)
+        # metrics 1: expected class shift 
+        eval_expected_class_shift = ExpectedClassShiftWithLogits()
+        expected_class_shift = eval_expected_class_shift(logits, labels).item()
+        print('7-class // Expected class shift:', expected_class_shift)
+
+        # get tree predictions 
+        predictions, labels = get_predictions(dataloaders['test'], mode='tree', model_name=model_type)
+        # metrics 1: expected class shift 
+        eval_expected_class_shift = ExpectedClassShiftWithHardPred()
+        expected_class_shift = eval_expected_class_shift(predictions, labels).item()
+        print('Tree // Expected class shift:', expected_class_shift)
 
         # metrics 1: accuracy 
-        accuracy = metrics['accuracy'](all_test_logits, all_test_labels).item()
-        mlflow.log_metric('test_accuracy_' + str(fold_id), accuracy, step=step)
+        # accuracy = metrics['accuracy'](all_test_logits, all_test_labels).item()
+        # print('Accuracy:', accuracy)
+        # mlflow.log_metric('test_accuracy_' + str(fold_id), accuracy, step=step)
 
         # metrics 2: weighted F1-score 
-        weighted_f1_score = metrics['weighted_f1_score'](all_test_logits, all_test_labels).item()
-        mlflow.log_metric('test_weighted_f1_score_' + str(fold_id), weighted_f1_score, step=step)
+        # weighted_f1_score = metrics['weighted_f1_score'](all_test_logits, all_test_labels).item()
+        # print('Weighted F1-score:', weighted_f1_score)
+        # mlflow.log_metric('test_weighted_f1_score_' + str(fold_id), weighted_f1_score, step=step)
 
 
 if __name__ == "__main__":

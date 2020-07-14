@@ -17,7 +17,7 @@ def parse_arguments():
         type=str,
         help='path to the config file.',
         default='',
-        required=True
+        required=False
     )
     parser.add_argument(
         '-p',
@@ -44,7 +44,7 @@ def parse_arguments():
         '--batch_size',
         type=int,
         help='batch size.',
-        default=2,
+        default=1,
         required=False
     )
     parser.add_argument(

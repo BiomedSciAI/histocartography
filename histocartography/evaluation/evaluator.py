@@ -44,7 +44,7 @@ class ExpectedClassShiftWithLogits(BaseEvaluator):
 
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)
-        class_shift = torch.mean(indices - labels).cpu()
+        class_shift = torch.mean(torch.abs(indices - labels)).cpu()
         return class_shift
 
 
@@ -56,8 +56,7 @@ class ExpectedClassShiftWithHardPred(BaseEvaluator):
     def __init__(self, cuda=False):
         super(ExpectedClassShiftWithHardPred, self).__init__(cuda)
 
-    def __call__(self, logits, labels):
-        _, indices = torch.max(logits, dim=1)
-        class_shift = torch.mean(indices - labels).cpu()
+    def __call__(self, predictions, labels):
+        class_shift = torch.mean(torch.abs(predictions - labels)).cpu()
         return class_shift
 

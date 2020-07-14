@@ -148,10 +148,11 @@ class ConfigGenerator:
             {
                 "dropout": [0.0],
                 "class_split": [
+                                "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant"
                                 # "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant",  # I vs (N,B,U,A,F,D)
                                 # "benign+pathologicalbenign+udhVSadh+fea+dcis",            # Non-atypical (N, B, U) vs Atypical (A, F, D)
                                 # "benignVSpathologicalbenign+udh",                         # N vs (B, U)
-                                "pathologicalbenignVSudh",                                  # B vs U
+                                # "pathologicalbenignVSudh",                                  # B vs U
                                 # "adh+feaVSdcis",                                          # D vs (A, F)
                                 # "adhVSfea"                                                # A vs F
                                 ],                                                          
@@ -305,7 +306,7 @@ class ConfigGenerator:
                     # ['features_cnn_vgg19_mask_False_', 'centroid'], 
                     # ['features_hc_', 'centroid'], 
                     # ['features_cnn_resnet101_mask_True_', 'centroid'], 
-                    # ['features_cnn_resnet50_mask_False_'], 
+                    ['features_cnn_resnet50_mask_False_'], 
                     ['features_cnn_resnet34_mask_False_'], 
                     # ['features_cnn_vgg16_mask_True_', 'centroid'], 
                     # ['features_cnn_vgg19_mask_True_', 'centroid'], 
@@ -323,7 +324,7 @@ class ConfigGenerator:
                 "edge_encoding": [False],
                 'node_feature_types': [
                     ['merging_hc_features_cnn_resnet34_mask_False_'],
-                    # ['merging_hc_features_cnn_resnet50_mask_False_'],
+                    ['merging_hc_features_cnn_resnet50_mask_False_'],
                     # ['merging_hc_features_cnn_resnet34_mask_True_'],
                     # ['merging_hc_features_cnn_resnet50_mask_True_']
                 ]

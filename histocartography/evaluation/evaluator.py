@@ -30,6 +30,7 @@ class WeightedF1(BaseEvaluator):
 
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)
+        indices = indices.to(float)
         weighted_f1 = np.float(f1_score(labels.cpu().numpy(), indices.cpu().numpy(), average='weighted'))
         return torch.FloatTensor([weighted_f1])
 
@@ -44,6 +45,7 @@ class ExpectedClassShiftWithLogits(BaseEvaluator):
 
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)
+        indices = indices.to(float)
         class_shift = torch.mean(torch.abs(indices - labels)).cpu()
         return class_shift
 

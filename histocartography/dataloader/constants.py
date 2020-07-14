@@ -134,8 +134,8 @@ def get_label_to_tumor_type(class_split):
     grouped_classes = class_split.split('VS')
 
     # build mapping 
-    tumor_type_to_label = {group_idx: str(c) for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
-    return tumor_type_to_label
+    label_to_tumor_type = {group_idx: str(c) for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
+    return label_to_tumor_type
 
 
 ALL_DATASET_NAMES = ['adh', 'benign', 'dcis', 'fea', 'malignant', 'pathologicalbenign', 'udh']
@@ -158,6 +158,14 @@ NUM_CLASSES_TO_MODEL_URL = {
     5: 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3'
 }
 
+TREE_CLASS_SPLIT = [
+    "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant",    # 2-class: I vs (N,B,U,A,F,D)
+    "benign+pathologicalbenign+udhVSadh+fea+dcis",              # 2-class: Non-atypical (N, B, U) vs Atypical (A, F, D)
+    "benignVSpathologicalbenign+udh",                           # 2-class: N vs (B, U)
+    "pathologicalbenignVSudh",                                  # 2-class: B vs U
+    "adh+feaVSdcis",                                            # 2-class: D vs (A, F)
+    "adhVSfea"                                                  # 2-class: A vs F
+]
 
 
 CLASS_SPLIT_TO_MODEL_URL = {

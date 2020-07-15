@@ -146,17 +146,12 @@ def get_dataset_white_list(class_split):
     return white_classes
 
 
-# def get_dataset_black_list(class_split):
-#     white_classes = class_split.replace('VS', '+').split('+')
-#     black_classes = [item for item in ALL_DATASET_NAMES if item not in white_classes]
-#     return black_classes
-
-
 NUM_CLASSES_TO_MODEL_URL = {
     2: '9eab3cda4e324254b5044fe4c0b90368/artifacts/model_best_val_weighted_f1_score_3',
     3: '0550391249d941588ed547235ca84046/artifacts/model_best_val_weighted_f1_score_3',
     5: 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3'
 }
+
 
 TREE_CLASS_SPLIT = [
     "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant",    # 2-class: I vs (N,B,U,A,F,D)
@@ -166,6 +161,11 @@ TREE_CLASS_SPLIT = [
     "adh+feaVSdcis",                                            # 2-class: D vs (A, F)
     "adhVSfea"                                                  # 2-class: A vs F
 ]
+
+
+ALL_CLASS_SPLITS = TREE_CLASS_SPLIT +\
+        ["benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant"] +\
+        ["benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant"]
 
 
 CLASS_SPLIT_TO_MODEL_URL = {

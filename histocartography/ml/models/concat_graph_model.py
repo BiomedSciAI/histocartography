@@ -46,11 +46,9 @@ class ConcatGraphModel(BaseModel):
         """
         Build classification parameters
         """
-        if self.concat:
-            emd_dim = self.cell_gnn_params['input_dim'] + \
-                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) + \
+        if self.readout_agg_op == "concat":
+            emd_dim = self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) + \
                 self.cell_gnn_params['output_dim'] + \
-                self.superpx_gnn_params['input_dim'] + \
                 self.superpx_gnn_params['hidden_dim'] * (self.superpx_gnn_params['n_layers'] - 1) + \
                 self.superpx_gnn_params['output_dim']
         else:
@@ -64,7 +62,7 @@ class ConcatGraphModel(BaseModel):
             num_layers=self.readout_params['num_layers']
         )
 
-    def _update_config(self, config, input_dim=None):
+    def _update_config(self, config, input_dim=None, edge_dim=None):
         """
         Update config params with data-dependent parameters
         """
@@ -72,6 +70,8 @@ class ConcatGraphModel(BaseModel):
             config['input_dim'] = input_dim
 
         config['use_bn'] = self.use_bn
+        config['edge_dim'] = self.edge_dim
+        config['dropout'] = self.dropout
 
     def forward(self, data):
         """

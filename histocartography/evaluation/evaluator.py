@@ -15,6 +15,8 @@ class AccuracyEvaluator(BaseEvaluator):
 
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)
+        indices = indices.to(int)
+        labels = labels.to(int)
         correct = torch.sum(indices == labels)
         accuracy = correct.item() * 1.0 / len(labels)
         return torch.FloatTensor([accuracy])
@@ -46,6 +48,7 @@ class ExpectedClassShiftWithLogits(BaseEvaluator):
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)
         indices = indices.to(float)
+        labels = labels.to(float)
         class_shift = torch.mean(torch.abs(indices - labels)).cpu()
         return class_shift
 

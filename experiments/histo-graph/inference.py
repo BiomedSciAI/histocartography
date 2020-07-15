@@ -144,8 +144,8 @@ def main(args):
         args (Namespace): parsed arguments.
     """
 
-    # @TODO: hardcode required input parameters 
-    model_type = 'cell_graph_model' 
+    # Set MODEL TYPE here  
+    model_type = 'superpx_graph_model'   # 'cell_graph_model', 'multi_level_graph_model', 'concat_graph_model'
 
     base_config = {
         "graph_building": {
@@ -155,6 +155,13 @@ def main(args):
                 "max_distance": 50,
                 "n_neighbors": 5,
                 "node_feature_types": ["features_cnn_resnet34_mask_False_"]
+            },
+            "superpx_graph_builder": {
+                "edge_encoding": False,
+                "graph_building_type": "rag_graph_builder",
+                "node_feature_types": [
+                    "merging_hc_features_cnn_resnet34_mask_False_"
+                ]
             }
         },
         "model_type": "cell_graph_model"

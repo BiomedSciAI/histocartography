@@ -180,14 +180,14 @@ CLASS_SPLIT_TO_MODEL_URL = {
         "adhVSfea": "7d4e2a070dd94267a854e146c3ae439c/artifacts/model_best_val_weighted_f1_score_0"                                                    # 2-class: A vs F
     },
     'superpx_graph_model': {
-        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "something", # 
-        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",    # 
-        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
-        "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
-        "benignVSpathologicalbenign+udh": "something",                            # N vs (B, U)
-        "pathologicalbenignVSudh": "something",                                   # B vs U
-        "adh+feaVSdcis": "something",                                             # D vs (A, F)
-        "adhVSfea": "something"                                                   # A vs F
+        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "6870ddece69a4ba995b7e8b241ec0cf1/artifacts/model_best_val_weighted_f1_score_0", # 
+        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "40120d35571b40f7a89741e7e42a2218/artifacts/model_best_val_weighted_f1_score_0",    # 
+        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "97071a75576745b19adc5c2da0316026/artifacts/model_best_val_weighted_f1_score_0",     # I vs (N,B,U,A,F,D)
+        "benign+pathologicalbenign+udhVSadh+fea+dcis": "c755d9e520294cabb39a1da4bdccbc0f/artifacts/model_best_val_weighted_f1_score_0",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
+        "benignVSpathologicalbenign+udh": "04726fd4edc842e4ab93aa60858f563f/artifacts/model_best_val_weighted_f1_score_0",                            # N vs (B, U)
+        "pathologicalbenignVSudh": "1d22f1f1435845ad9e83f6b5c696f75d/artifacts/model_best_val_weighted_f1_score_0",                                   # B vs U
+        "adh+feaVSdcis": "04e7bf1a35df447ebc5920c574eb668b/artifacts/model_best_val_weighted_f1_score_0",                                             # D vs (A, F)
+        "adhVSfea": "5618c83475be4f9a806a019306bbc2ec/artifacts/model_best_val_weighted_f1_score_0"                                                   # A vs F
     },
     'multi_level_graph_model': {
         "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "something",  # 

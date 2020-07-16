@@ -13,10 +13,10 @@ def feature_normalization(centroids, features, image_dim, transformer=None, devi
     image_dim = image_dim.type(torch.float32)
     norm_centroid = centroids / image_dim
 
-    if transformer is not None:
-        # normalize the cell features @TODO: by pass normalization 
-        features = \
-            ((features - transformer['mean'].to(device)) / (transformer['std'].to(device)))
+    # if transformer is not None:
+    #     # normalize the cell features @TODO: by pass normalization 
+    #     features = \
+    #         ((features - transformer['mean'].to(device)) / (transformer['std'].to(device)))
 
     features = torch.cat((features, norm_centroid), dim=1)
     return features

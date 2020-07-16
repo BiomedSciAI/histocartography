@@ -117,7 +117,8 @@ class BuildCellGraph(object):
 
                 # feature normalisation for original cell features
                 cell_features = feature_normalization(cell_centroid, cell_features, image_size,
-                                                      self.cell_graph_model_transform, self.device)
+                                                      None, self.device)
+
                 # build graph
                 cell_graph = build_graph(self.cell_graph_builder, self.config, cell_features, cell_centroid, instance_map)
 

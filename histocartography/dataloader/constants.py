@@ -134,8 +134,8 @@ def get_label_to_tumor_type(class_split):
     grouped_classes = class_split.split('VS')
 
     # build mapping 
-    tumor_type_to_label = {group_idx: str(c) for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
-    return tumor_type_to_label
+    label_to_tumor_type = {group_idx: str(c) for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
+    return label_to_tumor_type
 
 
 ALL_DATASET_NAMES = ['adh', 'benign', 'dcis', 'fea', 'malignant', 'pathologicalbenign', 'udh']
@@ -146,14 +146,70 @@ def get_dataset_white_list(class_split):
     return white_classes
 
 
-# def get_dataset_black_list(class_split):
-#     white_classes = class_split.replace('VS', '+').split('+')
-#     black_classes = [item for item in ALL_DATASET_NAMES if item not in white_classes]
-#     return black_classes
-
-
 NUM_CLASSES_TO_MODEL_URL = {
     2: '9eab3cda4e324254b5044fe4c0b90368/artifacts/model_best_val_weighted_f1_score_3',
     3: '0550391249d941588ed547235ca84046/artifacts/model_best_val_weighted_f1_score_3',
     5: 'd504d8ba7e7848098c7562a72e98e7bd/artifacts/model_best_val_weighted_f1_score_3'
 }
+
+
+TREE_CLASS_SPLIT = [
+    "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant",    # 2-class: I vs (N,B,U,A,F,D)
+    "benign+pathologicalbenign+udhVSadh+fea+dcis",              # 2-class: Non-atypical (N, B, U) vs Atypical (A, F, D)
+    "benignVSpathologicalbenign+udh",                           # 2-class: N vs (B, U)
+    "pathologicalbenignVSudh",                                  # 2-class: B vs U
+    "adh+feaVSdcis",                                            # 2-class: D vs (A, F)
+    "adhVSfea"                                                  # 2-class: A vs F
+]
+
+
+ALL_CLASS_SPLITS = TREE_CLASS_SPLIT +\
+        ["benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant"] +\
+        ["benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant"]
+
+
+CLASS_SPLIT_TO_MODEL_URL = {
+    'cell_graph_model': {
+        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "47697a64ed104a2d97eebcaf2eda9188/artifacts/model_best_val_weighted_f1_score_0", # 7-class 
+        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "f5be8cc7f4dd4089988e50d28f2908ec/artifacts/model_best_val_weighted_f1_score_0",    # 4-class 
+        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "82ac51e8568041cc8bf9bf332ec30d5f/artifacts/model_best_val_weighted_f1_score_0",      # 2-class: I vs (N,B,U,A,F,D)
+        "benign+pathologicalbenign+udhVSadh+fea+dcis": "72d367ec0a574154a0e3b028dabcb2d0/artifacts/model_best_val_weighted_f1_score_0",                # 2-class: Non-atypical (N, B, U) vs Atypical (A, F, D)
+        "benignVSpathologicalbenign+udh": "2d285b686765400584bedfe60b0d726a/artifacts/model_best_val_weighted_f1_score_0",                             # 2-class: N vs (B, U)
+        "pathologicalbenignVSudh": "4fb48475715a4ac2ac71585d5e2513f1/artifacts/model_best_val_weighted_f1_score_0",                                    # 2-class: B vs U
+        "adh+feaVSdcis": "f2db9a010c4a493985608808a97e5360/artifacts/model_best_val_weighted_f1_score_0",                                              # 2-class: D vs (A, F)
+        "adhVSfea": "7d4e2a070dd94267a854e146c3ae439c/artifacts/model_best_val_weighted_f1_score_0"                                                    # 2-class: A vs F
+    },
+    'superpx_graph_model': {
+        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "6870ddece69a4ba995b7e8b241ec0cf1/artifacts/model_best_val_weighted_f1_score_0", # 
+        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "40120d35571b40f7a89741e7e42a2218/artifacts/model_best_val_weighted_f1_score_0",    # 
+        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "97071a75576745b19adc5c2da0316026/artifacts/model_best_val_weighted_f1_score_0",     # I vs (N,B,U,A,F,D)
+        "benign+pathologicalbenign+udhVSadh+fea+dcis": "c755d9e520294cabb39a1da4bdccbc0f/artifacts/model_best_val_weighted_f1_score_0",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
+        "benignVSpathologicalbenign+udh": "04726fd4edc842e4ab93aa60858f563f/artifacts/model_best_val_weighted_f1_score_0",                            # N vs (B, U)
+        "pathologicalbenignVSudh": "1d22f1f1435845ad9e83f6b5c696f75d/artifacts/model_best_val_weighted_f1_score_0",                                   # B vs U
+        "adh+feaVSdcis": "04e7bf1a35df447ebc5920c574eb668b/artifacts/model_best_val_weighted_f1_score_0",                                             # D vs (A, F)
+        "adhVSfea": "5618c83475be4f9a806a019306bbc2ec/artifacts/model_best_val_weighted_f1_score_0"                                                   # A vs F
+    },
+    'multi_level_graph_model': {
+        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "something",  # 
+        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",     # 
+        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
+        "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
+        "benignVSpathologicalbenign+udh": "something",                            # N vs (B, U)
+        "pathologicalbenignVSudh": "something",                                   # B vs U
+        "adh+feaVSdcis": "something",                                             # D vs (A, F)
+        "adhVSfea": "something"                                                   # A vs F
+    },
+    'concat_graph_model': {
+        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "something", # 
+        "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",    # 
+        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
+        "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
+        "benignVSpathologicalbenign+udh": "something",                            # N vs (B, U)
+        "pathologicalbenignVSudh": "something",                                   # B vs U
+        "adh+feaVSdcis": "something",                                             # D vs (A, F)
+        "adhVSfea": "something"                                                   # A vs F
+    }
+}
+
+
+

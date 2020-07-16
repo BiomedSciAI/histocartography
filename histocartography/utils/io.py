@@ -6,6 +6,7 @@ import pandas as pd
 from PIL import Image
 import io
 import pickle
+import csv
 
 
 def complete_path(folder, fname):
@@ -141,6 +142,9 @@ def load_h5_fnames(base_path, tumor_type, extension, split, fold_id=None):
         text_path = complete_path(text_path, 'data_split_' + str(fold_id + 1))
     fname = split + '_list_' + tumor_type + '.txt'
     h5_files = read_txt(text_path, fname, extension)  # Loads all the .h5 files in the text file
+    h5_files.sort(key=lambda x: int(x.split('_')[0]))
+    if h5_files is None:
+        h5_files = []
     return h5_files
 
 

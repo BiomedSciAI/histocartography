@@ -13,6 +13,7 @@ import mlflow.pytorch
 import pandas as pd
 import shutil
 from mlflow.pytorch import load_model
+import csv 
 
 from histocartography.utils.io import read_params
 from histocartography.utils.graph import to_cpu, to_device
@@ -34,16 +35,36 @@ from histocartography.utils.io import (
 import warnings
 warnings.filterwarnings("ignore")
 
+# Things to change/adapt from BACH to BRACS-L:
+# 1- set the default class split:
+#     - BRACS-L: benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant
+#     -BACH: benignVSpathologicalbenignVSdcisVSmalignant
+# 2- set the node feature type:
+#     - set in the base config for BOTH TG and CG configurations
+# 3- node feature type must match the ones used by the mlflow model 
+
 # cuda support
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
 BASE_S3 = "s3://mlflow/"
 FOLD_IDS = [0]
+# DEFAULT_CLASS_SPLIT = 'benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant'
+DEFAULT_CLASS_SPLIT = 'benignVSpathologicalbenignVSdcisVSmalignant'
+
+# if BACH challenge default split --> test only on one split 
+if DEFAULT_CLASS_SPLIT == 'benignVSpathologicalbenignVSdcisVSmalignant':
+    SAVE_PREDICTIONS_AS_CSV = True
+    ALL_CLASS_SPLITS = [DEFAULT_CLASS_SPLIT]
+    CLASS_SPLIT_TO_MODEL_URL = {
+        'multi_level_graph_model': {
+            'benignVSpathologicalbenignVSdcisVSmalignant': '90af5ef5976640f68a06687d71ca9319/artifacts/model_best_val_weighted_f1_score_0'
+        }
+    }
 
 
 def get_predictions(
         dataloader,
-        class_split='benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant',
+        class_split=DEFAULT_CLASS_SPLIT,
         mode='one_shot',
         model_type='cell_graph_model'
     ):  
@@ -53,14 +74,14 @@ def get_predictions(
         all_test_logits = []
         all_test_labels = []
         for data, label in tqdm(dataloader, desc='Testing:', unit='batch'):
-            if get_label_to_tumor_type('benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant')[label.item()] in class_split.replace('VS', '+').split('+'):
+            if get_label_to_tumor_type(DEFAULT_CLASS_SPLIT)[label.item()] in class_split.replace('VS', '+').split('+'):
                 with torch.no_grad():
                     label = label.to(DEVICE)
                     logits = model(data)
                 all_test_logits.append(logits)
                 all_test_labels.append(
                     get_tumor_type_to_label(class_split)[
-                        get_label_to_tumor_type('benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant')[
+                        get_label_to_tumor_type(DEFAULT_CLASS_SPLIT)[
                             label.item()
                         ]
                     ]
@@ -92,7 +113,7 @@ def get_predictions(
                     # 2/ update the class split -- stop if None 
                     current_class_split = find_next_class_split(current_class_split, logits)
 
-            all_test_predictions.append(get_tumor_type_to_label('benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant')[prediction])
+            all_test_predictions.append(get_tumor_type_to_label(DEFAULT_CLASS_SPLIT)[prediction])
             all_test_labels.append(label.item())
 
         all_test_predictions = torch.FloatTensor(all_test_predictions).cpu()
@@ -145,7 +166,7 @@ def main(args):
     """
 
     # Set MODEL TYPE here  
-    model_type = 'superpx_graph_model'   # 'cell_graph_model', 'multi_level_graph_model', 'concat_graph_model'
+    model_type = 'multi_level_graph_model'   # 'cell_graph_model', 'multi_level_graph_model', 'concat_graph_model'
 
     base_config = {
         "graph_building": {
@@ -154,13 +175,13 @@ def main(args):
                 "graph_building_type": "knn_graph_builder",
                 "max_distance": 50,
                 "n_neighbors": 5,
-                "node_feature_types": ["features_cnn_resnet34_mask_False_"]
+                "node_feature_types": ["features_cnn_resnet50_mask_False_"]
             },
             "superpx_graph_builder": {
                 "edge_encoding": False,
                 "graph_building_type": "rag_graph_builder",
                 "node_feature_types": [
-                    "merging_hc_features_cnn_resnet34_mask_False_"
+                    "merging_hc_features_cnn_resnet50_mask_False_"
                 ]
             }
         },
@@ -176,7 +197,7 @@ def main(args):
             batch_size=args.batch_size,
             num_workers=args.number_of_workers,
             path=args.data_path,
-            class_split="benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant",  # 7-class problem default split
+            class_split=DEFAULT_CLASS_SPLIT,  # 7-class problem default split
             config=base_config,
             cuda=CUDA,
             load_cell_graph=load_cell_graph(model_type),
@@ -220,6 +241,16 @@ def main(args):
             print('    - Weighted F1-score:', weighted_f1_score)
             print('    - Per class weighted F1-score:', per_class_weighted_f1_score)
             print('')
+
+        # Save predictions for BACH challenge 
+        if SAVE_PREDICTIONS_AS_CSV:
+            _, predictions = torch.max(logits, dim=1)
+            predictions = list(predictions.cpu().numpy())
+            with open(CLASS_SPLIT_TO_MODEL_URL[model_type][DEFAULT_CLASS_SPLIT].split('/')[0] + '.csv', 'w', newline='') as f:
+                wr = csv.writer(f, quoting=csv.QUOTE_ALL)
+                wr.writerow(predictions)
+            print('Predictions are:', predictions)
+            exit()
 
         # get tree predictions 
         predictions, labels = get_predictions(dataloaders['test'], mode='tree', model_type=model_type)

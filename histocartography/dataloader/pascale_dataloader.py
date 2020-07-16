@@ -141,7 +141,12 @@ class PascaleDataset(BaseDataset):
         Load the label by inspecting the filename
         """
         tumor_type = fpath.split('_')[1]
-        self.labels.append(self.tumor_type_to_label[tumor_type])
+        try:
+            label = self.tumor_type_to_label[tumor_type]
+        except:
+            print('Warning: unable to read label')
+            label = 0
+        self.labels.append(label)
 
     # def _load_feat_indices(self, fpath):
     #     """
@@ -154,27 +159,37 @@ class PascaleDataset(BaseDataset):
     #         return indices
 
     def _get_cell_features_dim(self):
-        graph_fname = os.path.join(
-            self.base_cell_graph_path,
-            self.cell_node_feature_types[0],
-            self.dataset_name,
-            self.h5_fnames[0].replace('.h5', '.bin')
-        )
-        g, _ = load_graphs(graph_fname)
-        return g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
+        try:
+            graph_fname = os.path.join(
+                self.base_cell_graph_path,
+                self.cell_node_feature_types[0],
+                self.dataset_name,
+                self.h5_fnames[0].replace('.h5', '.bin')
+            )
+            g, _ = load_graphs(graph_fname)
+            dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
+        except:
+            print('Warning: List of DGL graphs is empty. Tentative dimension set to 2050.')
+            dim = 2050  # corresponds to resnet50 + location embeddings 
+        return dim
 
     def _get_edge_cell_features_dim(self):
         return 4 if self.encode_cg_edges else None 
 
     def _get_superpx_features_dim(self):
-        graph_fname = os.path.join(
-            self.base_superpx_graph_path,
-            self.superpx_node_feature_types[0],
-            self.dataset_name,
-            self.h5_fnames[0].replace('.h5', '.bin')
-        )
-        g, _ = load_graphs(graph_fname)
-        return g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
+        try:
+            graph_fname = os.path.join(
+                self.base_superpx_graph_path,
+                self.superpx_node_feature_types[0],
+                self.dataset_name,
+                self.h5_fnames[0].replace('.h5', '.bin')
+            )
+            g, _ = load_graphs(graph_fname)
+            dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
+        except:
+            print('Warning: List of DGL graphs is empty. Tentative dimension set to 2050.')
+            dim = 2050  # corresponds to resnet50 + location embeddings 
+        return dim
 
     def _get_edge_superpx_features_dim(self):
         return 4 if self.encode_tg_edges else None 
@@ -202,7 +217,7 @@ class PascaleDataset(BaseDataset):
         )
         g, _ = load_graphs(graph_fname)
         g = g[0]
-        if not self.encode_cg_edges:
+        if not self.encode_cg_edges and GNN_EDGE_FEAT in g.edata.keys():
             del g.edata[GNN_EDGE_FEAT]
         return g
 
@@ -218,7 +233,7 @@ class PascaleDataset(BaseDataset):
         )
         g, _ = load_graphs(graph_fname)
         g = g[0]
-        if not self.encode_tg_edges:
+        if not self.encode_tg_edges and GNN_EDGE_FEAT in g.edata.keys():
             del g.edata[GNN_EDGE_FEAT]
         return g
 
@@ -340,8 +355,6 @@ def build_datasets(path, class_split, cuda, *args, **kwargs):
     data_dir = get_dataset_white_list(class_split)
     datasets = {}
 
-    print('data dir are:', data_dir)
-
     for data_split in ['train', 'val', 'test']:
         datasets[data_split] = torch.utils.data.ConcatDataset(
             datasets=[
@@ -384,7 +397,7 @@ def make_data_loader(
         dataloaders[split] = torch.utils.data.DataLoader(
                 data,
                 batch_size=batch_size,
-                shuffle=True,
+                shuffle=split == 'train',
                 num_workers=num_workers,
                 collate_fn=collate
             )

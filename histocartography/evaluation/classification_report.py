@@ -12,8 +12,8 @@ class ClassificationReport:
     def __call__(self, logits, labels, class_name=None):
         """
         Compute classification report using the labels and logits
-        :param labels: (list of torch.LongTensor)
-        :param logits: (list of torch.FloatTensor)
+        :param labels: (torch.LongTensor)
+        :param logits: (torch.FloatTensor)
         :return: report (dict)
         """
 
@@ -48,11 +48,27 @@ class PerClassWeightedF1Score:
         # get predictions
         class_name = class_split.split('VS')
         classification_report = self.eval_classification_report(logits, labels, class_name)
-        per_class_weighted_f1_score = {key: round(val['f1-score'], 3) for key, val in classification_report.items()}
+        print('debug:', classification_report.items())
+        per_class_weighted_f1_score = {}
+        for key, val in classification_report.items():
+            try:
+                per_class_weighted_f1_score[key] = round(val['f1-score'], 3)
+            except:
+                print('Unable to process key {}'.format(key))
 
-        del per_class_weighted_f1_score['micro avg']
-        del per_class_weighted_f1_score['macro avg']
-        del per_class_weighted_f1_score['weighted avg']
+        # clean-up
+        try:
+            del per_class_weighted_f1_score['micro avg']
+        except:
+                print('key doesnt appear in dict')
+        try:
+            del per_class_weighted_f1_score['macro avg']
+        except:
+            print('key doesnt appear in dict')
+        try:
+            del per_class_weighted_f1_score['weighted avg']
+        except:
+                print('key doesnt appear in dict')
 
         return per_class_weighted_f1_score
 

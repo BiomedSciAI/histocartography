@@ -72,6 +72,7 @@ class PascaleDataset(BaseDataset):
         self.num_samples = len(self.h5_fnames)
 
         if load_cell_graph:
+            self.drop_cg_appearance_features = config['graph_building']['cell_graph_builder']['drop_appearance_features']
             self.cell_node_feature_types = config['graph_building']['cell_graph_builder']['node_feature_types']
             self.encode_cg_edges = config['graph_building']['cell_graph_builder']['edge_encoding']
             self.base_cell_graph_path = os.path.join(self.data_path, 'graphs', 'cell_graphs')
@@ -81,6 +82,7 @@ class PascaleDataset(BaseDataset):
                 self._load_cell_graph_in_ram()
 
         if load_superpx_graph:
+            self.drop_tg_appearance_features = config['graph_building']['superpx_graph_builder']['drop_appearance_features']
             self.superpx_node_feature_types = config['graph_building']['superpx_graph_builder']['node_feature_types']
             self.encode_tg_edges = config['graph_building']['superpx_graph_builder']['edge_encoding']
             self.base_superpx_graph_path = os.path.join(self.data_path, 'graphs', 'tissue_graphs')
@@ -148,16 +150,6 @@ class PascaleDataset(BaseDataset):
             label = 0
         self.labels.append(label)
 
-    # def _load_feat_indices(self, fpath):
-    #     """
-
-    #    Returns indices of top 24 features to be selected
-    #     """
-    #     with np.load(os.path.join(fpath, 'feature_ids.npz')) as data:
-    #         indices = data['indices'][:24]
-    #         indices = torch.from_numpy(indices).to(self.device)
-    #         return indices
-
     def _get_cell_features_dim(self):
         try:
             graph_fname = os.path.join(
@@ -217,8 +209,16 @@ class PascaleDataset(BaseDataset):
         )
         g, _ = load_graphs(graph_fname)
         g = g[0]
+
+        # keep/drop edge features 
         if not self.encode_cg_edges and GNN_EDGE_FEAT in g.edata.keys():
             del g.edata[GNN_EDGE_FEAT]
+
+        # keep/drop appearance features 
+        if self.drop_cg_appearance_features:
+            subfeats = g.ndata.pop(GNN_NODE_FEAT_IN)[:, -2:]
+            g.ndata[GNN_NODE_FEAT_IN] = subfeats
+
         return g
 
     def _build_superpx_graph(self, index):
@@ -233,8 +233,15 @@ class PascaleDataset(BaseDataset):
         )
         g, _ = load_graphs(graph_fname)
         g = g[0]
+
+        # keep/drop appearance features 
         if not self.encode_tg_edges and GNN_EDGE_FEAT in g.edata.keys():
             del g.edata[GNN_EDGE_FEAT]
+
+        # keep/drop appearance features 
+        if self.drop_cg_appearance_features:
+            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_NODE_FEAT_IN][:-2]
+
         return g
 
     def _build_assignment_matrix(self, index):

@@ -204,9 +204,9 @@ class ConfigGenerator:
             {
                 "layer_type": ["pna_layer"],
                 "activation": ["relu"],
-                "n_layers": [2, 3, 4],
-                "hidden_dim": [32, 64],
-                "output_dim": [32, 64],
+                "n_layers": [3, 4],
+                "hidden_dim": [64],
+                "output_dim": [64],
                 "agg_operator": ["lstm", "concat"],
                 "residual": [True],
                 "graph_norm": [True],
@@ -295,22 +295,16 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "graph_building_type": ["knn_graph_builder"],
+                "drop_appearance_features": [True],
                 "n_neighbors": [5],
                 "max_distance": [50],
                 "edge_encoding": [False],
                 'node_feature_types': [
-                    # ['features_cnn_resnet101_mask_False_', 'centroid'], 
                     # ['features_cnn_resnet50_mask_True_'], 
                     # ['features_cnn_resnet34_mask_True_'], 
-                    # ['features_cnn_vgg16_mask_False_', 'centroid'], 
-                    # ['features_cnn_vgg19_mask_False_', 'centroid'], 
-                    # ['features_hc_', 'centroid'], 
-                    # ['features_cnn_resnet101_mask_True_', 'centroid'], 
-                    ['features_cnn_resnet50_mask_False_'], 
-                    ['features_cnn_resnet34_mask_False_'], 
-                    # ['features_cnn_vgg16_mask_True_', 'centroid'], 
-                    # ['features_cnn_vgg19_mask_True_', 'centroid'], 
-                    # ['nuclei_vae_features', 'centroid']
+                    # ['features_cnn_resnet50_mask_False_'], 
+                    # ['features_cnn_resnet34_mask_False_'], 
+                    ['features_hc_']
                 ]
             }
         )
@@ -321,12 +315,14 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "graph_building_type": ["rag_graph_builder"],
+                "drop_appearance_features": [False],
                 "edge_encoding": [False],
                 'node_feature_types': [
-                    ['merging_hc_features_cnn_resnet34_mask_False_'],
-                    ['merging_hc_features_cnn_resnet50_mask_False_'],
+                    # ['merging_hc_features_cnn_resnet34_mask_False_'],
+                    # ['merging_hc_features_cnn_resnet50_mask_False_'],
                     # ['merging_hc_features_cnn_resnet34_mask_True_'],
                     # ['merging_hc_features_cnn_resnet50_mask_True_']
+                    ['merging_hc_features_hc_']
                 ]
             }
         )

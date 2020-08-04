@@ -9,7 +9,7 @@ import importlib
 import torch
 from tqdm import tqdm 
 
-from histocartography.graph_generation.constants import AVAILABLE_GRAPH_BUILDERS, NORMALIZATION_FACTORS
+from histocartography.graph_generation.constants import AVAILABLE_GRAPH_BUILDERS
 from histocartography.dataloader.constants import NORMALIZATION_FACTORS
 from histocartography.utils.io import read_params, h5_to_tensor
 from histocartography.graph_generation.utils.utils_build import feature_normalization, build_graph, save_graph_file
@@ -45,8 +45,10 @@ class BuildSPGraph(object):
         """
         Build normalizers to normalize the node features (ie, mean=0, std=1)
         """
-        if False and graph_type in NORMALIZATION_FACTORS.keys():
-            vars(self)[graph_type + '_transform'] = NORMALIZATION_FACTORS[graph_type]
+        try:
+            vars(self)[graph_type + '_transform'] = NORMALIZATION_FACTORS['features_hc_'][graph_type]
+        except:
+            print('No normalization')
        
     def _construct_graph_builder(self, config, name):
 
@@ -67,15 +69,15 @@ class BuildSPGraph(object):
                 )
             )
 
-    # def _load_feat_indices(self, fpath):
-    #     """
+    def _load_feat_indices(self, fpath):
+        """
 
-    #    Returns indices of top 24 features to be selected
-    #     """
-    #     with np.load(os.path.join(fpath, 'feature_ids.npz')) as data:
-    #         indices = data['indices'][:24]
-    #         indices = torch.from_numpy(indices).to(self.device)
-    #         return indices
+       Returns indices of top 24 features to be selected
+        """
+        with np.load(os.path.join(fpath, 'feature_ids.npz')) as data:
+            indices = data['indices'][:24]
+            indices = torch.from_numpy(indices).to(self.device)
+            return indices
 
     def _build_superpx_graph(self, path_to_superpx, features_type):
 
@@ -84,7 +86,7 @@ class BuildSPGraph(object):
         path_to_map_global = os.path.join(path_to_superpx, 'sp_merged_detected', 'merging_hc', 'instance_map')
         path_to_feature_indices = os.path.join(self.data_path, 'misc_utils', 'merging_sp_classification', 'sp_classifier')
 
-        # self.top_feat_ind = self._load_feat_indices(path_to_feature_indices)
+        self.top_feat_ind = self._load_feat_indices(path_to_feature_indices)
         tumor_types = [name for name in os.listdir(path_to_centroid_global) if
                        os.path.isdir(os.path.join(path_to_centroid_global, name))]
         for tumor_type in tumor_types:
@@ -114,14 +116,14 @@ class BuildSPGraph(object):
                     h.close()
 
                 # normalize & select features (only with handcrafted features)
-                # if features_type == 'features_hc':
-                #     norm_mean = torch.index_select(self.superpx_graph_model_transform['mean'], 0,
-                #                                    self.top_feat_ind.cpu())
-                #     norm_stddev = torch.index_select(self.superpx_graph_model_transform['std'], 0,
-                #                                      self.top_feat_ind.cpu())
-                #     superpx_features = torch.index_select(superpx_features, 1, self.top_feat_ind).to(self.device)
-                #     features = \
-                #         (superpx_features - norm_mean.to(self.device)) / norm_stddev.to(self.device)
+                if features_type == 'merging_hc_features_hc_':
+                    norm_mean = torch.index_select(self.superpx_graph_model_transform['mean'], 0,
+                                                   self.top_feat_ind.cpu())
+                    norm_stddev = torch.index_select(self.superpx_graph_model_transform['std'], 0,
+                                                     self.top_feat_ind.cpu())
+                    superpx_features = torch.index_select(superpx_features, 1, self.top_feat_ind).to(self.device)
+                    superpx_features = \
+                        (superpx_features - norm_mean.to(self.device)) / norm_stddev.to(self.device)
 
                 image_dim = image_size.type(torch.float32)
                 image_dim = torch.index_select(image_dim, 0, torch.LongTensor([1, 0]).to(self.device)).to(self.device)
@@ -135,5 +137,5 @@ class BuildSPGraph(object):
                 superpx_graph = build_graph(self.superpx_graph_builder, self.config, features, superpx_centroid,
                                              superpx_map)
 
-                # save graph(original)
+                # save graph (original)
                 save_graph_file(self.save_path, tumor_type, self.config, features_type, cent_filename, superpx_graph)

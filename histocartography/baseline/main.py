@@ -7,6 +7,8 @@ from histocartography.baseline.evaluation import PatchEvaluation
 from histocartography.baseline.models import ModelsComponents, TwoLayerGNNCls
 from histocartography.baseline.dataloader import patch_loaders, troi_loaders
 from histocartography.baseline.configuration import Config
+from histocartography.evaluation.classification_report import PerClassWeightedF1Score
+from histocartography.evaluation.evaluator import WeightedF1
 import torch.nn as nn 
 import argparse
 import torch
@@ -272,12 +274,13 @@ if __name__ == '__main__':
         criterion = torch.nn.CrossEntropyLoss().to(config.device)
         optimizer = optim.Adam(gnn_model.parameters(), lr=config.learning_rate, weight_decay=0.0001)
 
+        # 5. evaluators 
+        eval_f1_score = WeightedF1()
+        eval_per_class_f1_score = PerClassWeightedF1Score()
+
         best_val_f1 = -1.
         reduce_lr_count = 0
         min_reduce_lr_reached = False
-        log_train_f1 = np.array([])
-        log_val_f1 = np.array([])
-        log_val_loss = np.array([]) 
 
         for epoch in range(config.num_epochs):
             start_time = time.time()
@@ -288,62 +291,55 @@ if __name__ == '__main__':
 
             train_loss = 0.0
             loss = torch.FloatTensor([10e4])
-            true_labels = np.array([])
-            predicted_labels = np.array([])
+            all_labels = []
+            all_logits = []
 
             pbar = tqdm(train_dataloader, desc='Loss {}'.format(loss.item()))
 
             for inputs, targets in pbar: 
                 optimizer.zero_grad()
 
-                predictions = gnn_model(inputs)
-                loss = criterion(predictions, targets)
+                logits = gnn_model(inputs)
+                loss = criterion(logits, targets)
 
                 # measure accuracy and record loss
-                predicted_labels_ = torch.argmax(predictions, dim=1)
-                true_labels = np.concatenate(
-                    (true_labels, targets.cpu().detach().numpy()))
-                predicted_labels = np.concatenate(
-                    (predicted_labels, predicted_labels_.cpu().detach().numpy()))
+                all_logits.append(logits)
+                all_labels.append(targets)
+
                 train_loss += loss.cpu().detach().numpy() * len(dgl.unbatch(inputs))
 
                 loss.backward()
                 optimizer.step()
                 pbar.set_description('Loss {}'.format(round(loss.item(), 3)))
 
-            train_f1 = f1_score(
-                true_labels,
-                predicted_labels,
-                average='weighted')
-            train_loss = train_loss / len(true_labels)
-            log_train_f1 = np.append(log_train_f1, train_f1)
+            all_logits = torch.cat(all_logits).cpu()
+            all_labels = torch.cat(all_labels).cpu()
+
+            train_f1 = eval_f1_score(all_logits, all_labels)
+            train_loss = train_loss / len(all_labels)
 
             # ------------ EVAL MODE
             gnn_model.eval()
             val_loss = 0.0
-            true_labels = np.array([])
-            predicted_labels = np.array([])
+            all_labels = []
+            all_logits = []
 
             with torch.no_grad():
                 for inputs, targets in tqdm(val_dataloader):
 
-                    outputs = gnn_model(inputs)
-                    loss = criterion(outputs, targets)
+                    logits = gnn_model(inputs)
+                    loss = criterion(logits, targets)
 
-                    predicted_labels_ = torch.argmax(outputs, dim=1)
-                    true_labels = np.concatenate(
-                        (true_labels, targets.cpu().detach().numpy()))
-                    predicted_labels = np.concatenate(
-                        (predicted_labels, predicted_labels_.cpu().detach().numpy()))
+                    all_logits.append(logits)
+                    all_labels.append(targets)
+
                     val_loss += loss.cpu().detach().numpy() * len(dgl.unbatch(inputs))
 
-            val_f1 = f1_score(
-                true_labels,
-                predicted_labels,
-                average='weighted')
-            val_loss = val_loss / len(true_labels)
-            log_val_f1 = np.append(log_val_f1, val_f1)
-            log_val_loss = np.append(log_val_loss, val_loss)
+            all_logits = torch.cat(all_logits).cpu()
+            all_labels = torch.cat(all_labels).cpu()
+
+            val_f1 = eval_f1_score(all_logits, all_labels).item()
+            val_loss = val_loss / len(all_labels)
 
             if val_f1 > best_val_f1:
                 print(
@@ -366,7 +362,7 @@ if __name__ == '__main__':
                   '\n')
 
             mlflow.log_metric('val_loss', val_loss.item(), step=epoch)
-            mlflow.log_metric('val_f1', val_f1.item(), step=epoch)
+            mlflow.log_metric('val_f1', val_f1, step=epoch)
 
         # 5. Testing on the best model
         gnn_model = torch.load(
@@ -375,26 +371,32 @@ if __name__ == '__main__':
             )
 
         test_loss = 0.0
-        true_labels = np.array([])
-        predicted_labels = np.array([])
+        all_labels = []
+        all_logits = []
         with torch.no_grad():
             for inputs, targets in tqdm(test_dataloader):
-                outputs = gnn_model(inputs)
-                loss = criterion(outputs, targets)
+                logits = gnn_model(inputs)
+                loss = criterion(logits, targets)
 
-                predicted_labels_ = torch.argmax(outputs, dim=1)
-                true_labels = np.concatenate(
-                    (true_labels, targets.cpu().detach().numpy()))
-                predicted_labels = np.concatenate(
-                    (predicted_labels, predicted_labels_.cpu().detach().numpy()))
+                all_logits.append(logits)
+                all_labels.append(targets)
+
                 test_loss += loss.cpu().detach().numpy() * len(dgl.unbatch(inputs))
 
-        test_f1 = f1_score(
-            true_labels,
-            predicted_labels,
-            average='weighted')
-        test_loss = test_loss / len(true_labels)
+        all_logits = torch.cat(all_logits).cpu()
+        all_labels = torch.cat(all_labels).cpu()
+
+        # overall F1 score
+        test_f1 = eval_f1_score(all_logits, all_labels).item()
+        test_loss = test_loss / len(all_labels)
         print('Testing F1-score {} | Loss {}'.format(test_f1, test_loss))
-        mlflow.log_metric('test_f1', test_f1.item())
+        mlflow.log_metric('test_f1', test_f1)
+
+        # per class F1 score 
+        per_class_f1_score = eval_per_class_f1_score(all_logits, all_labels, args.class_split)
+        print('Per class testing F1-score {}'.format(per_class_f1_score))
+        for key, val in per_class_f1_score.items():
+            mlflow.log_metric(key + '_test_f1', val)
+
         mlflow.pytorch.log_model(gnn_model, 'model_best_val_f1_score')
 

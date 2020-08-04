@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+
 """NORMALIZATION_FACTORS = {
     'cell_graph_model': {'mean': torch.tensor([9.4237e+01, 5.7058e+01, 4.0923e+02, 5.8869e-01, 4.2775e+00, 2.8502e+03,
                             5.5121e+01, 2.1028e+01, 5.6037e+02, 7.2949e-01, 3.5301e+02, 2.6564e+01,
@@ -30,6 +31,7 @@ import torch
                               2.9747e+01, 7.4435e-01, 1.4869e+01, 4.6195e-01, 1.0825e+02, 2.7396e+00,
                               1.0675e-01, 7.5780e-02, 3.3562e-02])}
     }"""
+
 NORMALIZATION_FACTORS = None
 AVAILABLE_GRAPH_BUILDERS = {
     'knn_graph_builder': 'KNNGraphBuilder',

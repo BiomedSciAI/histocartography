@@ -11,13 +11,13 @@ class BaseExplainer:
             cuda=False,
             verbose=False
     ):
-    """
-    Base Explainer constructor 
-    :param model: (nn.Module) a pre-trained model to run the forward pass 
-    :param config: (dict) method-specific parameters 
-    :param cuda: (bool) if cuda is enable 
-    :param verbose: (bool) if verbose is enable
-    """
+        """
+        Base Explainer constructor 
+        :param model: (nn.Module) a pre-trained model to run the forward pass 
+        :param config: (dict) method-specific parameters 
+        :param cuda: (bool) if cuda is enable 
+        :param verbose: (bool) if verbose is enable
+        """
         self.model = model
         self.config = config
         self.cuda = cuda

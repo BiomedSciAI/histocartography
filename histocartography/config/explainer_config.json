@@ -4,31 +4,33 @@
             "edge_encoding": false,
             "graph_building_type": "knn_graph_builder",
             "max_distance": 50,
-            "n_neighbors": 5
+            "n_neighbors": 5,
+            "drop_appearance_features": false,
+            "node_feature_types": [
+                "features_cnn_resnet34_mask_True_"
+            ]
         }
     },
     "model_params": {
         "activation": "relu",
-        "cat": true,
         "dropout": 0.0,
         "gnn_params": {
             "cell_gnn": {
                 "activation": "relu",
-                "hidden_dim": 32,
+                "hidden_dim": 64,
                 "layer_type": "dense_gin_layer",
                 "n_layers": 3,
                 "neighbor_pooling_type": "mean",
-                "output_dim": 32,
-                "return_last_layer": true
+                "output_dim": 64,
+                "agg_operator": "lstm"
             }
         },
-        "num_classes": 2,
         "readout": {
             "hidden_dim": 64,
-            "num_layers": 2,
-            "neighbor_pooling_type": "mean"
+            "num_layers": 2
         },
-        "use_bn": false
+        "use_bn": true,
+        "class_split": "benignVSpathologicalbenign+udhVSadh+feaVSdcisVSmalignant"
     },
     "model_type": "cell_graph_model",
     "explanation_params": {

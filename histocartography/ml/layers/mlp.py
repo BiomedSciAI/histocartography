@@ -16,8 +16,7 @@ class MLP(nn.Module):
         use_bn=False,
         bias=True,
         verbose=False,
-        dropout=0.,
-        return_last_layer=False
+        dropout=0.
     ):
         """
         MLP Constructor
@@ -35,7 +34,6 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
 
         # optional argument
-        self.return_last_layer = return_last_layer
         self.num_layers = num_layers
 
         # set activations
@@ -164,12 +162,6 @@ class MLP(nn.Module):
         :return: out: MLP output
         """
         out = feats
-        for layer_id, layer in enumerate(self.mlp):
+        for layer in self.mlp:
             out = layer(out)
-            if self.return_last_layer and layer_id == self.num_layers -2:
-                embeddings = out
-
-        if self.return_last_layer:
-            return out, embeddings
-
         return out

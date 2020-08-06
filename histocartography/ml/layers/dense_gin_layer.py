@@ -24,6 +24,7 @@ class DenseGINLayer(BaseLayer):
             out_dim,
             act,
             layer_id,
+            edge_dim=None,
             use_bn=False,
             config=None,
             verbose=False):

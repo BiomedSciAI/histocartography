@@ -4,7 +4,7 @@ import matplotlib
 from matplotlib import gridspec
 import numpy as np
 import dgl
-from dgl import BatchedDGLGraph
+# from dgl import BatchedDGLGraph
 from dgl import DGLGraph
 import networkx as nx 
 import torch 
@@ -62,10 +62,13 @@ class GraphVisualization:
             if show_cg:
                 # canvas = image.copy()
                 # draw = ImageDraw.Draw(canvas, 'RGBA')
-                if isinstance(data[0], BatchedDGLGraph):
-                    cell_graph = dgl.unbatch(data[0])[index]
-                else:
-                    cell_graph = data[0]
+                
+                # if isinstance(data[0], BatchedDGLGraph):
+                #     cell_graph = dgl.unbatch(data[0])[index]
+                # else:
+                #     cell_graph = data[0]
+
+                cell_graph = data[0]
 
                 # get centroids and edges
                 cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)

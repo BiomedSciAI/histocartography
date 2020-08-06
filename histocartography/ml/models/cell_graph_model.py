@@ -46,8 +46,7 @@ class CellGraphModel(BaseModel):
             in_dim=emd_dim,
             h_dim=self.readout_params['hidden_dim'],
             out_dim=self.num_classes,
-            num_layers=self.readout_params['num_layers'],
-            return_last_layer=self.gnn_params['return_last_layer']
+            num_layers=self.readout_params['num_layers']
         )
 
     def forward(self, data):

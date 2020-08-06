@@ -24,7 +24,7 @@ class GraphPruningExplainer(BaseExplainer):
         self.model = model
         self.train_params = self.config['train_params']
         self.model_params = self.config['model_params']
-        self.label_to_tumor_type = get_label_to_tumor_type(self.model_params['num_classes'])
+        self.label_to_tumor_type = get_label_to_tumor_type(self.model_params['class_split'])
         self.cuda = cuda
         self.device = get_device(self.cuda)
         self.verbose = verbose
@@ -50,7 +50,7 @@ class GraphPruningExplainer(BaseExplainer):
         adj = torch.tensor(sub_adj, dtype=torch.float).to(self.device)
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
         label = torch.tensor(sub_label, dtype=torch.long).to(self.device)
-        init_logits, init_embeddings = self.model(data)
+        init_logits = self.model(data)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
         init_pred_label = torch.argmax(init_logits, dim=1).squeeze()
@@ -60,7 +60,6 @@ class GraphPruningExplainer(BaseExplainer):
             adj=adj,
             x=x,
             init_probs=init_probs.to(self.device),
-            init_embeddings=init_embeddings,
             model_params=self.model_params,
             train_params=self.train_params,
             cuda=self.cuda
@@ -87,7 +86,7 @@ class GraphPruningExplainer(BaseExplainer):
             init_non_zero_elements, init_non_zero_elements,
             density,
             loss.item(),
-            self.label_to_tumor_type[str(label.item())]
+            self.label_to_tumor_type[label.item()]
         )
         for label_idx, label_name in self.label_to_tumor_type.items():
             desc += ' ' + label_name + ' {} / {} | '.format(
@@ -98,8 +97,8 @@ class GraphPruningExplainer(BaseExplainer):
         pbar = tqdm(range(self.train_params['num_epochs']), desc=desc, unit='step')
     
         for step in pbar:
-            logits, embeddings, masked_adj, masked_feats = explainer()
-            loss = explainer.loss(logits, embeddings)
+            logits, masked_adj, masked_feats = explainer()
+            loss = explainer.loss(logits)
 
             # Compute number of non zero elements in the masked adjacency
             masked_adj = (masked_adj > self.adj_thresh).to(self.device).to(torch.float) * masked_adj
@@ -122,7 +121,7 @@ class GraphPruningExplainer(BaseExplainer):
                 non_zero_elements, init_non_zero_elements,
                 density,
                 round(loss.item(), 2),
-                self.label_to_tumor_type[str(label.item())]
+                self.label_to_tumor_type[label.item()]
             )
             for label_idx, label_name in self.label_to_tumor_type.items():
                 desc += ' ' + label_name + ' {} / {} | '.format(

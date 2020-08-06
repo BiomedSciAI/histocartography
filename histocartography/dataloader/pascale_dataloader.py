@@ -79,6 +79,7 @@ class PascaleDataset(BaseDataset):
             self.cell_node_feature_types = config['graph_building']['cell_graph_builder']['node_feature_types']
             self.encode_cg_edges = config['graph_building']['cell_graph_builder']['edge_encoding']
             self.base_cell_graph_path = os.path.join(self.data_path, 'graphs', 'cell_graphs')
+            self.base_cell_instance_map_path = os.path.join(self.data_path, 'nuclei_info', 'nuclei_detected', 'instance_map')
             self.num_cell_features = self._get_cell_features_dim()
             self.num_edge_cell_features = self._get_edge_cell_features_dim()
             if load_in_ram:
@@ -232,14 +233,11 @@ class PascaleDataset(BaseDataset):
 
     def _load_nuclei_seg_map(self, index):
         # extract the image size, centroid, cell features and label
-        with h5py.File(complete_path(self.cell_graph_path, self.h5_fnames[index]), 'r') as f:
-            seg_map = h5_to_tensor(f['detected_instance_map'], 'cpu').numpy()
-            f.close()
-        return seg_map
-
-    def _load_nuclei_seg_map(self, index):
-        # extract the image size, centroid, cell features and label
-        with h5py.File(complete_path(self.cell_graph_path, self.h5_fnames[index]), 'r') as f:
+        with h5py.File(os.path.join(
+                self.base_cell_instance_map_path,
+                self.dataset_name,
+                '_h5',
+                self.h5_fnames[index]), 'r') as f:
             seg_map = h5_to_tensor(f['detected_instance_map'], 'cpu').numpy()
             f.close()
         return seg_map

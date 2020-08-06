@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
-Script for generating explanations, ie subgraph that are "explaning"
-the prediction.
-
-Implementation derived from the GNN-Explainer (NeurIPS'19)
+Script for generating explanations, 
 """
 
 import importlib
@@ -15,6 +12,7 @@ from mlflow.pytorch import load_model
 from histocartography.utils.io import read_params, write_json, complete_path
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
+from histocartography.interpretability.constants import AVAILABLE_EXPLAINABILITY_METHODS
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
@@ -105,33 +103,43 @@ def main(args):
             )
         )
 
+    # define interpretability model 
+    model_type = config['explanation_params']['explanation_type']
+    if model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
+        module = importlib.import_module(
+            MODEL_MODULE.format(model_type)
+        )
+        interpretability_model = getattr(
+            module, AVAILABLE_EXPLAINABILITY_METHODS[model_type])(
+                model, config['explanation_params']
+            )
+    else:
+        raise ValueError(
+            'Interpretability method: {} not recognized. Options are: {}'.format(
+                model_type, list(AVAILABLE_EXPLAINABILITY_METHODS.keys())
+            )
+        )
+
     # mlflow log parameters
     inter_config = flatten_dict(config['explainer'])
     for key, val in inter_config.items():
         mlflow.log_param(key, val)
 
-    # agg training parameters
-    train_params = {
-        'num_epochs': args.epochs,
-        'lr': args.learning_rate,
-        'weight_decay': 5e-4,
-    }
-
     config['explainer']['num_classes'] = config['model_params']['num_classes']
 
     # declare explainer
-    explainer = SingleInstanceExplainer(
-        model=model,
-        train_params=train_params,
-        model_params=config['explainer'],
-        cuda=CUDA
-    )
+    # explainer = SingleInstanceExplainer(
+    #     model=model,
+    #     train_params=train_params,
+    #     model_params=config['explainer'],
+    #     cuda=CUDA
+    # )
 
-    # declare random selector
-    random_selector = RandomModel(
-        model=model,
-        cuda=CUDA
-    )
+    # # declare random selector
+    # random_selector = RandomModel(
+    #     model=model,
+    #     cuda=CUDA
+    # )
 
     # explain instance from the train set
     for data, label in dataloaders[args.split]:
@@ -154,7 +162,7 @@ def main(args):
         try:
 
             # 1. Run explainer
-            adj, feats, orig_pred, exp_pred, node_importance = explainer.explain(
+            adj, feats, orig_pred, exp_pred, node_importance = interpretability_model.explain(
                 data=data,
                 label=label
             )

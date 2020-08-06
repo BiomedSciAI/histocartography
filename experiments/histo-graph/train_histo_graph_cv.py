@@ -20,7 +20,7 @@ from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
 from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
 from histocartography.evaluation.confusion_matrix import ConfusionMatrix
-from histocartography.evaluation.classification_report import ClassificationReport
+from histocartography.evaluation.classification_report import ClassificationReport, PerClassWeightedF1Score
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import (
@@ -125,6 +125,7 @@ def main(args):
         weighted_f1_score = WeightedF1(cuda=CUDA)
         conf_matrix = ConfusionMatrix(return_img=True)
         class_report = ClassificationReport()
+        per_class_weighted_f1_score = PerClassWeightedF1Score()
         metrics = {
             'accuracy': accuracy_evaluation,
             'weighted_f1_score': weighted_f1_score,
@@ -261,6 +262,10 @@ def main(args):
             # compute & store weighted f1-score
             weighted_f1_score = metrics['weighted_f1_score'](all_test_logits, all_test_labels).item()
             mlflow.log_metric('best_test_weighted_f1_score_' + metric + '_' + str(fold_id), weighted_f1_score, step=step)
+
+            # compute & store per class weighted f1-score 
+            for key, val in per_class_weighted_f1_score(all_test_logits, all_test_labels).items():
+                mlflow.log_metric('best_' + key + '_test_weighted_f1_score_' + metric + '_' + str(fold_id), val, step=step)
 
             # run external evaluators
             for eval_name, eval_fn in evaluators.items():

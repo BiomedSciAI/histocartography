@@ -152,14 +152,17 @@ class PascaleDataset(BaseDataset):
 
     def _get_cell_features_dim(self):
         try:
-            graph_fname = os.path.join(
-                self.base_cell_graph_path,
-                self.cell_node_feature_types[0],
-                self.dataset_name,
-                self.h5_fnames[0].replace('.h5', '.bin')
-            )
-            g, _ = load_graphs(graph_fname)
-            dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
+            if self.drop_cg_appearance_features:
+                dim = 2
+            else:
+                graph_fname = os.path.join(
+                    self.base_cell_graph_path,
+                    self.cell_node_feature_types[0],
+                    self.dataset_name,
+                    self.h5_fnames[0].replace('.h5', '.bin')
+                )
+                g, _ = load_graphs(graph_fname)
+                dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
         except:
             print('Warning: List of DGL graphs is empty. Tentative dimension set to 2050.')
             dim = 2050  # corresponds to resnet50 + location embeddings 
@@ -170,14 +173,17 @@ class PascaleDataset(BaseDataset):
 
     def _get_superpx_features_dim(self):
         try:
-            graph_fname = os.path.join(
-                self.base_superpx_graph_path,
-                self.superpx_node_feature_types[0],
-                self.dataset_name,
-                self.h5_fnames[0].replace('.h5', '.bin')
-            )
-            g, _ = load_graphs(graph_fname)
-            dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
+            if self.drop_cg_appearance_features:
+                dim = 2
+            else:
+                graph_fname = os.path.join(
+                    self.base_superpx_graph_path,
+                    self.superpx_node_feature_types[0],
+                    self.dataset_name,
+                    self.h5_fnames[0].replace('.h5', '.bin')
+                )
+                g, _ = load_graphs(graph_fname)
+                dim = g[0].ndata[GNN_NODE_FEAT_IN].shape[1]
         except:
             print('Warning: List of DGL graphs is empty. Tentative dimension set to 2050.')
             dim = 2050  # corresponds to resnet50 + location embeddings 
@@ -239,8 +245,9 @@ class PascaleDataset(BaseDataset):
             del g.edata[GNN_EDGE_FEAT]
 
         # keep/drop appearance features 
-        if self.drop_cg_appearance_features:
-            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_NODE_FEAT_IN][:-2]
+        if self.drop_tg_appearance_features:
+            subfeats = g.ndata.pop(GNN_NODE_FEAT_IN)[:, -2:]
+            g.ndata[GNN_NODE_FEAT_IN] = subfeats
 
         return g
 

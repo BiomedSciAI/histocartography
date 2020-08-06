@@ -7,7 +7,7 @@ export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 source ../_set_mlflow.sh
 
 # export experiment 
-export MLFLOW_EXPERIMENT_NAME=gja_bracs_l_cg_tree
+export MLFLOW_EXPERIMENT_NAME=gja_bracs_l_topology_only
 # mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT_NAME}
 
 # Create dir for output logs
@@ -18,25 +18,29 @@ LEARNING_RATES=(0.001)
 BATCH_SIZES=(16)
 BASE_CONFIG="cell_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
+REPEAT=(0 1 2)
 queue="prod.med"
 
 # Training loop
-for bs in "${BATCH_SIZES[@]}"
+for repeat in "${REPEAT[@]}"
 do
-	for lr in "${LEARNING_RATES[@]}"
+	for bs in "${BATCH_SIZES[@]}"
 	do
-		for conf in "${ALL_CONFIG_FILES[@]}"
+		for lr in "${LEARNING_RATES[@]}"
 		do
-			echo "$lr"
-			echo "$bs"
-			echo "$conf"
-			bsub -R "rusage [ngpus_excl_p=1]" \
-			    -J  "CG_train" \
-			    -o "../../runs/lsf_logs.%J.stdout" \
-			    -e "../../runs/lsf_logs.%J.stderr" \
-			    -q "$queue" \
-			    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/BRACS_L/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram"
-			sleep 0.1 
-		done 
+			for conf in "${ALL_CONFIG_FILES[@]}"
+			do
+				echo "$lr"
+				echo "$bs"
+				echo "$conf"
+				bsub -R "rusage [ngpus_excl_p=1]" \
+				    -J  "CG_train" \
+				    -o "../../runs/lsf_logs.%J.stdout" \
+				    -e "../../runs/lsf_logs.%J.stderr" \
+				    -q "$queue" \
+				    "python train_histo_graph_cv.py --data_path /dataT/pus/histocartography/Data/BRACS_L/ -conf ../../histocartography/config/$BASE_CONFIG/$conf -l $lr -b $bs --epochs 100 --in_ram"
+				sleep 0.1 
+			done 
+		done
 	done
 done

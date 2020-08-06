@@ -148,7 +148,8 @@ class ConfigGenerator:
             {
                 "dropout": [0.0],
                 "class_split": [
-                                "benignVSpathologicalbenignVSdcisVSmalignant"
+                                "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant",
+                                "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant"
                                 # "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant",  # I vs (N,B,U,A,F,D)
                                 # "benign+pathologicalbenign+udhVSadh+fea+dcis",            # Non-atypical (N, B, U) vs Atypical (A, F, D)
                                 # "benignVSpathologicalbenign+udh",                         # N vs (B, U)
@@ -204,10 +205,10 @@ class ConfigGenerator:
             {
                 "layer_type": ["pna_layer"],
                 "activation": ["relu"],
-                "n_layers": [3, 4],
+                "n_layers": [3],
                 "hidden_dim": [64],
                 "output_dim": [64],
-                "agg_operator": ["lstm", "concat"],
+                "agg_operator": ["lstm"],
                 "residual": [True],
                 "graph_norm": [True],
                 "aggregators": ["mean max min std"],
@@ -303,8 +304,8 @@ class ConfigGenerator:
                     # ['features_cnn_resnet50_mask_True_'], 
                     # ['features_cnn_resnet34_mask_True_'], 
                     # ['features_cnn_resnet50_mask_False_'], 
-                    # ['features_cnn_resnet34_mask_False_'], 
-                    ['features_hc_']
+                    ['features_cnn_resnet34_mask_False_'], 
+                    # ['features_hc_']
                 ]
             }
         )
@@ -315,14 +316,14 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "graph_building_type": ["rag_graph_builder"],
-                "drop_appearance_features": [False],
+                "drop_appearance_features": [True],
                 "edge_encoding": [False],
                 'node_feature_types': [
-                    # ['merging_hc_features_cnn_resnet34_mask_False_'],
+                    ['merging_hc_features_cnn_resnet34_mask_False_'],
                     # ['merging_hc_features_cnn_resnet50_mask_False_'],
                     # ['merging_hc_features_cnn_resnet34_mask_True_'],
                     # ['merging_hc_features_cnn_resnet50_mask_True_']
-                    ['merging_hc_features_hc_']
+                    # ['merging_hc_features_hc_']
                 ]
             }
         )

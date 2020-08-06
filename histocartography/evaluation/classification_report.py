@@ -48,11 +48,10 @@ class PerClassWeightedF1Score:
         # get predictions
         class_name = class_split.split('VS')
         classification_report = self.eval_classification_report(logits, labels, class_name)
-        print('debug:', classification_report.items())
         per_class_weighted_f1_score = {}
         for key, val in classification_report.items():
             try:
-                per_class_weighted_f1_score[key] = round(val['f1-score'], 3)
+                per_class_weighted_f1_score[key.replace('+', 'AND')] = round(val['f1-score'], 3)
             except:
                 print('Unable to process key {}'.format(key))
 

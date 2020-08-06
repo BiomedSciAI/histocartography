@@ -1,30 +1,35 @@
 import torch
 from tqdm import tqdm
 
-from ..ml.layers.constants import GNN_NODE_FEAT_IN
-from ..dataloader.constants import get_label_to_tumor_type
+from ...ml.layers.constants import GNN_NODE_FEAT_IN
+from ...dataloader.constants import get_label_to_tumor_type
 from .explainer_model import ExplainerModel
 from histocartography.utils.io import get_device
+from ..base_explainer import BaseExplainer
 
 
-class SingleInstanceExplainer:
+class GraphPruningExplainer(BaseExplainer):
     def __init__(
             self,
             model,
-            train_params,
-            model_params,
+            config,
+            # train_params,
+            # model_params,
             cuda=False,
             verbose=False
     ):
+
+        super(GraphPruningExplainer, self).__init__(model, config, cuda, verbose)
+
         self.model = model
-        self.train_params = train_params
-        self.model_params = model_params
-        self.label_to_tumor_type = get_label_to_tumor_type(model_params['num_classes'])
+        self.train_params = self.config['train_params']
+        self.model_params = self.config['model_params']
+        self.label_to_tumor_type = get_label_to_tumor_type(self.model_params['num_classes'])
         self.cuda = cuda
         self.device = get_device(self.cuda)
         self.verbose = verbose
-        self.adj_thresh = model_params['adj_thresh']
-        self.node_thresh = model_params['node_thresh']
+        self.adj_thresh = self.model_params['adj_thresh']
+        self.node_thresh = self.model_params['node_thresh']
 
         self.adj_explanation = None
         self.node_feats_explanation = None

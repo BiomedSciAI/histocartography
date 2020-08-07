@@ -114,8 +114,10 @@ class MultiLayerGNN(nn.Module):
                 alpha = self.att(alpha).squeeze(-1)  # [num_nodes, num_layers]
                 alpha = torch.softmax(alpha, dim=-1)
                 g.ndata[GNN_NODE_FEAT_OUT] = (x * alpha.unsqueeze(-1)).sum(dim=1)
-            else:
+            elif self.readout_op == "none":
                 g.ndata[GNN_NODE_FEAT_OUT] = h
+            else:
+                raise ValueError("Unsupported readout operator. Options are 'concat', 'lstm', 'none'.")
 
             # readout
             if with_readout:
@@ -124,9 +126,9 @@ class MultiLayerGNN(nn.Module):
             return g.ndata.pop(GNN_NODE_FEAT_OUT)
 
         else:
+            # @TODO: add support for LSTM aggregation for dense graphs 
             # concat
             if self.readout_op == "concat":
-                # h_concat = [h.unsqueeze(dim=0) if len(h.shape) < 3 else h for h in h_concat]
                 h_concat = [h.squeeze() for h in h_concat]
                 h = torch.cat(h_concat, dim=-1)
             # readout

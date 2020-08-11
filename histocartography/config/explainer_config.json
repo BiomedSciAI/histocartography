@@ -4,43 +4,54 @@
             "edge_encoding": false,
             "graph_building_type": "knn_graph_builder",
             "max_distance": 50,
-            "n_neighbors": 5
+            "n_neighbors": 5,
+            "drop_appearance_features": false,
+            "node_feature_types": [
+                "features_cnn_resnet34_mask_True_"
+            ]
         }
     },
     "model_params": {
         "activation": "relu",
-        "cat": true,
         "dropout": 0.0,
         "gnn_params": {
             "cell_gnn": {
                 "activation": "relu",
-                "hidden_dim": 32,
+                "hidden_dim": 64,
                 "layer_type": "dense_gin_layer",
                 "n_layers": 3,
                 "neighbor_pooling_type": "mean",
-                "output_dim": 32
+                "output_dim": 64,
+                "agg_operator": "lstm"
             }
         },
-        "num_classes": 2,
         "readout": {
             "hidden_dim": 64,
-            "num_layers": 2,
-            "neighbor_pooling_type": "mean"
+            "num_layers": 2
         },
-        "use_bn": false
+        "use_bn": true,
+        "class_split": "benignVSpathologicalbenign+udhVSadh+feaVSdcisVSmalignant"
     },
     "model_type": "cell_graph_model",
-    "explainer": {
-        "loss": {
-            "adj": 0.005,
-            "adj_ent": 1.0,
-            "node_ent": 1.0,
-            "node": 0.05,
-            "ce": 10.0
+    "explanation_params": {
+        "explanation_type": "pruning_explainer.graph_pruning_explainer",
+        "train_params": {
+            "num_epochs": 100,
+            "lr": 0.001,
+            "weight_decay": 5e-4
         },
-        "adj_thresh": 0.05,
-        "node_thresh": 0.05,
-        "init": "normal",
-        "mask_activation": "sigmoid"
+        "model_params": {
+            "loss": {
+                "adj": 0.0,
+                "adj_ent": 0.0,
+                "node_ent": 1.0,
+                "node": 0.05,
+                "ce": 10.0
+            },
+            "adj_thresh": 0.05,
+            "node_thresh": 0.05,
+            "init": "normal",
+            "mask_activation": "sigmoid"
+        }
     }
 }

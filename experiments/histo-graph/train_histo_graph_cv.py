@@ -283,9 +283,9 @@ def main(args):
             # log MLflow models
             mlflow.pytorch.log_model(model, 'model_' + metric + '_' + str(fold_id))
 
-        # delete dataloaders & model 
+        # delete dataloaders & model
         del dataloaders
-        del model 
+        del model
 
     # loop over all the best metrics and compute average statistics
     client = mlflow.tracking.MlflowClient()

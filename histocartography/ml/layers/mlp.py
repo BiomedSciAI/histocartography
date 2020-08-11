@@ -33,6 +33,9 @@ class MLP(nn.Module):
         """
         super(MLP, self).__init__()
 
+        # optional argument
+        self.num_layers = num_layers
+
         # set activations
         self._set_activations(act)
 

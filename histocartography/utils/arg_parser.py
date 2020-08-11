@@ -20,6 +20,13 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
+        '--split',
+        type=str,
+        help='Split to use for the explanations.',
+        default='test',
+        required=False
+    )
+    parser.add_argument(
         '-p',
         '--number_of_workers',
         type=int,

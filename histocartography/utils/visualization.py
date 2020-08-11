@@ -4,11 +4,12 @@ import matplotlib
 from matplotlib import gridspec
 import numpy as np
 import dgl
-from dgl import BatchedDGLGraph
+# from dgl import BatchedDGLGraph
 from dgl import DGLGraph
 import networkx as nx 
 import torch 
-import os
+from PIL import ImageFilter
+from PIL import Image
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
 from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle
@@ -17,10 +18,12 @@ from histocartography.ml.layers.constants import CENTROID
 
 class GraphVisualization:
 
-    def __init__(self, show=False, save=True, save_path='../../data/graphs', verbose=False):
+    def __init__(self, show=False, show_centroid=True, show_edges=True, save=True, save_path='../../data/graphs', verbose=False):
         if verbose:
             print('Initialize graph visualizer')
         self.show = show
+        self.show_centroid = show_centroid
+        self.show_edges = show_edges
         self.save = save
         self.save_path = save_path
         self.verbose = verbose
@@ -29,8 +32,12 @@ class GraphVisualization:
 
         for index in range(size):
 
-            image = data[-2][index].copy()
-            image_name = data[-1][index]
+            image = data[-3][index].copy()
+            image_name = data[-2][index]
+            try:
+                seg_map = data[-1][index]
+            except:
+                seg_map = None
 
             if show_sg:
                 canvas = image.copy()
@@ -53,33 +60,53 @@ class GraphVisualization:
                     save_image(complete_path(self.save_path, image_name + '_tissue_graph.png'), canvas)
 
             if show_cg:
-                canvas = image.copy()
-                draw = ImageDraw.Draw(canvas, 'RGBA')
-                if isinstance(data[0], BatchedDGLGraph):
-                    cell_graph = dgl.unbatch(data[0])[index]
-                else:
-                    cell_graph = data[0]
+                # canvas = image.copy()
+                # draw = ImageDraw.Draw(canvas, 'RGBA')
+                
+                # if isinstance(data[0], BatchedDGLGraph):
+                #     cell_graph = dgl.unbatch(data[0])[index]
+                # else:
+                #     cell_graph = data[0]
+
+                cell_graph = data[0]
 
                 # get centroids and edges
                 cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
-                # draw centroids
-                self.draw_centroid(cent_cg, draw, (255, 0, 0))
-                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
-
-                # draw large circles around highly important nodes
-                if node_importance is not None:
-                    important_node_indices = np.argwhere(node_importance > 0.9)
-                    for idx in important_node_indices:
-                        centroid = [cent_cg[idx].squeeze()[0].item(), cent_cg[idx].squeeze()[1].item()]
-                        draw_large_circle(centroid, draw)
-
-                if self.show:
-                    show_image(canvas)
-
-                if self.save:
-                    check_for_dir(self.save_path)
-                    save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
+                # # @TODO: hack alert store the centroid and the edges
+                self.centroid_cg = cent_cg
+                self.edges_cg = edges_cg
+                #
+                # # draw centroids
+                # if self.show_centroid:
+                #     self.draw_centroid(cent_cg, draw, (255, 0, 0))
+                #
+                # # draw large circles around highly important nodes
+                # if node_importance is not None:
+                #     important_node_indices = np.argwhere(node_importance > 0.9)
+                #     for idx in important_node_indices:
+                #         centroid = [cent_cg[idx].squeeze()[0].item(), cent_cg[idx].squeeze()[1].item()]
+                #         draw_large_circle(centroid, draw)
+                #
+                # if seg_map is not None:
+                #     seg_map = seg_map.squeeze()
+                #     mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
+                #     alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
+                #     alpha = Image.fromarray(alpha).convert('L')
+                #     # alpha = alpha.filter(ImageFilter.MinFilter(21))
+                #     alpha = alpha.filter(ImageFilter.FIND_EDGES)
+                #     mask.putalpha(alpha)
+                #     canvas.paste(mask, (0, 0), mask)
+                #
+                # if self.show_edges:
+                #     self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
+                #
+                # if self.show:
+                #     show_image(canvas)
+                #
+                # if self.save:
+                #     check_for_dir(self.save_path)
+                #     save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):
@@ -121,7 +148,7 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
 
     plt.figure(1)
     plt.title('Explanation Visualization')
-    gs = gridspec.GridSpec(6, 2)
+    gs = gridspec.GridSpec(6, 3)
     font = {'family': 'normal',
             'weight': 'bold',
             'size': 5}
@@ -149,7 +176,7 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
 
     # 3. load image of the explanation graph
     plt.subplot(gs[0:5, 1])
-    explanation = plt.imread(complete_path(save_path, image_name + '_cell_graph.png'))
+    explanation = plt.imread(complete_path(save_path, image_name + '_explanation_cell_graph.png'))
     plt.imshow(explanation)
     plt.axis('off')
     plt.title('Explanation cell graph.')
@@ -162,5 +189,21 @@ def agg_and_plot_interpretation(meta_data, save_path, image_name):
     plt.xticks(y_pos, label_set)
     plt.title('Explanation probability predictions (%)')
 
-    # 5. save the image
+    # 5. load image of the explanation graph
+    plt.subplot(gs[0:5, 2])
+    print('image name', image_name)
+    random = plt.imread(complete_path(save_path, image_name + '_random_cell_graph.png'))
+    plt.imshow(random)
+    plt.axis('off')
+    plt.title('Random cell graph.')
+
+    # 6. generate histogram of probability for the explanation
+    plt.subplot(gs[-1, 2])
+    probs = list(meta_data['output']['random']['res'][0]['logits'])
+    probs = [100 * x for x in probs]
+    plt.bar(y_pos, probs, align='center')
+    plt.xticks(y_pos, label_set)
+    plt.title('Random probability predictions (%)')
+
+    # 7. save the image
     plt.savefig(complete_path(save_path, image_name + '_summary_.pdf'), format='pdf', dpi=1200)

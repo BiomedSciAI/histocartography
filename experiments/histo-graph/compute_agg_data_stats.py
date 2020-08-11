@@ -5,10 +5,8 @@ Script for computing dataset statistics, e.g., avg number of node per class, ima
 import argparse
 import numpy as np
 
-from histocartography.utils.io import read_params, check_for_dir, write_json, complete_path, load_json
+from histocartography.utils.io import read_params
 from histocartography.dataloader.pascale_dataloader import make_data_loader
-from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
-from histocartography.utils.data_stats import DataStats
 from histocartography.dataloader.constants import LABEL_TO_TUMOR_TYPE
 
 
@@ -75,7 +73,7 @@ def main(args):
         for data, label in dataloaders[split]:
 
             print('Processing samples:', counter)
-            coun += 1
+            counter += 1
 
             # 1. extract data
             cell_graph = data[0]

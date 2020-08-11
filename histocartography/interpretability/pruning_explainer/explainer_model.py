@@ -1,4 +1,5 @@
 import math
+from scipy.stats import entropy
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,7 +14,7 @@ class ExplainerModel(nn.Module):
         model,
         adj,
         x,
-        label,
+        init_probs,
         model_params,
         train_params,
         cuda=False,
@@ -26,7 +27,8 @@ class ExplainerModel(nn.Module):
         self.adj = adj
         self.x = x
         self.model = model
-        self.label = label
+        self.init_probs = init_probs
+        self.label = torch.argmax(init_probs, dim=1)
 
         # set model parameters
         self.cuda = cuda
@@ -93,7 +95,7 @@ class ExplainerModel(nn.Module):
     def _get_adj_mask(self, with_zeroing=False):
         if self.mask_act == "sigmoid":
             sym_mask = self.sigmoid(self.mask, t=2)
-        elif self.mask_act == "ReLU":
+        elif self.mask_act == "relu":
             sym_mask = nn.ReLU()(self.mask)
         else:
             raise ValueError('Unsupported mask activation {}. Options'
@@ -117,7 +119,7 @@ class ExplainerModel(nn.Module):
     def _get_node_feats_mask(self):
         if self.mask_act == "sigmoid":
             node_mask = self.sigmoid(self.node_mask, t=10)
-        elif self.mask_act == "ReLU":
+        elif self.mask_act == "relu":
             node_mask = nn.ReLU()(self.node_mask)
         else:
             raise ValueError('Unsupported mask activation {}. Options'
@@ -135,7 +137,8 @@ class ExplainerModel(nn.Module):
 
     def forward(self):
 
-        masked_adj = self._masked_adj()
+        # masked_adj = self._masked_adj()  # @TODO: hack alert: not mask over the edges
+        masked_adj = self.adj
         masked_x = self._masked_node_feats()
 
         # build a graph from the new x & adjacency matrix...
@@ -144,14 +147,24 @@ class ExplainerModel(nn.Module):
 
         return ypred, masked_adj, masked_x
 
+    def distillation_loss(self, inner_logits):
+        log_output = nn.LogSoftmax(dim=1)(inner_logits)
+        cross_entropy = self.init_probs * log_output
+        return -torch.mean(torch.sum(cross_entropy, dim=1))
+
     def loss(self, pred):
         """
         Args:
             pred: prediction made by current model
         """
 
-        # 1. cross-entropy loss
-        pred_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label) * self.coeffs['ce']
+        # 1. cross-entropy + distillation loss
+        ce_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label)
+        distillation_loss = self.distillation_loss(pred.unsqueeze(dim=0))
+        alpha = torch.FloatTensor([entropy(torch.nn.Softmax()(pred).cpu().detach().numpy())]) /\
+                torch.log(torch.FloatTensor([self.init_probs.shape[1]]))
+        alpha = alpha.to(self.device)
+        pred_loss = self.coeffs['ce'] * (alpha * ce_loss + (1 - alpha) * distillation_loss)
 
         # 2. size loss
         adj_mask = self._get_adj_mask(with_zeroing=True)
@@ -166,7 +179,7 @@ class ExplainerModel(nn.Module):
         node_mask = self._get_node_feats_mask()
         node_loss = self.coeffs["node"] * torch.sum(node_mask)
 
-        # 4. node entropy loss 
+        # 5. node entropy loss
         node_ent = -node_mask * torch.log(node_mask) - (1 - node_mask) * torch.log(1 - node_mask)
         node_ent_loss = self.coeffs["node_ent"] * torch.mean(node_ent)
 

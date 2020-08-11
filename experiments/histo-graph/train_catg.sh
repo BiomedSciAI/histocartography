@@ -16,10 +16,11 @@ mkdir -p ../../runs
 # Set input parameters
 LEARNING_RATES=(0.001)
 BATCH_SIZES=(16)
-BASE_CONFIG="multi_level_graph_model_config"
+BASE_CONFIG="concat_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
-REPEAT=(0 1 2)
+# ALL_CONFIG_FILES=("multi_level_graph_model_config_0.json")
 queue="prod.med"
+REPEAT=(0 1 2)
 
 # Training loop
 for repeat in "${REPEAT[@]}"
@@ -34,7 +35,7 @@ do
 				echo "$bs"
 				echo "$conf"
 				bsub -R "rusage [ngpus_excl_p=1]" \
-				    -J  "HG_training" \
+				    -J  "CATG_train" \
 				    -o "../../runs/lsf_logs.%J.stdout" \
 				    -e "../../runs/lsf_logs.%J.stderr" \
 				    -q "$queue" \

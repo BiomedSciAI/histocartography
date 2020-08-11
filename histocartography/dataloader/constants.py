@@ -154,7 +154,7 @@ ALL_CLASS_SPLITS = TREE_CLASS_SPLIT +\
 
 CLASS_SPLIT_TO_MODEL_URL = {
     'cell_graph_model': {
-        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "47697a64ed104a2d97eebcaf2eda9188/artifacts/model_best_val_weighted_f1_score_0", # 7-class 
+        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "ee4fd29cf4ec4767a0fc7cf366de942d/artifacts/model_best_val_weighted_f1_score_0", # 7-class 
         "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "f5be8cc7f4dd4089988e50d28f2908ec/artifacts/model_best_val_weighted_f1_score_0",    # 4-class 
         "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "82ac51e8568041cc8bf9bf332ec30d5f/artifacts/model_best_val_weighted_f1_score_0",      # 2-class: I vs (N,B,U,A,F,D)
         "benign+pathologicalbenign+udhVSadh+fea+dcis": "72d367ec0a574154a0e3b028dabcb2d0/artifacts/model_best_val_weighted_f1_score_0",                # 2-class: Non-atypical (N, B, U) vs Atypical (A, F, D)
@@ -174,7 +174,7 @@ CLASS_SPLIT_TO_MODEL_URL = {
         "adhVSfea": "5618c83475be4f9a806a019306bbc2ec/artifacts/model_best_val_weighted_f1_score_0"                                                   # A vs F
     },
     'multi_level_graph_model': {
-        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "something",  # 
+        "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "18b13bc78b7b497ea1bb52ceebf3951a/artifacts/model_best_val_weighted_f1_score_0",  # 
         "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",     # 
         "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
         "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)

@@ -173,7 +173,7 @@ class PascaleDataset(BaseDataset):
 
     def _get_superpx_features_dim(self):
         try:
-            if self.drop_cg_appearance_features:
+            if self.drop_tg_appearance_features:
                 dim = 2
             else:
                 graph_fname = os.path.join(

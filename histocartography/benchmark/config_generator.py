@@ -83,7 +83,8 @@ class ConfigGenerator:
     def _get_cell_gnn_params(self):
         config = ParameterGrid(
             {
-                "cell_gnn": self._get_pna_params()
+                # "cell_gnn": self._get_pna_params()
+                "cell_gnn": self._get_gat_params()
             }
         )
         return config
@@ -187,12 +188,12 @@ class ConfigGenerator:
             {
                 "layer_type": ["gin_layer"],
                 "activation": ["relu"],
-                "n_layers": [4],  # [3, 4, 5]
+                "n_layers": [3],  # [3, 4, 5]
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [64],
                 "output_dim": [64],
                 "graph_norm": [True],
-                "agg_operator": ["lstm"]  # "concat"
+                "agg_operator": ["none"]  # "concat"
             }
         )
 
@@ -205,10 +206,10 @@ class ConfigGenerator:
             {
                 "layer_type": ["pna_layer"],
                 "activation": ["relu"],
-                "n_layers": [3, 4],
+                "n_layers": [3],
                 "hidden_dim": [64],
                 "output_dim": [64],
-                "agg_operator": ["lstm"],
+                "agg_operator": ["none"],
                 "residual": [True],
                 "graph_norm": [True],
                 "aggregators": ["mean max min std"],
@@ -217,7 +218,6 @@ class ConfigGenerator:
                 "divide_input_first": [True],
                 "pretrans_layers" : [1],
                 "posttrans_layers" : [1]
-
             }
         )
 
@@ -232,6 +232,7 @@ class ConfigGenerator:
                 "layer_type": ["dense_gin_layer"],
                 "activation": ["relu"],
                 "n_layers": [3, 4],
+                "agg_operator": ["lstm"],
                 "neighbor_pooling_type": ["mean"],
                 "hidden_dim": [32],
                 "output_dim": [32],
@@ -268,15 +269,13 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "activation": ["relu"],
-                "hidden_dim": [64],
+                "hidden_dim": [128],
+                "agg_operator": ["lstm"],
                 "layer_type": ["gat_layer"],
                 "n_layers": [2],
-                "output_dim": [64],
-                "feat_drop": [0.0],
-                "attn_drop": [0.0],
-                "negative_slope": [0.2],
-                "residual": [False],
-                "num_heads": [2]
+                "output_dim": [128],
+                "num_heads": [4],
+                "merge": "cat"
             }
         )
 
@@ -287,7 +286,7 @@ class ConfigGenerator:
         config = ParameterGrid(
             {
                 "num_layers": [2],
-                "hidden_dim": [64, 128]
+                "hidden_dim": [128]
             }
         )
         return config
@@ -305,8 +304,8 @@ class ConfigGenerator:
                     # ['features_cnn_resnet50_mask_True_'],
                     # ['features_cnn_resnet34_mask_True_'],
                     # ['features_cnn_resnet50_mask_False_'],
-                    # ['features_cnn_resnet34_mask_False_'],
-                    ['features_hc_']
+                    ['features_cnn_resnet34_mask_False_'],
+                    # ['features_hc_']
                 ]
             }
         )
@@ -320,11 +319,11 @@ class ConfigGenerator:
                 "drop_appearance_features": [False],
                 "edge_encoding": [False],
                 'node_feature_types': [
-                    # ['merging_hc_features_cnn_resnet34_mask_False_'],
+                    ['merging_hc_features_cnn_resnet34_mask_False_'],
                     # ['merging_hc_features_cnn_resnet50_mask_False_'],
                     # ['merging_hc_features_cnn_resnet34_mask_True_'],
                     # ['merging_hc_features_cnn_resnet50_mask_True_']
-                    ['merging_hc_features_hc_']
+                    # ['merging_hc_features_hc_']
                 ]
             }
         )

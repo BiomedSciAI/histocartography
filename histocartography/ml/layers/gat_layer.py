@@ -1,15 +1,19 @@
 """Torch modules for graph attention networks(GAT)."""
-import torch as th
 from torch import nn
+import torch
 import dgl.function as fn
-from dgl.nn.pytorch import edge_softmax
-from dgl.nn.pytorch.utils import Identity
+import torch.nn.functional as F
 
 from histocartography.ml.layers.base_layer import BaseLayer
 from histocartography.ml.layers.constants import ACTIVATIONS
+from histocartography.ml.layers.constants import (
+    GNN_MSG, GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT,
+    GNN_AGG_MSG, GNN_EDGE_WEIGHT, REDUCE_TYPES,
+    GNN_EDGE_FEAT
+)
 
 
-class GATLayer(BaseLayer):
+class SingleHeadGATLayer(BaseLayer):
     r"""Apply `Graph Attention Network <https://arxiv.org/pdf/1710.10903.pdf>`__
     over an input signal.
     .. math::
@@ -29,101 +33,94 @@ class GATLayer(BaseLayer):
         Default: ``None``.
     :param config : dict
     """
+
     def __init__(self,
                  node_dim,
                  out_dim,
                  layer_id,
+                 edge_dim=None,
                  config=None,
                  act=None):
 
-        super(GATLayer, self).__init__(node_dim, out_dim, act, layer_id)
+        super(SingleHeadGATLayer, self).__init__(node_dim, out_dim, act, layer_id)
 
-        if config is not None:
-            feat_drop = config['feat_drop']
-            attn_drop = config['attn_drop']
-            negative_slope = config['negative_slope']
-            residual = config['residual']
-            num_heads = config['num_heads']
-        else:
-            feat_drop = 0.
-            attn_drop = 0.
-            negative_slope = 0.2
-            residual = False
-            num_heads = 2
-
-        out_dim = int(out_dim / num_heads)
-
-        self._num_heads = num_heads
-        self._in_feats = node_dim
-        self._out_feats = out_dim
-        self.fc = nn.Linear(node_dim, out_dim * num_heads, bias=False)
-        self.attn_l = nn.Parameter(th.FloatTensor(size=(1, num_heads, out_dim)))
-        self.attn_r = nn.Parameter(th.FloatTensor(size=(1, num_heads, out_dim)))
-        self.feat_drop = nn.Dropout(feat_drop)
-        self.attn_drop = nn.Dropout(attn_drop)
-        self.leaky_relu = nn.LeakyReLU(negative_slope)
-
-        if residual:
-            if node_dim != out_dim:
-                self.res_fc = nn.Linear(node_dim, num_heads * out_dim, bias=False)
-            else:
-                self.res_fc = Identity()
-        else:
-            self.register_buffer('res_fc', None)
+        # equation (1)
+        self.fc = nn.Linear(node_dim, out_dim, bias=False)
+        # equation (2)
+        self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
+        self.attn_weights = None
         self.reset_parameters()
-        self.activation = ACTIVATIONS[act]
 
     def reset_parameters(self):
         """Reinitialize learnable parameters."""
         gain = nn.init.calculate_gain('relu')
         nn.init.xavier_normal_(self.fc.weight, gain=gain)
-        nn.init.xavier_normal_(self.attn_l, gain=gain)
-        nn.init.xavier_normal_(self.attn_r, gain=gain)
-        if isinstance(self.res_fc, nn.Linear):
-            nn.init.xavier_normal_(self.res_fc.weight, gain=gain)
+        nn.init.xavier_normal_(self.attn_fc.weight, gain=gain)
 
-    def forward(self, graph, feat):
-        r"""Compute graph attention network layer.
-        Parameters
-        ----------
-        graph : DGLGraph
-            The graph.
-        feat : torch.Tensor
-            The input feature of shape :math:`(N, D_{in})` where :math:`D_{in}`
-            is size of input feature, :math:`N` is the number of nodes.
-        Returns
-        -------
-        torch.Tensor
-            The output feature of shape :math:`(N, H, D_{out})` where :math:`H`
-            is the number of heads, and :math:`D_{out}` is size of output feature.
-        """
+    def edge_attention(self, edges):
+        # edge UDF for equation (2)
+        z2 = torch.cat([edges.src['z'], edges.dst['z']], dim=1)
+        a = self.attn_fc(z2)
+        a = F.leaky_relu(a)
 
-        graph = graph.local_var()
-        h = self.feat_drop(feat)
-        feat = self.fc(h).view(-1, self._num_heads, self._out_feats)
-        el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
-        er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
-        graph.ndata.update({'ft': feat, 'el': el, 'er': er})
+        # update attention weights for further analysis 
+        self.attn_weights = a
 
-        # compute edge attention
-        graph.apply_edges(fn.u_add_v('el', 'er', 'e'))
-        e = self.leaky_relu(graph.edata.pop('e'))
+        return {'e': a}
 
-        # compute softmax
-        graph.edata['a'] = self.attn_drop(edge_softmax(graph, e))
+    def message_func(self, edges):
+        # message UDF for equation (3) & (4)
+        return {'z': edges.src['z'], 'e': edges.data['e']}
 
-        # message passing
-        graph.update_all(fn.u_mul_e('ft', 'a', 'm'),
-                         fn.sum('m', 'ft'))
-        rst = graph.ndata['ft']
+    def reduce_func(self, nodes):
+        # reduce UDF for equation (3) & (4)
+        # equation (3)
+        alpha = F.softmax(nodes.mailbox['e'], dim=1)
+        # equation (4)
+        h = torch.sum(alpha * nodes.mailbox['z'], dim=1)
+        return {GNN_NODE_FEAT_OUT: h}
 
-        # residual
-        if self.res_fc is not None:
-            resval = self.res_fc(h).view(h.shape[0], -1, self._out_feats)
-            rst = rst + resval
+    def forward(self, graph, feats):
+        # equation (1)
+        z = self.fc(feats)
+        graph.ndata['z'] = z
+        # equation (2)
+        graph.apply_edges(self.edge_attention)
+        # equation (3) & (4)
+        graph.update_all(self.message_func, self.reduce_func)
+        h = graph.ndata.pop(GNN_NODE_FEAT_OUT) # + z  # add self connections 
+        return h 
 
-        # activation
-        if self.activation:
-            rst = self.activation(rst)
 
-        return rst.flatten(1)
+class GATLayer(BaseLayer):
+    def __init__(self,
+                 node_dim,
+                 out_dim,
+                 layer_id,
+                 edge_dim=None,
+                 config=None,
+                 act=None):
+
+        super(GATLayer, self).__init__(node_dim, out_dim, act, layer_id)
+
+        num_heads = config['num_heads']
+        self.merge = config['merge']
+
+        if self.merge == 'cat':
+            out_dim = int(out_dim / num_heads)
+
+        self.heads = nn.ModuleList()
+        for i in range(num_heads):
+            self.heads.append(SingleHeadGATLayer(node_dim, out_dim, i, config=config))
+
+    def forward(self, graph, feats):
+        head_outs = [attn_head(graph, feats) for attn_head in self.heads]
+        if self.merge == 'cat':
+            # concat on the output feature dimension (dim=1)
+            return torch.cat(head_outs, dim=1)
+        elif self.merge == 'avg':
+            # merge using average
+            return torch.mean(torch.stack(head_outs), dim=0)
+        else:
+            raise ValueError('Unsupported merge type in GAT layer. Options are "cat" and "avg".')
+

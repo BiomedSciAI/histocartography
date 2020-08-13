@@ -3,7 +3,7 @@ import numpy as np
 import dgl 
 
 
-def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None):
+def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None):
     """Cleaning a graph by thresholding its node values.
 
     Args:
@@ -33,6 +33,13 @@ def adj_to_networkx(adj, feat, threshold=0.1, max_component=False, rm_iso_nodes=
     weights = adj[adj > threshold]
     weighted_edge_list = [(from_.item(), to_.item(), weights[idx].item()) for (idx, (from_, to_)) in enumerate(edge_list)]  # if from_ <= to_
     graph.add_weighted_edges_from(weighted_edge_list)
+
+    # set node importance 
+    if node_importance is not None:
+        node_importance_dict = {}
+        for node_id in range(num_nodes):
+            node_importance_dict[node_id] = node_importance[node_id]
+        nx.set_node_attributes(graph, node_importance_dict, 'node_importance')
 
     # extract largest cc
     if max_component:

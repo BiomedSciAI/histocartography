@@ -229,6 +229,9 @@ class PascaleDataset(BaseDataset):
             subfeats = g.ndata.pop(GNN_NODE_FEAT_IN)[:, -2:]
             g.ndata[GNN_NODE_FEAT_IN] = subfeats
 
+        # disable read only
+        g.readonly(False)
+
         return g
 
     def _load_nuclei_seg_map(self, index):
@@ -296,6 +299,10 @@ class PascaleDataset(BaseDataset):
                 cell_graph = self.cell_graphs[index]
             else:
                 cell_graph = self._build_cell_graph(index)
+
+            # add self loop
+            cell_graph.add_edges([i for i in range(cell_graph.number_of_nodes())], [i for i in range(cell_graph.number_of_nodes())])
+
             if self.cuda:
                 cell_graph = set_graph_on_cuda(cell_graph)
             data.append(cell_graph)

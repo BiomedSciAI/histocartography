@@ -1,9 +1,10 @@
-from PIL import ImageDraw
+from PIL import ImageDraw, Image
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib import gridspec
 import numpy as np
 import dgl
+from matplotlib import cm
 # from dgl import BatchedDGLGraph
 from dgl import DGLGraph
 import networkx as nx 
@@ -16,88 +17,115 @@ from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly
 from histocartography.ml.layers.constants import CENTROID
 
 
+def overlay_mask(img, mask, colormap='jet', alpha=0.7):
+    """Overlay a colormapped mask on a background image
+
+    Args:
+        img (PIL.Image.Image): background image
+        mask (PIL.Image.Image): mask to be overlayed in grayscale
+        colormap (str, optional): colormap to be applied on the mask
+        alpha (float, optional): transparency of the background image
+
+    Returns:
+        PIL.Image.Image: overlayed image
+    """
+
+    if not isinstance(img, Image.Image) or not isinstance(mask, Image.Image):
+        raise TypeError('img and mask arguments need to be PIL.Image')
+
+    if not isinstance(alpha, float) or alpha < 0 or alpha >= 1:
+        raise ValueError('alpha argument is expected to be of type float between 0 and 1')
+
+    cmap = cm.get_cmap(colormap)
+    # Resize mask and apply colormap
+    overlay = mask.resize(img.size, resample=Image.BICUBIC)
+    overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, 1:]).astype(np.uint8)
+    # Overlay the image with the mask
+    overlayed_img = Image.fromarray((alpha * np.asarray(img) + (1 - alpha) * overlay).astype(np.uint8))
+
+    return overlayed_img
+
+
 class GraphVisualization:
 
-    def __init__(self, show_centroid=True, show_edges=True, save_path='../../data/graphs', verbose=False):
+    def __init__(self, show_centroid=True, show_edges=True, save=False, save_path='../../data/graphs', verbose=False):
         if verbose:
             print('Initialize graph visualizer')
         self.show_centroid = show_centroid
         self.show_edges = show_edges
         self.save_path = save_path
         self.verbose = verbose
+        self.save = save
 
-    def __call__(self, show_cg, show_sg, show_superpx, data, size, node_importance=None):
+    def __call__(self, show_cg, show_sg, show_superpx, data, node_importance=None):
 
-        for index in range(size):
+        image = data[-2].copy()
+        image_name = data[-1]
+        try:
+            seg_map = data[-1]
+            seg_map = None
+        except:
+            seg_map = None
 
-            image = data[-3][index].copy()
-            image_name = data[-2][index]
-            try:
-                seg_map = data[-1][index]
-            except:
-                seg_map = None
+        if show_sg:
+            canvas = image.copy()
+            draw = ImageDraw.Draw(canvas, 'RGBA')
+            if show_superpx:
+                superpx_map = data[2][index] if show_cg else data[1][index]
+                self.draw_superpx(superpx_map, draw)
+            superpx_graph = dgl.unbatch(data[1])[index] if show_cg else dgl.unbatch(data[0])[index]
 
-            if show_sg:
-                canvas = image.copy()
-                draw = ImageDraw.Draw(canvas, 'RGBA')
-                if show_superpx:
-                    superpx_map = data[2][index] if show_cg else data[1][index]
-                    self.draw_superpx(superpx_map, draw)
-                superpx_graph = dgl.unbatch(data[1])[index] if show_cg else dgl.unbatch(data[0])[index]
+            # get centroids and edges
+            cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
+            self.draw_centroid(cent_sp, draw, (255, 0, 0))
+            self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
 
-                # get centroids and edges
-                cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
-                self.draw_centroid(cent_sp, draw, (255, 0, 0))
-                self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
+            if self.save:
+                check_for_dir(self.save_path)
+                save_image(complete_path(self.save_path, image_name + '_tissue_graph.png'), canvas)
 
-                if self.save:
-                    check_for_dir(self.save_path)
-                    save_image(complete_path(self.save_path, image_name + '_tissue_graph.png'), canvas)
+            return canvas
 
-            if show_cg:
-                # canvas = image.copy()
-                # draw = ImageDraw.Draw(canvas, 'RGBA')
-                
-                # if isinstance(data[0], BatchedDGLGraph):
-                #     cell_graph = dgl.unbatch(data[0])[index]
-                # else:
-                #     cell_graph = data[0]
+        if show_cg:
+            canvas = image.copy()
+            draw = ImageDraw.Draw(canvas, 'RGBA')
+            
+            # if isinstance(data[0], BatchedDGLGraph):
+            #     cell_graph = dgl.unbatch(data[0])[index]
+            # else:
+            #     cell_graph = data[0]
 
-                cell_graph = data[0]
+            cell_graph = data[0]
 
-                # get centroids and edges
-                cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
+            # get centroids and edges
+            cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
-                # # @TODO: hack alert store the centroid and the edges
-                self.centroid_cg = cent_cg
-                self.edges_cg = edges_cg
-                #
-                # draw centroids
-                if self.show_centroid:
-                    self.draw_centroid(cent_cg, draw, (255, 0, 0))
-                
-                # # draw large circles around highly important nodes
-                # if node_importance is not None:
-                #     important_node_indices = np.argwhere(node_importance > 0.9)
-                #     for idx in important_node_indices:
-                #         centroid = [cent_cg[idx].squeeze()[0].item(), cent_cg[idx].squeeze()[1].item()]
-                #         draw_large_circle(centroid, draw)
-                #
-                # if seg_map is not None:
-                #     seg_map = seg_map.squeeze()
-                #     mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
-                #     alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
-                #     alpha = Image.fromarray(alpha).convert('L')
-                #     # alpha = alpha.filter(ImageFilter.MinFilter(21))
-                #     alpha = alpha.filter(ImageFilter.FIND_EDGES)
-                #     mask.putalpha(alpha)
-                #     canvas.paste(mask, (0, 0), mask)
-                #
-                if self.show_edges:
-                    self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
-                
+            # @TODO: hack alert store the centroid and the edges
+            self.centroid_cg = cent_cg
+            self.edges_cg = edges_cg
+            
+            # draw centroids
+            if self.show_centroid:
+                self.draw_centroid(cent_cg, draw, (255, 0, 0))
+            
+            if seg_map is not None:
+                seg_map = seg_map.squeeze()
+                mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
+                alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
+                alpha = Image.fromarray(alpha).convert('L')
+                # alpha = alpha.filter(ImageFilter.MinFilter(21))
+                alpha = alpha.filter(ImageFilter.FIND_EDGES)
+                mask.putalpha(alpha)
+                canvas.paste(mask, (0, 0), mask)
+            
+            if self.show_edges:
+                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
+            
+            if self.save:
                 check_for_dir(self.save_path)
                 save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
+
+            return canvas
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):

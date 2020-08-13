@@ -17,7 +17,6 @@ from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.random_model import RandomModel
-from histocartography.utils.graph import adj_to_networkx
 from histocartography.utils.visualization import GraphVisualization, agg_and_plot_interpretation
 from histocartography.dataloader.constants import get_label_to_tumor_type, CLASS_SPLIT_TO_MODEL_URL
 
@@ -125,72 +124,70 @@ def main(args):
     # explain instance from the train set
     for data, label in dataloaders[args.split]:
 
-        cell_graph = data[0]
+        # cell_graph = data[0]
 
-        # Write config and base properties
-        meta_data = {}
+        # # Write config and base properties
+        # meta_data = {}
 
-        # 3-a config file
-        meta_data['config'] = config['explanation_params']  # @TODO set all the params from the config file...
-        meta_data['config']['number_of_epochs'] = args.epochs
-        meta_data['config']['learning_rate'] = args.learning_rate
-        meta_data['output'] = {}
-        # 3-b label
-        meta_data['output']['label_index'] = label.item()
-        meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
-        meta_data['output']['label'] = label_to_tumor_type[label.item()]
+        # # 3-a config file
+        # meta_data['config'] = config['explanation_params']  # @TODO set all the params from the config file...
+        # meta_data['config']['number_of_epochs'] = args.epochs
+        # meta_data['config']['learning_rate'] = args.learning_rate
+        # meta_data['output'] = {}
+        # # 3-b label
+        # meta_data['output']['label_index'] = label.item()
+        # meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
+        # meta_data['output']['label'] = label_to_tumor_type[label.item()]
 
         # try:
 
         # 1. Run explainer
-        adj, feats, orig_pred, exp_pred, node_importance = interpretability_model.explain(
+        # adj, feats, orig_pred, exp_pred, node_importance = interpretability_model.explain(
+        #     data=data,
+        #     label=label
+        # )
+
+        explanation = interpretability_model.explain(
             data=data,
             label=label
         )
 
-        node_idx = (feats.sum(dim=-1) != 0.).squeeze().cpu()
-        adj = adj[node_idx, :]
-        adj = adj[:, node_idx]
-        feats = feats[node_idx, :]
-        node_importance = node_importance[node_idx]
-        centroids = data[0].ndata['centroid'].squeeze()
-        pruned_centroids = centroids[node_idx, :]
-        explanation = adj_to_networkx(adj, feats, threshold=config['explanation_params']['model_params']['adj_thresh'], centroids=pruned_centroids)
+        image = explanation.draw()
 
-        # a. visualize the original graph
-        show_cg_flag = load_cell_graph(config['model_type'])
-        show_sp_flag = load_superpx_graph(config['model_type'])
-        show_sp_map = False
-        graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=True, show_edges=True)
-        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
+        # # a. visualize the original graph
+        # show_cg_flag = load_cell_graph(config['model_type'])
+        # show_sp_flag = load_superpx_graph(config['model_type'])
+        # show_sp_map = False
+        # graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=True, show_edges=True)
+        # graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, data, 1)
 
-        # b. visualize the explanation graph
-        graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=False, show_edges=True)
-        instance_map = data[-1][0]
-        pruned_instance_map = np.zeros(instance_map.shape)
-        for node_id in np.nonzero(node_idx):
-            pruned_instance_map += instance_map * (instance_map == node_id.item() + 1)
-        tmp_data = (explanation, data[1], [data[2][0] + '_explanation'], [pruned_instance_map])
-        graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, tmp_data, 1, node_importance=None)
+        # # b. visualize the explanation graph
+        # graph_visualizer = GraphVisualization(save_path=args.out_path, show_centroid=False, show_edges=True)
+        # instance_map = data[-1][0]
+        # pruned_instance_map = np.zeros(instance_map.shape)
+        # for node_id in np.nonzero(node_idx):
+        #     pruned_instance_map += instance_map * (instance_map == node_id.item() + 1)
+        # tmp_data = (explanation, data[1], [data[2][0] + '_explanation'], [pruned_instance_map])
+        # graph_visualizer(show_cg_flag, show_sp_flag, show_sp_map, tmp_data, 1, node_importance=None)
 
-        # 3-c original graph properties
-        meta_data['output']['original'] = {}
-        meta_data['output']['original']['logits'] = list(np.around(orig_pred, 2).astype(float))
-        meta_data['output']['original']['number_of_nodes'] = cell_graph.number_of_nodes()
-        meta_data['output']['original']['number_of_edges'] = cell_graph.number_of_edges()
-        meta_data['output']['original']['prediction'] = label_to_tumor_type[np.argmax(orig_pred)]
+        # # 3-c original graph properties
+        # meta_data['output']['original'] = {}
+        # meta_data['output']['original']['logits'] = list(np.around(orig_pred, 2).astype(float))
+        # meta_data['output']['original']['number_of_nodes'] = cell_graph.number_of_nodes()
+        # meta_data['output']['original']['number_of_edges'] = cell_graph.number_of_edges()
+        # meta_data['output']['original']['prediction'] = label_to_tumor_type[np.argmax(orig_pred)]
 
-        # 3-d explanation graph properties
-        meta_data['output']['explanation'] = {}
-        meta_data['output']['explanation']['number_of_nodes'] = explanation.number_of_nodes()
-        meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
-        meta_data['output']['explanation']['logits'] = list(np.around(exp_pred, 2).astype(float))
-        meta_data['output']['explanation']['prediction'] = label_to_tumor_type[np.argmax(exp_pred)]
-        meta_data['output']['explanation']['node_importance'] = str(list(node_importance))
-        meta_data['output']['explanation']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
-        meta_data['output']['explanation']['edges'] = str(list(graph_visualizer.edges_cg))
+        # # 3-d explanation graph properties
+        # meta_data['output']['explanation'] = {}
+        # meta_data['output']['explanation']['number_of_nodes'] = explanation.number_of_nodes()
+        # meta_data['output']['explanation']['number_of_edges'] = explanation.number_of_edges()
+        # meta_data['output']['explanation']['logits'] = list(np.around(exp_pred, 2).astype(float))
+        # meta_data['output']['explanation']['prediction'] = label_to_tumor_type[np.argmax(exp_pred)]
+        # meta_data['output']['explanation']['node_importance'] = str(list(node_importance))
+        # meta_data['output']['explanation']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
+        # meta_data['output']['explanation']['edges'] = str(list(graph_visualizer.edges_cg))
 
-        meta_data['output']['random'] = {'res': []}
+        # meta_data['output']['random'] = {'res': []}
         # 2. run random nuclei selector
         # for random_try_idx in range(config['explainer']['num_rand_tries']):
 
@@ -254,7 +251,7 @@ def main(args):
         #     meta_data['output']['random']['res'].append(rand_res)
 
         # 3-e write to json
-        write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)
+        # write_json(complete_path(args.out_path, data[-2][0] + '.json'), meta_data)
 
         # 4. aggregate all the information in a single user-friendly image
         # agg_and_plot_interpretation(meta_data, save_path=args.out_path, image_name=data[-2][0])

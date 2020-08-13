@@ -6,6 +6,8 @@ from ...dataloader.constants import get_label_to_tumor_type
 from .explainer_model import ExplainerModel
 from histocartography.utils.io import get_device
 from ..base_explainer import BaseExplainer
+from ..explanation import GraphExplanation
+from histocartography.utils.graph import adj_to_networkx
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -13,8 +15,6 @@ class GraphPruningExplainer(BaseExplainer):
             self,
             model,
             config,
-            # train_params,
-            # model_params,
             cuda=False,
             verbose=False
     ):
@@ -41,7 +41,12 @@ class GraphPruningExplainer(BaseExplainer):
         Explain a graph instance
         """
 
+        if self.cuda:
+            self.model = self.model.cuda()
+
         graph = data[0]
+        image = data[1]
+        image_name = data[2]
 
         sub_adj = graph.adjacency_matrix().to_dense().unsqueeze(dim=0)
         sub_feat = graph.ndata[GNN_NODE_FEAT_IN].unsqueeze(dim=0)
@@ -50,6 +55,8 @@ class GraphPruningExplainer(BaseExplainer):
         adj = torch.tensor(sub_adj, dtype=torch.float).to(self.device)
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
         label = torch.tensor(sub_label, dtype=torch.long).to(self.device)
+
+        self.model = self.model.cuda()
         init_logits = self.model(data)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
@@ -146,4 +153,25 @@ class GraphPruningExplainer(BaseExplainer):
             loss.backward(retain_graph=True)
             explainer.optimizer.step()
 
-        return self.adj_explanation.squeeze(), self.node_feats_explanation.squeeze(), init_probs, probs, self.node_importance
+        # clean up the representation and transform it as networkx object 
+        node_idx = (self.node_feats_explanation.squeeze().sum(dim=-1) != 0.).squeeze().cpu()
+        adj = self.adj_explanation.squeeze()[node_idx, :]
+        adj = adj[:, node_idx]
+        feats = self.node_feats_explanation.squeeze()[node_idx, :]
+        node_importance = node_importance[node_idx]
+        centroids = data[0].ndata['centroid'].squeeze()
+        pruned_centroids = centroids[node_idx, :]
+        explanation_graph = adj_to_networkx(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids)
+
+        # build explanation object
+        explanation = GraphExplanation(
+            self.model_params,
+            image,
+            image_name,
+            init_probs,
+            label,
+            explanation_graph,
+            probs
+        )
+
+        return explanation

@@ -18,13 +18,11 @@ from histocartography.ml.layers.constants import CENTROID
 
 class GraphVisualization:
 
-    def __init__(self, show=False, show_centroid=True, show_edges=True, save=True, save_path='../../data/graphs', verbose=False):
+    def __init__(self, show_centroid=True, show_edges=True, save_path='../../data/graphs', verbose=False):
         if verbose:
             print('Initialize graph visualizer')
-        self.show = show
         self.show_centroid = show_centroid
         self.show_edges = show_edges
-        self.save = save
         self.save_path = save_path
         self.verbose = verbose
 
@@ -52,9 +50,6 @@ class GraphVisualization:
                 self.draw_centroid(cent_sp, draw, (255, 0, 0))
                 self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
 
-                if self.show:
-                    show_image(canvas)
-
                 if self.save:
                     check_for_dir(self.save_path)
                     save_image(complete_path(self.save_path, image_name + '_tissue_graph.png'), canvas)
@@ -77,10 +72,10 @@ class GraphVisualization:
                 self.centroid_cg = cent_cg
                 self.edges_cg = edges_cg
                 #
-                # # draw centroids
-                # if self.show_centroid:
-                #     self.draw_centroid(cent_cg, draw, (255, 0, 0))
-                #
+                # draw centroids
+                if self.show_centroid:
+                    self.draw_centroid(cent_cg, draw, (255, 0, 0))
+                
                 # # draw large circles around highly important nodes
                 # if node_importance is not None:
                 #     important_node_indices = np.argwhere(node_importance > 0.9)
@@ -98,15 +93,11 @@ class GraphVisualization:
                 #     mask.putalpha(alpha)
                 #     canvas.paste(mask, (0, 0), mask)
                 #
-                # if self.show_edges:
-                #     self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
-                #
-                # if self.show:
-                #     show_image(canvas)
-                #
-                # if self.save:
-                #     check_for_dir(self.save_path)
-                #     save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
+                if self.show_edges:
+                    self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
+                
+                check_for_dir(self.save_path)
+                save_image(complete_path(self.save_path, image_name + '_cell_graph.png'), canvas)
 
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill):

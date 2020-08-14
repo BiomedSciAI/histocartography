@@ -21,12 +21,9 @@ class GraphPruningExplainer(BaseExplainer):
 
         super(GraphPruningExplainer, self).__init__(model, config, cuda, verbose)
 
-        self.model = model
         self.train_params = self.config['train_params']
         self.model_params = self.config['model_params']
         self.label_to_tumor_type = get_label_to_tumor_type(self.model_params['class_split'])
-        self.cuda = cuda
-        self.device = get_device(self.cuda)
         self.verbose = verbose
         self.adj_thresh = self.model_params['adj_thresh']
         self.node_thresh = self.model_params['node_thresh']
@@ -56,7 +53,8 @@ class GraphPruningExplainer(BaseExplainer):
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
         label = torch.tensor(sub_label, dtype=torch.long).to(self.device)
 
-        self.model = self.model.cuda()
+        if self.cuda:
+            self.model = self.model.cuda()
         init_logits = self.model(data)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)

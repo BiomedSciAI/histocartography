@@ -149,7 +149,8 @@ class ConfigGenerator:
             {
                 "dropout": [0.0],
                 "class_split": [
-                                "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant",
+                                "benignVSpathologicalbenign+udhVSadh+feaVSdcisVSmalignant",
+                                # "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant",
                                 # "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant"
                                 # "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant",  # I vs (N,B,U,A,F,D)
                                 # "benign+pathologicalbenign+udhVSadh+fea+dcis",            # Non-atypical (N, B, U) vs Atypical (A, F, D)
@@ -270,12 +271,12 @@ class ConfigGenerator:
             {
                 "activation": ["relu"],
                 "hidden_dim": [128],
-                "agg_operator": ["lstm"],
+                "agg_operator": ["concat", "lstm"],
                 "layer_type": ["gat_layer"],
-                "n_layers": [2],
+                "n_layers": [3, 4],
                 "output_dim": [128],
-                "num_heads": [4],
-                "merge": "cat"
+                "num_heads": [2, 4],
+                "merge": ["cat"]
             }
         )
 

@@ -301,7 +301,7 @@ class PascaleDataset(BaseDataset):
                 cell_graph = self._build_cell_graph(index)
 
             # add self loop
-            cell_graph.add_edges([i for i in range(cell_graph.number_of_nodes())], [i for i in range(cell_graph.number_of_nodes())])
+            # cell_graph.add_edges([i for i in range(cell_graph.number_of_nodes())], [i for i in range(cell_graph.number_of_nodes())])
 
             if self.cuda:
                 cell_graph = set_graph_on_cuda(cell_graph)

@@ -49,6 +49,7 @@ class SingleHeadGATLayer(BaseLayer):
         # equation (2)
         self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
         self.attn_weights = None
+        self.norm_attn_weights = None
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -63,8 +64,8 @@ class SingleHeadGATLayer(BaseLayer):
         a = self.attn_fc(z2)
         a = F.leaky_relu(a)
 
-        # update attention weights for further analysis 
-        self.attn_weights = a
+        # update (normalise) attention weights for further analysis 
+        self.attn_weights = alpha
 
         return {'e': a}
 
@@ -76,6 +77,10 @@ class SingleHeadGATLayer(BaseLayer):
         # reduce UDF for equation (3) & (4)
         # equation (3)
         alpha = F.softmax(nodes.mailbox['e'], dim=1)
+
+        # update (normalise) attention weights for further analysis 
+        self.norm_attn_weights = alpha
+
         # equation (4)
         h = torch.sum(alpha * nodes.mailbox['z'], dim=1)
         return {GNN_NODE_FEAT_OUT: h}
@@ -88,7 +93,7 @@ class SingleHeadGATLayer(BaseLayer):
         graph.apply_edges(self.edge_attention)
         # equation (3) & (4)
         graph.update_all(self.message_func, self.reduce_func)
-        h = graph.ndata.pop(GNN_NODE_FEAT_OUT) # + z  # add self connections 
+        h = graph.ndata.pop(GNN_NODE_FEAT_OUT) + z  # add self connections 
         return h 
 
 

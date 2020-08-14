@@ -152,7 +152,7 @@ def main(args):
             label=label
         )
 
-        image = explanation.draw()
+        explanation.write()
 
         # # a. visualize the original graph
         # show_cg_flag = load_cell_graph(config['model_type'])

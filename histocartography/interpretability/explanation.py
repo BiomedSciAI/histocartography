@@ -1,4 +1,7 @@
 from histocartography.utils.visualization import GraphVisualization, overlay_mask
+from histocartography.utils.io import save_image
+
+import os
 
 
 class BaseExplanation:
@@ -18,8 +21,8 @@ class BaseExplanation:
         :param label: (torch.LongTensor) a 1d tensor storing the label 
         """
         self.config = config
-        self.image = image
-        self.image_name = image_name
+        self.image = image[0]
+        self.image_name = image_name[0]
         self.original_prediction = original_prediction
         self.label = label
 
@@ -107,14 +110,8 @@ class GraphExplanation(BaseExplanation):
             show_cg=True,
             show_sg=False,
             show_superpx=False,
-            data=[self.explanation_graph, self.image[0], self.image_name[0]])
+            data=[self.explanation_graph, self.image, self.image_name])
         return explanation_as_image
-
-# Goal: being able to save the interpretability in a folder ?
-# for each sample, we want to store:
-#    - the image with the interpretability draw on it 
-#    - a JSON file that encapsulates all the important information
-#
 
 
 class ImageExplanation(BaseExplanation):

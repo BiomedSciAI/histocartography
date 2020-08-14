@@ -1,5 +1,6 @@
 from utils import *
 
+
 class Config:
     def __init__(self, args):
         self.mode = args.mode
@@ -24,7 +25,11 @@ class Config:
         self.reduce_lr_patience = 5
 
         #self.tumor_types = ['benign', 'pathologicalbenign', 'udh', 'adh', 'fea', 'dcis', 'malignant']
-        self.tumor_types = ['benign', 'pathologicalbenign', 'dcis', 'malignant']
+        self.tumor_types = [
+            'benign',
+            'pathologicalbenign',
+            'dcis',
+            'malignant']
         self.tumor_labels = [0, 1, 1, 2, 2, 3, 4]
 
         self.merging_name = ''
@@ -34,7 +39,8 @@ class Config:
             self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/'
             self.base_img_dir = self.base_path + 'PASCALE/Images_norm/'
             self.base_sp_dir = self.base_path + 'PASCALE_NEW/super_pixel_info/'
-            self.sp_classifier_path = self.base_path + 'PASCALE_NEW/misc_utils/merging_sp_classification/sp_classifier/'
+            self.sp_classifier_path = self.base_path + \
+                'PASCALE_NEW/misc_utils/merging_sp_classification/sp_classifier/'
 
         elif self.data_param == 'dataT':
             self.base_path = '/dataT/pus/histocartography/Data/'
@@ -47,9 +53,10 @@ class Config:
             #self.base_sp_dir = self.base_path + 'BACH/train/super_pixel_info/'
             #self.base_sp_dir = self.base_path + 'BACH/test/super_pixel_info/'
 
-            self.sp_classifier_path = self.base_path + 'BRACS_L/misc_utils/merging_sp_classification/sp_classifier/'
+            self.sp_classifier_path = self.base_path + \
+                'BRACS_L/misc_utils/merging_sp_classification/sp_classifier/'
 
-        ## Create directories
+        # Create directories
         create_directory(self.base_sp_dir)
 
         # ------------------------------------------------------------------------------------------- UNMERGED
@@ -57,8 +64,10 @@ class Config:
         create_directory(self.sp_unmerged_detected_path)
         create_directory(self.sp_unmerged_detected_path + 'instance_map/')
         create_directory(self.sp_unmerged_detected_path + 'centroids/')
-        self.create_tumor_wise_folders(self.sp_unmerged_detected_path + 'instance_map/')
-        self.create_tumor_wise_folders(self.sp_unmerged_detected_path + 'centroids/')
+        self.create_tumor_wise_folders(
+            self.sp_unmerged_detected_path + 'instance_map/')
+        self.create_tumor_wise_folders(
+            self.sp_unmerged_detected_path + 'centroids/')
 
         if self.mode == 'features_cnn':
             self.get_feature_name()
@@ -76,8 +85,10 @@ class Config:
         create_directory(self.sp_merged_detected_path)
         create_directory(self.sp_merged_detected_path + 'instance_map/')
         create_directory(self.sp_merged_detected_path + 'centroids/')
-        self.create_tumor_wise_folders(self.sp_merged_detected_path + 'instance_map/')
-        self.create_tumor_wise_folders(self.sp_merged_detected_path + 'centroids/')
+        self.create_tumor_wise_folders(
+            self.sp_merged_detected_path + 'instance_map/')
+        self.create_tumor_wise_folders(
+            self.sp_merged_detected_path + 'centroids/')
 
         if 'features' in self.mode:
             self.get_feature_name()
@@ -87,35 +98,40 @@ class Config:
             create_directory(self.sp_merged_features_path)
             self.create_tumor_wise_folders(self.sp_merged_features_path)
 
-        ## Parameters
-        self.base_n_segments = 1000      # number of segments for images with 'base_n_pixels' (~300x300 pixels)
-        self.max_n_segments = 10000      # number of segments increases in proportion to the size of the image.
-                                         # This holds the maximum number of allowed segments
+        # Parameters
+        # number of segments for images with 'base_n_pixels' (~300x300 pixels)
+        self.base_n_segments = 1000
+        # number of segments increases in proportion to the size of the image.
+        self.max_n_segments = 10000
+        # This holds the maximum number of allowed segments
         self.base_n_pixels = 100000
-        print('base_n_segments:', self.base_n_segments, 'max_n_segments:', self.max_n_segments)
-    #enddef
+        print(
+            'base_n_segments:',
+            self.base_n_segments,
+            'max_n_segments:',
+            self.max_n_segments)
+    # enddef
 
     def create_tumor_wise_folders(self, path):
         for t in self.tumor_types:
             create_directory(path + t)
-    #enddef
+    # enddef
 
     def get_feature_name(self):
         if 'features_hc' in self.mode:
             self.features_name = 'features_hc' + '_' + self.info
         elif 'features_cnn' in self.mode:
-            self.features_name = 'features_cnn_' + self.encoder + '_mask_' + str(self.is_mask) + '_' + self.info
-    #enddef
+            self.features_name = 'features_cnn_' + self.encoder + \
+                '_mask_' + str(self.is_mask) + '_' + self.info
+    # enddef
 
     def get_merging_name(self):
         if self.merging_type == 'hc':
             self.merging_name = 'merging_hc'
         elif self.merging_type == 'cnn':
-            self.merging_name = 'merging_cnn_' + self.encoder + '_mask_' + str(self.is_mask)
-    #enddef
+            self.merging_name = 'merging_cnn_' + \
+                self.encoder + '_mask_' + str(self.is_mask)
+    # enddef
 
 
-#end
-
-
-
+# end

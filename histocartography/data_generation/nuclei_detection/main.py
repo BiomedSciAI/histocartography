@@ -1,32 +1,64 @@
+from process import Process
+from infer import Infer
+from config import Config
+import os
+import argparse
+import sys
+from warnings import simplefilter
+import logging
 from absl import logging
 logging._warn_preinit_stderr = 0
 
-import logging
 logging.getLogger('tensorflow').disabled = True
 logging.getLogger('tensorpack').disabled = True
 
-from warnings import simplefilter
 simplefilter(action='ignore', category=FutureWarning)
 
-import sys
-sys.path.append('/dataT/pus/histocartography/node_embedding/histocartography/histocartography/data_generation/nuclei_detection/model/')
-sys.path.append('/dataT/pus/histocartography/node_embedding/histocartography/histocartography/data_generation/nuclei_detection/postproc/')
+sys.path.append(
+    '/dataT/pus/histocartography/node_embedding/histocartography/histocartography/data_generation/nuclei_detection/model/')
+sys.path.append(
+    '/dataT/pus/histocartography/node_embedding/histocartography/histocartography/data_generation/nuclei_detection/postproc/')
 
-import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_param', choices=['local', 'dataT'], default='local', help='Processing location', required=False)
-parser.add_argument('--tumor_type', help='Tumor type to be processed', required=True)       # benign, pathologicalbenign, udh, adh, fea, dcis, malignant
-parser.add_argument('--gpu', type=int, default=-1, help='gpu index', required=False)
-parser.add_argument('--n_chunks', type=int, default=-1, help='Number of chunks', required=False)
-parser.add_argument('--chunk_id', type=int, default=-1, help='Chunk index to be processed', required=False)
-parser.add_argument('--type_classification', default='False', help='Flag to indicate nuclei classification', required=False)
+parser.add_argument(
+    '--data_param',
+    choices=[
+        'local',
+        'dataT'],
+    default='local',
+    help='Processing location',
+    required=False)
+# benign, pathologicalbenign, udh, adh, fea, dcis, malignant
+parser.add_argument(
+    '--tumor_type',
+    help='Tumor type to be processed',
+    required=True)
+parser.add_argument(
+    '--gpu',
+    type=int,
+    default=-1,
+    help='gpu index',
+    required=False)
+parser.add_argument(
+    '--n_chunks',
+    type=int,
+    default=-1,
+    help='Number of chunks',
+    required=False)
+parser.add_argument(
+    '--chunk_id',
+    type=int,
+    default=-1,
+    help='Chunk index to be processed',
+    required=False)
+parser.add_argument(
+    '--type_classification',
+    default='False',
+    help='Flag to indicate nuclei classification',
+    required=False)
 
 args = parser.parse_args()
 
-import os
-from config import Config
-from infer import Infer
-from process import Process
 
 if args.gpu != -1:
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -45,4 +77,3 @@ if __name__ == '__main__':
     process.run()
 
     print('Done !')
-

@@ -4,10 +4,12 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Circle
 from skimage.segmentation import mark_boundaries
 
+
 def create_directory(path):
     if not os.path.isdir(path):
         os.mkdir(path)
-#enddef
+# enddef
+
 
 def plot(img, cmap=''):
     if cmap == '':
@@ -15,10 +17,19 @@ def plot(img, cmap=''):
     else:
         plt.imshow(img, cmap=cmap)
     plt.show()
-#enddef
+# enddef
+
 
 def overlaid_plot(img, sp_map, centroid=None):
-    overlaid = np.round(mark_boundaries(img, sp_map, (0, 0, 0)) * 255, 0).astype(np.uint8)
+    overlaid = np.round(
+        mark_boundaries(
+            img,
+            sp_map,
+            (0,
+             0,
+             0)) * 255,
+        0).astype(
+            np.uint8)
 
     '''
     if centroid.any() != None:
@@ -35,4 +46,4 @@ def overlaid_plot(img, sp_map, centroid=None):
 
     plt.imshow(overlaid)
     plt.show()
-#enddef
+# enddef

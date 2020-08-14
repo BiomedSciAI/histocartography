@@ -3,10 +3,12 @@
 from tensorpack import *
 import tensorflow as tf
 
+
 class BaseNucleiSegmentation(ModelDesc):
     """
     Base interface class for Nuclei Segmentation(using tensorpack)
     """
+
     def __init__(self, config, freeze=False):
         super(BaseNucleiSegmentation, self).__init__()
         # assert tf.test.is_gpu_available()
@@ -18,11 +20,22 @@ class BaseNucleiSegmentation(ModelDesc):
         self.input_norm = config.input_norm
         self.type_classification = config.type_classification
         self.nr_types = config.nr_types
-    #enddef
+    # enddef
 
     def _get_inputs(self):
-        return [InputDesc(tf.float32, [None] + self.train_input_shape + [3], 'images'),
-                InputDesc(tf.float32, [None] + self.train_mask_shape + [None], 'truemap-coded')]
+        return [
+            InputDesc(
+                tf.float32,
+                [None] +
+                self.train_input_shape +
+                [3],
+                'images'),
+            InputDesc(
+                tf.float32,
+                [None] +
+                self.train_mask_shape +
+                [None],
+                'truemap-coded')]
 
     # for node to receive manual info such as learning rate.
     def add_manual_variable(self, name, init_value, summary=True):
@@ -36,4 +49,3 @@ class BaseNucleiSegmentation(ModelDesc):
             lr = tf.get_variable('learning_rate')
         opt = self.optimizer(learning_rate=lr)
         return opt
-

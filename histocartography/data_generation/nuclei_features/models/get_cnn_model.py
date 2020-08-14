@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torchvision
 
+
 def get_encoding_model(encoder, mode):
     if 'resnet' in encoder:
         if '18' in encoder:
@@ -44,7 +45,7 @@ def get_encoding_model(encoder, mode):
             classifier = list(model.classifier.children())[:1]
             num_features = list(model.classifier.children())[-1].in_features
             model.classifier = nn.Sequential(*classifier)
-    #endif
+    # endif
 
     if 'vae' in mode:
         for param in model.parameters():
@@ -54,4 +55,4 @@ def get_encoding_model(encoder, mode):
             param.requires_grad = False
 
     return model, num_features
-#enddef
+# enddef

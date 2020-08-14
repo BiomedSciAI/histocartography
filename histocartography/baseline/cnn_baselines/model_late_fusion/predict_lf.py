@@ -4,6 +4,7 @@ from PIL import Image
 from torchvision import transforms
 from cnn_model import *
 
+
 class Predict:
     def __init__(self, config, modelmode):
         self.base_patches_path = config.base_patches_path
@@ -17,10 +18,17 @@ class Predict:
         self.load_models()
         self.data_transform()
 
-
     def load_models(self):
-        self.embedding_model = torch.load(self.model_save_path + 'embedding_model_best_' + self.modelmode + '.pt')
-        self.classification_model = torch.load(self.model_save_path + 'classification_model_best_' + self.modelmode + '.pt')
+        self.embedding_model = torch.load(
+            self.model_save_path +
+            'embedding_model_best_' +
+            self.modelmode +
+            '.pt')
+        self.classification_model = torch.load(
+            self.model_save_path +
+            'classification_model_best_' +
+            self.modelmode +
+            '.pt')
 
         self.embedding_model = self.embedding_model.to(self.device)
         self.classification_model = self.classification_model.to(self.device)
@@ -28,34 +36,39 @@ class Predict:
         self.embedding_model.eval()
         self.classification_model.eval()
 
-
     def data_transform(self):
         self.transform = transforms.Compose([transforms.Resize(self.patch_scale),
-                                                  transforms.CenterCrop(self.patch_scale),
-                                                  transforms.ToTensor(),
-                                                  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
-
+                                             transforms.CenterCrop(self.patch_scale),
+                                             transforms.ToTensor(),
+                                             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
     def get_patches_path(self, troi_id):
         patches_path = [[] for i in range(len(self.magnifications))]
         tumor_type = troi_id.split('_')[1]
 
         for m in range(len(self.magnifications)):
-            paths = sorted(glob.glob(self.base_patches_path + tumor_type + '/' + self.magnifications[m] + '/' + troi_id + '_*.png'))
+            paths = sorted(
+                glob.glob(
+                    self.base_patches_path +
+                    tumor_type +
+                    '/' +
+                    self.magnifications[m] +
+                    '/' +
+                    troi_id +
+                    '_*.png'))
             patches_path[m].append(paths)
 
         for m in range(len(self.magnifications)):
-            patches_path[m] = sorted([item for sublist in patches_path[m] for item in sublist])
+            patches_path[m] = sorted(
+                [item for sublist in patches_path[m] for item in sublist])
 
         return patches_path
-
 
     def read_image(self, path):
         img_ = Image.open(path)
         img = self.transform(img_)
         img_.close()
         return img
-
 
     def predict(self, troi_id):
         pred_embedding = np.array([])
@@ -71,7 +84,8 @@ class Predict:
 
             for i in range(len(idx)):
                 for m in range(len(self.magnifications)):
-                    patches[m].append(self.read_image(path=patches_path[m][idx[i]]))
+                    patches[m].append(self.read_image(
+                        path=patches_path[m][idx[i]]))
 
             for m in range(len(self.magnifications)):
                 patches[m] = torch.stack(patches[m]).to(self.device)
@@ -91,13 +105,16 @@ class Predict:
                     pred_embedding = embedding_.cpu().detach().numpy()
                     pred_probabilities = probabilities_.cpu().detach().numpy()
                 else:
-                    pred_embedding = np.vstack((pred_embedding, embedding_.cpu().detach().numpy()))
-                    pred_probabilities = np.vstack((pred_probabilities, probabilities_.cpu().detach().numpy()))
+                    pred_embedding = np.vstack(
+                        (pred_embedding, embedding_.cpu().detach().numpy()))
+                    pred_probabilities = np.vstack(
+                        (pred_probabilities, probabilities_.cpu().detach().numpy()))
 
             count += self.batch_size
 
         if pred_embedding.ndim == 1:
             pred_embedding = np.reshape(pred_embedding, newshape=(1, -1))
-            pred_probabilities = np.reshape(pred_probabilities, newshape=(1, -1))
+            pred_probabilities = np.reshape(
+                pred_probabilities, newshape=(1, -1))
 
         return pred_embedding, pred_probabilities

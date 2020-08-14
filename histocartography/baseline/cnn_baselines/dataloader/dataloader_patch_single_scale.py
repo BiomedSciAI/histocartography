@@ -9,7 +9,7 @@ from utils import *
 
 
 def patch_loaders(config,
-        pin_memory=False):
+                  pin_memory=False):
     batch_size = config.batch_size
 
     dataset_train = PatchDataLoader(
@@ -69,7 +69,6 @@ class GetPatchesPath:
         self.base_patches_path = config.base_patches_path
         self.evalmode = evalmode
 
-
     def get_patches_path(self):
         if len(self.magnifications) == 1:
             magnification = self.magnifications[0]
@@ -79,16 +78,20 @@ class GetPatchesPath:
             troi_ids = self.get_troi_ids(tumor_type=self.tumor_types[t])
 
             for i in range(len(troi_ids)):
-                paths = self.get_patches(tumor_type=self.tumor_types[t], troi_id=troi_ids[i], magnification=magnification)
+                paths = self.get_patches(
+                    tumor_type=self.tumor_types[t],
+                    troi_id=troi_ids[i],
+                    magnification=magnification)
                 patches_path.append(paths)
 
-        patches_path = sorted([item for sublist in patches_path for item in sublist])
+        patches_path = sorted(
+            [item for sublist in patches_path for item in sublist])
         return patches_path
-
 
     def get_troi_ids(self, tumor_type):
         troi_ids = []
-        filename = self.base_data_split_path + self.evalmode + '_list_' + tumor_type + '.txt'
+        filename = self.base_data_split_path + \
+            self.evalmode + '_list_' + tumor_type + '.txt'
         with open(filename, 'r') as f:
             for line in f:
                 line = line.split('\n')[0]
@@ -97,9 +100,16 @@ class GetPatchesPath:
 
         return troi_ids
 
-
     def get_patches(self, tumor_type, troi_id, magnification):
-        paths = sorted(glob.glob(self.base_patches_path + tumor_type + '/' + magnification + '/' + troi_id + '_*.png'))
+        paths = sorted(
+            glob.glob(
+                self.base_patches_path +
+                tumor_type +
+                '/' +
+                magnification +
+                '/' +
+                troi_id +
+                '_*.png'))
         return paths
 
 
@@ -131,10 +141,14 @@ class PatchDataLoader(data.Dataset):
             if basename not in unique:
                 unique.append(basename)
 
-        self.transform = transforms.Compose([transforms.Resize(config.patch_scale),
-                                             transforms.CenterCrop(config.patch_scale),
-                                             transforms.ToTensor(),
-                                             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    config.patch_scale), transforms.CenterCrop(
+                    config.patch_scale), transforms.ToTensor(), transforms.Normalize(
+                    [
+                        0.485, 0.456, 0.406], [
+                            0.229, 0.224, 0.225])])
 
     def __getitem__(self, index):
         patch_path = self.patches_path[index]
@@ -161,6 +175,3 @@ class PatchDataLoader(data.Dataset):
 
     def __len__(self):
         return len(self.patches_path)
-
-
-

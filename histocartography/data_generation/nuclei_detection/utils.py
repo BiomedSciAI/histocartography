@@ -10,14 +10,17 @@ import h5py
 import os
 from skimage.measure import regionprops
 
+
 def create_directory(path):
     if not os.path.isdir(path):
         os.mkdir(path)
-#enddef
+# enddef
+
 
 def normalize(mask, dtype=np.uint8):
     return (255 * mask / np.amax(mask)).astype(dtype)
-#enddef
+# enddef
+
 
 def bounding_box(img):
     rows = np.any(img, axis=1)
@@ -27,7 +30,8 @@ def bounding_box(img):
     rmax += 1
     cmax += 1
     return [rmin, rmax, cmin, cmax]
-#enddef
+# enddef
+
 
 def random_colors(n, bright=True):
     """
@@ -40,7 +44,8 @@ def random_colors(n, bright=True):
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     random.shuffle(colors)
     return colors
-#enddef
+# enddef
+
 
 def visualize_instances(mask, canvas=None, color=None):
     """
@@ -50,7 +55,8 @@ def visualize_instances(mask, canvas=None, color=None):
         Image with the instance overlaid
     """
 
-    canvas = np.full(mask.shape + (3,), 200, dtype=np.uint8) if canvas is None else np.copy(canvas)
+    canvas = np.full(mask.shape + (3,), 200,
+                     dtype=np.uint8) if canvas is None else np.copy(canvas)
 
     insts_list = list(np.unique(mask))
     insts_list.remove(0)  # remove background
@@ -68,12 +74,14 @@ def visualize_instances(mask, canvas=None, color=None):
         y2 = y2 + 2 if y2 + 2 <= mask.shape[0] - 1 else y2
         inst_map_crop = inst_map[y1:y2, x1:x2]
         inst_canvas_crop = canvas[y1:y2, x1:x2]
-        _, contours, _ = cv2.findContours(inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(
+            inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         cv2.drawContours(inst_canvas_crop, contours[0], -1, inst_color, 2)
         canvas[y1:y2, x1:x2] = inst_canvas_crop
     return canvas
-#enddef
+# enddef
+
 
 def remap_label(pred, by_size=False):
     """
@@ -105,7 +113,7 @@ def remap_label(pred, by_size=False):
     for idx, inst_id in enumerate(pred_id):
         new_pred[pred == inst_id] = idx + 1
     return new_pred
-#enddef
+# enddef
 
 
 def extract_centroid(mask):
@@ -124,7 +132,8 @@ def extract_centroid(mask):
         y2 = y2 + 2 if y2 + 2 <= mask.shape[0] - 1 else y2
         nuclei_mask = inst_map[y1:y2, x1:x2]
 
-        _, contours, _ = cv2.findContours(nuclei_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(
+            nuclei_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contour = contours[0]
         M = cv2.moments(contour)
 
@@ -136,15 +145,16 @@ def extract_centroid(mask):
             cY = (M["m01"] / M["m00"])
             centroid = [x1 + cX, y1 + cY]
             centroids.append(centroid)
-    #endfor
+    # endfor
 
     centroids = np.vstack(centroids)
     return centroids
-#enddef
+# enddef
 
 
 def extract_feat(img, mask):
-    img = np.full(mask.shape + (3,), 200, dtype=np.uint8) if img is None else np.copy(img)
+    img = np.full(mask.shape + (3,), 200,
+                  dtype=np.uint8) if img is None else np.copy(img)
 
     insts_list = list(np.unique(mask))
     insts_list.remove(0)  # remove background
@@ -193,7 +203,8 @@ def extract_feat(img, mask):
 
         mean_entropy = cv2.mean(nuclei_entropy, mask=nuclei_mask)[0]
 
-        _, contours, _ = cv2.findContours(nuclei_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(
+            nuclei_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contour = contours[0]
 
         num_vertices = len(contour)
@@ -233,31 +244,41 @@ def extract_feat(img, mask):
 
         features = np.hstack(nuc_feat)
         node_feat.append(features)
-    #endfor
+    # endfor
 
     node_feat = np.vstack(node_feat)
     return node_feat
-#endfor
+# endfor
+
 
 def save_instance_map_h5(h5_filename, inst_map, data_dtype='float32'):
     h5_fout = h5py.File(h5_filename, 'w')
-    h5_fout.create_dataset('detected_instance_map', data=inst_map, dtype=data_dtype)
+    h5_fout.create_dataset(
+        'detected_instance_map',
+        data=inst_map,
+        dtype=data_dtype)
     h5_fout.close()
-#enddef
+# enddef
 
-def save_class_type_h5(h5_filename, pred_type, inst_type, data_dtype='float32'):
+
+def save_class_type_h5(
+        h5_filename,
+        pred_type,
+        inst_type,
+        data_dtype='float32'):
     h5_fout = h5py.File(h5_filename, 'w')
     h5_fout.create_dataset('detected_type', data=pred_type, dtype=data_dtype)
     h5_fout.create_dataset('instance_types', data=inst_type, dtype=data_dtype)
     h5_fout.close()
-#enddef
+# enddef
+
 
 def save_centroid_h5(h5_filename, centroid, img_dim, data_dtype='float32'):
     h5_fout = h5py.File(h5_filename, 'w')
-    h5_fout.create_dataset('instance_centroid_location', data=centroid, dtype=data_dtype)
+    h5_fout.create_dataset(
+        'instance_centroid_location',
+        data=centroid,
+        dtype=data_dtype)
     h5_fout.create_dataset('image_dimension', data=img_dim, dtype='int32')
     h5_fout.close()
-#enddef
-
-
-
+# enddef

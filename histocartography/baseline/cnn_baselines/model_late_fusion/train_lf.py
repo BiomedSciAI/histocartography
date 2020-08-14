@@ -7,6 +7,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 from cnn_model import *
 from dataloader_patch_multi_scale import *
 
+
 class Train:
     def __init__(self, config):
         self.base_img_path = config.base_img_path
@@ -21,10 +22,8 @@ class Train:
         self.get_train_parameters(config)
         self.get_dataloaders(config)
 
-
     def get_dataloaders(self, config):
         self.dataloaders = patch_loaders(config)
-
 
     def get_models(self, config):
         model = ModelComponents(config)
@@ -37,7 +36,6 @@ class Train:
         self.embedding_model = self.embedding_model.to(self.device)
         self.classification_model = self.classification_model.to(self.device)
 
-
     def get_train_parameters(self, config):
         self.num_epochs = config.num_epochs
         self.learning_rate = config.learning_rate
@@ -49,14 +47,16 @@ class Train:
         self.min_learning_rate = config.min_learning_rate
         self.reduce_lr_patience = config.reduce_lr_patience
 
-
     def adjust_learning_rate(self, optimizer):
         lr_prev = self.learning_rate
 
         if self.reduce_lr_count == self.reduce_lr_patience:
             self.learning_rate *= self.learning_rate_decay
             self.reduce_lr_count = 0
-            print('Reducing learning rate from', round(lr_prev, 6), 'to', round(self.learning_rate, 6))
+            print(
+                'Reducing learning rate from', round(
+                    lr_prev, 6), 'to', round(
+                    self.learning_rate, 6))
 
             for param_group in optimizer.param_groups:
                 param_group['lr'] = self.learning_rate
@@ -67,7 +67,6 @@ class Train:
 
         return optimizer
 
-
     def train(self):
         print('\nTraining ...\n')
 
@@ -76,11 +75,15 @@ class Train:
 
         # Optimizer
         if self.is_finetune:
-            params_to_update = list(self.embedding_model.parameters()) + list(self.classification_model.parameters())
+            params_to_update = list(self.embedding_model.parameters(
+            )) + list(self.classification_model.parameters())
         else:
             params_to_update = list(self.classification_model.parameters())
 
-        optimizer = optim.Adam(params_to_update, lr=self.learning_rate, weight_decay=0.0001)
+        optimizer = optim.Adam(
+            params_to_update,
+            lr=self.learning_rate,
+            weight_decay=0.0001)
 
         # Dataloader
         train_loader = self.dataloaders['train']
@@ -252,7 +255,7 @@ class Train:
                   's - loss:', round(train_loss, 4),
                   '- acc:', round(train_acc, 4),
                   '- val_loss:', round(val_loss, 4),
-                  '- val_acc:', round(val_acc,4),
+                  '- val_acc:', round(val_acc, 4),
                   '\n')
 
             # ------------------------------------------------------------------- MLFLOW LOGGING
@@ -280,10 +283,17 @@ class Train:
             log_val_f1=log_val_f1,
             log_val_loss=log_val_loss)
 
-
     def test(self, modelmode, logging_text=''):
-        embedding_model = torch.load(self.model_save_path + 'embedding_model_best_' + modelmode + '.pt')
-        classification_model = torch.load(self.model_save_path + 'classification_model_best_' + modelmode + '.pt')
+        embedding_model = torch.load(
+            self.model_save_path +
+            'embedding_model_best_' +
+            modelmode +
+            '.pt')
+        classification_model = torch.load(
+            self.model_save_path +
+            'classification_model_best_' +
+            modelmode +
+            '.pt')
 
         test_loader = self.dataloaders['test']
         embedding_model = embedding_model.to(self.device)
@@ -345,4 +355,3 @@ class Train:
 
         #mlflow.log_metric('patch_test_acc_' + logging_text, round(test_acc, 4))
         #mlflow.log_metric('patch_test_f1_' + logging_text, round(test_f1, 4))
-

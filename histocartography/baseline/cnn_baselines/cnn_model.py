@@ -2,6 +2,7 @@ import torch
 import torchvision
 from torch import nn
 
+
 class ModelComponents:
     def __init__(self, config):
         self.encoder = config.encoder
@@ -11,7 +12,6 @@ class ModelComponents:
 
         self.get_embedding_model()
         self.get_classification_model()
-
 
     def get_embedding_model(self):
         if 'resnet' in self.encoder:
@@ -47,30 +47,33 @@ class ModelComponents:
             if '16' in self.encoder:
                 model = torchvision.models.vgg16_bn(pretrained=True)
                 classifier = list(model.classifier.children())[:1]
-                num_features = list(model.classifier.children())[-1].in_features
+                num_features = list(
+                    model.classifier.children())[-1].in_features
                 model.classifier = nn.Sequential(*classifier)
 
             elif '19' in self.encoder:
                 model = torchvision.models.vgg19_bn(pretrained=True)
                 classifier = list(model.classifier.children())[:1]
-                num_features = list(model.classifier.children())[-1].in_features
+                num_features = list(
+                    model.classifier.children())[-1].in_features
                 model.classifier = nn.Sequential(*classifier)
 
         self.embedding_model = model
         self.embedding_features = num_features
 
-
     def get_classification_model(self):
-        self.classification_model = classification_layer(num_classes=self.num_classes,
-                                                 in_filters=len(self.magnifications) * self.embedding_features,
-                                                 dropout=self.dropout)
+        self.classification_model = classification_layer(
+            num_classes=self.num_classes, in_filters=len(
+                self.magnifications) * self.embedding_features, dropout=self.dropout)
 
 
 class ClassificationLayer(nn.Module):
     def __init__(self, num_classes, in_filters, dropout):
         super(ClassificationLayer, self).__init__()
         self.dropout = dropout
-        self.linear = nn.Linear(in_features=in_filters, out_features=num_classes)
+        self.linear = nn.Linear(
+            in_features=in_filters,
+            out_features=num_classes)
         self.drop_out = nn.Dropout(dropout)
 
     def forward(self, x):

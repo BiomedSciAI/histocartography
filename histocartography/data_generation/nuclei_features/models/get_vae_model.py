@@ -9,6 +9,7 @@ from denseVAE import *
 from pretrainedVAE import *
 from get_cnn_model import *
 
+
 class VAE:
     def __init__(self, config):
         self.encoder = config.encoder
@@ -20,11 +21,13 @@ class VAE:
 
     def get_vae_model(self):
         if self.encoder == 'None':
-            self.vae = dense_vae(embedding_dim=self.embedding_dim,
-                                          encoder_layers_per_block=self.encoder_layers_per_block,
-                                          patch_size=self.patch_size,
-                                          device=self.device)
+            self.vae = dense_vae(
+                embedding_dim=self.embedding_dim,
+                encoder_layers_per_block=self.encoder_layers_per_block,
+                patch_size=self.patch_size,
+                device=self.device)
 
         else:
-            encoder, num_features = get_encoding_model(encoder=self.encoder, mode=self.mode)
-            #self.vae =
+            encoder, num_features = get_encoding_model(
+                encoder=self.encoder, mode=self.mode)
+            # self.vae =

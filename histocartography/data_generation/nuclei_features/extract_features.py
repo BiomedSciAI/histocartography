@@ -20,7 +20,7 @@ class Extract_HC_Features:
         self.tumor_types = config.tumor_types
 
         self.tumor_type = config.tumor_type
-    #enddef
+    # enddef
 
     def read_image(self, path):
         img_ = Image.open(path)
@@ -28,14 +28,14 @@ class Extract_HC_Features:
         (h, w, c) = img.shape
         img_.close()
         return img, h, w
-    #enddef
+    # enddef
 
     def read_instance_map(self, map_path):
         with h5py.File(map_path, 'r') as f:
             nuclei_instance_map = np.array(f['detected_instance_map'])
 
         return nuclei_instance_map
-    #enddef
+    # enddef
 
     def bounding_box(self, img):
         rows = np.any(img, axis=1)
@@ -45,10 +45,11 @@ class Extract_HC_Features:
         rmax += 1
         cmax += 1
         return [rmin, rmax, cmin, cmax]
-    #enddef
+    # enddef
 
     def processing(self, img, map):
-        img = np.full(map.shape + (3,), 200, dtype=np.uint8) if img is None else np.copy(img)
+        img = np.full(map.shape + (3,), 200,
+                      dtype=np.uint8) if img is None else np.copy(img)
 
         insts_list = list(np.unique(map))
         insts_list.remove(0)  # remove background
@@ -83,7 +84,8 @@ class Extract_HC_Features:
 
             # Textural features (gray level co-occurence matrix)
             glcm = greycomatrix(nuclei_img_g * nuclei_map, [1], [0])
-            filt_glcm = glcm[1:, 1:, :, :]  # Filter out the first row and column
+            # Filter out the first row and column
+            filt_glcm = glcm[1:, 1:, :, :]
             glcm_contrast = greycoprops(filt_glcm, prop='contrast')
             glcm_contrast = glcm_contrast[0, 0]
             glcm_dissimilarity = greycoprops(filt_glcm, prop='dissimilarity')
@@ -97,7 +99,8 @@ class Extract_HC_Features:
 
             mean_entropy = cv2.mean(nuclei_entropy, mask=nuclei_map)[0]
 
-            _, contours, _ = cv2.findContours(nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            _, contours, _ = cv2.findContours(
+                nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             contour = contours[0]
 
             num_vertices = len(contour)
@@ -116,7 +119,8 @@ class Extract_HC_Features:
                 majoraxis_length = 1
                 minoraxis_length = 1
             perimeter = cv2.arcLength(contour, True)
-            eccentricity = np.sqrt(1 - (minoraxis_length / majoraxis_length) ** 2)
+            eccentricity = np.sqrt(
+                1 - (minoraxis_length / majoraxis_length) ** 2)
 
             nuc_feat.append(mean_fg)
             nuc_feat.append(diff)
@@ -137,11 +141,11 @@ class Extract_HC_Features:
 
             features = np.hstack(nuc_feat)
             node_feat.append(features)
-        #endfor
+        # endfor
 
         node_feat = np.vstack(node_feat)
         return node_feat
-    #endfor
+    # endfor
 
     def extract_features(self, chunk_id, n_chunks):
 
@@ -149,11 +153,11 @@ class Extract_HC_Features:
         tumor_type = self.tumor_type
 
         print('Extracting Hand-crafted features for: ', tumor_type)
-        img_filepaths = glob.glob(self.base_img_dir + tumor_type + '/*.png')
-        img_filepaths.sort()
-
-
-
+        img_filepaths = sorted(
+            glob.glob(
+                self.base_img_dir +
+                tumor_type +
+                '/*.png'))
 
         if chunk_id != -1 and n_chunks != -1:
             idx = np.array_split(np.arange(len(img_filepaths)), n_chunks)
@@ -161,12 +165,9 @@ class Extract_HC_Features:
             img_filepaths = [img_filepaths[x] for x in idx]
         print('# Files=', len(img_filepaths))
 
-
-
-
         #bracs_s_files = glob.glob('/dataT/pus/histocartography/Data/BRACS_S/Images_norm/' + tumor_type + '/*.png')
-        #bracs_s_files.sort()
-        #for i in range(len(bracs_s_files)):
+        # bracs_s_files.sort()
+        # for i in range(len(bracs_s_files)):
         #    bracs_s_files[i] = os.path.basename(bracs_s_files[i]).split('.')[0]
         #print(len(img_filepaths), ':', len(bracs_s_files))
 
@@ -176,34 +177,48 @@ class Extract_HC_Features:
 
             filename = os.path.basename(img_filepaths[i]).split('.')[0]
 
-            #if filename in bracs_s_files:
+            # if filename in bracs_s_files:
             #    continue
 
-            nuclei_map_path = self.nuclei_detected_path + 'instance_map/' + tumor_type + '/_h5/' + filename + '.h5'
+            nuclei_map_path = self.nuclei_detected_path + \
+                'instance_map/' + tumor_type + '/_h5/' + filename + '.h5'
 
-            if os.path.isfile(self.nuclei_features_path + tumor_type + '/' + filename + '.h5'):
+            if os.path.isfile(
+                self.nuclei_features_path +
+                tumor_type +
+                '/' +
+                filename +
+                    '.h5'):
                 continue
 
             if os.path.isfile(nuclei_map_path):
-                ## ----------------------------------------------------------------- Read image information
-                ## Image
+                # ----------------------------------------------------------------- Read image information
+                # Image
                 img, h, w = self.read_image(img_filepaths[i])
-                ## Nuclei instance map
+                # Nuclei instance map
                 map = self.read_instance_map(nuclei_map_path)
 
-                ## ----------------------------------------------------------------- Feature extraction
+                # ----------------------------------------------------------------- Feature extraction
                 embeddings = self.processing(img, map)
 
-                ## ----------------------------------------------------------------- Feature saving
-                h5_fout = h5py.File(self.nuclei_features_path + tumor_type + '/' + filename + '.h5', 'w')
-                h5_fout.create_dataset('embeddings', data=embeddings, dtype='float32')
+                # ----------------------------------------------------------------- Feature saving
+                h5_fout = h5py.File(
+                    self.nuclei_features_path +
+                    tumor_type +
+                    '/' +
+                    filename +
+                    '.h5',
+                    'w')
+                h5_fout.create_dataset(
+                    'embeddings', data=embeddings, dtype='float32')
                 h5_fout.close()
-            #endif
-        #endfor
+            # endif
+        # endfor
         print('Done\n\n')
-        #endfor
-    #enddef
-#end
+        # endfor
+    # enddef
+# end
+
 
 class Extract_Deep_Features:
     def __init__(self, config, embedding_dim, network):
@@ -220,7 +235,7 @@ class Extract_Deep_Features:
         self.is_mask = config.is_mask
 
         self.tumor_type = config.tumor_type
-    #enddef
+    # enddef
 
     def read_image(self, path):
         img_ = Image.open(path)
@@ -228,22 +243,22 @@ class Extract_Deep_Features:
         (h, w, c) = img.shape
         img_.close()
         return img, h, w
-    #enddef
+    # enddef
 
     def read_instance_map(self, map_path):
         with h5py.File(map_path, 'r') as f:
             nuclei_instance_map = np.array(f['detected_instance_map'])
         return nuclei_instance_map
-    #enddef
+    # enddef
 
     def read_centroids(self, centroids_path):
         with h5py.File(centroids_path, 'r') as f:
             centroids = np.array(f['instance_centroid_location']).astype(int)
         return centroids
-    #enddef
+    # enddef
 
     def extract_features(self):
-        #for tumor_type in self.tumor_types:
+        # for tumor_type in self.tumor_types:
         tumor_type = self.tumor_type
 
         print('Extracting Deep features for: ', tumor_type)
@@ -258,71 +273,112 @@ class Extract_Deep_Features:
                 print(i, '/', len(img_filepaths))
 
             filename = os.path.basename(img_filepaths[i]).split('.')[0]
-            nuclei_map_path = self.nuclei_detected_path + 'instance_map/' + tumor_type + '/_h5/' + filename + '.h5'
-            nuclei_centroids_path = self.nuclei_detected_path + 'centroids/' + tumor_type + '/' + filename + '.h5'
+            nuclei_map_path = self.nuclei_detected_path + \
+                'instance_map/' + tumor_type + '/_h5/' + filename + '.h5'
+            nuclei_centroids_path = self.nuclei_detected_path + \
+                'centroids/' + tumor_type + '/' + filename + '.h5'
 
-            if os.path.isfile(self.nuclei_features_path + tumor_type + '/' + filename + '.h5'):
+            if os.path.isfile(
+                self.nuclei_features_path +
+                tumor_type +
+                '/' +
+                filename +
+                    '.h5'):
                 continue
 
-            if os.path.isfile(nuclei_map_path) and os.path.isfile(nuclei_centroids_path):
+            if os.path.isfile(nuclei_map_path) and os.path.isfile(
+                    nuclei_centroids_path):
                 embeddings = np.zeros(shape=(1, self.embedding_dim))
 
-                ## ----------------------------------------------------------------- Read image information
-                ## Image
+                # ----------------------------------------------------------------- Read image information
+                # Image
                 img, h, w = self.read_image(img_filepaths[i])
-                img = np.pad(img, ((self.patch_size, self.patch_size), (self.patch_size, self.patch_size), (0,0)), mode='constant', constant_values=-1)
+                img = np.pad(
+                    img,
+                    ((self.patch_size,
+                      self.patch_size),
+                     (self.patch_size,
+                      self.patch_size),
+                        (0,
+                         0)),
+                    mode='constant',
+                    constant_values=-1)
 
-                ## Nuclei location
+                # Nuclei location
                 centroids = self.read_centroids(nuclei_centroids_path)
 
                 if self.is_mask:
-                    ## Nuclei instance map
+                    # Nuclei instance map
                     map = self.read_instance_map(nuclei_map_path)
-                    map = np.pad(map, ((self.patch_size, self.patch_size), (self.patch_size, self.patch_size)), mode='constant', constant_values=-1)
+                    map = np.pad(
+                        map,
+                        ((self.patch_size,
+                          self.patch_size),
+                         (self.patch_size,
+                          self.patch_size)),
+                        mode='constant',
+                        constant_values=-1)
 
-                ## ----------------------------------------------------------------- Feature extraction
+                # ----------------------------------------------------------------- Feature extraction
                 count = 0
                 while count < centroids.shape[0]:
-                    centroids_ = centroids[count : count+self.batch_size, :]
+                    centroids_ = centroids[count: count + self.batch_size, :]
                     centroids_ += self.patch_size
                     patches = []
 
                     for j in range(centroids_.shape[0]):
                         x = centroids_[j, 0]
                         y = centroids_[j, 1]
-                        patch = img[y - self.patch_size_2: y + self.patch_size_2, x - self.patch_size_2: x + self.patch_size_2, :]
+                        patch = img[y -
+                                    self.patch_size_2: y +
+                                    self.patch_size_2, x -
+                                    self.patch_size_2: x +
+                                    self.patch_size_2, :]
 
                         if self.is_mask:
-                            mask = map[y - self.patch_size_2: y + self.patch_size_2, x - self.patch_size_2: x + self.patch_size_2]
+                            mask = map[y -
+                                       self.patch_size_2: y +
+                                       self.patch_size_2, x -
+                                       self.patch_size_2: x +
+                                       self.patch_size_2]
                             nuclei_label = count + j + 1  # added 1 because map contains background nuclei_label=0
-                            mask = np.array(mask == nuclei_label, np.uint8) * 255
+                            mask = np.array(
+                                mask == nuclei_label, np.uint8) * 255
                             patch = cv2.bitwise_and(patch, patch, mask=mask)
-                        #endif
+                        # endif
 
                         patch = Image.fromarray(patch)
                         patch = self.network.data_transform(patch)
                         patches.append(patch)
-                    #endfor
+                    # endfor
                     patches = torch.stack(patches).to(self.device)
 
                     # ------------------------------------------------------------------- EVAL MODE
                     embeddings_ = self.network.predict(patches)
                     embeddings = np.vstack((embeddings, embeddings_))
                     count += self.batch_size
-                #end
+                # end
                 embeddings = np.delete(embeddings, 0, axis=0)
 
-                ## ----------------------------------------------------------------- Feature saving
-                h5_fout = h5py.File(self.nuclei_features_path + tumor_type + '/' + filename + '.h5', 'w')
-                h5_fout.create_dataset('embeddings', data=embeddings, dtype='float32')
+                # ----------------------------------------------------------------- Feature saving
+                h5_fout = h5py.File(
+                    self.nuclei_features_path +
+                    tumor_type +
+                    '/' +
+                    filename +
+                    '.h5',
+                    'w')
+                h5_fout.create_dataset(
+                    'embeddings', data=embeddings, dtype='float32')
                 h5_fout.close()
-            #endif
-        #endfor
+            # endif
+        # endfor
 
         print('Done\n\n')
-        #endfor
-    #enddef
-#end
+        # endfor
+    # enddef
+# end
+
 
 class Extract_CNN_Features:
     def __init__(self, config):
@@ -331,25 +387,26 @@ class Extract_CNN_Features:
         self.mode = config.mode
         self.load_model()
 
-        self.data_transform = transforms.Compose([transforms.Resize(224),
-                                                  transforms.ToTensor(),
-                                                  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
-    #enddef
+        self.data_transform = transforms.Compose([transforms.Resize(224), transforms.ToTensor(
+        ), transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+    # enddef
 
     def load_model(self):
-        self.cnn, self.num_features = get_encoding_model(encoder=self.encoder, mode=self.mode)
+        self.cnn, self.num_features = get_encoding_model(
+            encoder=self.encoder, mode=self.mode)
         self.cnn = self.cnn.to(self.device)
         self.cnn.eval()
-    #enddef
+    # enddef
 
     def predict(self, data):
         with torch.no_grad():
             embeddings = self.cnn(data).squeeze()
             embeddings = embeddings.cpu().detach().numpy()
-        #end
+        # end
         return embeddings
-    #enddef
-#end
+    # enddef
+# end
+
 
 class Extract_VAE_Features:
     def __init__(self, config):
@@ -360,19 +417,23 @@ class Extract_VAE_Features:
         if config.encoder == 'None':
             self.data_transform = transforms.ToTensor()
         else:
-            self.data_transform = transforms.Compose([transforms.Resize(224),
-                                                      transforms.ToTensor(),
-                                                      transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
-    #enddef
+            self.data_transform = transforms.Compose([transforms.Resize(224), transforms.ToTensor(
+            ), transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+    # enddef
 
     def load_model(self):
         if torch.cuda.is_available():
-            self.vae = torch.load(self.model_save_path + 'vae_model_best_loss.pt')
+            self.vae = torch.load(
+                self.model_save_path +
+                'vae_model_best_loss.pt')
         else:
-            self.vae = torch.load(self.model_save_path + 'vae_model_best_loss.pt', map_location=torch.device('cpu'))
+            self.vae = torch.load(
+                self.model_save_path +
+                'vae_model_best_loss.pt',
+                map_location=torch.device('cpu'))
         self.vae = self.vae.to(self.device)
         self.vae.eval()
-    #enddef
+    # enddef
 
     def predict(self, data, visualize=False):
         with torch.no_grad():
@@ -383,16 +444,17 @@ class Extract_VAE_Features:
                 self.visualize_patches(x=data, z=z)
 
             embeddings = z.cpu().detach().numpy()
-        #end
+        # end
         return embeddings
-    #enddef
+    # enddef
 
     def visualize_patches(self, x, z):
         x_reconstructed = self.vae._build_decoder(z)
 
         for idx in range(x.shape[0]):
             p = (x[idx, :, :, :].cpu().detach().numpy() * 255).astype(np.uint8)
-            r = (x_reconstructed[idx, :, :, :].cpu().detach().numpy() * 255).astype(np.uint8)
+            r = (x_reconstructed[idx, :, :, :].cpu(
+            ).detach().numpy() * 255).astype(np.uint8)
 
             p = np.moveaxis(p, 0, -1)
             r = np.moveaxis(r, 0, -1)
@@ -402,39 +464,9 @@ class Extract_VAE_Features:
             else:
                 combo_ = np.hstack((p, r))
                 combo = np.vstack((combo, combo_))
-        #endfor
+        # endfor
         Image.fromarray(combo).save(self.model_save_path + 'visualize.png')
         print('Visualization complete!!!')
         exit()
-    #enddef
-#end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    # enddef
+# end

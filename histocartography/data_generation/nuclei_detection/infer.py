@@ -8,6 +8,7 @@ from tensorpack.predict import OfflinePredictor, PredictConfig
 from tensorpack.tfutils.sessinit import get_model_loader
 from utils import *
 
+
 class Infer:
     def __init__(self, config):
         self.base_image_dir = config.base_image_dir
@@ -23,13 +24,14 @@ class Infer:
         self.inf_imgs_ext = config.inf_imgs_ext
         self.eval_inf_input_tensor_names = config.eval_inf_input_tensor_names
         self.eval_inf_output_tensor_names = config.eval_inf_output_tensor_names
-    #enddef
+    # enddef
 
     def get_model(self):
-        model_constructor = importlib.import_module('model.hovernet_nuclei_segmentation')
+        model_constructor = importlib.import_module(
+            'model.hovernet_nuclei_segmentation')
         model_constructor = model_constructor.Model_NP_HV
         return model_constructor
-    #enddef
+    # enddef
 
     def gen_prediction(self, x, predictor):
         """
@@ -90,27 +92,42 @@ class Infer:
         ch = 1 if len(output_patch_shape) == 2 else output_patch_shape[-1]
 
         pred_map = np.squeeze(np.array(pred_map))
-        pred_map = np.reshape(pred_map, (nr_step_h, nr_step_w) + pred_map.shape[1:])
-        pred_map = np.transpose(pred_map, [0, 2, 1, 3, 4]) if ch != 1 else np.transpose(pred_map, [0, 2, 1, 3])
-        pred_map = np.reshape(pred_map, (pred_map.shape[0] * pred_map.shape[1], pred_map.shape[2] * pred_map.shape[3], ch))
+        pred_map = np.reshape(
+            pred_map, (nr_step_h, nr_step_w) + pred_map.shape[1:])
+        pred_map = np.transpose(
+            pred_map, [
+                0, 2, 1, 3, 4]) if ch != 1 else np.transpose(
+            pred_map, [
+                0, 2, 1, 3])
+        pred_map = np.reshape(
+            pred_map,
+            (pred_map.shape[0] *
+             pred_map.shape[1],
+             pred_map.shape[2] *
+             pred_map.shape[3],
+             ch))
         pred_map = np.squeeze(pred_map[:im_h, :im_w])
         return pred_map
-    #enddef
+    # enddef
 
     def run(self, config):
         create_directory(self.map_output_dir + '_mat/')
 
         print("Loaded model weight file")
         model_constructor = self.get_model()
-        pred_config = PredictConfig(model=model_constructor(config),
-                                    session_init=get_model_loader(self.inf_model_path),
-                                    input_names=self.eval_inf_input_tensor_names,
-                                    output_names=self.eval_inf_output_tensor_names)
+        pred_config = PredictConfig(
+            model=model_constructor(config),
+            session_init=get_model_loader(
+                self.inf_model_path),
+            input_names=self.eval_inf_input_tensor_names,
+            output_names=self.eval_inf_output_tensor_names)
         predictor = OfflinePredictor(pred_config)
 
         # ------------------------------------------------------------------------------- CHUNK WISE PROCESSING
-        file_list = glob.glob('%s/*%s' % (self.base_image_dir, self.inf_imgs_ext))
-        file_list.sort()
+        file_list = sorted(
+            glob.glob(
+                '%s/*%s' %
+                (self.base_image_dir, self.inf_imgs_ext)))
 
         if self.chunk_id != -1 and self.n_chunks != -1:
             idx = np.array_split(np.arange(len(file_list)), self.n_chunks)
@@ -128,10 +145,26 @@ class Infer:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
             pred_map = self.gen_prediction(img, predictor)
-            sio.savemat('%s/%s.mat' % (self.map_output_dir + '_mat/', basename), {'result': [pred_map]})
-            print('#' , i, ' working on = ', basename, ' time=', round(time.time() - start_time, 2))
-        #endfor
+            sio.savemat('%s/%s.mat' %
+                        (self.map_output_dir +
+                         '_mat/', basename), {'result': [pred_map]})
+            print(
+                '#',
+                i,
+                ' working on = ',
+                basename,
+                ' time=',
+                round(
+                    time.time() -
+                    start_time,
+                    2))
+        # endfor
 
-        print('Time per image= ', round((time.time() - total_time)/len(file_list), 2), 's')
-    #endfor
-#end
+        print(
+            'Time per image= ',
+            round(
+                (time.time() - total_time) / len(file_list),
+                2),
+            's')
+    # endfor
+# end

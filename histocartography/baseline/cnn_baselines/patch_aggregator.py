@@ -4,6 +4,7 @@ from learned_fusion import *
 from base_penultimate import *
 from aggregate_penultimate import *
 
+
 class PatchAggregator:
     def __init__(self, config):
         self.base_data_split_path = config.base_data_split_path
@@ -22,7 +23,6 @@ class PatchAggregator:
                 if line != '':
                     trois.append(line)
         return trois
-
 
     def prediction(self, evalmode, tumor_type):
         embeddings = np.array([])
@@ -47,15 +47,29 @@ class PatchAggregator:
         print(probabilities.shape)
         print(patch_count.shape, '\n')
 
-        h5_fout = h5py.File(self.model_save_path + evalmode + '_' + tumor_type + '.h5', 'w')
+        h5_fout = h5py.File(
+            self.model_save_path +
+            evalmode +
+            '_' +
+            tumor_type +
+            '.h5',
+            'w')
         h5_fout.create_dataset('patch_count', data=patch_count, dtype='int32')
-        h5_fout.create_dataset('patch_embeddings', data=embeddings, dtype='float32')
-        h5_fout.create_dataset('patch_probabilities', data=probabilities, dtype='float32')
+        h5_fout.create_dataset(
+            'patch_embeddings',
+            data=embeddings,
+            dtype='float32')
+        h5_fout.create_dataset(
+            'patch_probabilities',
+            data=probabilities,
+            dtype='float32')
         h5_fout.close()
 
-
     def extract_prediction(self, config):
-        if config.mode in ['single_scale_10x', 'single_scale_20x', 'single_scale_40x']:
+        if config.mode in [
+            'single_scale_10x',
+            'single_scale_20x',
+                'single_scale_40x']:
             from predict_s import Predict
             self.pred = Predict(config, modelmode='f1')
 
@@ -65,15 +79,26 @@ class PatchAggregator:
 
         for tumor_type in self.tumor_types:
             print('Tumor type: ', tumor_type)
-            if not os.path.isfile(self.model_save_path + 'train_' + tumor_type + '.h5'):
+            if not os.path.isfile(
+                self.model_save_path +
+                'train_' +
+                tumor_type +
+                    '.h5'):
                 self.prediction('train', tumor_type)
 
-            if not os.path.isfile(self.model_save_path + 'val_' + tumor_type + '.h5'):
+            if not os.path.isfile(
+                self.model_save_path +
+                'val_' +
+                tumor_type +
+                    '.h5'):
                 self.prediction('val', tumor_type)
 
-            if not os.path.isfile(self.model_save_path + 'test_' + tumor_type + '.h5'):
+            if not os.path.isfile(
+                self.model_save_path +
+                'test_' +
+                tumor_type +
+                    '.h5'):
                 self.prediction('test', tumor_type)
-
 
     def evaluate_troi(self, config):
         if self.aggregator == 'majority_voting':
@@ -91,6 +116,3 @@ class PatchAggregator:
         elif self.aggregator == 'aggregate_penultimate':
             eval = AggregatePenultimate(config=config)
             eval.process(config=config)
-
-
-

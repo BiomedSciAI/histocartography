@@ -21,7 +21,7 @@ class Extract_HC_Features:
         self.sp_features_path = config.sp_merged_features_path
 
         self.tumor_type = config.tumor_type
-    #enddef
+    # enddef
 
     def read_image(self, path):
         img_ = Image.open(path)
@@ -29,14 +29,14 @@ class Extract_HC_Features:
         (h, w, c) = img.shape
         img_.close()
         return img, h, w
-    #enddef
+    # enddef
 
     def read_instance_map(self, map_path):
         with h5py.File(map_path, 'r') as f:
             sp_instance_map = np.array(f['detected_instance_map']).astype(int)
 
         return sp_instance_map
-    #enddef
+    # enddef
 
     def bounding_box(self, img):
         rows = np.any(img, axis=1)
@@ -46,7 +46,7 @@ class Extract_HC_Features:
         rmax += 1
         cmax += 1
         return [rmin, rmax, cmin, cmax]
-    #enddef
+    # enddef
 
     def processing(self, img_rgb, sp_map):
         node_feat = []
@@ -68,7 +68,7 @@ class Extract_HC_Features:
             mask_idx = np.where(sp_mask != 0)
 
             # -------------------------------------------------------------------------- CONTOUR-BASED SHAPE FEATURES
-            ## Compute using mask [12 features]
+            # Compute using mask [12 features]
             area = region['area']
             convex_area = region['convex_area']
             eccentricity = region['eccentricity']
@@ -81,14 +81,27 @@ class Extract_HC_Features:
             orientation = region['orientation']
             perimeter = region['perimeter']
             solidity = region['solidity']
-            feats_shape = [area, convex_area, eccentricity, equivalent_diameter, euler_number, extent, filled_area,
-                           major_axis_length, minor_axis_length, orientation, perimeter, solidity]
+            feats_shape = [
+                area,
+                convex_area,
+                eccentricity,
+                equivalent_diameter,
+                euler_number,
+                extent,
+                filled_area,
+                major_axis_length,
+                minor_axis_length,
+                orientation,
+                perimeter,
+                solidity]
 
             # -------------------------------------------------------------------------- COLOR FEATURES
-            ## (rgb color space) [13 x 3 features]
+            # (rgb color space) [13 x 3 features]
             def color_features_per_channel(img_rgb_ch, img_rgb_sq_ch):
                 codes = img_rgb_ch[mask_idx[0], mask_idx[1]].ravel()
-                hist, _ = np.histogram(codes, bins=np.arange(0, 257, 32))  # 8 bins
+                hist, _ = np.histogram(
+                    codes, bins=np.arange(
+                        0, 257, 32))  # 8 bins
                 feats_ = list(hist / mask_size)
                 color_mean = np.mean(codes)
                 color_std = np.std(codes)
@@ -104,21 +117,25 @@ class Extract_HC_Features:
                 feats_.append(color_skewness)
                 feats_.append(color_energy)
                 return feats_
-            #enddef
+            # enddef
 
-            feats_r = color_features_per_channel(sp_rgb[:, :, 0], img_square[:, :, 0])
-            feats_g = color_features_per_channel(sp_rgb[:, :, 1], img_square[:, :, 1])
-            feats_b = color_features_per_channel(sp_rgb[:, :, 2], img_square[:, :, 2])
+            feats_r = color_features_per_channel(
+                sp_rgb[:, :, 0], img_square[:, :, 0])
+            feats_g = color_features_per_channel(
+                sp_rgb[:, :, 1], img_square[:, :, 1])
+            feats_b = color_features_per_channel(
+                sp_rgb[:, :, 2], img_square[:, :, 2])
             feats_color = [feats_r, feats_g, feats_b]
             feats_color = [item for sublist in feats_color for item in sublist]
 
             # -------------------------------------------------------------------------- TEXTURE FEATURES
-            ## Entropy (gray color space) [1 feature]
+            # Entropy (gray color space) [1 feature]
             entropy = cv2.mean(img_entropy, mask=sp_mask)[0]
 
-            ## GLCM texture features (gray color space) [5 features]
+            # GLCM texture features (gray color space) [5 features]
             glcm = greycomatrix(sp_gray, [1], [0])
-            filt_glcm = glcm[1:, 1:, :, :]  # Filter out the first row and column
+            # Filter out the first row and column
+            filt_glcm = glcm[1:, 1:, :, :]
 
             glcm_contrast = greycoprops(filt_glcm, prop='contrast')
             glcm_contrast = glcm_contrast[0, 0]
@@ -131,95 +148,97 @@ class Extract_HC_Features:
             glcm_ASM = greycoprops(filt_glcm, prop='ASM')
             glcm_ASM = glcm_ASM[0, 0]
 
-            feats_texture = [entropy, glcm_contrast, glcm_dissimilarity, glcm_homogeneity, glcm_energy, glcm_ASM]
+            feats_texture = [
+                entropy,
+                glcm_contrast,
+                glcm_dissimilarity,
+                glcm_homogeneity,
+                glcm_energy,
+                glcm_ASM]
 
             # -------------------------------------------------------------------------- STACKING ALL FEATURES
             sp_feats = feats_shape + feats_color + feats_texture
 
             features = np.hstack(sp_feats)
             node_feat.append(features)
-        #endfor
+        # endfor
 
         node_feat = np.vstack(node_feat)
         return node_feat
-    #endfor
+    # endfor
 
     def extract_features(self):
         # for tumor_type in self.tumor_types:
         tumor_type = self.tumor_type
 
         print('Extracting Hand-crafted features for: ', tumor_type)
-        img_filepaths = glob.glob(self.base_img_dir + tumor_type + '/*.png')
-        img_filepaths.sort()
+        img_filepaths = sorted(
+            glob.glob(
+                self.base_img_dir +
+                tumor_type +
+                '/*.png'))
 
         for i in range(len(img_filepaths)):
             if i % 20 == 0:
                 print(i, '/', len(img_filepaths))
 
             basename = os.path.basename(img_filepaths[i]).split('.')[0]
-            sp_map_path = self.sp_detected_path + 'instance_map/' + tumor_type + '/' + basename + '.h5'
+            sp_map_path = self.sp_detected_path + 'instance_map/' + \
+                tumor_type + '/' + basename + '.h5'
 
-            if os.path.isfile(self.sp_features_path + tumor_type + '/' + basename + '.h5'):
+            if os.path.isfile(
+                self.sp_features_path +
+                tumor_type +
+                '/' +
+                basename +
+                    '.h5'):
                 with h5py.File(self.sp_features_path + tumor_type + '/' + basename + '.h5', 'r') as f:
                     embeddings = np.array(f['embeddings'])
-                #continue
+                # continue
 
             if os.path.isfile(sp_map_path):
-                ## ----------------------------------------------------------------- Read image information
-                ## SP instance map
+                # ----------------------------------------------------------------- Read image information
+                # SP instance map
                 map = self.read_instance_map(sp_map_path)
 
                 if len(np.unique(map)) != embeddings.shape[0]:
-                    ## Image
+                    # Image
                     img, h, w = self.read_image(img_filepaths[i])
 
-                    centroid_path = self.sp_detected_path + 'centroids/' + tumor_type + '/' + basename + '.h5'
+                    centroid_path = self.sp_detected_path + \
+                        'centroids/' + tumor_type + '/' + basename + '.h5'
                     with h5py.File(centroid_path, 'r') as f:
                         centroids = np.array(f['instance_centroid_location'])
 
-                    print(basename, ':', centroids.shape[0], ':', len(np.unique(map)), ':', embeddings.shape[0], ':', img.shape, ':', map.shape)
+                    print(basename,
+                          ':',
+                          centroids.shape[0],
+                          ':',
+                          len(np.unique(map)),
+                          ':',
+                          embeddings.shape[0],
+                          ':',
+                          img.shape,
+                          ':',
+                          map.shape)
 
-                    ## ----------------------------------------------------------------- Feature extraction
+                    # ----------------------------------------------------------------- Feature extraction
                     embeddings = self.processing(img, map)
 
-                    ## ----------------------------------------------------------------- Feature saving
-                    h5_fout = h5py.File(self.sp_features_path + tumor_type + '/' + basename + '.h5', 'w')
-                    h5_fout.create_dataset('embeddings', data=embeddings, dtype='float32')
+                    # ----------------------------------------------------------------- Feature saving
+                    h5_fout = h5py.File(
+                        self.sp_features_path +
+                        tumor_type +
+                        '/' +
+                        basename +
+                        '.h5',
+                        'w')
+                    h5_fout.create_dataset(
+                        'embeddings', data=embeddings, dtype='float32')
                     h5_fout.close()
-            #endif
-        #endfor
+            # endif
+        # endfor
         print('Done\n\n')
-        #endfor
-    #enddef
-#end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        # endfor
+    # enddef
+# end

@@ -5,6 +5,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.metrics import classification_report, confusion_matrix
 
+
 class BasePenultimate:
     def __init__(self, config):
         self.model_save_path = config.model_save_path
@@ -15,7 +16,6 @@ class BasePenultimate:
         self.num_features = 128
         self.avgpool = torch.nn.AdaptiveAvgPool1d(self.num_features)
 
-
     def get_troi_ids(self, config, mode, tumor_type):
         trois = []
         filename = config.base_data_split_path + mode + '_list_' + tumor_type + '.txt'
@@ -25,7 +25,6 @@ class BasePenultimate:
                 if line != '':
                     trois.append(line)
         return trois
-
 
     def read_data(self, config, mode):
         data_all = np.array([])
@@ -43,7 +42,7 @@ class BasePenultimate:
 
             start = 0
             for i in range(len(troi_ids)):
-                embeddings = patch_embeddings[start : start + patch_count[i], :]
+                embeddings = patch_embeddings[start: start + patch_count[i], :]
                 start += patch_count[i]
 
                 embeddings = torch.from_numpy(embeddings)
@@ -51,8 +50,11 @@ class BasePenultimate:
                 embeddings = embeddings.unsqueeze(dim=0)
                 embeddings = embeddings.unsqueeze(dim=0)
                 embeddings = embeddings.to(torch.float32)
-                embedding_avg = self.avgpool(embeddings).squeeze().cpu().detach().numpy()
-                embedding_avg = np.reshape(embedding_avg, newshape=(1, self.num_features))
+                embedding_avg = self.avgpool(
+                    embeddings).squeeze().cpu().detach().numpy()
+                embedding_avg = np.reshape(
+                    embedding_avg, newshape=(
+                        1, self.num_features))
 
                 if i == 0:
                     data = embedding_avg
@@ -69,14 +71,14 @@ class BasePenultimate:
 
         return data_all, label_all
 
-
     def compute_statistics(self, true_labels, pred_labels):
         acc = accuracy_score(true_labels, pred_labels)
         f1 = f1_score(true_labels, pred_labels, average='weighted')
 
         target_names = list(np.arange(self.num_classes))
         target_names = [str(x) for x in target_names]
-        cls_report = classification_report(true_labels, pred_labels, target_names=target_names)
+        cls_report = classification_report(
+            true_labels, pred_labels, target_names=target_names)
         conf_matrix = confusion_matrix(true_labels, pred_labels)
 
         print('classification report:', cls_report)
@@ -84,7 +86,6 @@ class BasePenultimate:
         print('weighted F1:', round(f1, 4), '\n')
         print(conf_matrix)
         print('\n')
-
 
     def evaluate(self):
         pred_train = self.clf.predict(self.train_data)
@@ -95,7 +96,6 @@ class BasePenultimate:
         val_f1 = f1_score(self.val_labels, pred_val, average='weighted')
         test_f1 = f1_score(self.test_labels, pred_test, average='weighted')
         return train_f1, val_f1, test_f1
-
 
     def cross_C_evaluate(self):
         C = [1, 10, 100, 1000]
@@ -124,9 +124,9 @@ class BasePenultimate:
         print('STATISTICS for TEST *************************************************************************')
         self.compute_statistics(self.test_labels, pred_test)
 
-
     def process(self, config):
-        self.train_data, self.train_labels = self.read_data(config, mode='train')
+        self.train_data, self.train_labels = self.read_data(
+            config, mode='train')
         self.val_data, self.val_labels = self.read_data(config, mode='val')
         self.test_data, self.test_labels = self.read_data(config, mode='test')
 

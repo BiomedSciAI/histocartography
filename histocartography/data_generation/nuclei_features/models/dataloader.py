@@ -10,13 +10,15 @@ import torchvision.transforms.functional as TF
 
 class Patch_DataLoader(data.Dataset):
     def __init__(self, config, mode):
-        self.nuclei_patches_path = glob.glob(config.nuclei_patch_path + mode + '/*.png')
+        self.nuclei_patches_path = glob.glob(
+            config.nuclei_patch_path + mode + '/*.png')
         self.nuclei_mask_path = config.nuclei_mask_path + mode + '/'
         self.data_transform = transforms.ToTensor()
 
     def __getitem__(self, index):
         patch_file_path = self.nuclei_patches_path[index]
-        mask_file_path = self.nuclei_mask_path + os.path.basename(patch_file_path)
+        mask_file_path = self.nuclei_mask_path + \
+            os.path.basename(patch_file_path)
         filename = os.path.basename(patch_file_path).split('.')[0]
 
         patch = Image.open(patch_file_path)
@@ -39,7 +41,7 @@ class Patch_DataLoader(data.Dataset):
 
     def __len__(self):
         return len(self.nuclei_patches_path)
-#end
+# end
 
 
 def patch_loaders(config, random_seed=0, shuffle=True, pin_memory=True):
@@ -55,7 +57,13 @@ def patch_loaders(config, random_seed=0, shuffle=True, pin_memory=True):
     indices_val = list(range(num_sample_val))
     num_sample_test = len(dataset_test)
     indices_test = list(range(num_sample_test))
-    print('Data: train=', num_sample_train, ', val=', num_sample_val, ', test=', num_sample_test)
+    print(
+        'Data: train=',
+        num_sample_train,
+        ', val=',
+        num_sample_val,
+        ', test=',
+        num_sample_test)
 
     '''
     if shuffle:
@@ -71,10 +79,21 @@ def patch_loaders(config, random_seed=0, shuffle=True, pin_memory=True):
     test_loader = data.DataLoader(dataset_test, batch_size=batch_size, sampler=test_sampler, pin_memory=pin_memory)
     #'''
 
-    train_loader = data.DataLoader(dataset_train, batch_size=batch_size, pin_memory=pin_memory, shuffle=True)
-    valid_loader = data.DataLoader(dataset_val, batch_size=batch_size, pin_memory=pin_memory, shuffle=False)
-    test_loader = data.DataLoader(dataset_test, batch_size=batch_size, pin_memory=pin_memory, shuffle=False)
-
+    train_loader = data.DataLoader(
+        dataset_train,
+        batch_size=batch_size,
+        pin_memory=pin_memory,
+        shuffle=True)
+    valid_loader = data.DataLoader(
+        dataset_val,
+        batch_size=batch_size,
+        pin_memory=pin_memory,
+        shuffle=False)
+    test_loader = data.DataLoader(
+        dataset_test,
+        batch_size=batch_size,
+        pin_memory=pin_memory,
+        shuffle=False)
 
     data_loaders = {
         'train': train_loader,
@@ -82,7 +101,7 @@ def patch_loaders(config, random_seed=0, shuffle=True, pin_memory=True):
         'test': test_loader
     }
     return data_loaders
-#enddef
+# enddef
 
 
 def view_patch_dataloader(data_iter):
@@ -98,6 +117,5 @@ def view_patch_dataloader(data_iter):
 
         if i == 2:
             exit()
-    #endfor
-#enddef
-
+    # endfor
+# enddef

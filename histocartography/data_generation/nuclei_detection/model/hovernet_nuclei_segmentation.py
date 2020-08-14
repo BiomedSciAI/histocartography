@@ -4,14 +4,17 @@ from tensorpack.models import BatchNorm, BNReLU, Conv2D, FixedUnPooling
 from .base_nuclei_segmentation import BaseNucleiSegmentation
 import numpy as np
 
+
 def upsample2x(name, x):
     """
     :param name: Name of input after upsampling (2x)
     :param x: input that is upsampled (2x)
     :return: Output of Nearest-neighbour upsampling(scale:2x)
     """
-    return FixedUnPooling(name, x, 2, unpool_mat=np.ones((2, 2), dtype='float32'), data_format='channels_last')
-#enddef
+    return FixedUnPooling(name, x, 2, unpool_mat=np.ones(
+        (2, 2), dtype='float32'), data_format='channels_last')
+# enddef
+
 
 def res_blk(name, l, ch, ksize, count, split=1, strides=1, freeze=False):
     """
@@ -43,7 +46,8 @@ def res_blk(name, l, ch, ksize, count, split=1, strides=1, freeze=False):
         # end of each group need an extra activation
         l = BNReLU('bnlast', l)
     return l
-#enddef
+# enddef
+
 
 def dense_blk(name, l, ch, ksize, count, split=1, padding='valid'):
     """
@@ -62,19 +66,37 @@ def dense_blk(name, l, ch, ksize, count, split=1, padding='valid'):
             with tf.variable_scope('blk/' + str(i)):
                 # print('In dense block' + str(i))
                 x = BNReLU('preact_bna', l)
-                x = Conv2D('conv1', x, ch[0], ksize[0], padding=padding, activation=BNReLU)
-                x = Conv2D('conv2', x, ch[1], ksize[1], padding=padding, split=split)
+                x = Conv2D(
+                    'conv1',
+                    x,
+                    ch[0],
+                    ksize[0],
+                    padding=padding,
+                    activation=BNReLU)
+                x = Conv2D(
+                    'conv2',
+                    x,
+                    ch[1],
+                    ksize[1],
+                    padding=padding,
+                    split=split)
                 ##
                 if padding == 'valid':
                     x_shape = x.get_shape().as_list()
                     l_shape = l.get_shape().as_list()
-                    l = crop_op(l, (l_shape[1] - x_shape[1],
-                                    l_shape[2] - x_shape[2]), "NHWC")  # Lau: changed
+                    l = crop_op(
+                        l,
+                        (l_shape[1] -
+                         x_shape[1],
+                            l_shape[2] -
+                            x_shape[2]),
+                        "NHWC")  # Lau: changed
 
                 l = tf.concat([l, x], axis=3)  # Lau: changed concat
         l = BNReLU('blk_bna', l)
     return l
-#enddef
+# enddef
+
 
 def encoder(i, freeze):
     """
@@ -87,22 +109,42 @@ def encoder(i, freeze):
     output[3] - Output of fourth residual block with 3 residual units followed by conv 1x1
     """
 
-    d1 = Conv2D('conv0', i, 64, 7, padding='valid', strides=1, activation=BNReLU)
-    d1 = res_blk('group0', d1, [64, 64, 256], [1, 3, 1], 3, strides=1, freeze=freeze)
+    d1 = Conv2D(
+        'conv0',
+        i,
+        64,
+        7,
+        padding='valid',
+        strides=1,
+        activation=BNReLU)
+    d1 = res_blk(
+        'group0', d1, [
+            64, 64, 256], [
+            1, 3, 1], 3, strides=1, freeze=freeze)
 
-    d2 = res_blk('group1', d1, [128, 128, 512], [1, 3, 1], 4, strides=2, freeze=freeze)
+    d2 = res_blk(
+        'group1', d1, [
+            128, 128, 512], [
+            1, 3, 1], 4, strides=2, freeze=freeze)
     d2 = tf.stop_gradient(d2) if freeze else d2
 
-    d3 = res_blk('group2', d2, [256, 256, 1024], [1, 3, 1], 6, strides=2, freeze=freeze)
+    d3 = res_blk(
+        'group2', d2, [
+            256, 256, 1024], [
+            1, 3, 1], 6, strides=2, freeze=freeze)
     d3 = tf.stop_gradient(d3) if freeze else d3
 
-    d4 = res_blk('group3', d3, [512, 512, 2048], [1, 3, 1], 3, strides=2, freeze=freeze)
+    d4 = res_blk(
+        'group3', d3, [
+            512, 512, 2048], [
+            1, 3, 1], 3, strides=2, freeze=freeze)
     d4 = tf.stop_gradient(d4) if freeze else d4
 
     d4 = Conv2D('conv_bot', d4, 1024, 1, padding='same')
     #print("Encoder done")
     return [d1, d2, d3, d4]
-#enddef
+# enddef
+
 
 def decoder(name, i):
     """
@@ -120,7 +162,10 @@ def decoder(name, i):
             u3_sum = tf.add_n([u3, i[-2]])
 
             u3 = Conv2D('conva', u3_sum, 256, 5, strides=1, padding=pad)
-            u3 = dense_blk('dense', u3, [128, 32], [1, 5], 8, split=4, padding=pad)
+            u3 = dense_blk(
+                'dense', u3, [
+                    128, 32], [
+                    1, 5], 8, split=4, padding=pad)
             u3 = Conv2D('convf', u3, 512, 1, strides=1)
             ####
         with tf.variable_scope('u2'):
@@ -128,7 +173,10 @@ def decoder(name, i):
             u2_sum = tf.add_n([u2, i[-3]])
 
             u2x = Conv2D('conva', u2_sum, 128, 5, strides=1, padding=pad)
-            u2 = dense_blk('dense', u2x, [128, 32], [1, 5], 4, split=4, padding=pad)
+            u2 = dense_blk(
+                'dense', u2x, [
+                    128, 32], [
+                    1, 5], 4, split=4, padding=pad)
             u2 = Conv2D('convf', u2, 256, 1, strides=1)
             ####
         with tf.variable_scope('u1'):
@@ -138,7 +186,8 @@ def decoder(name, i):
             u1 = Conv2D('conva', u1_sum, 64, 5, strides=1, padding='same')
 
     return [u3, u2x, u1]
-#enddef
+# enddef
+
 
 def crop_op(x, cropping, data_format='channels_first'):
     """
@@ -158,7 +207,7 @@ def crop_op(x, cropping, data_format='channels_first'):
     else:
         x = x[:, crop_t:-crop_b, crop_l:-crop_r]
     return x
-#enddef
+# enddef
 
 
 class Model_NP_HV(BaseNucleiSegmentation):
@@ -167,7 +216,7 @@ class Model_NP_HV(BaseNucleiSegmentation):
 
         with argscope(Conv2D, activation=tf.identity, use_bias=False,  # K.he initializer
                       W_init=tf.variance_scaling_initializer(scale=2.0, mode='fan_out')), \
-                      argscope([Conv2D, BatchNorm], data_format=self.data_format):
+                argscope([Conv2D, BatchNorm], data_format=self.data_format):
 
             # i = tf.transpose(images, [0, 3, 1, 2]) #LAU: NHWC format : no need to transpose
             # print("Loading images")
@@ -194,24 +243,44 @@ class Model_NP_HV(BaseNucleiSegmentation):
                 tp = BNReLU('preact_out_tp', tp_feat[-1])
 
                 # Nuclei Type Pixels (TP)
-                logi_class = Conv2D('conv_out_tp', tp, self.nr_types, 1, use_bias=True, activation=tf.identity)
+                logi_class = Conv2D(
+                    'conv_out_tp',
+                    tp,
+                    self.nr_types,
+                    1,
+                    use_bias=True,
+                    activation=tf.identity)
                 soft_class = tf.nn.softmax(logi_class, axis=-1)
 
             # Nuclei Pixels (NP)
-            logi_np = Conv2D('conv_out_np', npx, 2, 1, use_bias=True, activation=tf.identity)
+            logi_np = Conv2D(
+                'conv_out_np',
+                npx,
+                2,
+                1,
+                use_bias=True,
+                activation=tf.identity)
             soft_np = tf.nn.softmax(logi_np, axis=-1)
             prob_np = tf.identity(soft_np[..., 1], name='predmap-prob-np')
             prob_np = tf.expand_dims(prob_np, axis=-1)
 
             # Horizontal-Vertival (HV)
-            logi_hv = Conv2D('conv_out_hv', hv, 2, 1, use_bias=True, activation=tf.identity)
+            logi_hv = Conv2D(
+                'conv_out_hv',
+                hv,
+                2,
+                1,
+                use_bias=True,
+                activation=tf.identity)
             pred_hv = tf.identity(logi_hv, name='predmap-hv')
 
             # * channel ordering: type-map, segmentation map
             if self.type_classification:
-                predmap_coded = tf.concat([soft_class, prob_np, pred_hv], axis=-1, name='predmap-coded')
+                predmap_coded = tf.concat(
+                    [soft_class, prob_np, pred_hv], axis=-1, name='predmap-coded')
             else:
-                predmap_coded = tf.concat([prob_np, pred_hv], axis=-1, name='predmap-coded')
+                predmap_coded = tf.concat(
+                    [prob_np, pred_hv], axis=-1, name='predmap-coded')
         ####
-    #enddef
-#end
+    # enddef
+# end

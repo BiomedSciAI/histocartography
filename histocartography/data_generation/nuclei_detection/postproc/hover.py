@@ -34,14 +34,28 @@ def proc_np_hv(pred, marker_mode=2, energy_mode=2, rgb=None):
     blb[blb > 0] = 1  # back ground is 0 already
 
     if energy_mode == 2 or marker_mode == 2:
-        h_dir = cv2.normalize(h_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        v_dir = cv2.normalize(v_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        h_dir = cv2.normalize(
+            h_dir_raw,
+            None,
+            alpha=0,
+            beta=1,
+            norm_type=cv2.NORM_MINMAX,
+            dtype=cv2.CV_32F)
+        v_dir = cv2.normalize(
+            v_dir_raw,
+            None,
+            alpha=0,
+            beta=1,
+            norm_type=cv2.NORM_MINMAX,
+            dtype=cv2.CV_32F)
 
         sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=21)
         sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=21)
 
-        sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
-        sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+        sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1,
+                                    norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+        sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1,
+                                    norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
 
         overall = np.maximum(sobelh, sobelv)
         overall = overall - (1 - blb)
@@ -50,16 +64,16 @@ def proc_np_hv(pred, marker_mode=2, energy_mode=2, rgb=None):
         if energy_mode == 2:
             dist = (1.0 - overall) * blb
             # nuclei values form mountains so inverse to get basins
-            dist = -cv2.GaussianBlur(dist,(3, 3),0)
+            dist = -cv2.GaussianBlur(dist, (3, 3), 0)
 
         if marker_mode == 2:
             overall[overall >= 0.4] = 1
             overall[overall < 0.4] = 0
-            
+
             marker = blb - overall
             marker[marker < 0] = 0
             marker = binary_fill_holes(marker).astype('uint8')
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5, 5))
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
             marker = cv2.morphologyEx(marker, cv2.MORPH_OPEN, kernel)
             marker = measurements.label(marker)[0]
             marker = remove_small_objects(marker, min_size=10)
@@ -78,11 +92,11 @@ def proc_np_hv(pred, marker_mode=2, energy_mode=2, rgb=None):
         v_marker = np.logical_and(v_marker < 0.075, v_marker > -0.075)
         marker = np.logical_and(h_marker > 0, v_marker > 0) * blb
         marker = binary_dilation(marker, iterations=2)
-        marker = binary_fill_holes(marker) 
+        marker = binary_fill_holes(marker)
         marker = measurements.label(marker)[0]
         marker = remove_small_objects(marker, min_size=10)
-    
+
     proced_pred = watershed(dist, marker, mask=blb)
 
     return proced_pred
-#enddef
+# enddef

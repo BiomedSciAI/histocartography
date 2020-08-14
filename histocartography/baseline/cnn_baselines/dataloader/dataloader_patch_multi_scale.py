@@ -9,7 +9,7 @@ from utils import *
 
 
 def patch_loaders(config,
-        pin_memory=False):
+                  pin_memory=False):
     batch_size = config.batch_size
 
     dataset_train = PatchDataLoader(
@@ -28,7 +28,13 @@ def patch_loaders(config,
     num_sample_train = len(dataset_train)
     num_sample_val = len(dataset_val)
     num_sample_test = len(dataset_test)
-    print('Data: train=', num_sample_train, ', val=', num_sample_val, ', test=', num_sample_test)
+    print(
+        'Data: train=',
+        num_sample_train,
+        ', val=',
+        num_sample_val,
+        ', test=',
+        num_sample_test)
 
     patch_collate_fn = PatchCollate(config)
 
@@ -68,7 +74,6 @@ class GetPatchesPath:
         self.base_patches_path = config.base_patches_path
         self.evalmode = evalmode
 
-
     def get_patches_path(self):
         patches_path = [[] for i in range(len(self.magnifications))]
 
@@ -77,18 +82,22 @@ class GetPatchesPath:
 
             for i in range(len(troi_ids)):
                 for m in range(len(self.magnifications)):
-                    paths = self.read_patches_path(tumor_type=self.tumor_types[t], troi_id=troi_ids[i], magnification=self.magnifications[m])
+                    paths = self.read_patches_path(
+                        tumor_type=self.tumor_types[t],
+                        troi_id=troi_ids[i],
+                        magnification=self.magnifications[m])
                     patches_path[m].append(paths)
 
         for m in range(len(self.magnifications)):
-            patches_path[m] = sorted([item for sublist in patches_path[m] for item in sublist])
+            patches_path[m] = sorted(
+                [item for sublist in patches_path[m] for item in sublist])
 
         return patches_path
 
-
     def get_troi_ids(self, tumor_type):
         troi_ids = []
-        filename = self.base_data_split_path + self.evalmode + '_list_' + tumor_type + '.txt'
+        filename = self.base_data_split_path + \
+            self.evalmode + '_list_' + tumor_type + '.txt'
         with open(filename, 'r') as f:
             for line in f:
                 line = line.split('\n')[0]
@@ -97,9 +106,16 @@ class GetPatchesPath:
 
         return troi_ids
 
-
     def read_patches_path(self, tumor_type, troi_id, magnification):
-        paths = sorted(glob.glob(self.base_patches_path + tumor_type + '/' + magnification + '/' + troi_id + '_*.png'))
+        paths = sorted(
+            glob.glob(
+                self.base_patches_path +
+                tumor_type +
+                '/' +
+                magnification +
+                '/' +
+                troi_id +
+                '_*.png'))
         return paths
 
 
@@ -135,10 +151,14 @@ class PatchDataLoader(data.Dataset):
         obj = GetPatchesPath(config=config, evalmode=evalmode)
         self.patches_path = obj.get_patches_path()
 
-        self.transform = transforms.Compose([transforms.Resize(config.patch_scale),
-                                             transforms.CenterCrop(config.patch_scale),
-                                             transforms.ToTensor(),
-                                             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize(
+                    config.patch_scale), transforms.CenterCrop(
+                    config.patch_scale), transforms.ToTensor(), transforms.Normalize(
+                    [
+                        0.485, 0.456, 0.406], [
+                            0.229, 0.224, 0.225])])
 
     def __getitem__(self, index):
         img = []
@@ -146,7 +166,8 @@ class PatchDataLoader(data.Dataset):
             img.append(Image.open(self.patches_path[m][index]))
 
         img = self.data_transform(img)
-        tumor_type = os.path.basename(self.patches_path[0][index]).split('_')[1]
+        tumor_type = os.path.basename(
+            self.patches_path[0][index]).split('_')[1]
         label = self.tumor_labels[self.tumor_types.index(tumor_type)]
         return img, label
 
@@ -168,6 +189,3 @@ class PatchDataLoader(data.Dataset):
 
     def __len__(self):
         return len(self.patches_path[0])
-
-
-

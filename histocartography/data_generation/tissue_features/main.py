@@ -1,34 +1,91 @@
+from config import Config
+import os
+import argparse
+import sys
 from warnings import simplefilter, filterwarnings
 simplefilter(action='ignore', category=FutureWarning)
 filterwarnings(action='ignore', category=DeprecationWarning)
 
-import sys
-sys.path.append('/dataT/pus/histocartography/node_embedding/histocartography/histocartography/data_generation/tissue_features/models/')
+sys.path.append(
+    '/dataT/pus/histocartography/node_embedding/histocartography/histocartography/data_generation/tissue_features/models/')
 
-import argparse
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--mode', choices=['detect_sp',
-                                       'features_hc',
-                                       'features_cnn'], help='Mode', required=True)
-parser.add_argument('--data_param', choices=['local', 'dataT'], default='local', help='Processing location', required=False)
-parser.add_argument('--patch_size', type=int, default=96, help='Patch Size', required=False)
-parser.add_argument('--is_mask', default='True', help='Flag to indicate masking of nuclei patch', required=False)
-parser.add_argument('--merging_type', choices=['hc', 'cnn'], default='hc', help='Indicate the merging method', required=False)
+parser.add_argument(
+    '--mode',
+    choices=[
+        'detect_sp',
+        'features_hc',
+        'features_cnn'],
+    help='Mode',
+    required=True)
+parser.add_argument(
+    '--data_param',
+    choices=[
+        'local',
+        'dataT'],
+    default='local',
+    help='Processing location',
+    required=False)
+parser.add_argument(
+    '--patch_size',
+    type=int,
+    default=96,
+    help='Patch Size',
+    required=False)
+parser.add_argument(
+    '--is_mask',
+    default='True',
+    help='Flag to indicate masking of nuclei patch',
+    required=False)
+parser.add_argument(
+    '--merging_type',
+    choices=[
+        'hc',
+        'cnn'],
+    default='hc',
+    help='Indicate the merging method',
+    required=False)
 
 # ------------------------------------------------------------------------------------------- PRE-TRAINED CNN PARAMETERS
-parser.add_argument('--encoder', choices=['vgg16', 'vgg19', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'densenet121', 'densenet169'],
-                    help='Pre-trained CNN encoder', required=False)
+parser.add_argument(
+    '--encoder',
+    choices=[
+        'vgg16',
+        'vgg19',
+        'resnet18',
+        'resnet34',
+        'resnet50',
+        'resnet101',
+        'densenet121',
+        'densenet169'],
+    help='Pre-trained CNN encoder',
+    required=False)
 
-parser.add_argument('--batch_size', type=int, default=512, help='batch size', required=False)
-parser.add_argument('--info', default='', help='Additional model description', required=False)
-parser.add_argument('--gpu', type=int, default=-1, help='gpu index', required=False)
-parser.add_argument('--tumor_type', help='Tumor type for individual processing -- temporary', required=True)
+parser.add_argument(
+    '--batch_size',
+    type=int,
+    default=512,
+    help='batch size',
+    required=False)
+parser.add_argument(
+    '--info',
+    default='',
+    help='Additional model description',
+    required=False)
+parser.add_argument(
+    '--gpu',
+    type=int,
+    default=-1,
+    help='gpu index',
+    required=False)
+parser.add_argument(
+    '--tumor_type',
+    help='Tumor type for individual processing -- temporary',
+    required=True)
 
 args = parser.parse_args()
 
-import os
-from config import Config
 
 if args.gpu != -1:
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -39,7 +96,15 @@ if __name__ == '__main__':
     config = Config(args=args)
 
     print('\n*************************************************************************************************************\n')
-    print('Mode=', config.mode, ' Encoder=', config.encoder, 'MergingName=', config.merging_name, ' Experiment=', config.features_name)
+    print(
+        'Mode=',
+        config.mode,
+        ' Encoder=',
+        config.encoder,
+        'MergingName=',
+        config.merging_name,
+        ' Experiment=',
+        config.features_name)
     print('\n*************************************************************************************************************\n\n')
 
     if config.mode == 'detect_sp':
@@ -62,21 +127,8 @@ if __name__ == '__main__':
         torch.cuda.manual_seed_all(0)
 
         network = Extract_CNN_Features(config=config)
-        features = Extract_Deep_Features(config=config, embedding_dim=network.num_features, network=network)
+        features = Extract_Deep_Features(
+            config=config,
+            embedding_dim=network.num_features,
+            network=network)
         features.extract_features()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

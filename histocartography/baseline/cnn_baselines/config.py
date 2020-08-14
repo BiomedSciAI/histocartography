@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from utils import *
 
+
 class Config:
     def __init__(self, args):
         self.mode = args.mode
@@ -13,7 +14,7 @@ class Config:
         self.is_train = eval(args.is_train)
 
         self.is_finetune = eval(args.is_finetune)
-        self.patch_size = args.patch_size       #patch size at 40x
+        self.patch_size = args.patch_size  # patch size at 40x
         self.patch_scale = args.patch_scale
 
         self.info = args.info
@@ -31,9 +32,8 @@ class Config:
         # Set training parameters
         self.set_training_parameters(args)
 
-        ## Create directories
+        # Create directories
         self.set_paths()
-
 
     def set_paths(self):
         self.base_path = '/dataT/pus/histocartography/Data/'
@@ -41,9 +41,9 @@ class Config:
         self.base_patches_path = '/dataL/pus/histocartography/Data/BRACS_L/baseline_patches/'
         self.base_model_save_path = self.base_path + 'BRACS_L/cnn_models/'
 
-        self.base_data_split_path = self.base_path + 'BRACS_L/data_split_cv_correct/data_split_' + str(self.cv_split) + '/'
+        self.base_data_split_path = self.base_path + \
+            'BRACS_L/data_split_cv_correct/data_split_' + str(self.cv_split) + '/'
         self.create_directories()
-
 
     def get_magnifications(self):
         if self.mode == 'single_scale_10x':
@@ -56,7 +56,6 @@ class Config:
             self.magnifications = ['10x', '20x']
         else:
             self.magnifications = ['10x', '20x', '40x']
-
 
     def get_tumor_classes(self):
         tumor_types = self.class_split.replace('VS', '+').split('+')
@@ -75,7 +74,6 @@ class Config:
         self.tumor_labels = tumor_labels
         self.num_classes = len(np.unique(self.tumor_labels))
 
-
     def set_training_parameters(self, args):
         # Early stopping parameters
         self.early_stopping_min_delta = 0.0001
@@ -91,15 +89,14 @@ class Config:
         self.learning_rate = args.learning_rate
         self.dropout = args.dropout
 
-
     def create_directories(self):
         create_directory(self.base_patches_path)
         create_directory(self.base_model_save_path)
 
         if self.mode != 'extract_patches':
             self.model_save_path = self.base_model_save_path + \
-                                   self.encoder + '_' + self.mode + '_ps' + str(self.patch_size) + \
-                                   '_bs' + str(self.batch_size) + '_lr' + str(self.learning_rate) + '_' + self.info + '/'
+                self.encoder + '_' + self.mode + '_ps' + str(self.patch_size) + \
+                '_bs' + str(self.batch_size) + '_lr' + str(self.learning_rate) + '_' + self.info + '/'
             create_directory(self.model_save_path)
 
             if self.class_split == 'benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant':
@@ -128,7 +125,3 @@ class Config:
             if self.cv_split != -1:
                 self.model_save_path += str(self.cv_split) + '/'
                 create_directory(self.model_save_path)
-
-
-
-

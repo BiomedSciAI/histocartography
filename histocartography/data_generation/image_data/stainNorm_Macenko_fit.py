@@ -24,8 +24,10 @@ def get_stain_matrix(I, beta=0.15, alpha=1):
     OD = (OD[(OD > beta).any(axis=1), :])
     _, V = np.linalg.eigh(np.cov(OD, rowvar=False))
     V = V[:, [2, 1]]
-    if V[0, 0] < 0: V[:, 0] *= -1
-    if V[0, 1] < 0: V[:, 1] *= -1
+    if V[0, 0] < 0:
+        V[:, 0] *= -1
+    if V[0, 1] < 0:
+        V[:, 1] *= -1
     That = np.dot(OD, V)
     phi = np.arctan2(That[:, 1], That[:, 0])
     minPhi = np.percentile(phi, alpha)
@@ -37,7 +39,7 @@ def get_stain_matrix(I, beta=0.15, alpha=1):
     else:
         HE = np.array([v2, v1])
     return ut.normalize_rows(HE)
-#enddef
+# enddef
 
 
 class Normalizer(object):
@@ -52,7 +54,8 @@ class Normalizer(object):
     def fit(self, target):
         target = ut.standardize_brightness(target)
         self.stain_matrix_target = get_stain_matrix(target)
-        self.target_concentrations = ut.get_concentrations(target, self.stain_matrix_target)
+        self.target_concentrations = ut.get_concentrations(
+            target, self.stain_matrix_target)
 
     def target_stains(self):
         return ut.OD_to_RGB(self.stain_matrix_target)
@@ -61,11 +64,15 @@ class Normalizer(object):
         I = ut.standardize_brightness(I)
         stain_matrix_source = get_stain_matrix(I)
         source_concentrations = ut.get_concentrations(I, stain_matrix_source)
-        maxC_source = np.percentile(source_concentrations, 99, axis=0).reshape((1, 2))
-        maxC_target = np.percentile(self.target_concentrations, 99, axis=0).reshape((1, 2))
+        maxC_source = np.percentile(
+            source_concentrations, 99, axis=0).reshape(
+            (1, 2))
+        maxC_target = np.percentile(
+            self.target_concentrations, 99, axis=0).reshape(
+            (1, 2))
         source_concentrations *= (maxC_target / maxC_source)
-        return (255 * np.exp(-1 * np.dot(source_concentrations, self.stain_matrix_target).reshape(I.shape))).astype(
-            np.uint8)
+        return (255 * np.exp(-1 * np.dot(source_concentrations,
+                                         self.stain_matrix_target).reshape(I.shape))).astype(np.uint8)
 
     def hematoxylin(self, I):
         I = ut.standardize_brightness(I)

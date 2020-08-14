@@ -1,6 +1,8 @@
 import numpy as np
 
-#### Normalizes the supplied image
+# Normalizes the supplied image
+
+
 def stainingNorm_Macenko_nofit(image):
     Io = 240
     beta = 0.15
@@ -8,7 +10,8 @@ def stainingNorm_Macenko_nofit(image):
 
     maxCRef = np.array([1.9705, 1.0308])
 
-    HERef = np.column_stack(([0.5626, 0.7201, 0.4062], [0.2159, 0.8012, 0.5581]))
+    HERef = np.column_stack(
+        ([0.5626, 0.7201, 0.4062], [0.2159, 0.8012, 0.5581]))
     HERef = HERef.astype(np.float32)
 
     image = image.astype(np.float32)
@@ -20,7 +23,8 @@ def stainingNorm_Macenko_nofit(image):
     image = np.matrix(image)
     OD = -np.log((image + 1) / Io).astype(np.float32)
 
-    ValidIds = np.where(np.logical_or(np.logical_or(OD[:, 0] < beta, OD[:, 1] < beta), OD[:, 2] < beta) == False)[0]
+    ValidIds = np.where(np.logical_or(np.logical_or(
+        OD[:, 0] < beta, OD[:, 1] < beta), OD[:, 2] < beta) == False)[0]
     ODhat = OD[ValidIds, :]
 
     D, V = np.linalg.eigh(np.cov(np.transpose(ODhat)))
@@ -60,7 +64,7 @@ def stainingNorm_Macenko_nofit(image):
         inorm[inorm > 255] = 255
 
         inorm = np.array(inorm).reshape(h, w, 3).astype(np.uint8)
-    #endif
+    # endif
 
     return inorm
-#enddef
+# enddef

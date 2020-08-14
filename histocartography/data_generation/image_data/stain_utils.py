@@ -10,8 +10,9 @@ import numpy as np
 import cv2 as cv
 import spams
 import matplotlib.pyplot as plt
-from copy import deepcopy
 
+
+##########################################
 
 def read_image(path):
     """
@@ -109,14 +110,15 @@ def patch_grid(ims, width=5, sub_sample=None, rand=False, save_name=None):
     plt.show()
 
 
-def standardize_brightness(image):
+######################################
+
+def standardize_brightness(I):
     """
     :param I:
     :return:
     """
-    image_copy = deepcopy(image)
-    p = np.percentile(image_copy, 90)
-    return np.clip(image_copy * 255.0 / p, 0, 255).astype(np.uint8)
+    p = np.percentile(I, 90)
+    return np.clip(I * 255.0 / p, 0, 255).astype(np.uint8)
 
 
 def remove_zeros(I):

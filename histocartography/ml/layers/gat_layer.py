@@ -65,7 +65,7 @@ class SingleHeadGATLayer(BaseLayer):
         a = F.leaky_relu(a)
 
         # update (normalise) attention weights for further analysis 
-        self.attn_weights = alpha
+        self.attn_weights = a
 
         return {'e': a}
 

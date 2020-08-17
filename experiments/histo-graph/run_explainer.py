@@ -7,12 +7,12 @@ import importlib
 import torch
 import mlflow
 import numpy as np
-from mlflow.pytorch import load_model
+from tqdm import tqdm 
 
 from histocartography.utils.io import read_params, write_json, complete_path
 from histocartography.dataloader.pascale_dataloader import make_data_loader
-from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE, MODEL_MODULE
-from histocartography.interpretability.constants import AVAILABLE_EXPLAINABILITY_METHODS
+from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE
+from histocartography.interpretability.constants import AVAILABLE_EXPLAINABILITY_METHODS, INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
@@ -29,7 +29,6 @@ warnings.filterwarnings("ignore")
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
 
-BASE_S3 = 's3://mlflow/'
 
 
 def main(args):
@@ -45,8 +44,11 @@ def main(args):
     # constants
     label_to_tumor_type = get_label_to_tumor_type(config['model_params']['class_split'])
 
+    # extract interpretability model type
+    interpretability_model_type = config['explanation_params']['explanation_type']
+
     # make data loaders
-    dataloaders, num_cell_features = make_data_loader(
+    dataloaders, input_feature_dims = make_data_loader(
         batch_size=1,
         num_workers=args.number_of_workers,
         path=args.data_path,
@@ -60,59 +62,37 @@ def main(args):
         fold_id=0
     )
 
+    # append dataset info to config
+    config['data_params'] = {}
+    config['data_params']['input_feature_dims'] = input_feature_dims
+
     # define GNN model
-    model_type = config[MODEL_TYPE]
-    if model_type in list(AVAILABLE_MODEL_TYPES.keys()):
-        module = importlib.import_module(
-            MODEL_MODULE.format(model_type)
-        )
-        model = getattr(module, AVAILABLE_MODEL_TYPES[model_type])(config['model_params'], num_cell_features).to(DEVICE)
-        # fname = BASE_S3 + CLASS_SPLIT_TO_MODEL_URL[model_type][config['model_params']['class_split']]  
-        fname = BASE_S3 + '5b4482c93b8344719c7e3390b166b6c1/artifacts/model_best_val_weighted_f1_score_3'
-        mlflow_model = load_model(fname,  map_location=torch.device('cpu'))
-
-        def is_int(s):
-            try:
-                int(s)
-                return True
-            except:
-                return False
-
-        for n, p in mlflow_model.named_parameters():
-            split = n.split('.')
-            to_eval = 'model'
-            for s in split:
-                if is_int(s):
-                    to_eval += '[' + s + ']'
-                else:
-                    to_eval += '.'
-                    to_eval += s
-            exec(to_eval + '=' + 'p')
-
+    if interpretability_model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
+        module = importlib.import_module('histocartography.utils.io')
+        model = getattr(module, INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN[interpretability_model_type])(config)
         if CUDA:
             model = model.cuda()
     else:
         raise ValueError(
             'Model: {} not recognized. Options are: {}'.format(
-                model_type, list(AVAILABLE_MODEL_TYPES.keys())
+                model_type, list(AVAILABLE_EXPLAINABILITY_METHODS.keys())
             )
         )
 
     # define interpretability model 
     config['explanation_params']['model_params']['class_split'] = config['model_params']['class_split']
-    model_type = config['explanation_params']['explanation_type']
-    if model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
+    if interpretability_model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
         module = importlib.import_module(
-            'histocartography.interpretability.{}'.format(model_type)
+            'histocartography.interpretability.{}'.format(interpretability_model_type)
         )
         interpretability_model = getattr(
-            module, AVAILABLE_EXPLAINABILITY_METHODS[model_type])(
+            module, AVAILABLE_EXPLAINABILITY_METHODS[interpretability_model_type])(
                 model, config['explanation_params']
             )
     else:
         raise ValueError(
             'Interpretability method: {} not recognized. Options are: {}'.format(
-                model_type, list(AVAILABLE_EXPLAINABILITY_METHODS.keys())
+                interpretability_model_type, list(AVAILABLE_EXPLAINABILITY_METHODS.keys())
             )
         )
 

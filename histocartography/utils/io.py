@@ -7,6 +7,44 @@ from PIL import Image
 import io
 import pickle
 import csv
+from mlflow.pytorch import load_model
+
+from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES
+from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
+
+
+def plain_model_loading(config):
+    model = load_model(MODEL_TO_MLFLOW_ID[config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+    return model
+
+
+def tentative_model_loading(config):
+    # build model from config 
+    module = importlib.import_module(MODEL_MODULE.format(config['model_type']))
+    model = getattr(module, AVAILABLE_MODEL_TYPES[config['model_type']])(config['model_params'], config['data_params']['input_feature_dims'])
+
+    # buid mlflow model and copy manually the weigths 
+    mlflow_model = load_model(MODEL_TO_MLFLOW_ID[config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+
+    def is_int(s):
+        try:
+            int(s)
+            return True
+        except:
+            return False
+
+    for n, p in mlflow_model.named_parameters():
+        split = n.split('.')
+        to_eval = 'model'
+        for s in split:
+            if is_int(s):
+                to_eval += '[' + s + ']'
+            else:
+                to_eval += '.'
+                to_eval += s
+        exec(to_eval + '=' + 'p')
+
+    return model
 
 
 def complete_path(folder, fname):

@@ -4,6 +4,12 @@ from histocartography.utils.io import save_image
 import os
 
 
+EXPLANATION_TYPE_SAVE_SUBDIR = {
+    'attention_based_explainer.attention_gnn_explainer': 'GAT',
+    'pruning_explainer.graph_pruning_explainer': 'CGCNet'
+}
+
+
 class BaseExplanation:
     def __init__(
             self,
@@ -62,7 +68,10 @@ class GraphExplanation(BaseExplanation):
 
         self.explanation_graph = explanation_graph
         self.explanation_prediction = explanation_prediction 
-        self.save_path = '/dataT/pus/histocartography/Data/explainability/output/gnn'
+        self.save_path = os.path.join(
+            '/dataT/pus/histocartography/Data/explainability/output/gnn',
+            EXPLANATION_TYPE_SAVE_SUBDIR[config['explanation_type']]
+        )
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')

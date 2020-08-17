@@ -18,7 +18,7 @@ LEARNING_RATES=(0.001)
 BATCH_SIZES=(16)
 BASE_CONFIG="cell_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
-REPEAT=(0)
+REPEAT=(0 1 2)
 queue="prod.med"
 
 # Training loop

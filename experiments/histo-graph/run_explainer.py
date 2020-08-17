@@ -102,7 +102,7 @@ def main(args):
         mlflow.log_param(key, val)
 
     # explain instance from the train set
-    for data, label in dataloaders[args.split]:
+    for data, label in tqdm(dataloaders[args.split]):
 
         # cell_graph = data[0]
 

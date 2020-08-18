@@ -68,3 +68,17 @@ class CellGraphModel(BaseModel):
         out = self.pred_layer(graph_embeddings)
 
         return out
+
+    def set_rlp(self, with_rlp):
+        self.cell_graph_gnn.set_rlp(with_rlp)
+        self.pred_layer.set_rlp(with_rlp)
+
+    def rlp(self, out_relevance_score):
+        # RLP over the classification 
+        relevance_score = self.pred_layer.rlp(out_relevance_score)
+
+        # RLP over the GNN layers 
+        relevance_score = self.cell_graph_gnn.rlp(relevance_score)
+
+        return relevance_score
+

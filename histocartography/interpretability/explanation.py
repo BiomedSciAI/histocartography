@@ -6,7 +6,8 @@ import os
 
 EXPLANATION_TYPE_SAVE_SUBDIR = {
     'attention_based_explainer.attention_gnn_explainer': 'GAT',
-    'pruning_explainer.graph_pruning_explainer': 'CGCNet'
+    'pruning_explainer.graph_pruning_explainer': 'CGCNet',
+    'lrp_explainer.lrp_gnn_explainer': 'GraphLRP'
 }
 
 
@@ -119,7 +120,9 @@ class GraphExplanation(BaseExplanation):
             show_cg=True,
             show_sg=False,
             show_superpx=False,
-            data=[self.explanation_graph, self.image, self.image_name])
+            data=[self.explanation_graph, self.image, self.image_name],
+            node_importance=self.explanation_graph.ndata['node_importance'] if 'node_importance' in self.explanation_graph.ndata.keys() else None
+        )
         return explanation_as_image
 
 

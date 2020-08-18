@@ -13,7 +13,7 @@ from PIL import ImageFilter
 from PIL import Image
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
-from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle
+from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle, rgb
 from histocartography.ml.layers.constants import CENTROID
 
 
@@ -106,7 +106,7 @@ class GraphVisualization:
             
             # draw centroids
             if self.show_centroid:
-                self.draw_centroid(cent_cg, draw, (255, 0, 0))
+                self.draw_centroid(cent_cg, draw, (255, 0, 0), node_importance)
             
             if seg_map is not None:
                 seg_map = seg_map.squeeze()
@@ -128,9 +128,20 @@ class GraphVisualization:
             return canvas
 
     @staticmethod
-    def draw_centroid(centroids, draw_bd, fill):
-        for centroid in centroids:
+    def draw_centroid(centroids, draw_bd, fill, node_importance=None):
+        if node_importance is not None:
+            max_val = node_importance.max().item()
+            min_val = node_importance.min().item()
+            print('max', max_val, 'min', min_val)
+        for centroid_id, centroid in enumerate(centroids):
             centroid = [centroid[0].item(), centroid[1].item()]
+            if node_importance is not None:
+                # fill = (
+                #     node_importance[centroid_id] / max_val * 255,
+                #     node_importance[centroid_id] / max_val * 255,
+                #     node_importance[centroid_id] / max_val * 255
+                # )
+                fill = rgb(min_val, max_val, node_importance[centroid_id])
             draw_ellipse(centroid, draw_bd, fill)
 
     @staticmethod

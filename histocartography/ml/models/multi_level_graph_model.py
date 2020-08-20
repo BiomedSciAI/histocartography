@@ -43,6 +43,7 @@ class MultiLevelGraphModel(BaseModel):
         self.readout_agg_op = config['gnn_params']['cell_gnn']['agg_operator']
         self.pna_assignment = config['gnn_params']['cell_gnn']['layer_type'] == 'pna_layer'
         self.pna_assignment = False
+        self.with_rlp = False
 
         # 2- build cell graph params
         self._build_cell_graph_params(self.cell_gnn_params)
@@ -149,6 +150,9 @@ class MultiLevelGraphModel(BaseModel):
 
         cell_graph, superpx_graph, assignment_matrix = data[0], data[1], data[2]
 
+        if self.with_rlp:
+            self.assignment_matrix = assignment_matrix
+
         # 1. GNN layers over the low level graph
         ll_feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
         ll_h = self.cell_graph_gnn(cell_graph, ll_feats, with_readout=False)
@@ -167,3 +171,29 @@ class MultiLevelGraphModel(BaseModel):
         # 4. Classification layers
         logits = self.pred_layer(graph_embeddings)
         return logits
+
+    def set_rlp(self, with_rlp):
+        self.with_rlp = True
+        self.cell_graph_gnn.set_rlp(with_rlp)
+        self.superpx_gnn.set_rlp(with_rlp)
+        self.pred_layer.set_rlp(with_rlp)
+
+    def rlp(self, out_relevance_score):
+        # RLP over the classification 
+        relevance_score = self.pred_layer.rlp(out_relevance_score)
+
+        # RLP over the tissue graph
+        relevance_score = self.superpx_gnn.rlp(relevance_score)
+
+        # Note: at this point the relevance score should have dimension: |V_TG| x (d_TG + d_CG)
+        cg_relevance_score = relevance_score[:, :self.cell_gnn_params['output_dim']]
+        tg_relevance_score = relevance_score[:, self.cell_gnn_params['output_dim']:]
+
+        # relevance over the assignment matrix @TODO not so sure about it...
+        cg_relevance_score = torch.matmul(self.assignment_matrix[0].t(), cg_relevance_score)
+
+        # RLP over the cell GNN layers 
+        cg_relevance_score = self.cell_graph_gnn.rlp(cg_relevance_score)
+
+        return cg_relevance_score, tg_relevance_score
+

@@ -87,7 +87,7 @@ def main(args):
         )
         interpretability_model = getattr(
             module, AVAILABLE_EXPLAINABILITY_METHODS[interpretability_model_type])(
-                model, config['explanation_params']
+                model, config['explanation_params'], CUDA
             )
     else:
         raise ValueError(

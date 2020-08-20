@@ -143,8 +143,8 @@ class GINLayer(BaseLayer):
         :param h: (FloatTensor) node features
         """
 
-        if self.rlp:
-            self.adjacency_matrix = g.adjacency_matrix(ctx=h.device)
+        if self.with_rlp:
+            self.adjacency_matrix = g.adjacency_matrix(ctx=h.device).to_dense()
             self.input_features = h.t()
 
         g.ndata[GNN_NODE_FEAT_IN] = h
@@ -171,10 +171,11 @@ class GINLayer(BaseLayer):
         return h
 
     def set_rlp(self, with_rlp):
+        self.with_rlp = with_rlp
         self.mlp.set_rlp(with_rlp)
 
     def _compute_adj_rlp(self, relevance_score):
-        adjacency_matrix = self.adjacency_matrix.to_dense() + torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
+        adjacency_matrix = self.adjacency_matrix + torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
         V = torch.clamp(adjacency_matrix, min=0)
         Z = torch.mm(self.input_features, V.t()) + 1e-9
         S = relevance_score / Z.t()

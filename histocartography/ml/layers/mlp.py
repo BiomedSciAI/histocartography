@@ -174,11 +174,11 @@ class MLP(nn.Module):
         :return: out: MLP output
         """
         out = feats
-        if self.with_rlp:
+        if hasattr(self, 'with_rlp') and self.with_rlp:
             self.forward_activations.append(out)
         for layer in self.mlp:
             out = layer(out)
-            if self.with_rlp:
+            if hasattr(self, 'with_rlp') and self.with_rlp:
                 self.forward_activations.append(out)
         return out
 

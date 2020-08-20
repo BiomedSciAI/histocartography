@@ -48,7 +48,7 @@ def overlay_mask(img, mask, colormap='jet', alpha=0.7):
 
 class GraphVisualization:
 
-    def __init__(self, show_centroid=True, show_edges=True, save=False, save_path='../../data/graphs', verbose=False):
+    def __init__(self, show_centroid=True, show_edges=False, save=False, save_path='../../data/graphs', verbose=False):
         if verbose:
             print('Initialize graph visualizer')
         self.show_centroid = show_centroid

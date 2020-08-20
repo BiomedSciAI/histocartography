@@ -63,6 +63,7 @@ class GINLayer(BaseLayer):
             self.use_bn = config['use_bn'] if 'use_bn' in config.keys() else True
             dropout = config['dropout'] if 'dropout' in config.keys() else 0.
             self.graph_norm = config['graph_norm'] if 'graph_norm' in config.keys() else False
+            self.with_rlp = config['with_rlp'] if 'with_rlp' in config.keys() else False
         else:
             eps = None
             neighbor_pooling_type = 'sum'
@@ -71,6 +72,7 @@ class GINLayer(BaseLayer):
             self.use_bn = True
             dropout = 0.
             self.graph_norm = False 
+            self.with_rlp = False
 
         if self.use_bn:
             self.batchnorm_h = nn.BatchNorm1d(out_dim)
@@ -89,7 +91,8 @@ class GINLayer(BaseLayer):
             act,
             use_bn=False,  # bn is put after in the node update fn 
             verbose=verbose,
-            dropout=dropout
+            dropout=dropout,
+            with_rlp=self.with_rlp
         )
 
         self.eps = eps
@@ -139,6 +142,11 @@ class GINLayer(BaseLayer):
         :param g: (DGLGraph) graph to process.
         :param h: (FloatTensor) node features
         """
+
+        if self.with_rlp:
+            self.adjacency_matrix = g.adjacency_matrix(ctx=h.device).to_dense()
+            self.input_features = h.t()
+
         g.ndata[GNN_NODE_FEAT_IN] = h
 
         g.update_all(self.msg_fn, self.reduce_fn)
@@ -161,3 +169,29 @@ class GINLayer(BaseLayer):
             h = self.batchnorm_h(h)
 
         return h
+
+    def set_rlp(self, with_rlp):
+        self.with_rlp = with_rlp
+        self.mlp.set_rlp(with_rlp)
+
+    def _compute_adj_rlp(self, relevance_score):
+        adjacency_matrix = self.adjacency_matrix + torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
+        V = torch.clamp(adjacency_matrix, min=0)
+        Z = torch.mm(self.input_features, V.t()) + 1e-9
+        S = relevance_score / Z.t()
+        C = torch.mm(V, S)
+        relevance_score = self.input_features.t() * C
+        return relevance_score
+
+    def rlp(self, out_relevance_score):
+        """
+        Implement RLP for GIN layer: 
+        """
+
+        # 1/ RLP over the node update function 
+        relevance_score = self.mlp.rlp(out_relevance_score)
+
+        # 2/ RLP over the adjacency 
+        relevance_score = self._compute_adj_rlp(relevance_score)
+
+        return relevance_score

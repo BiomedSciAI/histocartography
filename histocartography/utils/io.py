@@ -7,6 +7,7 @@ from PIL import Image
 import io
 import pickle
 import csv
+import importlib
 from mlflow.pytorch import load_model
 
 from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES

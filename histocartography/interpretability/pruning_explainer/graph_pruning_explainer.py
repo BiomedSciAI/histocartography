@@ -7,7 +7,7 @@ from .explainer_model import ExplainerModel
 from histocartography.utils.io import get_device
 from ..base_explainer import BaseExplainer
 from ..explanation import GraphExplanation
-from histocartography.utils.graph import adj_to_networkx
+from histocartography.utils.graph import adj_to_dgl
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -18,7 +18,7 @@ class GraphPruningExplainer(BaseExplainer):
             cuda=False,
             verbose=False
     ):
-
+    
         super(GraphPruningExplainer, self).__init__(model, config, cuda, verbose)
 
         self.train_params = self.config['train_params']
@@ -38,8 +38,7 @@ class GraphPruningExplainer(BaseExplainer):
         Explain a graph instance
         """
 
-        if self.cuda:
-            self.model = self.model.cuda()
+        self.model = self.model.to(self.device)
 
         graph = data[0]
         image = data[1]
@@ -159,17 +158,17 @@ class GraphPruningExplainer(BaseExplainer):
         node_importance = node_importance[node_idx]
         centroids = data[0].ndata['centroid'].squeeze()
         pruned_centroids = centroids[node_idx, :]
-        explanation_graph = adj_to_networkx(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids)
+        explanation_graph = adj_to_dgl(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids)
 
         # build explanation object
         explanation = GraphExplanation(
-            self.model_params,
+            self.config,
             image,
             image_name,
-            init_probs,
+            torch.FloatTensor(init_probs),
             label,
             explanation_graph,
-            probs
+            torch.FloatTensor(probs)
         )
 
         return explanation

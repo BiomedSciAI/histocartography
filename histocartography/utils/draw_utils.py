@@ -20,3 +20,12 @@ def draw_line(source_centroid, dest_centroid, draw, fill_col, line_wid):
 
 def draw_poly(xy, draw):
     draw.polygon(xy, outline=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 100))
+
+
+def rgb(minimum, maximum, value):
+    minimum, maximum = float(minimum), float(maximum)
+    ratio = 2 * (value-minimum) / (maximum - minimum)
+    b = int(max(0, 255*(1 - ratio)))
+    r = int(max(0, 255*(ratio - 1)))
+    g = 255 - b - r
+    return (r, g, b)

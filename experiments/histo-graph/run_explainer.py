@@ -18,7 +18,7 @@ from histocartography.ml.models.constants import load_superpx_graph, load_cell_g
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.interpretability.random_model import RandomModel
 from histocartography.utils.visualization import GraphVisualization, agg_and_plot_interpretation
-from histocartography.dataloader.constants import get_label_to_tumor_type, CLASS_SPLIT_TO_MODEL_URL
+from histocartography.dataloader.constants import get_label_to_tumor_type
 
 
 # flush warnings
@@ -87,7 +87,7 @@ def main(args):
         )
         interpretability_model = getattr(
             module, AVAILABLE_EXPLAINABILITY_METHODS[interpretability_model_type])(
-                model, config['explanation_params']
+                model, config['explanation_params'], CUDA
             )
     else:
         raise ValueError(

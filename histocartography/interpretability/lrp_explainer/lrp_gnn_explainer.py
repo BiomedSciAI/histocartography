@@ -33,6 +33,7 @@ class LRPGNNExplainer(BaseExplainer):
         graph = data[0]
         image = data[1]
         image_name = data[2]
+        model.eval()
         if self.cuda:
             self.model = self.model.cuda()
 

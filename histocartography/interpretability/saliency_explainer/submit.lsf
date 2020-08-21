@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#BSUB -q prod.med
+#BSUB -n 1
+#BSUB -R "rusage [ngpus_excl_p=1]"
+
+module load Miniconda3
+
+#BSUB -J "resnet50_10x_ft_C7"
+#BSUB -o "resnet50_10x_ft_C7"
+#BSUB -e "resnet50_10x_ft_C7.stderr"
+
+python3 -u main.py --mode=single_scale_10x --encoder=resnet50 --class_split=benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant --is_train=True --is_finetune=True --info=run1
+
+
+

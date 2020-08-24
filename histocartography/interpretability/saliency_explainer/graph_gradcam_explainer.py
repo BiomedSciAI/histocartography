@@ -4,6 +4,7 @@ from ..base_explainer import BaseExplainer
 
 import numpy as np
 import torch
+from copy import deepcopy
 from torch import nn
 from histocartography.interpretability.saliency_explainer.grad_cam import GradCAM
 from ..explanation import GraphExplanation
@@ -27,11 +28,7 @@ class GraphGradCAMExplainer(BaseExplainer):
         super(GraphGradCAMExplainer, self).__init__(model, config, cuda, verbose)
 
         # Set based on our trained CNN-single stream (10x)-ResNet34 network
-        self.gnn_layer = '0'       # gnn_layer (str): name of the last GNN layer -- extract from the config file 
-
-        # # debug purposes 
-        # m2 = self.model.cell_graph_gnn.layers._modules.get('2')
-        # print('m2', m2)
+        self.gnn_layer_ids = ['0', '1', '2']
 
     def explain(self, data, label):
         """
@@ -47,19 +44,17 @@ class GraphGradCAMExplainer(BaseExplainer):
         if self.cuda:
             self.model = self.model.cuda()
         self.model.eval()
+        self.model.zero_grad()
 
-        self.extractor = GradCAM(self.model.cell_graph_gnn.layers, self.gnn_layer)
+        all_node_importances = []
+        for layer_id in self.gnn_layer_ids:
+            self.extractor = GradCAM(self.model.cell_graph_gnn.layers, layer_id)
+            logits = self.model([deepcopy(graph)])
+            node_importance = self.extractor(label, logits).cpu()
+            all_node_importances.append(torch.sum(node_importance, dim=1))
+            self.extractor.clear_hooks()
 
-        # 2/ forward pass
-        logits = self.model(data)
-
-        print('Logits', logits)
-        print('Label', label)
-
-        # 3/ extract node importance 
-        node_importance = self.extractor(label, logits).cpu()
-        graph.ndata['node_importance'] = torch.sum(node_importance, dim=1)
-        self.extractor.clear_hooks()
+        graph.ndata['node_importance'] = torch.stack(all_node_importances, dim=1).mean(dim=1)
 
         # 4/ build and return explanation 
         explanation = GraphExplanation(

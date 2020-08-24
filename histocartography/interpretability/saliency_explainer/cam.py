@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 
 __all__ = ['CAM', 'ScoreCAM', 'SSCAM']
+EPS = 10e-5
 
 
 class _CAM(object):
@@ -50,7 +51,7 @@ class _CAM(object):
     def _normalize(cams):
         """CAM normalization"""
         cams -= cams.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1)
-        cams /= cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1)
+        cams /= (cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1) + EPS)
 
         return cams
 

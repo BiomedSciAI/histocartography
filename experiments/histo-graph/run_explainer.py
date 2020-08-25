@@ -239,6 +239,10 @@ def main(args):
         # except:
         #     print('An error occured')
 
+    # @TODO:
+    # Implement a function that is aggregating and writing somewhere 
+    # the aggregated statistics 
+
 
 if __name__ == "__main__":
     main(args=parse_arguments())

@@ -5,6 +5,7 @@ from matplotlib import gridspec
 import numpy as np
 import dgl
 from matplotlib import cm
+from sklearn.manifold import TSNE
 # from dgl import BatchedDGLGraph
 from dgl import DGLGraph
 import networkx as nx 
@@ -15,6 +16,16 @@ from PIL import Image
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
 from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle, rgb
 from histocartography.ml.layers.constants import CENTROID
+
+
+class tSNE:
+    def __init__(self, num_dims=2):
+        print('Initialize t-SNE')
+        self.tsne_op = TSNE(n_components=num_dims)
+
+    def __call__(self, data):
+        data_embedded = self.tsne_op.fit_transform(data)
+        return data_embedded
 
 
 def overlay_mask(img, mask, colormap='jet', alpha=0.7):

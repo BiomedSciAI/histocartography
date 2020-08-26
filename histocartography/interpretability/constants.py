@@ -1,3 +1,6 @@
+import networkx as nx
+
+
 # define all the available modules for interpretability 
 AVAILABLE_EXPLAINABILITY_METHODS = {
     'pruning_explainer.graph_pruning_explainer': 'GraphPruningExplainer',
@@ -38,3 +41,35 @@ EXPLANATION_TYPE_SAVE_SUBDIR = {
     'lrp_explainer.lrp_gnn_explainer': 'GraphLRP',
     'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer'
 }
+
+
+# define KG encding the class inter-dependencies for 5-class problem 
+FIVE_CLASS_NAMES = ['benign', 'pathologicalbenign', 'atypical', 'dcis', 'malignant']
+FIVE_CLASS_DEPENDENCY_GRAPH = nx.Graph()
+for label in FIVE_CLASS_NAMES:
+    FIVE_CLASS_DEPENDENCY_GRAPH.add_node(label)    
+
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('benign', 'pathologicalbenign')
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'atypical')
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'dcis')
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('adh', 'dcis')
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('dcis', 'malignant')
+
+
+# define KG encding the class inter-dependencies for 5-class problem 
+SEVEN_CLASS_NAMES = ['benign', 'pathologicalbenign', 'udh', 'adh', 'fea', 'dcis', 'malignant']
+SEVEN_CLASS_DEPENDENCY_GRAPH = nx.Graph()
+for label in FIVE_CLASS_NAMES:
+    SEVEN_CLASS_DEPENDENCY_GRAPH.add_node(label)    
+
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('benign', 'pathologicalbenign')
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'udh')
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'adh')
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'fea')
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('fea', 'dcis')
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('udh', 'adh')
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('adh', 'dcis')
+SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('dcis', 'malignant')
+
+
+KEEP_PERCENTAGE_OF_NODE_IMPORTANCE = [1, 0.5, 0.1]

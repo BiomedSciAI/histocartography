@@ -1,14 +1,12 @@
 from histocartography.utils.visualization import GraphVisualization, overlay_mask
 from histocartography.utils.io import save_image, write_json
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
+from histocartography.dataloader.constants import get_label_to_tumor_type
 
 import os
 import numpy as np
 
-BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output/gnn'
-
-# list all the metrics to run in order to evaluate the explanations 
-METRICS = []
+BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output'
 
 
 class BaseExplanation:
@@ -17,7 +15,6 @@ class BaseExplanation:
             config,
             image,
             image_name,
-            original_prediction,
             label
     ):
         """
@@ -30,7 +27,6 @@ class BaseExplanation:
         self.config = config
         self.image = image[0]
         self.image_name = image_name[0]
-        self.original_prediction = original_prediction
         self.label = label
 
     def read(self):
@@ -52,10 +48,8 @@ class GraphExplanation(BaseExplanation):
             config,
             image, 
             image_name,
-            original_prediction,
             label,
-            explanation_graph,
-            explanation_prediction=None
+            explanation_graphs,
     ):
         """
         Graph Explanation constructor: Object that is defining a graph explanation for a given sample.
@@ -71,12 +65,15 @@ class GraphExplanation(BaseExplanation):
 
         """
 
-        super(GraphExplanation, self).__init__(config, image, image_name, original_prediction, label)
+        super(GraphExplanation, self).__init__(config, image, image_name, label)
 
-        self.explanation_graph = explanation_graph
-        self.explanation_prediction = explanation_prediction 
+        self.explanation_graphs = explanation_graphs
+        # self.explanation_prediction = explanation_prediction 
+        # self.original_latent_embeddings = original_latent_embeddings
+        # self.explanation_latent_embeddings = explanation_latent_embeddings
         self.save_path = os.path.join(
             BASE_OUTPUT_PATH,
+            'gnn',
             EXPLANATION_TYPE_SAVE_SUBDIR[config['explanation_type']]
         )
 
@@ -85,46 +82,27 @@ class GraphExplanation(BaseExplanation):
 
     def write(self):
 
-        # 1. evaluate the quality of the explanation using surrogate metrics (nuclei annotations, number of nodes/edges, etc...)
-        self.evaluate()
+        # 1. write image 
+        # explanation_as_image = self.draw()
+        # save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), explanation_as_image)
 
-        # 2. write image 
-        explanation_as_image = self.draw()
-        save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), explanation_as_image)
-
-        # 3. write json 
+        # 2. write json 
         self._encapsulate_explanation()
-        # write_json(os.path.join(self.save_path, self.image_name + '_explanation.json'), self.explanation_as_dict)
+        write_json(os.path.join(self.save_path, self.image_name + '_explanation.json'), self.explanation_as_dict)
 
     def _encapsulate_explanation(self):
         self.explanation_as_dict = {}
 
-        # a. config file
+        # a. store config file
         self.explanation_as_dict['config'] = self.config
 
         # b. output 
         self.explanation_as_dict['output'] = {}
         self.explanation_as_dict['output']['label_index'] = self.label.item()
-        # meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
-        # meta_data['output']['label'] = label_to_tumor_type[label.item()]
-
-        # 3-c original graph properties
-        self.explanation_as_dict['output']['original'] = {}
-        self.explanation_as_dict['output']['original']['logits'] = list(np.around(self.original_prediction.cpu().detach().numpy(), 2).astype(float))
-        # meta_data['output']['original']['number_of_nodes'] = explanation_graph.number_of_nodes()
-        # meta_data['output']['original']['number_of_edges'] = explanation_graph.number_of_edges()
-        # meta_data['output']['original']['prediction'] = label_to_tumor_type[np.argmax(orig_pred)]
+        self.explanation_as_dict['output']['label'] = get_label_to_tumor_type(self.config['model_params']['class_split'])[self.label.item()]
 
         # 3-d explanation graph properties
-        self.explanation_as_dict['output']['explanation'] = {}
-        self.explanation_as_dict['output']['explanation']['number_of_nodes'] = self.explanation_graph.number_of_nodes()
-        self.explanation_as_dict['output']['explanation']['number_of_edges'] = self.explanation_graph.number_of_edges()
-        if self.explanation_prediction is not None:
-            self.explanation_as_dict['output']['explanation']['logits'] = list(np.around(self.explanation_prediction.cpu().detach().numpy(), 2).astype(float))
-        # meta_data['output']['explanation']['prediction'] = label_to_tumor_type[np.argmax(exp_pred)]
-        # meta_data['output']['explanation']['node_importance'] = str(list(node_importance))
-        # meta_data['output']['explanation']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
-        # meta_data['output']['explanation']['edges'] = str(list(graph_visualizer.edges_cg))
+        self.explanation_as_dict['output']['explanation'] = self.explanation_graphs
 
     def draw(self):
         """
@@ -139,20 +117,6 @@ class GraphExplanation(BaseExplanation):
             node_importance=self.explanation_graph.ndata['node_importance'] if 'node_importance' in self.explanation_graph.ndata.keys() else None
         )
         return explanation_as_image
-
-    def evaluate(self):
-        """
-        Evaluate the quality of the explanation 
-
-        return:
-            - metrics: (dict) (surrogate) metrics 
-        """
-
-        for metric in METRICS:
-            metric()
-
-        return None 
-
 
 
 class ImageExplanation(BaseExplanation):

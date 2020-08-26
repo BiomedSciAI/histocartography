@@ -150,7 +150,7 @@ class GraphPruningExplainer(BaseExplainer):
             loss.backward(retain_graph=True)
             explainer.optimizer.step()
 
-        # clean up the representation and transform it as networkx object 
+        # clean up the representation and transform it as DGLGraph object 
         node_idx = (self.node_feats_explanation.squeeze().sum(dim=-1) != 0.).squeeze().cpu()
         adj = self.adj_explanation.squeeze()[node_idx, :]
         adj = adj[:, node_idx]

@@ -37,6 +37,33 @@ class WeightedF1(BaseEvaluator):
         return torch.FloatTensor([weighted_f1])
 
 
+class ClusteringQuality(BaseEvaluator):
+    """
+    Compute weighted F1 score
+    """
+
+    def __init__(self, cuda=False):
+        super(ClusteringQuality, self).__init__(cuda)
+
+    def __call__(self, embeddings, labels, kg):
+        qual = 1.
+        return torch.FloatTensor([weighted_f1])
+
+
+class CrossEntropyLoss(BaseEvaluator):
+    """
+    Compute weighted F1 score
+    """
+
+    def __init__(self, cuda=False):
+        super(CrossEntropyLoss, self).__init__(cuda)
+        self.ce_loss_eval = nn.CrossEntropyLoss()
+
+    def __call__(self, logits, labels):
+        loss = self.ce_loss_eval(logits, labels)
+        return loss
+
+
 class ExpectedClassShiftWithLogits(BaseEvaluator):
     """
     Compute expected class shift 

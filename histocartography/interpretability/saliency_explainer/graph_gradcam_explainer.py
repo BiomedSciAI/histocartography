@@ -11,6 +11,7 @@ from histocartography.interpretability.saliency_explainer.grad_cam import GradCA
 from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE
 from ..explanation import GraphExplanation
 from ..base_explainer import BaseExplainer
+from histocartography.utils.torch import torch_to_list, torch_to_numpy
 
 
 class GraphGradCAMExplainer(BaseExplainer):
@@ -73,6 +74,8 @@ class GraphGradCAMExplainer(BaseExplainer):
             explanation_graphs[keep_percentage]['latent'] = self.model.latent_representation.clone().cpu().detach().numpy().tolist()
             explanation_graphs[keep_percentage]['num_nodes'] = pruned_graph.number_of_nodes()
             explanation_graphs[keep_percentage]['num_edges'] = pruned_graph.number_of_edges()
+            explanation_graphs[keep_percentage]['node_importance'] = torch_to_list(pruned_graph.ndata['node_importance'])
+            explanation_graphs[keep_percentage]['centroid'] = torch_to_list(pruned_graph.ndata['centroid'])
 
         # 4/ build and return explanation 
         explanation = GraphExplanation(

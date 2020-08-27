@@ -63,6 +63,7 @@ class AttentionGNNExplainer(BaseExplainer):
             explanation_graphs[keep_percentage]['latent'] = self.model.latent_representation.clone().cpu().detach().numpy().tolist()
             explanation_graphs[keep_percentage]['num_nodes'] = pruned_graph.number_of_nodes()
             explanation_graphs[keep_percentage]['num_edges'] = pruned_graph.number_of_edges()
+            explanation_graphs[keep_percentage]['node_importance'] = pruned_graph.ndata['node_importance']
 
         # 4/ build and return explanation 
         explanation = GraphExplanation(

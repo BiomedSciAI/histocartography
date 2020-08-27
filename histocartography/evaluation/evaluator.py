@@ -57,7 +57,7 @@ class CrossEntropyLoss(BaseEvaluator):
 
     def __init__(self, cuda=False):
         super(CrossEntropyLoss, self).__init__(cuda)
-        self.ce_loss_eval = nn.CrossEntropyLoss()
+        self.ce_loss_eval = torch.nn.CrossEntropyLoss()
 
     def __call__(self, logits, labels):
         loss = self.ce_loss_eval(logits, labels)

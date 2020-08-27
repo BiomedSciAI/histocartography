@@ -1,7 +1,7 @@
 from histocartography.utils.visualization import GraphVisualization, overlay_mask
 from histocartography.utils.io import save_image, write_json
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
-from histocartography.dataloader.constants import get_label_to_tumor_type
+from histocartography.dataloader.constants import get_label_to_tumor_type, get_number_of_classes
 
 import os
 import numpy as np
@@ -68,14 +68,18 @@ class GraphExplanation(BaseExplanation):
         super(GraphExplanation, self).__init__(config, image, image_name, label)
 
         self.explanation_graphs = explanation_graphs
-        # self.explanation_prediction = explanation_prediction 
-        # self.original_latent_embeddings = original_latent_embeddings
-        # self.explanation_latent_embeddings = explanation_latent_embeddings
+        self.num_classes = get_number_of_classes(config['model_params']['class_split'])
+        self.graph_type = config['model_params']['model_type'].replace('_model', '')
+
         self.save_path = os.path.join(
             BASE_OUTPUT_PATH,
             'gnn',
+            str(self.num_classes) + '_class_scenario',
+            self.graph_type,
             EXPLANATION_TYPE_SAVE_SUBDIR[config['explanation_type']]
         )
+
+        os.makedirs(self.save_path, exist_ok=True)
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
@@ -83,8 +87,8 @@ class GraphExplanation(BaseExplanation):
     def write(self):
 
         # 1. write image 
-        # explanation_as_image = self.draw()
-        # save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), explanation_as_image)
+        explanation_as_image = self.draw()
+        save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), explanation_as_image)
 
         # 2. write json 
         self._encapsulate_explanation()
@@ -113,8 +117,8 @@ class GraphExplanation(BaseExplanation):
             show_cg=True,
             show_sg=False,
             show_superpx=False,
-            data=[self.explanation_graph, self.image, self.image_name],
-            node_importance=self.explanation_graph.ndata['node_importance'] if 'node_importance' in self.explanation_graph.ndata.keys() else None
+            data=[self.explanation_graphs[1], self.image, self.image_name],
+            node_importance=self.explanation_graphs[1]['node_importance']
         )
         return explanation_as_image
 

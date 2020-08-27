@@ -16,9 +16,8 @@ from histocartography.interpretability.constants import AVAILABLE_EXPLAINABILITY
 from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
-from histocartography.interpretability.random_model import RandomModel
-from histocartography.utils.visualization import GraphVisualization, agg_and_plot_interpretation
 from histocartography.dataloader.constants import get_label_to_tumor_type
+from histocartography.interpretability.meta_explanation import MetaGraphExplanation
 
 
 # flush warnings
@@ -81,6 +80,7 @@ def main(args):
 
     # define interpretability model 
     config['explanation_params']['model_params']['class_split'] = config['model_params']['class_split']
+    config['explanation_params']['model_params']['model_type'] = config['model_type']
     if interpretability_model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
         module = importlib.import_module(
             'histocartography.interpretability.{}'.format(interpretability_model_type)
@@ -102,14 +102,23 @@ def main(args):
         mlflow.log_param(key, val)
 
     # explain instance from the train set
+    counter = 0
+    all_explanations = []
     for data, label in tqdm(dataloaders[args.split]):
-
         explanation = interpretability_model.explain(
             data=data,
             label=label
         )
-
         explanation.write()
+        all_explanations.append(explanation)
+        # debug purposes 
+        counter += 1
+        if counter > 3:
+            break 
+
+    # wrap all the explanations in object and write 
+    meta_explanation = MetaGraphExplanation(config['explanation_params'], all_explanations)
+    meta_explanation.write()
 
 
 if __name__ == "__main__":

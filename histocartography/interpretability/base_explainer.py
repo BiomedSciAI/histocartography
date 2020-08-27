@@ -55,14 +55,10 @@ class BaseExplainer:
         # b. convert to networkx 
         networkx_graph = dgl.to_networkx(graph)
 
-        # print('Edges 1:', networkx_graph.edges())
-
         # c. remove nodes 
         networkx_graph.remove_nodes_from([x for x in list(range(graph.number_of_nodes())) if x not in node_idx_to_keep])
         mapping = {val: idx for idx, val in enumerate(node_idx_to_keep)}
         networkx_graph = nx.relabel_nodes(networkx_graph, mapping)
-
-        # print('Edges 2:', networkx_graph.edges(), node_idx_to_keep)
 
         # d. convert back to DGL
         pruned_graph = dgl.DGLGraph()

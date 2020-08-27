@@ -101,15 +101,14 @@ class GraphVisualization:
             canvas = image.copy()
             draw = ImageDraw.Draw(canvas, 'RGBA')
             
-            # if isinstance(data[0], BatchedDGLGraph):
-            #     cell_graph = dgl.unbatch(data[0])[index]
-            # else:
-            #     cell_graph = data[0]
-
             cell_graph = data[0]
 
             # get centroids and edges
-            cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
+            if isinstance(cell_graph, dict):
+                cent_cg = cell_graph['centroid']
+                edges_cg = None
+            else:
+                cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
             # @TODO: hack alert store the centroid and the edges
             self.centroid_cg = cent_cg
@@ -141,17 +140,11 @@ class GraphVisualization:
     @staticmethod
     def draw_centroid(centroids, draw_bd, fill, node_importance=None):
         if node_importance is not None:
-            max_val = node_importance.max().item()
-            min_val = node_importance.min().item()
-            print('max', max_val, 'min', min_val)
+            max_val = max(node_importance)
+            min_val = min(node_importance)
         for centroid_id, centroid in enumerate(centroids):
-            centroid = [centroid[0].item(), centroid[1].item()]
+            centroid = [centroid[0], centroid[1]]
             if node_importance is not None:
-                # fill = (
-                #     node_importance[centroid_id] / max_val * 255,
-                #     node_importance[centroid_id] / max_val * 255,
-                #     node_importance[centroid_id] / max_val * 255
-                # )
                 fill = rgb(min_val, max_val, node_importance[centroid_id])
             draw_ellipse(centroid, draw_bd, fill)
 

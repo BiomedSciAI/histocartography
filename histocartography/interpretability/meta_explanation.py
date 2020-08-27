@@ -5,6 +5,7 @@ from histocartography.evaluation.classification_report import ClassificationRepo
 from histocartography.evaluation.nuclei_evaluator import NucleiEvaluator 
 from histocartography.utils.visualization import tSNE
 from histocartography.utils.draw_utils import plot_tSNE
+from histocartography.dataloader.constants import get_number_of_classes
 
 import os
 import numpy as np
@@ -40,7 +41,13 @@ VAR_TO_METRIC_FN = {
     '_f1_score': WeightedF1,
     '_ce_loss': CrossEntropyLoss,
     '_classification_report': ClassificationReport,
-    '_clustering': ClusteringQuality
+    # '_clustering': ClusteringQuality
+}
+
+
+CONVERT_SERIALIZABLE_TYPE = {
+    torch.Tensor: lambda x: x.item(),
+    dict: lambda x: x
 }
 
 
@@ -57,7 +64,7 @@ class MetaBaseExplanation:
         :param explanations: (list) all the explanation objects stored in a list 
         """
         self.config = config
-        self.exlanations = explanations
+        self.explanations = explanations
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
@@ -69,7 +76,7 @@ class MetaBaseExplanation:
         raise NotImplementedError('Implementation in subclasses')
 
 
-class MetaGraphExplanation(BaseExplanation):
+class MetaGraphExplanation(MetaBaseExplanation):
     def __init__(
             self,
             config,
@@ -83,23 +90,25 @@ class MetaGraphExplanation(BaseExplanation):
 
         """
 
-        super(GraphExplanation, self).__init__(config, explanations)
+        super(MetaGraphExplanation, self).__init__(config, explanations)
 
-        # define save path 
+        self.num_classes = get_number_of_classes(config['model_params']['class_split'])
+        self.graph_type = config['model_params']['model_type'].replace('_model', '')
+
         self.save_path = os.path.join(
             BASE_OUTPUT_PATH,
             'gnn',
+            str(self.num_classes) + '_class_scenario',
+            self.graph_type,
             EXPLANATION_TYPE_SAVE_SUBDIR[config['explanation_type']]
         )
 
+        os.makedirs(self.save_path, exist_ok=True)
+
         # extract meta information stored in the explanations 
-        self._extract_original_logits()
-        self._extract_original_latent_embeddings()
-
+        self._extract_data_from_explanations('logits')
+        self._extract_data_from_explanations('latent')
         self._extract_labels()
-
-        self._extract_masked_logits()
-        self._extract_masked_latent_embeddings()
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
@@ -111,28 +120,16 @@ class MetaGraphExplanation(BaseExplanation):
 
         # 3. write json 
         self._encapsulate_meta_explanation(res)
-        write_json(os.path.join(self.save_path, + 'meta_explanation.json'), self.meta_explanation)
+        write_json(os.path.join(self.save_path, 'meta_explanation.json'), self.meta_explanation_as_dict)
 
-    def _encapsulate_meta_explanation(self):
-        self.explanation_as_dict = {}
+    def _encapsulate_meta_explanation(self, res):
+        self.meta_explanation_as_dict = {}
 
         # a. config file
-        self.explanation_as_dict['config'] = self.config
+        self.meta_explanation_as_dict['config'] = self.config
 
         # b. output 
-        self.explanation_as_dict['output'] = res
-        # self.explanation_as_dict['output']['label_index'] = self.label.item()
-
-        # # 3-c original graph properties
-        # self.explanation_as_dict['output']['original'] = {}
-        # self.explanation_as_dict['output']['original']['logits'] = list(np.around(self.original_prediction.cpu().detach().numpy(), 2).astype(float))
-
-        # # 3-d explanation graph properties
-        # self.explanation_as_dict['output']['explanation'] = {}
-        # self.explanation_as_dict['output']['explanation']['number_of_nodes'] = self.explanation_graph.number_of_nodes()
-        # self.explanation_as_dict['output']['explanation']['number_of_edges'] = self.explanation_graph.number_of_edges()
-        # if self.explanation_prediction is not None:
-        #     self.explanation_as_dict['output']['explanation']['logits'] = list(np.around(self.explanation_prediction.cpu().detach().numpy(), 2).astype(float))
+        self.meta_explanation_as_dict['output'] = res
 
     def evaluate(self):
         """
@@ -142,43 +139,33 @@ class MetaGraphExplanation(BaseExplanation):
             - res: (dict) (surrogate) metrics so
         """
         res = {}
-        for prediction_type in ['original', 'masked']:
-            res[prediction_type] = {}
-            for metric_name, metric_fn in VAR_TO_METRIC_FN:
-                res[prediction_type][metric_name] = metric_fn(getattr(self, prediction_type + '_logits'), self.labels)
+        for prediction_type in self.explanations[0].explanation_graphs.keys():
+            attr_name = 'keep_' + str(int(prediction_type * 100))
+            res[attr_name] = {}
+            for metric_name, metric_fn in VAR_TO_METRIC_FN.items():
+                out = metric_fn()(getattr(self, attr_name + '_logits'), self.labels)  # @TODO: currently all the evaluators are based on logits // will be changed in the future 
+                out = CONVERT_SERIALIZABLE_TYPE[type(out)](out)
+                res[attr_name][metric_name] = out
         return res
 
-    def _extract_original_logits():
-        self.original_logits = []
-        for explanation in self.explanations:
-            self.original_logits.append(explanation.original_prediction)
-        self.original_logits = torch.stack(self.original_logits, dim=0)
+    def _extract_data_from_explanations(self, key, verbose=True):
+        for prediction_type in self.explanations[0].explanation_graphs.keys():
+            attr_name = 'keep_' + str(int(prediction_type * 100)) + '_' + key
+            data = []
+            for explanation in self.explanations:
+                data.append(explanation.explanation_graphs[1][key])
+            data = torch.FloatTensor(data)
+            setattr(self, attr_name, data)
+            if verbose:
+                print('Set new attribute: {} with shape: {}'.format(attr_name, data.shape))
 
-    def _extract_labels():
+    def _extract_labels(self):
         self.labels = []
         for explanation in self.explanations:
-            self.original_logits.append(explanation.label)
+            self.labels.append(explanation.label)
         self.labels = torch.LongTensor(self.labels)
 
-    def _extract_masked_logits():
-        self.masked_logits = []
-        for explanation in self.explanations:
-            self.original_logits.append(explanation.explanation_prediction)
-        self.masked_logits = torch.stack(self.masked_logits, dim=0)
-
-    def _extract_original_latent_embeddings():
-        self.original_latent_embeddings = []
-        for explanation in self.explanations:
-            self.original_logits.append(explanation.original_latent_embedding)
-        self.original_latent_embeddings = torch.stack(self.original_latent_embeddings, dim=0)
-
-    def _extract_masked_latent_embeddings():
-        self.masked_latent_embeddings = []
-        for explanation in self.explanations:
-            self.original_logits.append(explanation.masked_latent_embedding)
-        self.masked_latent_embeddings = torch.stack(self.masked_latent_embeddings, dim=0)
-
-class MetaImageExplanation(BaseExplanation):
+class MetaImageExplanation(MetaBaseExplanation):
     def __init__(
             self,
             config,
@@ -192,7 +179,7 @@ class MetaImageExplanation(BaseExplanation):
         
         """
 
-        super(ImageExplanation, self).__init__(config, image, image_name, original_prediction, label)
+        super(MetaImageExplanation, self).__init__(config, explanations)
 
         self.heatmap = heatmap
         self.save_path = '/dataT/pus/histocartography/Data/explainability/output/cnn'

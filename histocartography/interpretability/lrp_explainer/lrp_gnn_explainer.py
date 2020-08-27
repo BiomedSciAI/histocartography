@@ -5,6 +5,7 @@ from histocartography.utils.io import get_device
 from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE
 from ..base_explainer import BaseExplainer
 from ..explanation import GraphExplanation
+from histocartography.utils.torch import torch_to_list, torch_to_numpy
 
 
 class LRPGNNExplainer(BaseExplainer):
@@ -64,10 +65,12 @@ class LRPGNNExplainer(BaseExplainer):
             logits = self.model([pruned_graph])
             # c. store in dict 
             explanation_graphs[keep_percentage] = {}
-            explanation_graphs[keep_percentage]['logits'] = logits.cpu().detach().numpy().tolist()
-            explanation_graphs[keep_percentage]['latent'] = self.model.latent_representation.clone().cpu().detach().numpy().tolist()
+            explanation_graphs[keep_percentage]['logits'] = torch_to_list(logits.squeeze())
+            explanation_graphs[keep_percentage]['latent'] = torch_to_list(self.model.latent_representation.squeeze())
             explanation_graphs[keep_percentage]['num_nodes'] = pruned_graph.number_of_nodes()
             explanation_graphs[keep_percentage]['num_edges'] = pruned_graph.number_of_edges()
+            explanation_graphs[keep_percentage]['node_importance'] = torch_to_list(pruned_graph.ndata['node_importance'])
+            explanation_graphs[keep_percentage]['centroid'] = torch_to_list(pruned_graph.ndata['centroid'])
 
         # 5/ build and return explanation 
         explanation = GraphExplanation(

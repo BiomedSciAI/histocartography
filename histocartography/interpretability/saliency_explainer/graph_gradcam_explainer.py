@@ -70,8 +70,8 @@ class GraphGradCAMExplainer(BaseExplainer):
             logits = self.model([pruned_graph])
             # c. store in dict 
             explanation_graphs[keep_percentage] = {}
-            explanation_graphs[keep_percentage]['logits'] = logits.cpu().detach().numpy().tolist()
-            explanation_graphs[keep_percentage]['latent'] = self.model.latent_representation.clone().cpu().detach().numpy().tolist()
+            explanation_graphs[keep_percentage]['logits'] = torch_to_list(logits.squeeze())
+            explanation_graphs[keep_percentage]['latent'] = torch_to_list(self.model.latent_representation.squeeze())
             explanation_graphs[keep_percentage]['num_nodes'] = pruned_graph.number_of_nodes()
             explanation_graphs[keep_percentage]['num_edges'] = pruned_graph.number_of_edges()
             explanation_graphs[keep_percentage]['node_importance'] = torch_to_list(pruned_graph.ndata['node_importance'])

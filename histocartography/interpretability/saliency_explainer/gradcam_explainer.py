@@ -13,6 +13,15 @@ from matplotlib import cm
 import cv2
 
 
+# @TODO: set variables as constants (in a constants.py file if used in several files)
+PATCH_SIZE = 448
+PATCH_SCALE = 224
+STRIDE = 448
+PATCH_RESIZE = 112
+COLORMAP = 'jet'
+CMAP = cm.get_cmap(COLORMAP)
+
+
 class GradCAMGNNExplainer(BaseExplainer):
     def __init__(
             self,
@@ -30,12 +39,12 @@ class GradCAMGNNExplainer(BaseExplainer):
         """
         super(GradCAMGNNExplainer, self).__init__(model, config, cuda, verbose)
 
-        self.colormap='jet'
+        self.colormap ='jet'
 
         # Set based on our trained CNN-single stream (10x)-ResNet34 network
-        self.input_layer = '0'      # input_layer (str): name of the first layer
+        # self.input_layer = '0'      # input_layer (str): name of the first layer
         self.conv_layer = '7'       # conv_layer (str): name of the last convolutional layer
-        self.fc_layer = '11'        # fc_layer (str): name of the fully convolutional layer
+        # self.fc_layer = '11'        # fc_layer (str): name of the fully convolutional layer
 
         self.patch_size = 448
         self.patch_scale = 224
@@ -43,13 +52,10 @@ class GradCAMGNNExplainer(BaseExplainer):
         self.patch_resize = 112
         self.cmap = cm.get_cmap(self.colormap)
 
-
     def data_transformation(self, pil_img):
         img_tensor = normalize(to_tensor(resize(pil_img, (self.patch_scale, self.patch_scale))),
                                [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=self.device)
         return img_tensor
-
-
 
     def explain(self, data, label):
         """
@@ -87,7 +93,7 @@ class GradCAMGNNExplainer(BaseExplainer):
                              x: x + self.patch_size, :]
                 patch = cv2.resize(patch, (self.patch_resize, self.patch_resize), interpolation=cv2.INTER_NEAREST)
 
-                # Hook the corresponding layer in the model
+                # Hook the corresponding layer in the model -- @TODO why do you re-declare it at each loop ?
                 extractor = GradCAM(self.model, self.conv_layer)
 
                 # Preprocess image
@@ -105,6 +111,7 @@ class GradCAMGNNExplainer(BaseExplainer):
                 heatmap = to_pil_image(activation_map, mode='F')
                 heatmap = heatmap.resize((self.patch_size, self.patch_size), resample=Image.BICUBIC)
 
+                # @TODO split the compution to get the pixel importance and the drawing part -- include a draw fn as in the other modules
                 saliency_map[y: y + self.patch_size, x: x + self.patch_size, :] += \
                     (255 * self.cmap(np.asarray(heatmap) ** 2)[:, :, 1:]).astype(np.uint8)
 

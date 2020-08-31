@@ -1,5 +1,6 @@
 import torch.nn as nn
 from torch.nn import Sequential, Linear
+import torch 
 
 from histocartography.ml.layers.constants import ACTIVATIONS
 
@@ -16,7 +17,8 @@ class MLP(nn.Module):
         use_bn=False,
         bias=True,
         verbose=False,
-        dropout=0.
+        dropout=0.,
+        with_rlp=False
     ):
         """
         MLP Constructor
@@ -50,6 +52,11 @@ class MLP(nn.Module):
 
         # set bias terms
         self._set_biases(bias, num_layers)
+
+        # set RLP
+        self.with_rlp = with_rlp
+        if self.with_rlp:
+            self.forward_activations = []
 
         # build MLP layers
         self.mlp = nn.ModuleList()
@@ -155,6 +162,11 @@ class MLP(nn.Module):
                 format(act, list(ACTIVATIONS.keys()))
             )
 
+    def set_rlp(self, with_rlp):
+        self.with_rlp = with_rlp
+        if self.with_rlp:
+            self.forward_activations = []
+
     def forward(self, feats):
         """
         MLP forward
@@ -162,6 +174,19 @@ class MLP(nn.Module):
         :return: out: MLP output
         """
         out = feats
+        if hasattr(self, 'with_rlp') and self.with_rlp:
+            self.forward_activations.append(out)
         for layer in self.mlp:
             out = layer(out)
+            if hasattr(self, 'with_rlp') and self.with_rlp:
+                self.forward_activations.append(out)
         return out
+
+    def rlp(self, relevance_score):
+        for layer_id in range(len(self.mlp)-1, -1, -1):
+            V = torch.clamp(self.mlp[layer_id][0].weight, min=0)
+            Z = torch.mm(self.forward_activations[layer_id], V.t()) + 1e-9
+            S = relevance_score / Z
+            C = torch.mm(S, V)
+            relevance_score = self.forward_activations[layer_id] * C
+        return relevance_score

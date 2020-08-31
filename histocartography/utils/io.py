@@ -7,6 +7,7 @@ from PIL import Image
 import io
 import pickle
 import csv
+import importlib
 from mlflow.pytorch import load_model
 
 from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES
@@ -14,7 +15,7 @@ from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
 
 
 def plain_model_loading(config):
-    model = load_model(MODEL_TO_MLFLOW_ID[config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+    model = load_model(MODEL_TO_MLFLOW_ID[config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
     return model
 
 
@@ -24,7 +25,7 @@ def tentative_model_loading(config):
     model = getattr(module, AVAILABLE_MODEL_TYPES[config['model_type']])(config['model_params'], config['data_params']['input_feature_dims'])
 
     # buid mlflow model and copy manually the weigths 
-    mlflow_model = load_model(MODEL_TO_MLFLOW_ID[config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+    mlflow_model = load_model(MODEL_TO_MLFLOW_ID[config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
 
     def is_int(s):
         try:

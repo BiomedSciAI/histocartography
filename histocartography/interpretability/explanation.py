@@ -1,13 +1,12 @@
 from histocartography.utils.visualization import GraphVisualization, overlay_mask
-from histocartography.utils.io import save_image
+from histocartography.utils.io import save_image, write_json
+from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
+from histocartography.dataloader.constants import get_label_to_tumor_type, get_number_of_classes
 
 import os
+import numpy as np
 
-
-EXPLANATION_TYPE_SAVE_SUBDIR = {
-    'attention_based_explainer.attention_gnn_explainer': 'GAT',
-    'pruning_explainer.graph_pruning_explainer': 'CGCNet'
-}
+BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output'
 
 
 class BaseExplanation:
@@ -16,7 +15,6 @@ class BaseExplanation:
             config,
             image,
             image_name,
-            original_prediction,
             label
     ):
         """
@@ -29,7 +27,6 @@ class BaseExplanation:
         self.config = config
         self.image = image[0]
         self.image_name = image_name[0]
-        self.original_prediction = original_prediction
         self.label = label
 
     def read(self):
@@ -41,6 +38,9 @@ class BaseExplanation:
     def draw(self):
         raise NotImplementedError('Implementation in subclasses')
 
+    def evaluate(self):
+        raise NotImplementedError('Implementation in subclasses')
+
 
 class GraphExplanation(BaseExplanation):
     def __init__(
@@ -48,10 +48,8 @@ class GraphExplanation(BaseExplanation):
             config,
             image, 
             image_name,
-            original_prediction,
             label,
-            explanation_graph,
-            explanation_prediction=None
+            explanation_graphs,
     ):
         """
         Graph Explanation constructor: Object that is defining a graph explanation for a given sample.
@@ -62,53 +60,53 @@ class GraphExplanation(BaseExplanation):
         :param node_importance: (torch.FloatTensor) a |V| array that contains the  (scaled-) relative importance of each node
         :param original_prediction: (torch.FloatTensor) a |C| array that contains the predicted probabilities
         :param label: (torch.LongTensor) a 1d tensor storing the label 
+
+        @TODO: include nuclei annotations (should be returned by the PASCALE dataloder)
+
         """
 
-        super(GraphExplanation, self).__init__(config, image, image_name, original_prediction, label)
+        super(GraphExplanation, self).__init__(config, image, image_name, label)
 
-        self.explanation_graph = explanation_graph
-        self.explanation_prediction = explanation_prediction 
+        self.explanation_graphs = explanation_graphs
+        self.num_classes = get_number_of_classes(config['model_params']['class_split'])
+        self.graph_type = config['model_params']['model_type'].replace('_model', '')
+
         self.save_path = os.path.join(
-            '/dataT/pus/histocartography/Data/explainability/output/gnn',
+            BASE_OUTPUT_PATH,
+            'gnn',
+            str(self.num_classes) + '_class_scenario',
+            self.graph_type,
             EXPLANATION_TYPE_SAVE_SUBDIR[config['explanation_type']]
         )
+
+        os.makedirs(self.save_path, exist_ok=True)
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
 
     def write(self):
+
+        # 1. write image 
         explanation_as_image = self.draw()
         save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), explanation_as_image)
 
+        # 2. write json 
+        self._encapsulate_explanation()
+        write_json(os.path.join(self.save_path, self.image_name + '_explanation.json'), self.explanation_as_dict)
+
     def _encapsulate_explanation(self):
         self.explanation_as_dict = {}
-        meta_data = {}
 
-        # a. config file
-        meta_data['config'] = self.config
+        # a. store config file
+        self.explanation_as_dict['config'] = self.config
 
         # b. output 
-        meta_data['output'] = {}
-        meta_data['output']['label_index'] = self.label.item()
-        # meta_data['output']['label_set'] = [val for key, val in label_to_tumor_type.items()]
-        # meta_data['output']['label'] = label_to_tumor_type[label.item()]
-
-        # 3-c original graph properties
-        meta_data['output']['original'] = {}
-        meta_data['output']['original']['logits'] = list(np.around(self.original_prediction, 2).astype(float))
-        # meta_data['output']['original']['number_of_nodes'] = explanation_graph.number_of_nodes()
-        # meta_data['output']['original']['number_of_edges'] = explanation_graph.number_of_edges()
-        # meta_data['output']['original']['prediction'] = label_to_tumor_type[np.argmax(orig_pred)]
+        self.explanation_as_dict['output'] = {}
+        self.explanation_as_dict['output']['label_index'] = self.label.item()
+        self.explanation_as_dict['output']['label'] = get_label_to_tumor_type(self.config['model_params']['class_split'])[self.label.item()]
 
         # 3-d explanation graph properties
-        meta_data['output']['explanation'] = {}
-        meta_data['output']['explanation']['number_of_nodes'] = explanation_graph.number_of_nodes()
-        meta_data['output']['explanation']['number_of_edges'] = explanation_graph.number_of_edges()
-        # meta_data['output']['explanation']['logits'] = list(np.around(exp_pred, 2).astype(float))
-        # meta_data['output']['explanation']['prediction'] = label_to_tumor_type[np.argmax(exp_pred)]
-        # meta_data['output']['explanation']['node_importance'] = str(list(node_importance))
-        # meta_data['output']['explanation']['centroids'] = str([list(centroid.cpu().numpy()) for centroid in graph_visualizer.centroid_cg])
-        # meta_data['output']['explanation']['edges'] = str(list(graph_visualizer.edges_cg))
+        self.explanation_as_dict['output']['explanation'] = self.explanation_graphs
 
     def draw(self):
         """
@@ -119,7 +117,9 @@ class GraphExplanation(BaseExplanation):
             show_cg=True,
             show_sg=False,
             show_superpx=False,
-            data=[self.explanation_graph, self.image, self.image_name])
+            data=[self.explanation_graphs[1], self.image, self.image_name],
+            node_importance=self.explanation_graphs[1]['node_importance']
+        )
         return explanation_as_image
 
 

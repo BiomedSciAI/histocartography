@@ -55,3 +55,11 @@ class BaseModel(Module):
         :param graphs:
         """
         raise NotImplementedError('Implementation in subclasses.')
+
+    def set_forward_hook(self, module, layer):
+        module._modules.get(layer).register_forward_hook(self._forward_hook)
+
+    def _forward_hook(self, module, input, output):
+        """Activation hook"""
+        self.latent_representation = output.data
+

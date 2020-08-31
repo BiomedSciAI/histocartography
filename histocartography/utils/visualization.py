@@ -5,6 +5,7 @@ from matplotlib import gridspec
 import numpy as np
 import dgl
 from matplotlib import cm
+from sklearn.manifold import TSNE
 # from dgl import BatchedDGLGraph
 from dgl import DGLGraph
 import networkx as nx 
@@ -13,8 +14,18 @@ from PIL import ImageFilter
 from PIL import Image
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
-from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle
+from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle, rgb
 from histocartography.ml.layers.constants import CENTROID
+
+
+class tSNE:
+    def __init__(self, num_dims=2):
+        print('Initialize t-SNE')
+        self.tsne_op = TSNE(n_components=num_dims)
+
+    def __call__(self, data):
+        data_embedded = self.tsne_op.fit_transform(data)
+        return data_embedded
 
 
 def overlay_mask(img, mask, colormap='jet', alpha=0.7):
@@ -48,7 +59,7 @@ def overlay_mask(img, mask, colormap='jet', alpha=0.7):
 
 class GraphVisualization:
 
-    def __init__(self, show_centroid=True, show_edges=True, save=False, save_path='../../data/graphs', verbose=False):
+    def __init__(self, show_centroid=True, show_edges=False, save=False, save_path='../../data/graphs', verbose=False):
         if verbose:
             print('Initialize graph visualizer')
         self.show_centroid = show_centroid
@@ -90,15 +101,14 @@ class GraphVisualization:
             canvas = image.copy()
             draw = ImageDraw.Draw(canvas, 'RGBA')
             
-            # if isinstance(data[0], BatchedDGLGraph):
-            #     cell_graph = dgl.unbatch(data[0])[index]
-            # else:
-            #     cell_graph = data[0]
-
             cell_graph = data[0]
 
             # get centroids and edges
-            cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
+            if isinstance(cell_graph, dict):
+                cent_cg = cell_graph['centroid']
+                edges_cg = None
+            else:
+                cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
 
             # @TODO: hack alert store the centroid and the edges
             self.centroid_cg = cent_cg
@@ -106,7 +116,7 @@ class GraphVisualization:
             
             # draw centroids
             if self.show_centroid:
-                self.draw_centroid(cent_cg, draw, (255, 0, 0))
+                self.draw_centroid(cent_cg, draw, (255, 0, 0), node_importance)
             
             if seg_map is not None:
                 seg_map = seg_map.squeeze()
@@ -128,9 +138,14 @@ class GraphVisualization:
             return canvas
 
     @staticmethod
-    def draw_centroid(centroids, draw_bd, fill):
-        for centroid in centroids:
-            centroid = [centroid[0].item(), centroid[1].item()]
+    def draw_centroid(centroids, draw_bd, fill, node_importance=None):
+        if node_importance is not None:
+            max_val = max(node_importance)
+            min_val = min(node_importance)
+        for centroid_id, centroid in enumerate(centroids):
+            centroid = [centroid[0], centroid[1]]
+            if node_importance is not None:
+                fill = rgb(min_val, max_val, node_importance[centroid_id])
             draw_ellipse(centroid, draw_bd, fill)
 
     @staticmethod

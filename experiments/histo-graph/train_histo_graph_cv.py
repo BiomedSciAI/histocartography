@@ -264,7 +264,7 @@ def main(args):
             mlflow.log_metric('best_test_weighted_f1_score_' + metric + '_' + str(fold_id), weighted_f1_score, step=step)
 
             # compute & store per class weighted f1-score 
-            for key, val in per_class_weighted_f1_score(all_test_logits, all_test_labels).items():
+            for key, val in per_class_weighted_f1_score(all_test_logits, all_test_labels, config['model_params']['class_split']).items():
                 mlflow.log_metric('best_' + key + '_test_weighted_f1_score_' + metric + '_' + str(fold_id), val, step=step)
 
             # run external evaluators

@@ -136,3 +136,12 @@ class MultiLayerGNN(nn.Module):
                 return REDUCE_TYPES[self.readout_type](h, dim=0)
             return h
 
+    def set_rlp(self, with_rlp):
+        for layer in self.layers:
+            layer.set_rlp(with_rlp)
+
+    def rlp(self, relevance_score):
+        for layer_id in range(len(self.layers)-1, -1, -1):
+            relevance_score = self.layers[layer_id].rlp(relevance_score)
+        return relevance_score 
+

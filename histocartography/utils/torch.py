@@ -48,3 +48,11 @@ def masked_softmax(matrix, mask, dim=-1, memory_efficient=True,
                                                mask_fill_value)
             result = torch.nn.functional.softmax(masked_matrix, dim=dim)
     return result
+
+
+def torch_to_numpy(x):
+    return x.cpu().detach().numpy()
+
+
+def torch_to_list(x):
+    return x.cpu().detach().numpy().tolist()

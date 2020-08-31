@@ -63,3 +63,17 @@ class SuperpxGraphModel(BaseModel):
         # 2. Run readout function
         logits = self.pred_layer(graph_embeddings)
         return logits
+
+    def set_rlp(self, with_rlp):
+        self.superpx_gnn.set_rlp(with_rlp)
+        self.pred_layer.set_rlp(with_rlp)
+
+    def rlp(self, out_relevance_score):
+        # RLP over the classification 
+        relevance_score = self.pred_layer.rlp(out_relevance_score)
+
+        # RLP over the GNN layers 
+        relevance_score = self.superpx_gnn.rlp(relevance_score)
+
+        return relevance_score
+

@@ -1,5 +1,6 @@
 import torch
 from tqdm import tqdm
+from copy import deepcopy
 
 from ...ml.layers.constants import GNN_NODE_FEAT_IN
 from ...dataloader.constants import get_label_to_tumor_type
@@ -7,7 +8,9 @@ from .explainer_model import ExplainerModel
 from histocartography.utils.io import get_device
 from ..base_explainer import BaseExplainer
 from ..explanation import GraphExplanation
-from histocartography.utils.graph import adj_to_networkx
+from histocartography.utils.graph import adj_to_dgl
+from histocartography.utils.torch import torch_to_list, torch_to_numpy
+from histocartography.utils.graph import set_graph_on_cpu
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -18,7 +21,7 @@ class GraphPruningExplainer(BaseExplainer):
             cuda=False,
             verbose=False
     ):
-
+    
         super(GraphPruningExplainer, self).__init__(model, config, cuda, verbose)
 
         self.train_params = self.config['train_params']
@@ -38,10 +41,9 @@ class GraphPruningExplainer(BaseExplainer):
         Explain a graph instance
         """
 
-        if self.cuda:
-            self.model = self.model.cuda()
+        self.model = self.model.to(self.device)
 
-        graph = data[0]
+        graph = deepcopy(data[0])
         image = data[1]
         image_name = data[2]
 
@@ -53,15 +55,13 @@ class GraphPruningExplainer(BaseExplainer):
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
         label = torch.tensor(sub_label, dtype=torch.long).to(self.device)
 
-        if self.cuda:
-            self.model = self.model.cuda()
         init_logits = self.model(data)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
         init_pred_label = torch.argmax(init_logits, dim=1).squeeze()
 
         explainer = ExplainerModel(
-            model=self.model,
+            model=deepcopy(self.model),
             adj=adj,
             x=x,
             init_probs=init_probs.to(self.device),
@@ -73,7 +73,7 @@ class GraphPruningExplainer(BaseExplainer):
         self.adj_explanation = adj
         self.node_feats_explanation = x
         self.probs_explanation = init_probs
-        self.node_importance = explainer._get_node_feats_mask().cpu().detach().numpy()
+        self.node_importance = torch_to_numpy(explainer._get_node_feats_mask())
 
         self.model.eval()
         explainer.train()
@@ -86,13 +86,8 @@ class GraphPruningExplainer(BaseExplainer):
         loss = torch.FloatTensor([10000.])
 
         # log description
-        desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | ".format(
-            init_num_nodes, init_num_nodes,
-            init_non_zero_elements, init_non_zero_elements,
-            density,
-            loss.item(),
-            self.label_to_tumor_type[label.item()]
-        )
+        desc = self._set_pbar_desc(init_num_nodes, init_num_nodes, init_non_zero_elements, init_non_zero_elements, density, loss, label, init_probs, init_probs)
+
         for label_idx, label_name in self.label_to_tumor_type.items():
             desc += ' ' + label_name + ' {} / {} | '.format(
                 round(float(init_probs[int(label_idx)]), 2),
@@ -120,28 +115,14 @@ class GraphPruningExplainer(BaseExplainer):
             num_nodes = torch.sum(masked_feats.sum(dim=-1) != 0.)
             pred_label = torch.argmax(logits, dim=0).squeeze()
 
-            # update description
-            desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | ".format(
-                num_nodes, init_num_nodes,
-                non_zero_elements, init_non_zero_elements,
-                density,
-                round(loss.item(), 2),
-                self.label_to_tumor_type[label.item()]
-            )
-            for label_idx, label_name in self.label_to_tumor_type.items():
-                desc += ' ' + label_name + ' {} / {} | '.format(
-                    round(float(probs[int(label_idx)]), 2),
-                    round(float(init_probs[int(label_idx)]), 2)
-                )
-
-            pbar.set_description(desc)
+            pbar.set_description(self._set_pbar_desc(num_nodes, init_num_nodes, non_zero_elements, init_non_zero_elements, density, loss, label, probs, init_probs))
 
             # handle early stopping if the labels is changed
             if pred_label.item() == init_pred_label:
                 self.adj_explanation = masked_adj
                 self.node_feats_explanation = masked_feats
                 self.probs_explanation = probs
-                self.node_importance = node_importance.cpu().detach().numpy()
+                self.node_importance = torch_to_numpy(node_importance)
             else:
                 print('Predicted label changed. Early stopping.')
                 break
@@ -151,7 +132,7 @@ class GraphPruningExplainer(BaseExplainer):
             loss.backward(retain_graph=True)
             explainer.optimizer.step()
 
-        # clean up the representation and transform it as networkx object 
+        # Clean up the explanation representation and transform it as DGLGraph object 
         node_idx = (self.node_feats_explanation.squeeze().sum(dim=-1) != 0.).squeeze().cpu()
         adj = self.adj_explanation.squeeze()[node_idx, :]
         adj = adj[:, node_idx]
@@ -159,17 +140,80 @@ class GraphPruningExplainer(BaseExplainer):
         node_importance = node_importance[node_idx]
         centroids = data[0].ndata['centroid'].squeeze()
         pruned_centroids = centroids[node_idx, :]
-        explanation_graph = adj_to_networkx(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids)
+        explanation_graph = adj_to_dgl(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids)
 
-        # build explanation object
+        # forward pass with the original and pruned graph to get the latent embeddings
+        self.model.cpu()
+        self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer
+        _ = self.model([set_graph_on_cpu(graph)])
+        original_latent_representation = torch_to_list(self.model.latent_representation.squeeze())
+        _ = self.model([set_graph_on_cpu(explanation_graph)])
+        explanation_latent_representation = torch_to_list(self.model.latent_representation.squeeze())
+
+        # Build explanation graphs
+        explanation_graphs = {}
+        # a. set the orignal graph, ie keep_percentage = 1
+        explanation_graphs[1] = self._build_explanation_as_dict(graph, self.node_importance.tolist(), init_logits.squeeze().numpy().tolist(), original_latent_representation)
+        # b. set the pruned (explanation) graph, ie keep_percentage = 1
+        explanation_graphs[self.model_params['adj_thresh']] = self._build_explanation_as_dict(
+            explanation_graph,
+            torch_to_list(explanation_graph.ndata['node_importance']),
+            self.probs_explanation.tolist(),
+            explanation_latent_representation)
+
+        # Build explanation object
         explanation = GraphExplanation(
-            self.model_params,
+            self.config,
             image,
             image_name,
-            init_probs,
             label,
-            explanation_graph,
-            probs
+            explanation_graphs,
         )
 
         return explanation
+
+    def _build_explanation_as_dict(self, graph, node_importance, logits, latent):
+        exp = {}
+        exp['logits'] = logits
+        exp['latent'] = latent
+        exp['num_nodes'] = graph.number_of_nodes()
+        exp['num_edges'] = graph.number_of_edges()
+        exp['node_importance'] = node_importance   
+        exp['centroid'] = torch_to_list(graph.ndata['centroid'])
+        return exp
+
+    def _set_pbar_desc(self, num_nodes, init_num_nodes, non_zero_elements, init_non_zero_elements, density, loss, label, probs, init_probs):
+        desc = "Nodes {} / {} | Edges {} / {} | Density {} | Loss {} | Label {} | ".format(
+            num_nodes, init_num_nodes,
+            non_zero_elements, init_non_zero_elements,
+            density,
+            round(loss.item(), 2),
+            self.label_to_tumor_type[label.item()]
+        )
+        for label_idx, label_name in self.label_to_tumor_type.items():
+            desc += ' ' + label_name + ' {} / {} | '.format(
+                round(float(probs[int(label_idx)]), 2),
+                round(float(init_probs[int(label_idx)]), 2)
+            )
+
+        return desc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -10,6 +10,7 @@ from ..base_explainer import BaseExplainer
 from ..explanation import GraphExplanation
 from histocartography.utils.graph import adj_to_dgl
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
+from histocartography.utils.graph import set_graph_on_cpu
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -54,15 +55,13 @@ class GraphPruningExplainer(BaseExplainer):
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
         label = torch.tensor(sub_label, dtype=torch.long).to(self.device)
 
-        if self.cuda:
-            self.model = self.model.cuda()
         init_logits = self.model(data)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
         init_pred_label = torch.argmax(init_logits, dim=1).squeeze()
 
         explainer = ExplainerModel(
-            model=self.model,
+            model=deepcopy(self.model),
             adj=adj,
             x=x,
             init_probs=init_probs.to(self.device),
@@ -144,16 +143,17 @@ class GraphPruningExplainer(BaseExplainer):
         explanation_graph = adj_to_dgl(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids)
 
         # forward pass with the original and pruned graph to get the latent embeddings
-        # self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer
-        # _ = self.model([graph])
-        original_latent_representation = None  #torch_to_list(self.model.latent_representation)
-        # _ = self.model([explanation_graph])
-        explanation_latent_representation = None  # torch_to_list(self.model.latent_representation)
+        self.model.cpu()
+        self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer
+        _ = self.model([set_graph_on_cpu(graph)])
+        original_latent_representation = torch_to_list(self.model.latent_representation.squeeze())
+        _ = self.model([set_graph_on_cpu(explanation_graph)])
+        explanation_latent_representation = torch_to_list(self.model.latent_representation.squeeze())
 
         # Build explanation graphs
         explanation_graphs = {}
         # a. set the orignal graph, ie keep_percentage = 1
-        explanation_graphs[1] = self._build_explanation_as_dict(graph, self.node_importance.tolist(), init_logits.numpy().tolist(), original_latent_representation)
+        explanation_graphs[1] = self._build_explanation_as_dict(graph, self.node_importance.tolist(), init_logits.squeeze().numpy().tolist(), original_latent_representation)
         # b. set the pruned (explanation) graph, ie keep_percentage = 1
         explanation_graphs[self.model_params['adj_thresh']] = self._build_explanation_as_dict(
             explanation_graph,

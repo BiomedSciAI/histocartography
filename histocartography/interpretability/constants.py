@@ -22,7 +22,16 @@ MODEL_TO_MLFLOW_ID = {
         'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0'
     },
     'multi_level_graph_model': {
-        'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '5ced95f2b389478cb3e57aaa1c77fc94/artifacts/model_best_val_loss_0'
+        'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '5ced95f2b389478cb3e57aaa1c77fc94/artifacts/model_best_val_loss_0',
+        'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '',
+        'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
+        'pruning_explainer.graph_pruning_explainer': BASE_S3 + ''
+    },
+    'superpx_graph_model': {
+        'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '5ced95f2b389478cb3e57aaa1c77fc94/artifacts/model_best_val_loss_0',
+        'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '',
+        'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
+        'pruning_explainer.graph_pruning_explainer': BASE_S3 + ''
     }
 }
 

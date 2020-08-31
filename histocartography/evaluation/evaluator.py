@@ -75,7 +75,6 @@ class ExpectedClassShiftWithLogits(BaseEvaluator):
         self.knowledge_graph = knowledge_graph
         if knowledge_graph is not None:
             self.shortest_paths = dict(nx.shortest_path_length(knowledge_graph))
-            print('shortest path', self.shortest_paths)
 
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)

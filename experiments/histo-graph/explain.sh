@@ -12,25 +12,21 @@ mkdir -p ../../runs
 # Set input parameters
 LEARNING_RATES=(0.01)
 NUM_CLASSES=(2 3 5)
+BASE_CONFIG="explain_config"
+ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
 SPLITS=("test")
 queue="prod.med"
 
 for split in "${SPLITS[@]}"
 	do
-	for lr in "${LEARNING_RATES[@]}"
+	for conf in "${ALL_CONFIG_FILES[@]}"
 	do
-		for num_classes in "${NUM_CLASSES[@]}"
-		do
-			echo "$lr"
-			echo "$num_classes"
-
-			bsub -R "rusage [ngpus_excl_p=1]" \
-			    -J  "explainer" \
-			    -o "../../runs/lsf_logs.%J.stdout" \
-			    -e "../../runs/lsf_logs.%J.stderr" \
-			    -q "$queue" \
-			    "python run_explainer.py -d /dataT/pus/histocartography/Data/pascale/ -conf ../../histocartography/config/explainer_config.json --epochs 1000  -l $lr --out_path /dataT/gja/histocartography/data/explanations/${num_classes}_classes/${split}/fold_4 --num_classes $num_classes --split $split"
-			sleep 0.1 
-		done
+		bsub -R "rusage [ngpus_excl_p=1]" \
+		    -J  "explainer" \
+		    -o "../../runs/lsf_logs.%J.stdout" \
+		    -e "../../runs/lsf_logs.%J.stderr" \
+		    -q "$queue" \
+		    "python run_explainer.py -d /dataT/pus/histocartography/Data/PASCALE/BRCAS_L/ -conf ../../histocartography/config/$BASE_CONFIG/$conf --split $split"
+		sleep 0.1 
 	done
 done

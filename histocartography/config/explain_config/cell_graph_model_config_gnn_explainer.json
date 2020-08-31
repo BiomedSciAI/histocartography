@@ -1,43 +1,45 @@
 {
     "graph_building": {
         "cell_graph_builder": {
+            "drop_appearance_features": false,
             "edge_encoding": false,
             "graph_building_type": "knn_graph_builder",
             "max_distance": 50,
             "n_neighbors": 5,
-            "drop_appearance_features": false,
             "node_feature_types": [
-                "features_cnn_resnet34_mask_True_"
+                "features_cnn_resnet34_mask_False_"
             ]
         }
     },
     "model_params": {
         "activation": "relu",
+        "class_split": "benignVSpathologicalbenign+udhVSadh+feaVSdcisVSmalignant",
         "dropout": 0.0,
         "gnn_params": {
             "cell_gnn": {
                 "activation": "relu",
+                "agg_operator": "concat",
                 "hidden_dim": 64,
                 "layer_type": "dense_gin_layer",
                 "n_layers": 3,
-                "neighbor_pooling_type": "mean",
                 "output_dim": 64,
-                "agg_operator": "lstm"
+                "neighbor_pooling_type": "mean",
+                "graph_norm": false,
+                "with_rlp": false
             }
         },
         "readout": {
-            "hidden_dim": 64,
+            "hidden_dim": 128,
             "num_layers": 2
         },
-        "use_bn": true,
-        "class_split": "benignVSpathologicalbenign+udhVSadh+feaVSdcisVSmalignant"
+        "use_bn": false
     },
     "model_type": "cell_graph_model",
     "explanation_params": {
         "explanation_type": "pruning_explainer.graph_pruning_explainer",
         "train_params": {
-            "num_epochs": 100,
-            "lr": 0.001,
+            "num_epochs": 50,
+            "lr": 0.01,
             "weight_decay": 5e-4
         },
         "model_params": {

@@ -1,11 +1,12 @@
 from histocartography.utils.io import save_image, write_json
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
-from histocartography.evaluation.evaluator import WeightedF1, CrossEntropyLoss, ClusteringQuality
+from histocartography.evaluation.evaluator import WeightedF1, CrossEntropyLoss, ClusteringQuality, ExpectedClassShiftWithLogits
 from histocartography.evaluation.classification_report import ClassificationReport
 from histocartography.evaluation.nuclei_evaluator import NucleiEvaluator 
 from histocartography.utils.visualization import tSNE
 from histocartography.utils.draw_utils import plot_tSNE
-from histocartography.dataloader.constants import get_number_of_classes
+from histocartography.dataloader.constants import get_number_of_classes, get_label_to_tumor_type
+from histocartography.interpretability.constants import FIVE_CLASS_DEPENDENCY_GRAPH
 
 import os
 import numpy as np
@@ -29,7 +30,7 @@ BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output/'
 # The elements that we need are:
 #   - the logits of the original prediction
 #   - the logits of the masked prediction (@10% @20%, @50%, etc...)
-#   - the latent embeddings of the orginal predictions
+#   - the latent embeddings of the original predictions
 #   - the latent embeddings of the masked predictions 
 #   - the nuclei labels 
 
@@ -38,10 +39,11 @@ BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output/'
 #   - all the priors encoding the correspondence between nuclei importance, nuclei labels for a given class 
 
 VAR_TO_METRIC_FN = {
-    '_f1_score': WeightedF1,
-    '_ce_loss': CrossEntropyLoss,
-    '_classification_report': ClassificationReport,
+    '_f1_score': ({}, WeightedF1),
+    '_ce_loss': ({}, CrossEntropyLoss),
+    '_classification_report': ({}, ClassificationReport),
     # '_clustering': ClusteringQuality
+    '_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits)
 }
 
 
@@ -118,9 +120,19 @@ class MetaGraphExplanation(MetaBaseExplanation):
         # 1. run metrics to derive meta explanation results 
         res = self.evaluate()
 
-        # 3. write json 
+        # 2. write json 
         self._encapsulate_meta_explanation(res)
         write_json(os.path.join(self.save_path, 'meta_explanation.json'), self.meta_explanation_as_dict)
+
+        # 3. draw tSNE projection
+        self._run_and_draw_tsne()
+
+    def _run_and_draw_tsne(self):
+        eval_tsne = tSNE()
+        for prediction_type in self.explanations[0].explanation_graphs.keys():
+            attr_name = 'keep_' + str(int(prediction_type * 100))
+            low_dim_emb = eval_tsne(getattr(self, attr_name + '_latent'))
+            plot_tSNE(low_dim_emb, self.labels, os.path.join(self.save_path, attr_name + '_tsne.png'), get_label_to_tumor_type(self.config['model_params']['class_split']))
 
     def _encapsulate_meta_explanation(self, res):
         self.meta_explanation_as_dict = {}
@@ -142,8 +154,8 @@ class MetaGraphExplanation(MetaBaseExplanation):
         for prediction_type in self.explanations[0].explanation_graphs.keys():
             attr_name = 'keep_' + str(int(prediction_type * 100))
             res[attr_name] = {}
-            for metric_name, metric_fn in VAR_TO_METRIC_FN.items():
-                out = metric_fn()(getattr(self, attr_name + '_logits'), self.labels)  # @TODO: currently all the evaluators are based on logits // will be changed in the future 
+            for metric_name, (metric_arg, metric_fn) in VAR_TO_METRIC_FN.items():
+                out = metric_fn(**metric_arg)(getattr(self, attr_name + '_logits'), self.labels)
                 out = CONVERT_SERIALIZABLE_TYPE[type(out)](out)
                 res[attr_name][metric_name] = out
         return res

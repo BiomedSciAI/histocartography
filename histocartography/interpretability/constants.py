@@ -46,21 +46,21 @@ EXPLANATION_TYPE_SAVE_SUBDIR = {
 # define KG encding the class inter-dependencies for 5-class problem 
 FIVE_CLASS_NAMES = ['benign', 'pathologicalbenign', 'atypical', 'dcis', 'malignant']
 FIVE_CLASS_DEPENDENCY_GRAPH = nx.Graph()
-for label in FIVE_CLASS_NAMES:
-    FIVE_CLASS_DEPENDENCY_GRAPH.add_node(label)    
+for idx, label in enumerate(FIVE_CLASS_NAMES):
+    FIVE_CLASS_DEPENDENCY_GRAPH.add_node(idx, attr={'name': label})    
 
-FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('benign', 'pathologicalbenign')
-FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'atypical')
-FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'dcis')
-FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('adh', 'dcis')
-FIVE_CLASS_DEPENDENCY_GRAPH.add_edge('dcis', 'malignant')
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge(0, 1)
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge(1, 2)
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge(1, 3)
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge(2, 3)
+FIVE_CLASS_DEPENDENCY_GRAPH.add_edge(3, 4)
 
 
 # define KG encding the class inter-dependencies for 5-class problem 
 SEVEN_CLASS_NAMES = ['benign', 'pathologicalbenign', 'udh', 'adh', 'fea', 'dcis', 'malignant']
 SEVEN_CLASS_DEPENDENCY_GRAPH = nx.Graph()
-for label in FIVE_CLASS_NAMES:
-    SEVEN_CLASS_DEPENDENCY_GRAPH.add_node(label)    
+for idx, label in enumerate(SEVEN_CLASS_NAMES):
+    SEVEN_CLASS_DEPENDENCY_GRAPH.add_node(label, attr={'index': idx})    
 
 SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('benign', 'pathologicalbenign')
 SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('pathologicalbenign', 'udh')

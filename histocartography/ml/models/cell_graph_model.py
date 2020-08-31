@@ -69,13 +69,6 @@ class CellGraphModel(BaseModel):
 
         return out
 
-    def set_forward_hook(self, module, layer):
-        module._modules.get(layer).register_forward_hook(self._forward_hook)
-
-    def _forward_hook(self, module, input, output):
-        """Activation hook"""
-        self.latent_representation = output.data
-
     def set_rlp(self, with_rlp):
         self.cell_graph_gnn.set_rlp(with_rlp)
         self.pred_layer.set_rlp(with_rlp)

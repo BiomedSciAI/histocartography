@@ -14,35 +14,11 @@ import torch
 
 BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output/'
 
-# The metrics to run on the whole test set are: 
-#   - Cross entropy loss of the original prediction  V
-#   - Cross entropy loss of the masked prediction    
-#   - Weighted F1-score of the original prediction   V
-#   - Weigthed F1-score of the masked prediction
-#   - Classification report (as a dict) of the original prediction  V
-#   - CLassification report (as a dict) of the masked prediction 
-#   - tSNE embeddings (as an image) of the original prediction  V
-#   - tSNE embeddings (as an image) of the masked prediction
-#   - clustering quality of the original predictions    V
-#   - clustering quality of the masked predictions 
-#   - a set of nuclei metrics...??
-
-# The elements that we need are:
-#   - the logits of the original prediction
-#   - the logits of the masked prediction (@10% @20%, @50%, etc...)
-#   - the latent embeddings of the original predictions
-#   - the latent embeddings of the masked predictions 
-#   - the nuclei labels 
-
-# Extennal elements that we need are:
-#   - prior knowledge graph showing the class inter-dependency 
-#   - all the priors encoding the correspondence between nuclei importance, nuclei labels for a given class 
 
 VAR_TO_METRIC_FN = {
     '_f1_score': ({}, WeightedF1),
     '_ce_loss': ({}, CrossEntropyLoss),
     '_classification_report': ({}, ClassificationReport),
-    # '_clustering': ClusteringQuality
     '_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits)
 }
 

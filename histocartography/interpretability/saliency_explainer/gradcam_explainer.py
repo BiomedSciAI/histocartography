@@ -111,7 +111,7 @@ class GradCAMGNNExplainer(BaseExplainer):
                 heatmap = to_pil_image(activation_map, mode='F')
                 heatmap = heatmap.resize((self.patch_size, self.patch_size), resample=Image.BICUBIC)
 
-                # @TODO split the compution to get the pixel importance and the drawing part -- include a draw fn as in the other modules 
+                # @TODO split the compution to get the pixel importance and the drawing part -- include a draw fn as in the other modules
                 saliency_map[y: y + self.patch_size, x: x + self.patch_size, :] += \
                     (255 * self.cmap(np.asarray(heatmap) ** 2)[:, :, 1:]).astype(np.uint8)
 

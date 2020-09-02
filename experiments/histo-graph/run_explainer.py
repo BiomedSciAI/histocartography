@@ -8,6 +8,7 @@ import torch
 import mlflow
 import numpy as np
 from tqdm import tqdm 
+import torch
 
 from histocartography.utils.io import read_params, write_json, complete_path
 from histocartography.dataloader.pascale_dataloader import make_data_loader
@@ -57,13 +58,16 @@ def main(args):
         load_cell_graph=load_cell_graph(config['model_type']),
         load_superpx_graph=load_superpx_graph(config['model_type']),
         load_image=True,
-        load_nuclei_seg_map=True,
+        load_nuclei_seg_map=load_cell_graph(config['model_type']),
+        load_superpx_map=load_superpx_graph(config['model_type']),
         fold_id=0
     )
 
     # append dataset info to config
     config['data_params'] = {}
     config['data_params']['input_feature_dims'] = input_feature_dims
+    config['explanation_params']['model_params']['class_split'] = config['model_params']['class_split']
+    config['explanation_params']['model_params']['model_type'] = config['model_type']
 
     # define GNN model
     if interpretability_model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
@@ -79,8 +83,6 @@ def main(args):
         )
 
     # define interpretability model 
-    config['explanation_params']['model_params']['class_split'] = config['model_params']['class_split']
-    config['explanation_params']['model_params']['model_type'] = config['model_type']
     if interpretability_model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
         module = importlib.import_module(
             'histocartography.interpretability.{}'.format(interpretability_model_type)
@@ -105,16 +107,18 @@ def main(args):
     counter = 0
     all_explanations = []
     for data, label in tqdm(dataloaders[args.split]):
+
         explanation = interpretability_model.explain(
             data=data,
             label=label
         )
+        
+        if counter % 3 == 0:
+            torch.cuda.empty_cache() 
+
         explanation.write()
         all_explanations.append(explanation)
-        # debug purposes 
         counter += 1
-        if counter > 3:
-            break 
 
     # wrap all the explanations in object and write 
     meta_explanation = MetaGraphExplanation(config['explanation_params'], all_explanations)

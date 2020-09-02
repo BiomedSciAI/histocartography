@@ -2,6 +2,7 @@ from histocartography.utils.visualization import GraphVisualization, overlay_mas
 from histocartography.utils.io import save_image, write_json
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
 from histocartography.dataloader.constants import get_label_to_tumor_type, get_number_of_classes
+from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 
 import os
 import numpy as np
@@ -106,7 +107,14 @@ class GraphExplanation(BaseExplanation):
         self.explanation_as_dict['output']['label'] = get_label_to_tumor_type(self.config['model_params']['class_split'])[self.label.item()]
 
         # 3-d explanation graph properties
+        self._remove_keys(['instance_map'])  # append all the (heavy) keys to remove from the explanation that don't need to be saved on the json 
         self.explanation_as_dict['output']['explanation'] = self.explanation_graphs
+
+    def _remove_keys(self, keys):
+        for key in keys:
+            for k1, v1 in self.explanation_graphs.items():
+                if key in list(v1.keys()):
+                    del v1[key]
 
     def draw(self):
         """
@@ -114,9 +122,8 @@ class GraphExplanation(BaseExplanation):
         """
         visualizer = GraphVisualization(save=False)
         explanation_as_image = visualizer(
-            show_cg=True,
-            show_sg=False,
-            show_superpx=False,
+            show_cg=load_cell_graph(self.config['model_params']['model_type']),
+            show_sg=load_superpx_graph(self.config['model_params']['model_type']),
             data=[self.explanation_graphs[1], self.image, self.image_name],
             node_importance=self.explanation_graphs[1]['node_importance']
         )

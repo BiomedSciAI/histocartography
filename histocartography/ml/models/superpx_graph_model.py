@@ -1,3 +1,5 @@
+import dgl 
+
 from histocartography.ml.layers.mlp import MLP
 from histocartography.ml.models.base_model import BaseModel
 from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
@@ -24,7 +26,7 @@ class SuperpxGraphModel(BaseModel):
         self.readout_params = self.config['readout']
         self.readout_agg_op = config['gnn_params']['superpx_gnn']['agg_operator']
 
-        # 2- build cell graph params
+        # 2- build superpx graph params
         self._build_superpx_graph_params(
             self.gnn_params,
             input_dim=self.hl_node_dim
@@ -55,10 +57,19 @@ class SuperpxGraphModel(BaseModel):
         :param superpx_graph: (DGLGraph) superpx graph
         """
 
-        # 1. GNN layers over the high level graph (super pixel graph)
-        superpx_graph = data[0]
-        feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
-        graph_embeddings = self.superpx_gnn(superpx_graph, feats)
+        # # 1. GNN layers over the high level graph (super pixel graph)
+        # superpx_graph = data[0]
+        # feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
+        # graph_embeddings = self.superpx_gnn(superpx_graph, feats)
+
+        if isinstance(data[0], dgl.DGLGraph):
+            # 1. GNN layers over the low level graph
+            superpx_graph = data[0]
+            feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
+            graph_embeddings = self.superpx_gnn(superpx_graph, feats)
+        else:
+            adj, feats = data[0], data[1]
+            graph_embeddings = self.superpx_gnn(adj, feats)
 
         # 2. Run readout function
         logits = self.pred_layer(graph_embeddings)

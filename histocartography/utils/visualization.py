@@ -68,10 +68,12 @@ class GraphVisualization:
         self.verbose = verbose
         self.save = save
 
-    def __call__(self, show_cg, show_sg, show_superpx, data, node_importance=None):
+    def __call__(self, show_cg, show_sg, data, node_importance=None):
 
-        image = data[-2].copy()
-        image_name = data[-1]
+        image = data[1].copy()
+        image_name = data[2]
+
+        # @TODO: fix this mess... 
         try:
             seg_map = data[-1]
             seg_map = None
@@ -81,15 +83,15 @@ class GraphVisualization:
         if show_sg:
             canvas = image.copy()
             draw = ImageDraw.Draw(canvas, 'RGBA')
-            if show_superpx:
-                superpx_map = data[2][index] if show_cg else data[1][index]
-                self.draw_superpx(superpx_map, draw)
-            superpx_graph = dgl.unbatch(data[1])[index] if show_cg else dgl.unbatch(data[0])[index]
+
+            # extract super pixel map
+            superpx_graph = data[0]
+            self.draw_superpx(superpx_graph['instance_map'], draw, (255, 0, 0), node_importance)
 
             # get centroids and edges
-            cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
-            self.draw_centroid(cent_sp, draw, (255, 0, 0))
-            self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
+            # cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
+            # self.draw_centroid(cent_sp, draw, (255, 0, 0))
+            # self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
 
             if self.save:
                 check_for_dir(self.save_path)
@@ -156,13 +158,26 @@ class GraphVisualization:
             draw_line(src_centroid, dst_centroid, draw_bd, fill, width)
 
     @staticmethod
-    def draw_superpx(mask, draw_bd):
+    def draw_superpx(mask, draw_bd, fill, node_importance=None):
+
+        # 1. extract unique pixel list
         px_list = list(np.unique(mask))
+
+        # 2. extract min/max node importance (for coloring)
+        if node_importance is not None:
+            max_val = max(node_importance)
+            min_val = min(node_importance)
+
+        # 3. add superpx one by one to canvas 
         for idx, px_id in enumerate(px_list):
+            if node_importance is not None:
+                fill = rgb(min_val, max_val, node_importance[idx], transparency=None)
+            else:
+                fill=None
             rows, columns = np.where(mask == px_id)
             list_coord = np.asarray([[columns[i].item(), rows[i].item()] for i in range(len(rows))])
             xy = list_coord.flatten().tolist()
-            draw_poly(xy, draw_bd)
+            draw_poly(xy, draw_bd, fill=fill)
 
     @staticmethod
     def _get_centroid_and_edges(graph):

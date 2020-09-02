@@ -10,28 +10,76 @@ AVAILABLE_EXPLAINABILITY_METHODS = {
 }
 
 
+MODEL_TYPE_TO_GNN_LAYER_NAME = {
+    'superpx_graph_model': 'superpx_gnn',
+    'cell_graph_model': 'cell_graph_gnn'
+}
+
+
 BASE_S3 = 's3://mlflow/'
 
 
 # Assuming the class split is the 5-class scenario one 
 MODEL_TO_MLFLOW_ID = {
-    'cell_graph_model': {
-        'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '70a419364cda43548a6e3733ad0ef0b5/artifacts/model_best_val_weighted_f1_score_0',
-        'pruning_explainer.graph_pruning_explainer': BASE_S3 + '55ebbd5a765e4a1d80818112212e1875/artifacts/model_best_val_loss_0',
-        'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0',
-        'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0'
+    '5_class_scenario': {
+        'cell_graph_model': {
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '70a419364cda43548a6e3733ad0ef0b5/artifacts/model_best_val_weighted_f1_score_0',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0',   # '55ebbd5a765e4a1d80818112212e1875/artifacts/model_best_val_loss_0',
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0'
+        },
+        'multi_level_graph_model': {
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '5ced95f2b389478cb3e57aaa1c77fc94/artifacts/model_best_val_loss_0',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '',
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + ''
+        },
+        'superpx_graph_model': {
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '96343b43e4284334910c8901258262d4/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '96343b43e4284334910c8901258262d4/artifacts/model_best_val_weighted_f1_score_0',
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '18fd64661fc84067bf2598d67dcad5f6/artifacts/model_best_val_weighted_f1_score_0',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + '96343b43e4284334910c8901258262d4/artifacts/model_best_val_weighted_f1_score_0'
+        }
     },
-    'multi_level_graph_model': {
-        'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '5ced95f2b389478cb3e57aaa1c77fc94/artifacts/model_best_val_loss_0',
-        'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '',
-        'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
-        'pruning_explainer.graph_pruning_explainer': BASE_S3 + ''
+    '3_class_scenario': {
+        'cell_graph_model': {
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + 'bf7d631ec3ba4a8db10a566c85e094e0/artifacts/model_best_val_weighted_f1_score_0',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0',   
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0'
+        },
+        'multi_level_graph_model': {
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + '',   
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + ''
+        },
+        'superpx_graph_model': {
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '22b18c0a22b4461784c1fae07f4581e2/artifacts/model_best_val_weighted_f1_score_0',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + 'b61bdbcec5084c2fa4aef79d0515dfc1/artifacts/model_best_val_weighted_f1_score_0',   
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + 'b61bdbcec5084c2fa4aef79d0515dfc1/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + 'b61bdbcec5084c2fa4aef79d0515dfc1/artifacts/model_best_val_weighted_f1_score_0'
+        }
     },
-    'superpx_graph_model': {
-        'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '5ced95f2b389478cb3e57aaa1c77fc94/artifacts/model_best_val_loss_0',
-        'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '',
-        'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
-        'pruning_explainer.graph_pruning_explainer': BASE_S3 + ''
+    '2_class_scenario': {
+        'cell_graph_model': {
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '57b7ce4984774f7f85e2cdc24794051a/artifacts/model_best_val_weighted_f1_score_0',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0',   
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0'
+        },
+        'multi_level_graph_model': {
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + '',   
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + ''
+        },
+        'superpx_graph_model': {
+            'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '493af367ab98406f957b1891a5ebdef3/artifacts/model_best_val_weighted_f1_score_0',
+            'pruning_explainer.graph_pruning_explainer': BASE_S3 + '72293c1321a54df18b81672936c79517/artifacts/model_best_val_weighted_f1_score_0',   
+            'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '72293c1321a54df18b81672936c79517/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '72293c1321a54df18b81672936c79517/artifacts/model_best_val_weighted_f1_score_0'
+        }
     }
 }
 

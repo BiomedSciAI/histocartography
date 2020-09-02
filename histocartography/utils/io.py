@@ -12,10 +12,11 @@ from mlflow.pytorch import load_model
 
 from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES
 from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
-
+from histocartography.dataloader.constants import get_number_of_classes
 
 def plain_model_loading(config):
-    model = load_model(MODEL_TO_MLFLOW_ID[config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+    num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])
+    model = load_model(MODEL_TO_MLFLOW_ID[str(num_classes) + '_class_scenario'][config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
     return model
 
 
@@ -25,7 +26,8 @@ def tentative_model_loading(config):
     model = getattr(module, AVAILABLE_MODEL_TYPES[config['model_type']])(config['model_params'], config['data_params']['input_feature_dims'])
 
     # buid mlflow model and copy manually the weigths 
-    mlflow_model = load_model(MODEL_TO_MLFLOW_ID[config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+    num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])
+    mlflow_model = load_model(MODEL_TO_MLFLOW_ID[str(num_classes) + '_class_scenario'][config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
 
     def is_int(s):
         try:

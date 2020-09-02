@@ -36,7 +36,7 @@ class PascaleDataset(BaseDataset):
             load_superpx_graph=True,
             load_image=False,
             load_in_ram=False,
-            show_superpx=False,
+            load_superpx_map=False,
             fold_id=None,
             load_nuclei_seg_map=False,
             use_node_features=True
@@ -63,7 +63,7 @@ class PascaleDataset(BaseDataset):
         self.load_superpx_graph = load_superpx_graph
         self.load_image = load_image
         self.load_nuclei_seg_map = load_nuclei_seg_map
-        self.show_superpx = show_superpx
+        self.load_superpx_map = load_superpx_map
         self.load_in_ram = load_in_ram
         self.fold_id = fold_id
         self.tumor_type_to_label = get_tumor_type_to_label(class_split)
@@ -197,9 +197,14 @@ class PascaleDataset(BaseDataset):
         return 4 if self.encode_tg_edges else None
 
     def _get_superpx_map(self, index):
-        with h5py.File(complete_path(self.superpx_graph_path, self.h5_fnames[index]), 'r') as f:
+        with h5py.File(os.path.join(self.base_superpx_h5_path,
+                                    'sp_merged_detected',
+                                    'merging_hc',
+                                    'instance_map',
+                                    self.dataset_name,
+                                    self.h5_fnames[index]), 'r') as f:
             d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
-            sp_map = h5_to_tensor(f['sp_map'], self.device).type(d_type)
+            sp_map = h5_to_tensor(f['detected_instance_map'], self.device).type(d_type)
             f.close()
         return sp_map
 
@@ -317,11 +322,6 @@ class PascaleDataset(BaseDataset):
                 superpx_graph = set_graph_on_cuda(superpx_graph)
             data.append(superpx_graph)
 
-        # 5. load superpx map for viz
-        if self.show_superpx:
-            superpx_map = self._get_superpx_map(index)
-            data.append(superpx_map)
-
         # 4. load assignment matrix to go from the cell graph to the the superpx graph
         if self.load_cell_graph and self.load_superpx_graph:
             if self.load_in_ram:
@@ -332,16 +332,21 @@ class PascaleDataset(BaseDataset):
                 assignment_matrix = assignment_matrix.cuda()
             data.append(assignment_matrix)
 
-        # 6. load the image if required
+        # 5. load the image if required
         if self.load_image:
             image, image_name = self._load_image(self.h5_fnames[index].replace('.h5', ''))
             data.append(image)
             data.append(image_name)
 
-        # 7. load nuclei segmentation map if required
+        # 6. load nuclei segmentation map if required
         if self.load_nuclei_seg_map:
             seg_map = self._load_nuclei_seg_map(index)
             data.append(seg_map)
+
+        # 7. load superpx map for viz
+        if self.load_superpx_map:
+            superpx_map = self._get_superpx_map(index)
+            data.append(superpx_map)
 
         return data, label
 

@@ -2,7 +2,7 @@ import torch
 from copy import deepcopy
 
 from histocartography.utils.io import get_device
-from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE
+from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE, MODEL_TYPE_TO_GNN_LAYER_NAME
 from ..base_explainer import BaseExplainer
 from ..explanation import GraphExplanation
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
@@ -24,6 +24,7 @@ class AttentionGNNExplainer(BaseExplainer):
         :param verbose: (bool) if verbose is enable
         """
         super(AttentionGNNExplainer, self).__init__(model, config, cuda, verbose)
+        self.gnn_layer_name = MODEL_TYPE_TO_GNN_LAYER_NAME[config['model_params']['model_type']]
 
     def explain(self, data, label):
         """
@@ -44,7 +45,7 @@ class AttentionGNNExplainer(BaseExplainer):
 
         # 2/ forward-pass and attention
         logits = self.model(data)
-        attention_weights = [self.model.cell_graph_gnn.layers[j].heads[i].attn_weights for j in range(len(self.model.cell_graph_gnn.layers)) for i in range(len(self.model.cell_graph_gnn.layers[0].heads))]
+        attention_weights = [getattr(self.model, self.gnn_layer_name).layers[j].heads[i].attn_weights for j in range(len(getattr(self.model, self.gnn_layer_name).layers)) for i in range(len(getattr(self.model, self.gnn_layer_name).layers[0].heads))]
         attention_weights = torch.sum(torch.stack(attention_weights, dim=0), dim=0)
         # norm_attention_weights = self.model.cell_graph_gnn.layers[-1].heads[0].norm_attn_weights
         node_importance = self._compute_node_importance(attention_weights, graph).squeeze()
@@ -66,6 +67,8 @@ class AttentionGNNExplainer(BaseExplainer):
             explanation_graphs[keep_percentage]['num_edges'] = pruned_graph.number_of_edges()
             explanation_graphs[keep_percentage]['node_importance'] = torch_to_list(pruned_graph.ndata['node_importance'])
             explanation_graphs[keep_percentage]['centroid'] = torch_to_list(pruned_graph.ndata['centroid'])
+            if self.store_instance_map:
+                explanation_graphs[keep_percentage]['instance_map'] = torch_to_list(data[3][0])
 
         # 4/ build and return explanation 
         explanation = GraphExplanation(

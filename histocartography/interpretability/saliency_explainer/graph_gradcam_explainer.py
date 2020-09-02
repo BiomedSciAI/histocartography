@@ -6,9 +6,10 @@ from copy import deepcopy
 from torch import nn
 import dgl 
 import networkx as nx 
+import gc
 
 from histocartography.interpretability.saliency_explainer.grad_cam import GradCAM
-from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE
+from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE, MODEL_TYPE_TO_GNN_LAYER_NAME
 from ..explanation import GraphExplanation
 from ..base_explainer import BaseExplainer
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
@@ -32,6 +33,7 @@ class GraphGradCAMExplainer(BaseExplainer):
         super(GraphGradCAMExplainer, self).__init__(model, config, cuda, verbose)
 
         self.gnn_layer_ids = ['0', '1', '2']  # @TODO read from the config file
+        self.gnn_layer_name = MODEL_TYPE_TO_GNN_LAYER_NAME[config['model_params']['model_type']]
 
     def explain(self, data, label):
         """
@@ -48,14 +50,15 @@ class GraphGradCAMExplainer(BaseExplainer):
             self.model = self.model.cuda()
         self.model.eval()
         self.model.zero_grad()
-        self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer
+        self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer for extracting latent representation
 
         # 2/ forward-pass -- applying avgGradCAM (avg over all the GNN layers)
         all_node_importances = []
         for layer_id in self.gnn_layer_ids:
-            self.extractor = GradCAM(self.model.cell_graph_gnn.layers, layer_id)
+            self.extractor = GradCAM(getattr(self.model, self.gnn_layer_name).layers, layer_id)
             original_logits = self.model([deepcopy(graph)])
-            node_importance = self.extractor(label, original_logits).cpu()
+            winning_class = original_logits.argmax().item()
+            node_importance = self.extractor(winning_class, original_logits).cpu()
             all_node_importances.append(torch.sum(node_importance, dim=1))
             self.extractor.clear_hooks()
 
@@ -76,6 +79,8 @@ class GraphGradCAMExplainer(BaseExplainer):
             explanation_graphs[keep_percentage]['num_edges'] = pruned_graph.number_of_edges()
             explanation_graphs[keep_percentage]['node_importance'] = torch_to_list(pruned_graph.ndata['node_importance'])
             explanation_graphs[keep_percentage]['centroid'] = torch_to_list(pruned_graph.ndata['centroid'])
+            if self.store_instance_map:
+                explanation_graphs[keep_percentage]['instance_map'] = torch_to_list(data[3][0])
 
         # 4/ build and return explanation 
         explanation = GraphExplanation(
@@ -85,5 +90,16 @@ class GraphGradCAMExplainer(BaseExplainer):
             label,
             explanation_graphs,
         )
+
+        # total_size = 0.
+        # for obj in gc.get_objects():
+        #     try:
+        #         if obj.is_cuda and torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+        #             print(type(obj), obj.size())
+        #             total_size += obj.element_size() * obj.nelement()
+        #     except:
+        #         pass
+
+        # print('Total size:', total_size)
 
         return explanation

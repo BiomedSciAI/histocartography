@@ -22,16 +22,18 @@ def draw_line(source_centroid, dest_centroid, draw, fill_col, line_wid):
               width=line_wid)
 
 
-def draw_poly(xy, draw):
-    draw.polygon(xy, outline=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 100))
+def draw_poly(xy, draw, outline=None, fill=None):
+    draw.polygon(xy, outline=outline, fill=fill)
 
 
-def rgb(minimum, maximum, value):
+def rgb(minimum, maximum, value, transparency=None):
     minimum, maximum = float(minimum), float(maximum)
     ratio = 2 * (value-minimum) / (maximum - minimum)
     b = int(max(0, 255*(1 - ratio)))
     r = int(max(0, 255*(ratio - 1)))
     g = 255 - b - r
+    if transparency is not None:
+        return (r, g, b, transparency)
     return (r, g, b)
 
 

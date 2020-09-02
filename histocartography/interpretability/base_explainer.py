@@ -4,6 +4,7 @@ import dgl
 import networkx as nx 
 
 from histocartography.utils.io import get_device
+from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 
 
 class BaseExplainer:
@@ -26,6 +27,7 @@ class BaseExplainer:
         self.cuda = cuda
         self.device = get_device(self.cuda)
         self.verbose = verbose
+        self.store_instance_map = load_superpx_graph(self.config['model_params']['model_type'])
 
     def explain(self, data, label):
         """

@@ -153,13 +153,21 @@ class GraphPruningExplainer(BaseExplainer):
         # Build explanation graphs
         explanation_graphs = {}
         # a. set the orignal graph, ie keep_percentage = 1
-        explanation_graphs[1] = self._build_explanation_as_dict(graph, self.node_importance.tolist(), init_logits.squeeze().numpy().tolist(), original_latent_representation)
+        explanation_graphs[1] = self._build_explanation_as_dict(
+            graph,
+            self.node_importance.tolist(),
+            init_logits.squeeze().numpy().tolist(),
+            original_latent_representation,
+            torch_to_list(data[3][0]) if self.store_instance_map else None
+            )
         # b. set the pruned (explanation) graph, ie keep_percentage = 1
         explanation_graphs[self.model_params['adj_thresh']] = self._build_explanation_as_dict(
             explanation_graph,
             torch_to_list(explanation_graph.ndata['node_importance']),
             self.probs_explanation.tolist(),
-            explanation_latent_representation)
+            explanation_latent_representation,
+            torch_to_list(data[3][0]) if self.store_instance_map else None
+            )
 
         # Build explanation object
         explanation = GraphExplanation(
@@ -172,7 +180,7 @@ class GraphPruningExplainer(BaseExplainer):
 
         return explanation
 
-    def _build_explanation_as_dict(self, graph, node_importance, logits, latent):
+    def _build_explanation_as_dict(self, graph, node_importance, logits, latent, instance_map=None):
         exp = {}
         exp['logits'] = logits
         exp['latent'] = latent
@@ -180,6 +188,8 @@ class GraphPruningExplainer(BaseExplainer):
         exp['num_edges'] = graph.number_of_edges()
         exp['node_importance'] = node_importance   
         exp['centroid'] = torch_to_list(graph.ndata['centroid'])
+        if instance_map is not None:
+            exp['instance_map'] = instance_map
         return exp
 
     def _set_pbar_desc(self, num_nodes, init_num_nodes, non_zero_elements, init_non_zero_elements, density, loss, label, probs, init_probs):

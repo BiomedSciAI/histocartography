@@ -20,7 +20,7 @@ def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_componen
     graph.add_nodes_from(range(num_nodes))
 
     # set node features
-    nx.set_node_attributes(graph, feat, 'feats')
+    nx.set_node_attributes(graph, feat, 'feat')
     if centroids is not None:
         centroids_dict = {}
         for node_id in range(num_nodes):
@@ -70,7 +70,7 @@ def adj_to_dgl(adj, feat, node_importance=None, threshold=0.1, max_component=Fal
     graph = dgl.DGLGraph()
 
     node_keys = []
-    for cand_key in ['node_importance', 'centroid', 'feats']:
+    for cand_key in ['node_importance', 'centroid', 'feat']:
         try:
             nx.get_node_attributes(networkx_graph, cand_key)
             node_keys.append(cand_key)

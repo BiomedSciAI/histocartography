@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from sklearn.metrics import confusion_matrix, f1_score
+import networkx as nx 
 
 from histocartography.evaluation.base_evaluator import BaseEvaluator
 
@@ -37,19 +38,87 @@ class WeightedF1(BaseEvaluator):
         return torch.FloatTensor([weighted_f1])
 
 
+class ClusteringQuality(BaseEvaluator):
+    """
+    Compute weighted F1 score
+    """
+
+    def __init__(self, cuda=False):
+        super(ClusteringQuality, self).__init__(cuda)
+
+    def __call__(self, embeddings, labels, kg):
+        qual = 1.
+        return torch.FloatTensor([weighted_f1])
+
+
+class CrossEntropyLoss(BaseEvaluator):
+    """
+    Compute weighted F1 score
+    """
+
+    def __init__(self, cuda=False):
+        super(CrossEntropyLoss, self).__init__(cuda)
+        self.ce_loss_eval = torch.nn.CrossEntropyLoss()
+
+    def __call__(self, logits, labels):
+        loss = self.ce_loss_eval(logits, labels)
+        return loss
+
+
 class ExpectedClassShiftWithLogits(BaseEvaluator):
     """
     Compute expected class shift 
     """
 
-    def __init__(self, cuda=False):
+    def __init__(self, knowledge_graph=None, cuda=False):
         super(ExpectedClassShiftWithLogits, self).__init__(cuda)
+        self.knowledge_graph = knowledge_graph
+        if knowledge_graph is not None:
+            self.shortest_paths = dict(nx.shortest_path_length(knowledge_graph))
 
     def __call__(self, logits, labels):
         _, indices = torch.max(logits, dim=1)
         indices = indices.to(float)
         labels = labels.to(float)
-        class_shift = torch.mean(torch.abs(indices - labels)).cpu()
+
+        if self.knowledge_graph is None:   # we assume a sequence of labels
+            class_shift = torch.mean(torch.abs(indices - labels)).cpu()
+        else:
+            class_shift = torch.mean(torch.FloatTensor(list(map(lambda x: self.shortest_paths.get(x[0].item()).get(x[1].item()), zip(labels, indices)))))
+        return class_shift
+
+
+class WeightedExpectedClassShiftWithLogits(BaseEvaluator):
+    """
+    Compute expected class shift 
+    """
+
+    def __init__(self, knowledge_graph=None, cuda=False):
+        super(WeightedExpectedClassShiftWithLogits, self).__init__(cuda)
+        self.knowledge_graph = knowledge_graph
+        if knowledge_graph is not None:
+            self.shortest_paths = dict(nx.shortest_path_length(knowledge_graph))
+
+    def __call__(self, logits, labels):
+        probabilities = torch.nn.Softmax(dim=1)(logits)
+        _, indices = torch.max(logits, dim=1)
+        indices = indices.to(float)
+        num_classes = logits.shape[1]
+        labels = labels.repeat(num_classes, 1).t()
+
+        if self.knowledge_graph is None:   # we assume a sequence of labels
+            per_class_shift = torch.FloatTensor(list(range(num_classes))) - labels
+            class_shift = torch.mean(torch.abs(probabilities * per_class_shift)).cpu()
+        else:
+
+            def per_class_shift_fn(x):
+                probs, label = x
+                shift = 0.
+                for idx, (p, l) in enumerate(zip(probs.squeeze(), label.squeeze())):
+                    shift += p * self.shortest_paths.get(idx).get(l.item())
+                return shift 
+
+            class_shift = torch.mean(torch.FloatTensor(list(map(per_class_shift_fn, zip(probabilities, labels)))))
         return class_shift
 
 

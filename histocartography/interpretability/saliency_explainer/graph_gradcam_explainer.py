@@ -1,58 +1,70 @@
+#from histocartography.interpretability.base_explainer import BaseExplainer
+
+import numpy as np
 import torch
 from copy import deepcopy
+from torch import nn
+import dgl 
+import networkx as nx 
+import gc
 
-from histocartography.utils.io import get_device
+from histocartography.interpretability.saliency_explainer.grad_cam import GradCAM
 from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE, MODEL_TYPE_TO_GNN_LAYER_NAME
-from ..base_explainer import BaseExplainer
 from ..explanation import GraphExplanation
+from ..base_explainer import BaseExplainer
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
 
 
-class AttentionGNNExplainer(BaseExplainer):
+class GraphGradCAMExplainer(BaseExplainer):
     def __init__(
             self,
             model,
-            config, 
+            config,
             cuda=False,
             verbose=False
     ):
         """
-        Attention-based method for GNN explanation constructor 
-        :param model: (nn.Module) a pre-trained model to run the forward pass 
-        :param config: (dict) method-specific parameters 
-        :param cuda: (bool) if cuda is enable 
+        GradCAM for GNN-based saliency explanation constructor
+        :param model: (nn.Module) a pre-trained model to run the forward pass
+        :param config: (dict) method-specific parameters
+        :param cuda: (bool) if cuda is enable
         :param verbose: (bool) if verbose is enable
         """
-        super(AttentionGNNExplainer, self).__init__(model, config, cuda, verbose)
+        super(GraphGradCAMExplainer, self).__init__(model, config, cuda, verbose)
+
+        self.gnn_layer_ids = ['0', '1', '2']  # @TODO read from the config file
         self.gnn_layer_name = MODEL_TYPE_TO_GNN_LAYER_NAME[config['model_params']['model_type']]
 
     def explain(self, data, label):
         """
-        Explain a graph instance
-        :param data: (DGLGraph?) graph
-        :param label: (int) label for the input data 
+        Explain a image patch instance
+        :param data: list with a graph, an image, an image name 
+        :param label: (int) label for the input data
         """
 
         # 1/ pre-processing
-        graph = deepcopy(data[0])
+        graph = data[0]
         image = data[1]
         image_name = data[2]
-        self.model.eval()
         if self.cuda:
             self.model = self.model.cuda()
+        self.model.eval()
         self.model.zero_grad()
-        self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer
+        self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer for extracting latent representation
 
-        # 2/ forward-pass and attention
-        logits = self.model(data)
-        attention_weights = [getattr(self.model, self.gnn_layer_name).layers[j].heads[i].attn_weights for j in range(len(getattr(self.model, self.gnn_layer_name).layers)) for i in range(len(getattr(self.model, self.gnn_layer_name).layers[0].heads))]
-        attention_weights = torch.sum(torch.stack(attention_weights, dim=0), dim=0)
-        # norm_attention_weights = self.model.cell_graph_gnn.layers[-1].heads[0].norm_attn_weights
-        node_importance = self._compute_node_importance(attention_weights, graph).squeeze()
-        # norm_node_importance = self._compute_node_importance(norm_attention_weights, graph)
-        graph.ndata['node_importance'] = node_importance
+        # 2/ forward-pass -- applying avgGradCAM (avg over all the GNN layers)
+        all_node_importances = []
+        for layer_id in self.gnn_layer_ids:
+            self.extractor = GradCAM(getattr(self.model, self.gnn_layer_name).layers, layer_id)
+            original_logits = self.model([deepcopy(graph)])
+            winning_class = original_logits.argmax().item()
+            node_importance = self.extractor(winning_class, original_logits).cpu()
+            all_node_importances.append(torch.sum(node_importance, dim=1))
+            self.extractor.clear_hooks()
 
-        # 3/ prune the graph at different thresholds using the node importance -- then forward again and store information
+        graph.ndata['node_importance'] = torch.stack(all_node_importances, dim=1).mean(dim=1)
+
+        # 3/ prune the graph using the node importance -- then forward again and store the logits/latent representation
         explanation_graphs = {}
         for keep_percentage in KEEP_PERCENTAGE_OF_NODE_IMPORTANCE:
             # a. prune graph
@@ -80,21 +92,3 @@ class AttentionGNNExplainer(BaseExplainer):
         )
 
         return explanation
-
-    def _compute_node_importance(self, attention_weights, graph):
-
-        def msg_func(edges):
-            return {'a': attention_weights}
-
-        def reduce_func(nodes):
-            node_importance = torch.sum(nodes.mailbox['a'], dim=1)
-            return {'node_importance': node_importance}
-
-        graph.update_all(msg_func, reduce_func)
-        return graph.ndata.pop('node_importance')
-
-
-
-
-
-

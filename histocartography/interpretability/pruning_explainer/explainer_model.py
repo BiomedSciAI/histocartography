@@ -27,6 +27,8 @@ class ExplainerModel(nn.Module):
         self.adj = adj
         self.x = x
         self.model = model
+        if cuda:
+            self.model = self.model.cuda()
         self.init_probs = init_probs
         self.label = torch.argmax(init_probs, dim=1)
 

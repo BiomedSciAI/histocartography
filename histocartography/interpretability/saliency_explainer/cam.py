@@ -98,8 +98,17 @@ class _CAM(object):
         # Get map weight
         weights = self._get_weights(class_idx, scores)
 
+        # set on cpu if too big for GPU RAM
+        is_cuda = weights.is_cuda
+        if weights.shape[0] > 3000:
+            weights = weights.cpu()
+            self.hook_a = self.hook_a.cpu()
+
         # Perform the weighted combination to get the CAM
         batch_cams = (weights.unsqueeze(-1).unsqueeze(-1) * self.hook_a.squeeze(0)).sum(dim=0)
+
+        if is_cuda:
+            batch_cams = batch_cams.cuda()
 
         if self._relu:
             batch_cams = F.relu(batch_cams, inplace=True)

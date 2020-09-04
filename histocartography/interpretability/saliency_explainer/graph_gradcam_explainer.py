@@ -91,15 +91,4 @@ class GraphGradCAMExplainer(BaseExplainer):
             explanation_graphs,
         )
 
-        # total_size = 0.
-        # for obj in gc.get_objects():
-        #     try:
-        #         if obj.is_cuda and torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-        #             print(type(obj), obj.size())
-        #             total_size += obj.element_size() * obj.nelement()
-        #     except:
-        #         pass
-
-        # print('Total size:', total_size)
-
         return explanation

@@ -155,8 +155,10 @@ class GINLayer(BaseLayer):
             g.ndata[GNN_NODE_FEAT_OUT] = g.ndata[GNN_AGG_MSG] + \
                 (1 + self.eps[self.layer_id]) * g.ndata[GNN_NODE_FEAT_IN]
         else:
-            g.ndata[GNN_NODE_FEAT_OUT] = g.ndata[GNN_AGG_MSG] + \
-                g.ndata[GNN_NODE_FEAT_IN]
+            if GNN_AGG_MSG in g.ndata.keys():
+                g.ndata[GNN_NODE_FEAT_OUT] = g.ndata[GNN_AGG_MSG] + g.ndata[GNN_NODE_FEAT_IN]
+            else:
+                g.ndata[GNN_NODE_FEAT_OUT] = g.ndata[GNN_NODE_FEAT_IN]
 
         g.apply_nodes(func=self.node_update_fn)
 

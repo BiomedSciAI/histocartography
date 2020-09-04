@@ -1,6 +1,7 @@
 import math
 import torch
 import h5py
+import numpy as np 
 
 from histocartography.utils.io import complete_path, h5_to_tensor
 
@@ -21,6 +22,14 @@ def compute_l2_distance(pt1, pt2):
     """
     squares = [(p - q) ** 2 for p, q in zip(pt1, pt2)]
     return sum(squares) ** .5
+
+
+def create_buckets(num_buckets, min_val, max_val):
+    amp_factor = 10e4  # used for range that only support int steps
+    step = (max_val - min_val) / num_buckets 
+    intervals = np.array(range(int(min_val * amp_factor), int(max_val * amp_factor), int((max_val - min_val) / num_buckets * amp_factor))).astype(float)
+    intervals /= amp_factor
+    return intervals
 
 
 def compute_edge_weight(dist):

@@ -88,6 +88,40 @@ class ExpectedClassShiftWithLogits(BaseEvaluator):
         return class_shift
 
 
+class WeightedExpectedClassShiftWithLogits(BaseEvaluator):
+    """
+    Compute expected class shift 
+    """
+
+    def __init__(self, knowledge_graph=None, cuda=False):
+        super(WeightedExpectedClassShiftWithLogits, self).__init__(cuda)
+        self.knowledge_graph = knowledge_graph
+        if knowledge_graph is not None:
+            self.shortest_paths = dict(nx.shortest_path_length(knowledge_graph))
+
+    def __call__(self, logits, labels):
+        probabilities = torch.nn.Softmax(dim=1)(logits)
+        _, indices = torch.max(logits, dim=1)
+        indices = indices.to(float)
+        num_classes = logits.shape[1]
+        labels = labels.repeat(num_classes, 1).t()
+
+        if self.knowledge_graph is None:   # we assume a sequence of labels
+            per_class_shift = torch.FloatTensor(list(range(num_classes))) - labels
+            class_shift = torch.mean(torch.abs(probabilities * per_class_shift)).cpu()
+        else:
+
+            def per_class_shift_fn(x):
+                probs, label = x
+                shift = 0.
+                for idx, (p, l) in enumerate(zip(probs.squeeze(), label.squeeze())):
+                    shift += p * self.shortest_paths.get(idx).get(l.item())
+                return shift 
+
+            class_shift = torch.mean(torch.FloatTensor(list(map(per_class_shift_fn, zip(probabilities, labels)))))
+        return class_shift
+
+
 class ExpectedClassShiftWithHardPred(BaseEvaluator):
     """
     Compute expected class shift 

@@ -26,7 +26,7 @@ class GraphPruningExplainer(BaseExplainer):
 
         self.train_params = self.config['train_params']
         self.model_params = self.config['model_params']
-        self.label_to_tumor_type = get_label_to_tumor_type(self.model_params['class_split'])
+        self.label_to_tumor_type = get_label_to_tumor_type(self.model_params['class_split'])  # @TODO: check label names 
         self.verbose = verbose
         self.adj_thresh = self.model_params['adj_thresh']
         self.node_thresh = self.model_params['node_thresh']

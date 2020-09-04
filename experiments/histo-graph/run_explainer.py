@@ -82,7 +82,6 @@ def main(args):
             )
         )
 
-    # define interpretability model 
     if interpretability_model_type in list(AVAILABLE_EXPLAINABILITY_METHODS.keys()):
         module = importlib.import_module(
             'histocartography.interpretability.{}'.format(interpretability_model_type)
@@ -108,16 +107,25 @@ def main(args):
     all_explanations = []
     for data, label in tqdm(dataloaders[args.split]):
 
-        explanation = interpretability_model.explain(
-            data=data,
-            label=label
-        )
-        
-        if counter % 3 == 0:
-            torch.cuda.empty_cache() 
+        try:
 
-        explanation.write()
-        all_explanations.append(explanation)
+            explanation = interpretability_model.explain(
+                data=data,
+                label=label
+            )
+            
+            if counter % 3 == 0:
+                torch.cuda.empty_cache() 
+
+            # if counter >= 10:
+            #     break
+
+            explanation.write()
+            all_explanations.append(explanation)
+
+        except Exception as e:
+            print('An error occured while generating explanation of sample: {}. Excepts is of type {}. Full trace {}'.format(data[-1], e.__class__, e))
+
         counter += 1
 
     # wrap all the explanations in object and write 

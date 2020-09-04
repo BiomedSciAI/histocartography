@@ -12,10 +12,16 @@ import networkx as nx
 import torch 
 from PIL import ImageFilter
 from PIL import Image
+import bisect 
+from skimage.measure import regionprops
 
 from histocartography.utils.io import show_image, save_image, complete_path, check_for_dir
 from histocartography.utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle, rgb
 from histocartography.ml.layers.constants import CENTROID
+from histocartography.utils.vector import create_buckets
+
+
+N_BUCKETS = 10
 
 
 class tSNE:
@@ -70,28 +76,16 @@ class GraphVisualization:
 
     def __call__(self, show_cg, show_sg, data, node_importance=None):
 
+        graph = data[0]
         image = data[1].copy()
         image_name = data[2]
 
-        # @TODO: fix this mess... 
-        try:
-            seg_map = data[-1]
-            seg_map = None
-        except:
-            seg_map = None
+        canvas = image.copy()
+        draw = ImageDraw.Draw(canvas, 'RGBA')
 
         if show_sg:
-            canvas = image.copy()
-            draw = ImageDraw.Draw(canvas, 'RGBA')
-
-            # extract super pixel map
-            superpx_graph = data[0]
-            self.draw_superpx(superpx_graph['instance_map'], draw, (255, 0, 0), node_importance)
-
-            # get centroids and edges
-            # cent_sp, edges_sp = self._get_centroid_and_edges(superpx_graph)
-            # self.draw_centroid(cent_sp, draw, (255, 0, 0))
-            # self.draw_edges(cent_sp, edges_sp, draw, (255, 255, 0), 2)
+            # draw superpixels 
+            self.draw_superpx(graph['instance_map'], draw, (255, 0, 0), node_importance)
 
             if self.save:
                 check_for_dir(self.save_path)
@@ -100,17 +94,12 @@ class GraphVisualization:
             return canvas
 
         if show_cg:
-            canvas = image.copy()
-            draw = ImageDraw.Draw(canvas, 'RGBA')
-            
-            cell_graph = data[0]
-
             # get centroids and edges
-            if isinstance(cell_graph, dict):
-                cent_cg = cell_graph['centroid']
+            if isinstance(graph, dict):
+                cent_cg = graph['centroid']
                 edges_cg = None
             else:
-                cent_cg, edges_cg = self._get_centroid_and_edges(cell_graph)
+                cent_cg, edges_cg = self._get_centroid_and_edges(graph)
 
             # @TODO: hack alert store the centroid and the edges
             self.centroid_cg = cent_cg
@@ -120,15 +109,15 @@ class GraphVisualization:
             if self.show_centroid:
                 self.draw_centroid(cent_cg, draw, (255, 0, 0), node_importance)
             
-            if seg_map is not None:
-                seg_map = seg_map.squeeze()
-                mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
-                alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
-                alpha = Image.fromarray(alpha).convert('L')
-                # alpha = alpha.filter(ImageFilter.MinFilter(21))
-                alpha = alpha.filter(ImageFilter.FIND_EDGES)
-                mask.putalpha(alpha)
-                canvas.paste(mask, (0, 0), mask)
+            # if seg_map is not None:
+            #     seg_map = seg_map.squeeze()
+            #     mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
+            #     alpha = ((seg_map != 0) * 255).astype(np.uint8).squeeze()
+            #     alpha = Image.fromarray(alpha).convert('L')
+            #     # alpha = alpha.filter(ImageFilter.MinFilter(21))
+            #     alpha = alpha.filter(ImageFilter.FIND_EDGES)
+            #     mask.putalpha(alpha)
+            #     canvas.paste(mask, (0, 0), mask)
             
             if self.show_edges:
                 self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
@@ -139,16 +128,80 @@ class GraphVisualization:
 
             return canvas
 
-    @staticmethod
-    def draw_centroid(centroids, draw_bd, fill, node_importance=None):
+    def draw_centroid(self, centroids, draw_bd, fill, node_importance=None):
         if node_importance is not None:
-            max_val = max(node_importance)
-            min_val = min(node_importance)
+            buckets, colors, sizes = self._get_buckets(node_importance, with_colors_and_sizes=True)
+
         for centroid_id, centroid in enumerate(centroids):
             centroid = [centroid[0], centroid[1]]
             if node_importance is not None:
-                fill = rgb(min_val, max_val, node_importance[centroid_id])
-            draw_ellipse(centroid, draw_bd, fill)
+                size = sizes[bisect.bisect(buckets, node_importance[centroid_id]) -1]
+                outline = colors[bisect.bisect(buckets, node_importance[centroid_id]) -1]
+            else:
+                raise NotImplementedError("To implement...")
+            draw_ellipse(centroid, draw_bd, fill_col=None, size=size, outline=outline)
+
+    def draw_superpx(self, mask, draw_bd, fill, node_importance=None):
+
+        # 1. buckets/colors according to the node importance 
+        if node_importance is not None:
+            buckets, colors, _ = self._get_buckets(node_importance, with_colors_and_sizes=True) 
+
+        regions = regionprops(np.array(mask).astype(int))
+
+        if len(regions) == len(node_importance):
+
+            # 2. add superpx one by one to canvas 
+            for idx, region in enumerate(regions):
+                if node_importance is not None:
+                    fill = colors[bisect.bisect(buckets, node_importance[idx]) -1]
+                else:
+                    fill=None
+
+                xy = region['coords']
+                xy[:,[0, 1]] = xy[:,[1, 0]]
+                xy = list(xy.flatten())
+                draw_poly(xy, draw_bd, fill=fill)
+        else:
+            print('Warning: Node importance has {} elements while {} regions were detected'.format(len(node_importance), len(regions)))
+
+    def _get_buckets(self, node_importance, with_colors_and_sizes=False):
+        buckets = create_buckets(N_BUCKETS, min(node_importance), max(node_importance))
+
+        if with_colors_and_sizes:
+            sizes = {}
+            colors = {}
+            base_size = 5
+            size_increment = 3
+            for i, x in enumerate(buckets[:-1]):
+                sizes[i] =  base_size + i * size_increment 
+                colors[i] = rgb(buckets[0], buckets[-1], x, transparency=None)
+
+        buckets[0] = -10e4
+        buckets[-1] = 10e4
+
+        if with_colors_and_sizes:
+            return buckets, colors, sizes
+
+        return buckets
+
+    def _get_buckets_and_sizes(self, node_importance):
+        buckets = create_buckets(N_BUCKETS, min(node_importance), max(node_importance))
+        sizes = {}
+        base_size = 5
+        size_increment = 5
+        for i, x in enumerate(buckets[:-1]):
+            sizes[i] =  base_size + i * size_increment  #@TODO... # rgb(buckets[0], buckets[-1], x, transparency=None)
+        buckets[-1] = 10e4
+        return buckets, sizes
+
+    def _get_buckets_and_colors(self, node_importance):
+        buckets = create_buckets(N_BUCKETS, min(node_importance), max(node_importance))
+        colors = {}
+        for i, x in enumerate(buckets[:-1]):
+            colors[i] = rgb(buckets[0], buckets[-1], x, transparency=None)
+        buckets[-1] = 10e4
+        return buckets, colors
 
     @staticmethod
     def draw_edges(centroids, edges, draw_bd, fill, width):
@@ -157,27 +210,6 @@ class GraphVisualization:
             dst_centroid = [centroids[edge[1]][0].item(), centroids[edge[1]][1].item()]
             draw_line(src_centroid, dst_centroid, draw_bd, fill, width)
 
-    @staticmethod
-    def draw_superpx(mask, draw_bd, fill, node_importance=None):
-
-        # 1. extract unique pixel list
-        px_list = list(np.unique(mask))
-
-        # 2. extract min/max node importance (for coloring)
-        if node_importance is not None:
-            max_val = max(node_importance)
-            min_val = min(node_importance)
-
-        # 3. add superpx one by one to canvas 
-        for idx, px_id in enumerate(px_list):
-            if node_importance is not None:
-                fill = rgb(min_val, max_val, node_importance[idx], transparency=None)
-            else:
-                fill=None
-            rows, columns = np.where(mask == px_id)
-            list_coord = np.asarray([[columns[i].item(), rows[i].item()] for i in range(len(rows))])
-            xy = list_coord.flatten().tolist()
-            draw_poly(xy, draw_bd, fill=fill)
 
     @staticmethod
     def _get_centroid_and_edges(graph):

@@ -1,12 +1,12 @@
 from histocartography.utils.io import save_image, write_json
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
-from histocartography.evaluation.evaluator import WeightedF1, CrossEntropyLoss, ClusteringQuality, ExpectedClassShiftWithLogits
+from histocartography.evaluation.evaluator import WeightedF1, CrossEntropyLoss, ClusteringQuality, ExpectedClassShiftWithLogits, WeightedExpectedClassShiftWithLogits
 from histocartography.evaluation.classification_report import ClassificationReport
 from histocartography.evaluation.nuclei_evaluator import NucleiEvaluator 
 from histocartography.utils.visualization import tSNE
 from histocartography.utils.draw_utils import plot_tSNE
 from histocartography.dataloader.constants import get_number_of_classes, get_label_to_tumor_type
-from histocartography.interpretability.constants import FIVE_CLASS_DEPENDENCY_GRAPH
+from histocartography.interpretability.constants import FIVE_CLASS_DEPENDENCY_GRAPH, SEVEN_CLASS_DEPENDENCY_GRAPH, THREE_CLASS_DEPENDENCY_GRAPH
 
 import os
 import numpy as np
@@ -19,7 +19,8 @@ VAR_TO_METRIC_FN = {
     '_f1_score': ({}, WeightedF1),
     '_ce_loss': ({}, CrossEntropyLoss),
     '_classification_report': ({}, ClassificationReport),
-    '_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits)
+    '_expected_class_shift': ({'knowledge_graph': THREE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits),
+    '_weighted_expected_class_shift': ({'knowledge_graph': THREE_CLASS_DEPENDENCY_GRAPH}, WeightedExpectedClassShiftWithLogits)  # HACK ALERT: set to 3-class scenario
 }
 
 

@@ -5,10 +5,12 @@ import numpy as np
 plt.style.use('seaborn-whitegrid')
 
 
-def draw_ellipse(centroid, draw, fill_col):
-    draw.ellipse((centroid[0] - 5, centroid[1] - 5, centroid[0] + 5, centroid[1] + 5),
+def draw_ellipse(centroid, draw, fill_col, size=5, outline=(0, 0, 255)):
+    thickness = 2
+    for i in range(thickness):
+        draw.ellipse((centroid[0] - size -i, centroid[1] - size -i, centroid[0] + size + i, centroid[1] + size + i),
                  fill=fill_col,
-                 outline=(0, 0, 0))
+                 outline=outline)
 
 
 def draw_large_circle(centroid, draw):

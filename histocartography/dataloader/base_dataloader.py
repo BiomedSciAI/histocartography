@@ -19,8 +19,8 @@ class BaseDataset(Dataset):
         self.device = get_device(self.cuda)
         self.model_type = config['model_type']
 
-        for graph_type, param in config[GRAPH_BUILDING].items():
-            self._build_graph_builder(param, name=graph_type)
+        # for graph_type, param in config[GRAPH_BUILDING].items():
+        #     self._build_graph_builder(param, name=graph_type)
 
     def __getitem__(self, item):
         """

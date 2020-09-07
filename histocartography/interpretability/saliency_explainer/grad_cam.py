@@ -89,8 +89,11 @@ class GradCAM(_GradCAM):
 
         # Backpropagate
         self._backprop(scores, class_idx)
+
         # Global average pool the gradients over spatial dimensions
-        return self.hook_g.squeeze(0).mean(axis=(1))
+        axis = list(range(len(list(self.hook_g.squeeze(0).shape))))
+        axis.remove(0)
+        return self.hook_g.squeeze(0).mean(axis=axis)
 
 
 class GradCAMpp(_GradCAM):

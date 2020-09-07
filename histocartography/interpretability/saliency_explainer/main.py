@@ -1,5 +1,9 @@
 import argparse
 from warnings import simplefilter, filterwarnings
+import torch.nn as nn 
+import torch 
+from PIL import Image
+
 simplefilter(action='ignore', category=FutureWarning)
 filterwarnings(action='ignore', category=DeprecationWarning)
 import sys
@@ -26,12 +30,12 @@ sys.path.append(base_path + 'histocartography/baseline/cnn_baselines/')
 
 
 import os
-from cam_explainer import *
-from gradcam_explainer import *
-from gradcampp_explainer import *
-from smoothgradcampp_explainer import *
-from scorecam_explainer import *
-from sscam_explainer import *
+# from cam_explainer import *
+from histocartography.interpretability.saliency_explainer.gradcam_explainer import ImageGradCAMExplainer
+# from gradcampp_explainer import *
+# from smoothgradcampp_explainer import *
+# from scorecam_explainer import *
+# from sscam_explainer import *
 
 def create_directory(path):
     if not os.path.isdir(path):
@@ -47,6 +51,7 @@ class Squeeze(nn.Module):
 
 
 def get_model():
+    save_to_mlflow = True
     embedding_model = torch.load(model_path + 'embedding_model_best_f1.pt', map_location=torch.device('cpu'))
     classification_model = torch.load(model_path + 'classification_model_best_f1.pt', map_location=torch.device('cpu'))
     squeeze = Squeeze()
@@ -54,27 +59,34 @@ def get_model():
                                 squeeze,
                                 squeeze,
                                 *classification_model.children())
+    for param in model.parameters():
+        param.requires_grad = True
+
+    if save_to_mlflow:
+        import mlflow.pytorch 
+        mlflow.pytorch.log_model(model, 'model_5_classes')
+
     return model
 
 
 def get_explainer(explainer_type):
-    if explainer_type == 'cam':
-        explainer = CAMGNNExplainer(model=model, config=None)
+    # if explainer_type == 'cam':
+    #     explainer = CAMGNNExplainer(model=model, config=None)
 
-    elif explainer_type == 'gradcam':
-        explainer = GradCAMGNNExplainer(model=model, config=None)
+    if explainer_type == 'gradcam':
+        explainer = ImageGradCAMExplainer(model=model, config=None, cuda=True)
 
-    elif explainer_type == 'gradcampp':
-        explainer = GradCAMPPGNNExplainer(model=model, config=None)
+    # elif explainer_type == 'gradcampp':
+    #     explainer = GradCAMPPGNNExplainer(model=model, config=None)
 
-    elif explainer_type == 'smoothgradcampp':
-        explainer = SmoothGradCAMPPGNNExplainer(model=model, config=None)
+    # elif explainer_type == 'smoothgradcampp':
+    #     explainer = SmoothGradCAMPPGNNExplainer(model=model, config=None)
 
-    elif explainer_type == 'scorecam':
-        explainer = ScoreCAMGNNExplainer(model=model, config=None)
+    # elif explainer_type == 'scorecam':
+    #     explainer = ScoreCAMGNNExplainer(model=model, config=None)
 
-    elif explainer_type == 'sscam':
-        explainer = SSCAMGNNExplainer(model=model, config=None)
+    # elif explainer_type == 'sscam':
+    #     explainer = SSCAMGNNExplainer(model=model, config=None)
 
     else:
         print('ERROR')
@@ -86,7 +98,7 @@ if __name__ == '__main__':
 
     # Paths
     #model_path = './resnet50_single_scale_10x_ps128_bs64_lr0.0001_spie/4/'
-    model_path = './C7/'
+    model_path = 'C5/'
 
     base_savepath = './explanations/'
     create_directory(base_savepath)

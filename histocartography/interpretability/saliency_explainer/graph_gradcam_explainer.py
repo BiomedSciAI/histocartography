@@ -85,8 +85,8 @@ class GraphGradCAMExplainer(BaseExplainer):
         # 4/ build and return explanation 
         explanation = GraphExplanation(
             self.config,
-            image,
-            image_name,
+            image[0],
+            image_name[0],
             label,
             explanation_graphs,
         )

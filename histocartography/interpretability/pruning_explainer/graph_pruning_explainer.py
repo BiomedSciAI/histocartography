@@ -172,8 +172,8 @@ class GraphPruningExplainer(BaseExplainer):
         # Build explanation object
         explanation = GraphExplanation(
             self.config,
-            image,
-            image_name,
+            image[0],
+            image_name[0],
             label,
             explanation_graphs,
         )

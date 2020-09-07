@@ -6,7 +6,8 @@ AVAILABLE_EXPLAINABILITY_METHODS = {
     'pruning_explainer.graph_pruning_explainer': 'GraphPruningExplainer',
     'lrp_explainer.lrp_gnn_explainer': 'LRPGNNExplainer',
     'attention_based_explainer.attention_gnn_explainer': 'AttentionGNNExplainer',
-    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer'
+    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer',
+    'saliency_explainer.image_gradcam_explainer': 'ImageGradCAMExplainer'
 }
 
 
@@ -39,6 +40,9 @@ MODEL_TO_MLFLOW_ID = {
             'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '96343b43e4284334910c8901258262d4/artifacts/model_best_val_weighted_f1_score_0',
             'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '18fd64661fc84067bf2598d67dcad5f6/artifacts/model_best_val_weighted_f1_score_0',
             'pruning_explainer.graph_pruning_explainer': BASE_S3 + '96343b43e4284334910c8901258262d4/artifacts/model_best_val_weighted_f1_score_0'
+        },
+        'cnn_model': {
+            'saliency_explainer.image_gradcam_explainer': BASE_S3 + '2b6ad4eaa4eb455dad88a0a734eea2b4/artifacts/model_5_classes'
         }
     },
     '3_class_scenario': {
@@ -88,7 +92,8 @@ INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN = {
     'attention_based_explainer.attention_gnn_explainer': 'plain_model_loading',
     'pruning_explainer.graph_pruning_explainer': 'tentative_model_loading',
     'lrp_explainer.lrp_gnn_explainer': 'plain_model_loading',
-    'saliency_explainer.graph_gradcam_explainer': 'plain_model_loading'
+    'saliency_explainer.graph_gradcam_explainer': 'plain_model_loading',
+    'saliency_explainer.image_gradcam_explainer': 'plain_model_loading'
 }
 
 
@@ -96,7 +101,8 @@ EXPLANATION_TYPE_SAVE_SUBDIR = {
     'attention_based_explainer.attention_gnn_explainer': 'GAT',
     'pruning_explainer.graph_pruning_explainer': 'GNNExplainer',
     'lrp_explainer.lrp_gnn_explainer': 'GraphLRP',
-    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer'
+    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer',
+    'saliency_explainer.image_gradcam_explainer': 'ImageGradCAMExplainer'
 }
 
 

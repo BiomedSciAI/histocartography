@@ -1,12 +1,16 @@
 from histocartography.utils.visualization import GraphVisualization, overlay_mask
-from histocartography.utils.io import save_image, write_json
+from histocartography.utils.io import save_image, write_json, buffer_plot_and_get
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
 from histocartography.dataloader.constants import get_label_to_tumor_type, get_number_of_classes
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 
 import os
 import numpy as np
+import PIL
 from PIL import Image
+from captum.attr import visualization as viz
+from matplotlib import cm
+import io 
 
 BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output'
 
@@ -128,6 +132,28 @@ class GraphExplanation(BaseExplanation):
         return explanation_as_image
 
 
+IMAGE_INTER_METHOD_TO_DRAWING_FN = {
+    'saliency_explainer.image_deeplift_explainer': lambda heatmap, image: numpy_to_pil(heatmap, image),
+    'saliency_explainer.image_gradcam_explainer': lambda heatmap, image: Image.fromarray(heatmap, 'RGBA')
+}
+
+COLORMAP = 'jet'
+CMAP = cm.get_cmap(COLORMAP)
+
+def numpy_to_pil(heatmap, image):
+    fig, ax = viz.visualize_image_attr(
+        heatmap,
+        image,
+        method="blended_heat_map",
+        sign="positive",
+        show_colorbar=True,
+        cmap=CMAP,
+        title="Overlayed DeepLift", use_pyplot=False
+    )
+    image = buffer_plot_and_get(fig)
+    return image
+
+
 class ImageExplanation(BaseExplanation):
     def __init__(
             self,
@@ -164,12 +190,14 @@ class ImageExplanation(BaseExplanation):
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
 
+    def draw(self):
+        return IMAGE_INTER_METHOD_TO_DRAWING_FN[self.config['explanation_type']](self.heatmap, self.image)
+
     def write(self):
 
         # 1. save image 
-        print(self.heatmap.shape)
-        self.heatmap = Image.fromarray(self.heatmap, 'RGBA')
-        save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), self.heatmap)
+        image = self.draw()
+        save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), image)
 
         # 2. write json 
         self._encapsulate_explanation()

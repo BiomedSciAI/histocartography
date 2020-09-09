@@ -3,6 +3,7 @@ import os
 import torch
 import numpy as np
 import pandas as pd 
+import PIL
 from PIL import Image
 import io
 import pickle
@@ -13,6 +14,14 @@ from mlflow.pytorch import load_model
 from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES
 from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
 from histocartography.dataloader.constants import get_number_of_classes
+
+
+def buffer_plot_and_get(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, dpi=200)
+    buf.seek(0)
+    return PIL.Image.open(buf)
+
 
 def plain_model_loading(config):
     num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])

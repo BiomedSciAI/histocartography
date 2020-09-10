@@ -1,0 +1,55 @@
+{
+    "graph_building": {
+        "superpx_graph_builder": {
+                "graph_building_type": "rag_graph_builder",
+                "drop_appearance_features": false,
+                "edge_encoding": false,
+                "node_feature_types": ["merging_hc_features_cnn_resnet34_mask_False_"]
+        }
+    },
+    "model_params": {
+        "activation": "relu",
+        "class_split": "benign+pathologicalbenign+udhVSadh+feaVSdcis+malignant",
+        "dropout": 0.0,
+        "gnn_params": {
+            "superpx_gnn": {
+                "activation": "relu",
+                "agg_operator": "none",
+                "hidden_dim": 64,
+                "layer_type": "dense_gin_layer",
+                "n_layers": 3,
+                "output_dim": 64,
+                "neighbor_pooling_type": "mean",
+                "graph_norm": false,
+                "with_rlp": false
+            }
+        },
+        "readout": {
+            "hidden_dim": 128,
+            "num_layers": 2
+        },
+        "use_bn": false
+    },
+    "model_type": "superpx_graph_model",
+    "explanation_params": {
+        "explanation_type": "pruning_explainer.graph_pruning_explainer",
+        "train_params": {
+            "num_epochs": 500,
+            "lr": 0.01,
+            "weight_decay": 5e-4
+        },
+        "model_params": {
+            "loss": {
+                "adj": 0.0,
+                "adj_ent": 0.0,
+                "node_ent": 1.0,  
+                "node": 0.5,
+                "ce": 10.0
+            },
+            "adj_thresh": 0.05,
+            "node_thresh": 0.05,
+            "init": "normal",
+            "mask_activation": "sigmoid"
+        }
+    }
+}

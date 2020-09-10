@@ -1,0 +1,39 @@
+{
+    "graph_building": {
+        "superpx_graph_builder": {
+                "graph_building_type": "rag_graph_builder",
+                "drop_appearance_features": false,
+                "edge_encoding": false,
+                "node_feature_types": ["merging_hc_features_cnn_resnet34_mask_False_"]
+        }
+    },
+    "model_params": {
+        "activation": "relu",
+        "class_split": "benign+pathologicalbenign+udhVSdcis+malignant",
+        "dropout": 0.0,
+        "gnn_params": {
+            "superpx_gnn": {
+                "activation": "relu",
+                "agg_operator": "none",
+                "hidden_dim": 64,
+                "layer_type": "gin_layer",
+                "n_layers": 3,
+                "output_dim": 64,
+                "neighbor_pooling_type": "mean",
+                "graph_norm": false,
+                "with_rlp": false
+            }
+        },
+        "readout": {
+            "hidden_dim": 128,
+            "num_layers": 2
+        },
+        "use_bn": false
+    },
+    "model_type": "superpx_graph_model",
+    "explanation_params": {
+        "explanation_type": "lrp_explainer.lrp_gnn_explainer",
+        "model_params": {
+        }
+    }
+}

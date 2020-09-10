@@ -3,6 +3,7 @@ from histocartography.utils.io import save_image, write_json, buffer_plot_and_ge
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
 from histocartography.dataloader.constants import get_label_to_tumor_type, get_number_of_classes
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
+from histocartography.utils.visualization import overlay_mask
 
 import os
 import numpy as np
@@ -133,8 +134,9 @@ class GraphExplanation(BaseExplanation):
 
 
 IMAGE_INTER_METHOD_TO_DRAWING_FN = {
-    'saliency_explainer.image_deeplift_explainer': lambda heatmap, image: numpy_to_pil(heatmap, image),
-    'saliency_explainer.image_gradcam_explainer': lambda heatmap, image: Image.fromarray(heatmap, 'RGBA')
+    'saliency_explainer.image_deeplift_explainer': lambda heatmap, image: overlay_mask(image, heatmap),  # lambda heatmap, image: numpy_to_pil(heatmap, image),
+    'saliency_explainer.image_gradcam_explainer': lambda heatmap, image: overlay_mask(image, heatmap),
+    'saliency_explainer.image_gradcampp_explainer': lambda heatmap, image: overlay_mask(image, heatmap)
 }
 
 COLORMAP = 'jet'

@@ -1,3 +1,5 @@
+#from histocartography.interpretability.base_explainer import BaseExplainer
+
 from ..base_explainer import BaseExplainer
 
 from PIL import Image
@@ -6,15 +8,16 @@ import torch
 from torch import nn
 from torchvision import models
 from torchvision.transforms.functional import resize, to_tensor, to_pil_image
+from torchcam.cams import GradCAMpp
+from matplotlib import cm
 import cv2
-from captum.attr import DeepLift
 
+from histocartography.interpretability.constants import PATCH_SIZE, PATCH_SCALE, STRIDE, PATCH_RESIZE, data_transformation
 from histocartography.interpretability.explanation import ImageExplanation
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
-from histocartography.interpretability.constants import PATCH_SIZE, PATCH_SCALE, STRIDE, PATCH_RESIZE, data_transformation
 
 
-class ImageDeepLiftExplainer(BaseExplainer):
+class ImageGradCAMPPExplainer(BaseExplainer):
     def __init__(
             self,
             model,
@@ -23,22 +26,17 @@ class ImageDeepLiftExplainer(BaseExplainer):
             verbose=False
     ):
         """
-        DeepLift for Images constructor
+        Image Grad CAM++ for CNN-based saliency explanation constructor
         :param model: (nn.Module) a pre-trained model to run the forward pass
         :param config: (dict) method-specific parameters
         :param cuda: (bool) if cuda is enable
         :param verbose: (bool) if verbose is enable
         """
-        super(ImageDeepLiftExplainer, self).__init__(model, config, cuda, verbose)
-        self.eval_deep_lift = DeepLift(self.model)
+        super(ImageGradCAMPPExplainer, self).__init__(model, config, cuda, verbose)
 
-    def attribute_image_features(self, algorithm, image, label, **kwargs):
-        self.model.zero_grad()
-        tensor_attributions = algorithm.attribute(image,
-                                                  target=label,
-                                                  **kwargs
-                                                 )
-        return tensor_attributions
+        # Set based on our trained CNN-single stream (10x)-ResNet50 network
+        self.conv_layer = '7'       # conv_layer (str): name of the last convolutional layer
+
 
     def explain(self, data, label):
         """
@@ -54,6 +52,7 @@ class ImageDeepLiftExplainer(BaseExplainer):
 
         if self.cuda:
             self.model = self.model.cuda()
+        self.model.eval()
 
         # Preprocess image
         (h, w, c) = data.shape
@@ -61,7 +60,6 @@ class ImageDeepLiftExplainer(BaseExplainer):
                            (0, 0)), mode='constant', constant_values=255)
 
         # Initialize saliency map
-        # saliency_map = np.zeros_like(data).astype(np.float)
         saliency_map = np.zeros_like(data[:, :, 0]).astype(np.float)
 
         # Patch-wise processing
@@ -78,39 +76,36 @@ class ImageDeepLiftExplainer(BaseExplainer):
                              x: x + PATCH_SIZE, :]
                 patch = cv2.resize(patch, (PATCH_RESIZE, PATCH_RESIZE), interpolation=cv2.INTER_NEAREST)
 
+                # Hook the corresponding layer in the model
+                extractor = GradCAMpp(self.model, self.conv_layer)
+
                 # Preprocess image
-                patch_tensor = data_transformation(Image.fromarray(patch), self.device).unsqueeze(0)
-                patch_tensor.requires_grad = True
+                patch_pil = data_transformation(Image.fromarray(patch), self.device)
+                scores = self.model(patch_pil.unsqueeze(0))
 
-                # Forward & feature attribution 
-                scores = self.model(patch_tensor)
-                prediction = scores.argmax(dim=1)
-                activation_map = self.attribute_image_features(self.eval_deep_lift, patch_tensor, prediction, baselines=patch_tensor * 0)
-                # print('Activation map:', activation_map.shape)
-                # activation_map = np.transpose(activation_map.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
+                # Use the hooked data to compute activation map
+                activation_map = extractor(label, scores).cpu()
 
-                # # Saliency map
-                # heatmap = to_pil_image(activation_map, mode='RGB')
-                # heatmap = heatmap.resize((PATCH_SIZE, PATCH_SIZE), resample=Image.BICUBIC)
-                # saliency_map[y: y + PATCH_SIZE, x: x + PATCH_SIZE, :] = np.asarray(heatmap) 
-
-                # trying to sum over the color channels beforehand 
-                activation_map = activation_map.sum(dim=1).squeeze(0).cpu().detach().numpy()
+                # Clean data
+                extractor.clear_hooks()
+                self.model.zero_grad()
 
                 # Saliency map
                 heatmap = to_pil_image(activation_map, mode='F')
                 heatmap = heatmap.resize((PATCH_SIZE, PATCH_SIZE), resample=Image.BICUBIC)
-                saliency_map[y: y + PATCH_SIZE, x: x + PATCH_SIZE] = np.asarray(heatmap) 
+
+                saliency_map[y: y + PATCH_SIZE, x: x + PATCH_SIZE] = np.asarray(heatmap)
 
                 y += STRIDE
 
             x+= STRIDE
 
-        # convert heatmap to PIL image
-        # saliency_map = Image.fromarray(saliency_map[:h, :w, :], mode='RGB')
-        saliency_map = Image.fromarray((255 * saliency_map[:h, :w]).astype(np.uint8))
+        saliency_map = saliency_map[:h, :w]
 
         print('#patches=', count)
+
+        # convert heatmap to PIL image:
+        saliency_map = Image.fromarray(saliency_map, mode='F')
 
         # Create ImageExplanation object
         explanation = ImageExplanation(
@@ -123,27 +118,3 @@ class ImageDeepLiftExplainer(BaseExplainer):
         )
 
         return explanation
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

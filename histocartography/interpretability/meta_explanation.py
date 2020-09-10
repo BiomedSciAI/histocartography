@@ -19,8 +19,8 @@ VAR_TO_METRIC_FN = {
     '_f1_score': ({}, WeightedF1),
     '_ce_loss': ({}, CrossEntropyLoss),
     '_classification_report': ({}, ClassificationReport),
-    '_expected_class_shift': ({'knowledge_graph': THREE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits),
-    '_weighted_expected_class_shift': ({'knowledge_graph': THREE_CLASS_DEPENDENCY_GRAPH}, WeightedExpectedClassShiftWithLogits)  # HACK ALERT: set to 3-class scenario
+    '_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits),
+    '_weighted_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, WeightedExpectedClassShiftWithLogits)  # HACK ALERT: set to 3-class scenario
 }
 
 
@@ -44,6 +44,8 @@ class MetaBaseExplanation:
         """
         self.config = config
         self.explanations = explanations
+        self.num_classes = get_number_of_classes(config['model_params']['class_split'])
+        self._extract_labels()
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
@@ -53,6 +55,19 @@ class MetaBaseExplanation:
 
     def evaluate(self):
         raise NotImplementedError('Implementation in subclasses')
+
+    def _extract_labels(self):
+        self.labels = []
+        for explanation in self.explanations:
+            self.labels.append(explanation.label)
+        self.labels = torch.LongTensor(self.labels)
+
+    def _encapsulate_meta_explanation(self, res):
+        self.meta_explanation_as_dict = {}
+        # a. config file
+        self.meta_explanation_as_dict['config'] = self.config
+        # b. output 
+        self.meta_explanation_as_dict['output'] = res
 
 
 class MetaGraphExplanation(MetaBaseExplanation):
@@ -71,7 +86,6 @@ class MetaGraphExplanation(MetaBaseExplanation):
 
         super(MetaGraphExplanation, self).__init__(config, explanations)
 
-        self.num_classes = get_number_of_classes(config['model_params']['class_split'])
         self.graph_type = config['model_params']['model_type'].replace('_model', '')
 
         self.save_path = os.path.join(
@@ -87,7 +101,6 @@ class MetaGraphExplanation(MetaBaseExplanation):
         # extract meta information stored in the explanations 
         self._extract_data_from_explanations('logits')
         self._extract_data_from_explanations('latent')
-        self._extract_labels()
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
@@ -110,15 +123,6 @@ class MetaGraphExplanation(MetaBaseExplanation):
             attr_name = 'keep_' + str(int(prediction_type * 100))
             low_dim_emb = eval_tsne(getattr(self, attr_name + '_latent'))
             plot_tSNE(low_dim_emb, self.labels, os.path.join(self.save_path, attr_name + '_tsne.png'), get_label_to_tumor_type(self.config['model_params']['class_split']))
-
-    def _encapsulate_meta_explanation(self, res):
-        self.meta_explanation_as_dict = {}
-
-        # a. config file
-        self.meta_explanation_as_dict['config'] = self.config
-
-        # b. output 
-        self.meta_explanation_as_dict['output'] = res
 
     def evaluate(self):
         """
@@ -148,11 +152,6 @@ class MetaGraphExplanation(MetaBaseExplanation):
             if verbose:
                 print('Set new attribute: {} with shape: {}'.format(attr_name, data.shape))
 
-    def _extract_labels(self):
-        self.labels = []
-        for explanation in self.explanations:
-            self.labels.append(explanation.label)
-        self.labels = torch.LongTensor(self.labels)
 
 class MetaImageExplanation(MetaBaseExplanation):
     def __init__(
@@ -170,15 +169,48 @@ class MetaImageExplanation(MetaBaseExplanation):
 
         super(MetaImageExplanation, self).__init__(config, explanations)
 
-        self.heatmap = heatmap
-        self.save_path = '/dataT/pus/histocartography/Data/explainability/output/cnn'
+        self.save_path = os.path.join(
+            BASE_OUTPUT_PATH,
+            'cnn',
+            str(self.num_classes) + '_class_scenario',
+            EXPLANATION_TYPE_SAVE_SUBDIR[config['explanation_type']]
+        )
+
+        os.makedirs(self.save_path, exist_ok=True)
+
+        self._extract_data_from_explanations('logits')
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
 
     def write(self):
-        explanation_as_image = self.draw()
-        save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), explanation_as_image)
+        
+        # 1. run metrics to derive meta explanation results 
+        res = self.evaluate()
+
+        # 2. write json 
+        self._encapsulate_meta_explanation(res)
+        write_json(os.path.join(self.save_path, 'meta_explanation.json'), self.meta_explanation_as_dict)
+
+    def evaluate(self):
+        res = {}
+        for metric_name, (metric_arg, metric_fn) in VAR_TO_METRIC_FN.items():
+            out = metric_fn(**metric_arg)(getattr(self, 'all_logits'), self.labels)
+            out = CONVERT_SERIALIZABLE_TYPE[type(out)](out)
+            res['all' + metric_name] = out
+            print('Name:', 'all' + metric_name, out)
+        return res
+
+    def _extract_data_from_explanations(self, key, verbose=True):
+        attr_name = 'all_' + key
+        data = []
+        for explanation in self.explanations:
+            data.append(getattr(explanation, key))
+        data = torch.FloatTensor(data)
+        setattr(self, attr_name, data)
+        if verbose:
+            print('Set new attribute: {} with shape: {}'.format(attr_name, data.shape))
+
 
 
 

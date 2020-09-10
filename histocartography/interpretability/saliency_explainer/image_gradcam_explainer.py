@@ -5,20 +5,15 @@ import numpy as np
 import torch
 from torch import nn
 from torchvision import models
-from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
+from torchvision.transforms.functional import resize, to_tensor, to_pil_image
 from matplotlib import cm
 import cv2
 
 from histocartography.interpretability.saliency_explainer.grad_cam import GradCAM
 from histocartography.interpretability.explanation import ImageExplanation
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
+from histocartography.interpretability.constants import PATCH_SIZE, PATCH_SCALE, STRIDE, PATCH_RESIZE, data_transformation
 
-PATCH_SIZE = 448
-PATCH_SCALE = 224
-STRIDE = 448
-PATCH_RESIZE = 112
-COLORMAP = 'jet'
-CMAP = cm.get_cmap(COLORMAP)
 
 
 class ImageGradCAMExplainer(BaseExplainer):
@@ -38,13 +33,8 @@ class ImageGradCAMExplainer(BaseExplainer):
         """
         super(ImageGradCAMExplainer, self).__init__(model, config, cuda, verbose)
 
-        # Set based on our trained CNN-single stream (10x)-ResNet34 network
+        # Set based on our trained CNN-single stream (10x)-ResNet50 network
         self.conv_layer = '7'       # conv_layer (str): name of the last convolutional layer
-
-    def data_transformation(self, pil_img):
-        img_tensor = normalize(to_tensor(resize(pil_img, (PATCH_SCALE, PATCH_SCALE))),
-                               [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=self.device)
-        return img_tensor
 
     def explain(self, data, label):
         """
@@ -68,8 +58,7 @@ class ImageGradCAMExplainer(BaseExplainer):
                            (0, 0)), mode='constant', constant_values=255)
 
         # Initialize saliency map
-        saliency_map = np.zeros_like(data)
-        saliency_count = np.zeros_like(data)
+        saliency_map = np.zeros_like(data[:, :, 0]).astype(np.float)
 
         # Patch-wise processing
         count = 0
@@ -89,11 +78,13 @@ class ImageGradCAMExplainer(BaseExplainer):
                 extractor = GradCAM(self.model, self.conv_layer)
 
                 # Preprocess image
-                patch_pil = self.data_transformation(Image.fromarray(patch))
+                patch_pil = data_transformation(Image.fromarray(patch), self.device)
                 scores = self.model(patch_pil.unsqueeze(0))
 
                 # Use the hooked data to compute activation map
                 activation_map = extractor(label, scores).cpu()
+
+                print('Activation map shape:', activation_map.shape)
 
                 # Clean data
                 extractor.clear_hooks()
@@ -103,20 +94,18 @@ class ImageGradCAMExplainer(BaseExplainer):
                 heatmap = to_pil_image(activation_map, mode='F')
                 heatmap = heatmap.resize((PATCH_SIZE, PATCH_SIZE), resample=Image.BICUBIC)
 
-                saliency_map[y: y + PATCH_SIZE, x: x + PATCH_SIZE, :] += \
-                    (255 * CMAP(np.asarray(heatmap) ** 2)[:, :, 1:]).astype(np.uint8)
-
-                saliency_count[y: y + PATCH_SIZE, x: x + PATCH_SIZE, :] += 1
+                saliency_map[y: y + PATCH_SIZE, x: x + PATCH_SIZE] = np.asarray(heatmap)
 
                 y += STRIDE
 
             x+= STRIDE
 
-        saliency_map = saliency_map[:h, :w, :]
-        saliency_count = saliency_count[:h, :w, :]
-        saliency_map = np.divide(saliency_map, saliency_count)
+        saliency_map = saliency_map[:h, :w]
 
         print('#patches=', count)
+
+        # convert heatmap to PIL image:
+        saliency_map = Image.fromarray(saliency_map, mode='F')
 
         # Create ImageExplanation object
         explanation = ImageExplanation(
@@ -125,31 +114,7 @@ class ImageGradCAMExplainer(BaseExplainer):
             image_name,
             label,
             saliency_map,
-            torch_to_list(scores)
+            torch_to_list(scores.squeeze())
         )
 
         return explanation
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

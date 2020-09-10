@@ -18,7 +18,7 @@ from histocartography.utils.arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.dataloader.constants import get_label_to_tumor_type
-from histocartography.interpretability.meta_explanation import MetaGraphExplanation
+# from histocartography.interpretability.meta_explanation import MetaGraphExplanation
 
 
 # flush warnings
@@ -29,6 +29,15 @@ warnings.filterwarnings("ignore")
 CUDA = torch.cuda.is_available()
 DEVICE = get_device(CUDA)
 
+INTERPRETABILITY_METHOD_TO_META_OBJ = {
+    'attention_based_explainer.attention_gnn_explainer': 'MetaGraphExplanation',
+    'pruning_explainer.graph_pruning_explainer': 'MetaGraphExplanation',
+    'lrp_explainer.lrp_gnn_explainer': 'MetaGraphExplanation',
+    'saliency_explainer.graph_gradcam_explainer': 'MetaGraphExplanation',
+    'saliency_explainer.image_gradcam_explainer': 'MetaImageExplanation',
+    'saliency_explainer.image_gradcampp_explainer': 'MetaImageExplanation',
+    'saliency_explainer.image_deeplift_explainer': 'MetaImageExplanation'
+}
 
 
 def main(args):
@@ -104,32 +113,37 @@ def main(args):
 
     # explain instance from the train set
     counter = 0
+    with_exception = False
     all_explanations = []
     for data, label in tqdm(dataloaders[args.split]):
 
-        try:
-
+        if with_exception:
+            try:
+                explanation = interpretability_model.explain(
+                    data=data,
+                    label=label
+                )
+                if counter % 3 == 0:
+                    torch.cuda.empty_cache() 
+                explanation.write()
+                all_explanations.append(explanation)
+            except Exception as e:
+                print('An error occured while generating explanation of sample: {}. Excepts is of type {}. Full trace {}'.format(data[-1], e.__class__, e))
+        else:
             explanation = interpretability_model.explain(
-                data=data,
-                label=label
-            )
-            
+                    data=data,
+                    label=label
+                )
             if counter % 3 == 0:
                 torch.cuda.empty_cache() 
-
-            # if counter >= 10:
-            #     break
-
             explanation.write()
             all_explanations.append(explanation)
-
-        except Exception as e:
-            print('An error occured while generating explanation of sample: {}. Excepts is of type {}. Full trace {}'.format(data[-1], e.__class__, e))
-
+            
         counter += 1
 
     # wrap all the explanations in object and write 
-    meta_explanation = MetaGraphExplanation(config['explanation_params'], all_explanations)
+    meta_module = importlib.import_module('histocartography.interpretability.meta_explanation')
+    meta_explanation = getattr(meta_module, INTERPRETABILITY_METHOD_TO_META_OBJ[interpretability_model_type])(config['explanation_params'], all_explanations)
     meta_explanation.write()
 
 

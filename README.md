@@ -15,6 +15,8 @@ conda env create -f environment.yml
 conda activate histocartography
 ```
 
+Note that some pip installations on zhc2 will fail. For all those libraries, you need to install them from sources. This is for sure the case of the DGL library that doesn't install on IBMPower without some tricks. Contact me @gja if you encounter those issues. 
+
 ## Testing and Continuous Integration
 Add these environment variables to have access to the [Object Storage](http://data.digital-pathology.zc2.ibm.com:9000)
 ```

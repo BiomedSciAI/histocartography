@@ -34,32 +34,8 @@ mlflow experiments create --artifact-location s3://mlflow -n ${MLFLOW_EXPERIMENT
 ```
 
 ## Set your run and go
-create a folder for your training script and write an MLproject file with the
-required information (see fra_gleason2019 example)
-For example: 
-```
-name: gja_histo_graph project
 
-conda_env: conda.yml
-
-entry_points:
-  main:
-    parameters:
-      config_fpath: {type: string, default: histocartography/config/multi_graphs_config_file.json}
-      data_path: {type: string, default: data/pascale/_h5}
-      number_of_workers: {type: int, default: 1}
-      model_name: {type string, default: model}
-      batch_size: {type: int, default: 8}
-      epochs: {type: int, default: 10}
-      learning_rate: {type: float, default: 10e-3}
-    command: "python3 training_script.py --config_fpath {config_fpath} -d {data_path} --number_of_workers \
-    {number_of_workers} -n {model_name} -b {batch_size} -l {learning_rate} --epochs {epochs}"
-```
-
-and then, start your runs with your parameters
-```sh
- mlflow run histo-graph/ -P batch_size=4 -P epochs=100 
-```
+Use the MLflow python API to log metrics, artifacts, models. 
 
 Check your live(!) results at: 
 [http://experiments.traduce.zc2.ibm.com:5000/#/](http://experiments.traduce.zc2.ibm.com:5000/#/)

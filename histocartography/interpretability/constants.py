@@ -1,4 +1,5 @@
 import networkx as nx
+from torchvision.transforms.functional import normalize, resize, to_tensor
 
 
 # define all the available modules for interpretability 
@@ -6,7 +7,10 @@ AVAILABLE_EXPLAINABILITY_METHODS = {
     'pruning_explainer.graph_pruning_explainer': 'GraphPruningExplainer',
     'lrp_explainer.lrp_gnn_explainer': 'LRPGNNExplainer',
     'attention_based_explainer.attention_gnn_explainer': 'AttentionGNNExplainer',
-    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer'
+    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer',
+    'saliency_explainer.image_gradcam_explainer': 'ImageGradCAMExplainer',
+    'saliency_explainer.image_gradcampp_explainer': 'ImageGradCAMPPExplainer',
+    'saliency_explainer.image_deeplift_explainer': 'ImageDeepLiftExplainer'
 }
 
 
@@ -39,6 +43,11 @@ MODEL_TO_MLFLOW_ID = {
             'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '96343b43e4284334910c8901258262d4/artifacts/model_best_val_weighted_f1_score_0',
             'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '18fd64661fc84067bf2598d67dcad5f6/artifacts/model_best_val_weighted_f1_score_0',
             'pruning_explainer.graph_pruning_explainer': BASE_S3 + '96343b43e4284334910c8901258262d4/artifacts/model_best_val_weighted_f1_score_0'
+        },
+        'cnn_model': {
+            'saliency_explainer.image_gradcam_explainer': BASE_S3 + '542e09cb99ba437a9fb140b4fbc8793e/artifacts/model_5_classes',
+            'saliency_explainer.image_gradcampp_explainer': BASE_S3 + '542e09cb99ba437a9fb140b4fbc8793e/artifacts/model_5_classes',
+            'saliency_explainer.image_deeplift_explainer': BASE_S3 + '542e09cb99ba437a9fb140b4fbc8793e/artifacts/model_5_classes'
         }
     },
     '3_class_scenario': {
@@ -88,7 +97,10 @@ INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN = {
     'attention_based_explainer.attention_gnn_explainer': 'plain_model_loading',
     'pruning_explainer.graph_pruning_explainer': 'tentative_model_loading',
     'lrp_explainer.lrp_gnn_explainer': 'plain_model_loading',
-    'saliency_explainer.graph_gradcam_explainer': 'plain_model_loading'
+    'saliency_explainer.graph_gradcam_explainer': 'plain_model_loading',
+    'saliency_explainer.image_gradcam_explainer': 'plain_model_loading',
+    'saliency_explainer.image_gradcampp_explainer': 'plain_model_loading',
+    'saliency_explainer.image_deeplift_explainer': 'plain_model_loading'
 }
 
 
@@ -96,7 +108,10 @@ EXPLANATION_TYPE_SAVE_SUBDIR = {
     'attention_based_explainer.attention_gnn_explainer': 'GAT',
     'pruning_explainer.graph_pruning_explainer': 'GNNExplainer',
     'lrp_explainer.lrp_gnn_explainer': 'GraphLRP',
-    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer'
+    'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer',
+    'saliency_explainer.image_gradcam_explainer': 'ImageGradCAMExplainer',
+    'saliency_explainer.image_gradcampp_explainer': 'ImageGradCAMPPExplainer',
+    'saliency_explainer.image_deeplift_explainer': 'ImageDeepLiftExplainer'
 }
 
 
@@ -140,3 +155,17 @@ SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('dcis', 'malignant')
 
 
 KEEP_PERCENTAGE_OF_NODE_IMPORTANCE = [1, 0.5]
+
+
+# define resize/patch size for CNN-based interpretability method 
+PATCH_SIZE = 448
+PATCH_SCALE = 224
+STRIDE = 448
+PATCH_RESIZE = 112
+
+
+def data_transformation(pil_img, device):
+    img_tensor = normalize(to_tensor(resize(pil_img, (PATCH_SCALE, PATCH_SCALE))),
+                           [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
+    return img_tensor
+

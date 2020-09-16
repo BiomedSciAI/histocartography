@@ -77,8 +77,8 @@ class LRPGNNExplainer(BaseExplainer):
         # 5/ build and return explanation 
         explanation = GraphExplanation(
             self.config,
-            image,
-            image_name,
+            image[0],
+            image_name[0],
             label,
             explanation_graphs,
         )

@@ -1,5 +1,5 @@
 Histocartography integrates tools to make your training easier:
-- Brontes (for easy training loops and logging)
+
 - MLflow (for easy run comparison and tracking)
 
 This requires a couple extra steps that are documented below. 

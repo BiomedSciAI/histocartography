@@ -9,22 +9,16 @@ Histocartography python package. It installs `histocartography` using `pip`.
 
 ## Suggested setup for development
 
-Create a `virtualenv`:
+- Create the conda environment:
 
-```sh
-python3 -m venv venv
+```
+conda env create -f environment.yml
 ```
 
-Activate it:
+- Activate it:
 
-```sh
-source venv/bin/activate
 ```
-
-Install the package as editable and any dependencies:
-
-```sh
-pip3 install -e .
+conda activate histocartography
 ```
 
 ## Testing and Continuous Integration

@@ -24,15 +24,15 @@ class HoverNet(nn.Module):
         self.decode_tp = Decoder()
 
         # nuclei type pixel (TP)
-        self.conv_out_tp = Conv2dWithActivation(64, self.nr_types, 1, activation=None, padding=1)
+        self.conv_out_tp = Conv2dWithActivation(64, self.nr_types, 1, activation=None, padding=1, bias=True)
         self.preact_out_np = BNReLU(64)
 
         # nuclei pixels (NP)
-        self.conv_out_np = Conv2dWithActivation(64, 2, 1, activation=None, padding=1)
+        self.conv_out_np = Conv2dWithActivation(64, 2, 1, activation=None, padding=1, bias=True)
         self.preact_out_hv = BNReLU(64)
 
         # horizontal-vertival (HV)
-        self.conv_out_hv = Conv2dWithActivation(64, 2, 1, activation=None, padding=1)
+        self.conv_out_hv = Conv2dWithActivation(64, 2, 1, activation=None, padding=1, bias=True)
         self.preact_out_tp = BNReLU(64)
  
     def forward(self, images):
@@ -86,7 +86,7 @@ class Encoder(nn.Module):
 
         """
         super(Encoder, self).__init__()
-        self.conv0 = Conv2dWithActivation(3, 64, 7, activation=None, padding=3)  # padding of 3 allows to keep the same dimensions 
+        self.conv0 = Conv2dWithActivation(3, 64, 7, activation='bnrelu', padding=3)  # padding of 3 allows to keep the same dimensions 
         self.group0 = ResidualBlock(64, [64,  64,  256], [1, 3, 1], 3, strides=1)
         self.group1 = ResidualBlock(256, [128, 128,  512], [1, 3, 1], 4, strides=2)
         self.group2 = ResidualBlock(512, [256, 256, 1024], [1, 3, 1], 6, strides=2)
@@ -114,7 +114,7 @@ class ResidualBlock(nn.Module):
         # ch_in = [128, 128]  # @TODO: hardcode the number of input channels in the residual blocks 
         for i in range(0, count):
             if i != 0:
-                self.preact = BNReLU(ch[2])
+                setattr(self, 'block' + str(i) + '_preact', BNReLU(ch[2])) 
             setattr(self, 'block' + str(i) + '_conv1', Conv2dWithActivation(ch_in if i==0 else ch[-1], ch[0], ksize[0], activation='bnrelu')) 
             setattr(self, 'block' + str(i) + '_conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation='bnrelu', stride=strides if i == 0 else 1, padding=1)) # padding=''same
             setattr(self, 'block' + str(i) + '_conv3', Conv2dWithActivation(ch[1], ch[2], ksize[2], activation=None)) 
@@ -126,7 +126,7 @@ class ResidualBlock(nn.Module):
         for i in range(0, self.count):
 
             # set input 
-            x = l if i == 0 else self.preact(l)
+            x = l if i == 0 else getattr(self, 'block' + str(i) + '_preact')(l)
 
             # loop over conv1 & 2 & 3
             x = getattr(self, 'block' + str(i) + '_conv1')(x)
@@ -174,7 +174,7 @@ class Decoder(nn.Module):
         # variables with name starting by u2
         self.u2_rz = Upsample2x()
         self.u2_conva = Conv2dWithActivation(512, 256, 3, activation=None)  
-        self.u2_dense = DenseBlock(256, [128, 32], [1, 3], 8, split=4)
+        self.u2_dense = DenseBlock(256, [128, 32], [1, 3], 4, split=4)
         self.u2_convf = Conv2dWithActivation(512, 256, 3, activation=None, padding=5) 
      
         # variables with name starting by u1
@@ -252,12 +252,12 @@ class BNReLU(nn.Module):
 
 class Conv2dWithActivation(nn.Module):
 
-    def __init__(self, num_input, num_output, filter_size, stride=1, activation=None, padding=0):
+    def __init__(self, num_input, num_output, filter_size, stride=1, activation=None, padding=0, bias=False):
         """
         
         """
         super(Conv2dWithActivation, self).__init__()
-        self.conv = nn.Conv2d(num_input, num_output, filter_size, stride=stride, padding=padding)
+        self.conv = nn.Conv2d(num_input, num_output, filter_size, stride=stride, padding=padding, bias=bias)
         self.activation = activation
 
         if self.activation is not None:

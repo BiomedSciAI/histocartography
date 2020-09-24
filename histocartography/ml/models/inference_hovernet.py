@@ -1,14 +1,16 @@
 import torch 
 import numpy as np 
-from mlflow.pytorch import load_model
+# from mlflow.pytorch import load_model
 from collections import deque
 import math 
 
 from histocartography.ml.models.hovernet import HoverNet
 
+# 1. cuda available
+cuda = torch.cuda.is_available()
 
 # 2. load image (dummy one for now)
-x = torch.randn(1, 3, 256*3, 256*3)
+x = np.random.rand(1234, 2345, 3)
 
 # 3. patch-based processing of the input 
 batch_size = 2
@@ -46,17 +48,28 @@ for row in range(0, last_h, step_size[0]):
         sub_patches.append(win)
 
 # 1. load HoverNet model from MLflow server 
-model = load_model('s3://mlflow/5b0b548adfdc4214927478e95311d30b/artifacts/hovernet_pannuke',  map_location=torch.device('cpu'))
+# model = load_model('s3://mlflow/5b0b548adfdc4214927478e95311d30b/artifacts/hovernet_pannuke',  map_location=torch.device('cpu'))
+model = HoverNet()
+if cuda:
+    model = model.cuda()
 
 pred_map = deque()
 while len(sub_patches) > batch_size:
     mini_batch  = sub_patches[:batch_size]
     sub_patches = sub_patches[batch_size:]
-    mini_output = model(mini_batch)
+    mini_batch = torch.FloatTensor(mini_batch).permute(0,3,1,2)
+    if cuda:
+        mini_batch = mini_batch.cuda()
+    print('Input dimensions are:', mini_batch.shape)
+    mini_output = model(mini_batch).cpu().detach().numpy()
     mini_output = np.split(mini_output, batch_size, axis=0)
     pred_map.extend(mini_output)
 if len(sub_patches) != 0:
-    mini_output = model(sub_patches)
+    sub_patches = torch.FloatTensor(sub_patches).permute(0,3,1,2)
+    if cuda:
+        sub_patches = sub_patches.cuda()
+    print('Input dimensions are:', sub_patches.shape)
+    mini_output = model(sub_patches).cpu().detach().numpy()
     mini_output = np.split(mini_output, len(sub_patches), axis=0)
     pred_map.extend(mini_output)
 

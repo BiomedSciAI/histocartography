@@ -175,7 +175,7 @@ class Decoder(nn.Module):
         self.u2_rz = Upsample2x()
         self.u2_conva = Conv2dWithActivation(512, 256, 3, activation=None)  
         self.u2_dense = DenseBlock(256, [128, 32], [1, 3], 4, split=4)
-        self.u2_convf = Conv2dWithActivation(512, 256, 3, activation=None, padding=5) 
+        self.u2_convf = Conv2dWithActivation(384, 256, 3, activation=None, padding=1) 
      
         # variables with name starting by u1
         self.u1_rz = Upsample2x()
@@ -219,7 +219,7 @@ class DenseBlock(nn.Module):
             setattr(self, 'blk_' + str(i) + 'conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation=None))
             ch_in = ch_in + ch[-1]
 
-        self.blk_bna = BNReLU(512)
+        self.blk_bna = BNReLU(ch_in)
 
     def forward(self, l):
         for i in range(0, self.count):

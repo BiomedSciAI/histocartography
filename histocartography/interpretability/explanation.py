@@ -67,7 +67,13 @@ class GraphExplanation(BaseExplanation):
         :param image: (PIL.Image) self explicit
         :param image_name: (str) self explicit
         :param label: (torch.LongTensor) a 1d tensor storing the label 
-        :param explanation_graphs: (dict) all the information relative to the explanations (see implementation for details)
+        :param explanation_graphs: (dict) all the information relative to the explanations 
+            - keep_percentage --> logits 
+            - keep_percentage --> latent
+            - keep_percentage --> num_nodes
+            - keep_percentage --> num_edges
+            - keep_percentage --> node_importance
+            - keep_percentage --> centroid
         """
 
         super(GraphExplanation, self).__init__(config, image, image_name, label)

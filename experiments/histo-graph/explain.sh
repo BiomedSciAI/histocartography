@@ -10,9 +10,9 @@ source ../_set_mlflow.sh
 mkdir -p ../../runs
 
 # Set input parameters
-LEARNING_RATES=(0.01)
-BASE_CONFIG="explain_config/3_class_scenario/"
-ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
+BASE_CONFIG="explain_config/5_class_scenario/"
+# ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
+ALL_CONFIG_FILES=("cnn_model_config_gradpp.json" "cnn_model_config_deeplift.json" "cnn_model_config_grad.json")
 SPLITS=("test")
 queue="prod.med"
 

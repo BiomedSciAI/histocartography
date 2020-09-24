@@ -71,6 +71,7 @@ class LRPGNNExplainer(BaseExplainer):
             explanation_graphs[keep_percentage]['num_edges'] = pruned_graph.number_of_edges()
             explanation_graphs[keep_percentage]['node_importance'] = torch_to_list(pruned_graph.ndata['node_importance'])
             explanation_graphs[keep_percentage]['centroid'] = torch_to_list(pruned_graph.ndata['centroid'])
+            explanation_graphs[keep_percentage]['nuclei_label'] = torch_to_list(pruned_graph.ndata['nuclei_label'])
             if self.store_instance_map:
                 explanation_graphs[keep_percentage]['instance_map'] = torch_to_list(data[3][0])
 

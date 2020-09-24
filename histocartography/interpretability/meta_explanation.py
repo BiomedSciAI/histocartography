@@ -16,11 +16,13 @@ BASE_OUTPUT_PATH = '/dataT/pus/histocartography/Data/explainability/output/'
 
 
 VAR_TO_METRIC_FN = {
-    '_f1_score': ({}, WeightedF1),
-    '_ce_loss': ({}, CrossEntropyLoss),
-    '_classification_report': ({}, ClassificationReport),
-    '_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits),
-    '_weighted_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, WeightedExpectedClassShiftWithLogits)  # HACK ALERT: set to 3-class scenario
+    '_f1_score': ({}, WeightedF1, '_logits'),
+    '_ce_loss': ({}, CrossEntropyLoss, '_logits'),
+    '_classification_report': ({}, ClassificationReport, '_logits'),
+    '_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits, '_logits'),
+    '_weighted_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, WeightedExpectedClassShiftWithLogits, '_logits'),  # HACK ALERT: set to 3-class scenario
+    'metric1': ({'knowledge_graph': WHATEVER_WE_NEED}, Metric1, '_nuclei_label'),    # @TODO: KG + nuclei labels + TRoI-level prediction 
+    'metric2': ({'knowledge_graph': WHATERVER_WE_NEED}, Metric2, '_nuclei_label')    # @TODO: KG + nuclei labels + TRoI-level prediction 
 }
 
 
@@ -101,6 +103,7 @@ class MetaGraphExplanation(MetaBaseExplanation):
         # extract meta information stored in the explanations 
         self._extract_data_from_explanations('logits')
         self._extract_data_from_explanations('latent')
+        self._extract_data_from_explanations('nuclei_label')
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')
@@ -135,8 +138,8 @@ class MetaGraphExplanation(MetaBaseExplanation):
         for prediction_type in self.explanations[0].explanation_graphs.keys():
             attr_name = 'keep_' + str(int(prediction_type * 100))
             res[attr_name] = {}
-            for metric_name, (metric_arg, metric_fn) in VAR_TO_METRIC_FN.items():
-                out = metric_fn(**metric_arg)(getattr(self, attr_name + '_logits'), self.labels)
+            for metric_name, (metric_arg, metric_fn, metric_var) in VAR_TO_METRIC_FN.items():
+                out = metric_fn(**metric_arg)(getattr(self, attr_name + metric_var), self.labels)
                 out = CONVERT_SERIALIZABLE_TYPE[type(out)](out)
                 res[attr_name][metric_name] = out
         return res

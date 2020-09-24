@@ -18,7 +18,6 @@ LEARNING_RATES=(0.001)
 BATCH_SIZES=(16)
 BASE_CONFIG="concat_graph_model_config"
 ALL_CONFIG_FILES=($(ls ../../histocartography/config/${BASE_CONFIG} | grep .json))
-# ALL_CONFIG_FILES=("multi_level_graph_model_config_0.json")
 queue="prod.med"
 REPEAT=(0 1 2)
 

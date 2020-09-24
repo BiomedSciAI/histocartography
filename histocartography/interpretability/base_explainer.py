@@ -71,5 +71,6 @@ class BaseExplainer:
         pruned_graph.ndata['feat'] = graph.ndata['feat'][node_idx_to_keep, :].clone()
         pruned_graph.ndata['centroid'] = graph.ndata['centroid'][node_idx_to_keep, :].clone()
         pruned_graph.ndata['node_importance'] = graph.ndata['node_importance'][node_idx_to_keep].clone()
+        pruned_graph.ndata['nuclei_label'] = graph.ndata['nuclei_label'][node_idx_to_keep].clone()
 
         return pruned_graph

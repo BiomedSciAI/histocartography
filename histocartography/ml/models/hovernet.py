@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F 
-import dgl
 
 
 class HoverNet(nn.Module):
@@ -111,14 +110,13 @@ class ResidualBlock(nn.Module):
         """
         super(ResidualBlock, self).__init__()
         self.count = count 
-        # ch_in = [128, 128]  # @TODO: hardcode the number of input channels in the residual blocks 
         for i in range(0, count):
             if i != 0:
                 setattr(self, 'block' + str(i) + '_preact', BNReLU(ch[2])) 
             setattr(self, 'block' + str(i) + '_conv1', Conv2dWithActivation(ch_in if i==0 else ch[-1], ch[0], ksize[0], activation='bnrelu')) 
             setattr(self, 'block' + str(i) + '_conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation='bnrelu', stride=strides if i == 0 else 1, padding=1)) # padding=''same
             setattr(self, 'block' + str(i) + '_conv3', Conv2dWithActivation(ch[1], ch[2], ksize[2], activation=None)) 
-            if i == 0:  # (strides != 1 or ch_in[1] != ch[1]) and i == 0:
+            if i == 0:  
                 setattr(self, 'block' + str(i) + '_convshortcut', Conv2dWithActivation(ch_in, ch[2], 1, stride=strides, activation=None)) 
         self.bnlast = BNReLU(ch[2])  
 
@@ -169,13 +167,13 @@ class Decoder(nn.Module):
         self.u3_rz = Upsample2x()   
         self.u3_conva = Conv2dWithActivation(1024, 256, 3, activation=None)  
         self.u3_dense = DenseBlock(256, [128, 32], [1, 3], 8, split=4)
-        self.u3_convf = Conv2dWithActivation(512, 512, 3, activation=None, padding=1)  # @TODO: define padding 
+        self.u3_convf = Conv2dWithActivation(512, 512, 1, activation=None, padding=0)  # @TODO: define padding 
 
         # variables with name starting by u2
         self.u2_rz = Upsample2x()
-        self.u2_conva = Conv2dWithActivation(512, 256, 3, activation=None)  
-        self.u2_dense = DenseBlock(256, [128, 32], [1, 3], 4, split=4)
-        self.u2_convf = Conv2dWithActivation(384, 256, 3, activation=None, padding=1) 
+        self.u2_conva = Conv2dWithActivation(512, 128, 3, activation=None)  
+        self.u2_dense = DenseBlock(128, [128, 32], [1, 3], 4, split=4)
+        self.u2_convf = Conv2dWithActivation(256, 256, 1, activation=None, padding=0) 
      
         # variables with name starting by u1
         self.u1_rz = Upsample2x()
@@ -216,7 +214,7 @@ class DenseBlock(nn.Module):
         for i in range(0, count):
             setattr(self, 'blk_' + str(i) + 'preact_bna', BNReLU(ch_in))
             setattr(self, 'blk_' + str(i) + 'conv1', Conv2dWithActivation(ch_in, ch[0], ksize[0], activation='bnrelu'))
-            setattr(self, 'blk_' + str(i) + 'conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation=None))
+            setattr(self, 'blk_' + str(i) + 'conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation=None, split=split)) 
             ch_in = ch_in + ch[-1]
 
         self.blk_bna = BNReLU(ch_in)
@@ -252,12 +250,12 @@ class BNReLU(nn.Module):
 
 class Conv2dWithActivation(nn.Module):
 
-    def __init__(self, num_input, num_output, filter_size, stride=1, activation=None, padding=0, bias=False):
+    def __init__(self, num_input, num_output, filter_size, stride=1, activation=None, padding=0, bias=False, split=1):
         """
         
         """
         super(Conv2dWithActivation, self).__init__()
-        self.conv = nn.Conv2d(num_input, num_output, filter_size, stride=stride, padding=padding, bias=bias)
+        self.conv = nn.Conv2d(num_input, num_output, filter_size, stride=stride, padding=padding, bias=bias, groups=split)
         self.activation = activation
 
         if self.activation is not None:
@@ -271,8 +269,7 @@ class Conv2dWithActivation(nn.Module):
         if self.activation is not None:
             x = self.act(x)
         return x 
-
-############# A set of utilities 
+ 
 
 def crop_op(x, cropping, data_format='channels_first'):
     """

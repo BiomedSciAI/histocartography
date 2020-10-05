@@ -2,7 +2,7 @@ from histocartography.utils.io import save_image, write_json
 from histocartography.interpretability.constants import EXPLANATION_TYPE_SAVE_SUBDIR
 from histocartography.evaluation.evaluator import WeightedF1, CrossEntropyLoss, ClusteringQuality, ExpectedClassShiftWithLogits, WeightedExpectedClassShiftWithLogits
 from histocartography.evaluation.classification_report import ClassificationReport
-from histocartography.evaluation.nuclei_evaluator import NucleiEvaluator 
+from histocartography.evaluation.nuclei_evaluator import ComputeKLDivSeparability, ComputeMeanStdPerNukPerTumor, ComputeAggKLDivSeparability
 from histocartography.utils.visualization import tSNE
 from histocartography.utils.draw_utils import plot_tSNE
 from histocartography.dataloader.constants import get_number_of_classes, get_label_to_tumor_type
@@ -21,9 +21,27 @@ VAR_TO_METRIC_FN = {
     '_classification_report': ({}, ClassificationReport, '_logits'),
     '_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, ExpectedClassShiftWithLogits, '_logits'),
     '_weighted_expected_class_shift': ({'knowledge_graph': FIVE_CLASS_DEPENDENCY_GRAPH}, WeightedExpectedClassShiftWithLogits, '_logits'),  # HACK ALERT: set to 3-class scenario
-    'metric1': ({'knowledge_graph': WHATEVER_WE_NEED}, Metric1, '_nuclei_label'),    # @TODO: KG + nuclei labels + TRoI-level prediction 
-    'metric2': ({'knowledge_graph': WHATERVER_WE_NEED}, Metric2, '_nuclei_label')    # @TODO: KG + nuclei labels + TRoI-level prediction 
+    '_mean_std_per_nuk_per_tumor': ({}, ComputeMeanStdPerNukPerTumor, '_nuclei_info'),    
+    '_kl_separability': ({}, ComputeKLDivSeparability, '_nuclei_info'),
+    '_agg_kl_separability': ({}, ComputeAggKLDivSeparability, '_nuclei_info')   
 }
+
+
+# For the metrics:
+# Metric 1:
+# - Given the node importance (pruned), the nuclei labels and the tumor label 
+# ==> assign a node importance to each nuclei according to its type and the tumor label 
+# ==> take the mean/std of node importance per nuclei type per tumor type
+#
+# Viz 1:
+# ==> plot the mean/std as a bar plot OR histogram OR gaussian on the side 
+# 
+# Metric 2: 
+# - Given the mean/std per nuclei type per tumor type (dict of a dict)
+# ==> compute the separability using the KL-div per tumor type
+#
+# Metric 3:
+# ==> take the (weighted) mean of the separability
 
 
 CONVERT_SERIALIZABLE_TYPE = {
@@ -104,6 +122,13 @@ class MetaGraphExplanation(MetaBaseExplanation):
         self._extract_data_from_explanations('logits')
         self._extract_data_from_explanations('latent')
         self._extract_data_from_explanations('nuclei_label')
+
+        # @TODO: build a dict with ALL the nuclei indexed as id:
+        # 0: {'nuclei_label': 2, 'importance': 0.23, 'troi_label': 5} (troi_label is actually the prediction -- keep only the correct predictions?)
+        # 
+        # 
+        # 
+        # 
 
     def read(self):
         raise NotImplementedError('Implementation in subclasses')

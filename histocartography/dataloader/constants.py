@@ -180,14 +180,24 @@ CLASS_SPLIT_TO_MODEL_URL = {
     'concat_graph_model': {
         "benignVSpathologicalbenignVSudhVSadhVSfeaVSdcisVSmalignant": "something", # 
         "benignVSpathologicalbenign+udhVSadh+feaVSdcis+malignant": "something",    # 
-        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",     # I vs (N,B,U,A,F,D)
-        "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",               # Non-atypical (N, B, U) vs Atypical (A, F, D)
-        "benignVSpathologicalbenign+udh": "something",                            # N vs (B, U)
-        "pathologicalbenignVSudh": "something",                                   # B vs U
-        "adh+feaVSdcis": "something",                                             # D vs (A, F)
-        "adhVSfea": "something"                                                   # A vs F
+        "benign+pathologicalbenign+udh+adh+fea+dcisVSmalignant": "something",      # I vs (N,B,U,A,F,D)
+        "benign+pathologicalbenign+udhVSadh+fea+dcis": "something",                # Non-atypical (N, B, U) vs Atypical (A, F, D)
+        "benignVSpathologicalbenign+udh": "something",                             # N vs (B, U)
+        "pathologicalbenignVSudh": "something",                                    # B vs U
+        "adh+feaVSdcis": "something",                                              # D vs (A, F)
+        "adhVSfea": "something"                                                    # A vs F
     }
 }
 
 
+NUCLEI_TYPE_TO_LABEL = {
+    'background': 0,
+    'normal': 1,
+    'atypical': 2,
+    'tumor': 3,
+    'stromal': 4,
+    'lymphocyte': 5,
+    'dead': 6
+}
 
+LABEL_TO_NUCLEI_TYPE = {val: key for key, val in NUCLEI_TYPE_TO_LABEL.items()}

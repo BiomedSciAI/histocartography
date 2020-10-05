@@ -74,6 +74,7 @@ class GraphExplanation(BaseExplanation):
             - keep_percentage --> num_edges
             - keep_percentage --> node_importance
             - keep_percentage --> centroid
+            - keep_percentage --> nuclei_labels 
         """
 
         super(GraphExplanation, self).__init__(config, image, image_name, label)

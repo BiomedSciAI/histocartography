@@ -39,18 +39,28 @@ class PascaleDataset(BaseDataset):
             load_superpx_map=False,
             fold_id=None,
             load_nuclei_seg_map=False,
+            load_nuclei_labels=False,
             use_node_features=True
     ):
         """
         Pascale dataset constructor.
 
-        Args:
-            :param config: (dict) config file
-            :param dir_path (str): path to the pascale dataset and split files
+        Args: 
+            :param data_path: (str) path to the data (currently stored on dataT/pus/histocartography)
+            :param dataset_name: (str) data are grouped as "datasets" - each of them corresponds to a tumor type 
+            :param slit: (str) if we should load the train/test/val split
+            :param class_split: (str) how the 7 classes are split/grouped, eg B+PB+UDHVSADH+FEAVSDCIS+M
             :param cuda (bool): cuda usage
-            :param norm_cell_features (bool): if the cell features should be normalised
-            :param norm_superpx_features (bool): if the super pixel features should be normalised
-            :param split(str): train, validation or test
+            :param config: (dict) config file
+            :param load_cell_graph: (bool) if we load the cell graph
+            :param load_superpx_graph: (bool) if we load the superpx graph (ie tissue graph)
+            :param load_image: (bool) if we load the image
+            :param load_in_ram: (bool) if we load the data in RAM before -- true for train / false for debugging
+            :param load_superpx_map: (bool) if we load the superpx map (ie the segmentation map)
+            :param fold_id: (int) if dataset has different folds (currently in BRACS_L use fold 0 only)
+            :param load_nuclei_seg_map: (bool) if we load the cell graph segmentation map
+            :param load_nuclei_labels: (bool) if we load the nuclei labels (used for interpretability measures)
+            :param use_node_features: (bool) if we drop the node features (used for ablation study)
         """
         super(PascaleDataset, self).__init__(config, cuda)
 
@@ -67,6 +77,7 @@ class PascaleDataset(BaseDataset):
         self.load_in_ram = load_in_ram
         self.fold_id = fold_id
         self.tumor_type_to_label = get_tumor_type_to_label(class_split)
+        self.load_nuclei_labels = load_nuclei_labels
 
         # 2. load h5 fnames and labels (from h5 fname)
         self._load_h5_fnames_and_labels(data_path, split)
@@ -82,6 +93,8 @@ class PascaleDataset(BaseDataset):
             self.base_cell_instance_map_path = os.path.join(self.data_path, 'nuclei_info', 'nuclei_detected', 'instance_map')
             self.num_cell_features = self._get_cell_features_dim()
             self.num_edge_cell_features = self._get_edge_cell_features_dim()
+            if load_nuclei_labels:
+                self.base_nuclei_label_path = os.path.join(self.data_path, '../', 'Nuclei', 'annotation_centroids')
             if load_in_ram:
                 self._load_cell_graph_in_ram()
 
@@ -228,6 +241,16 @@ class PascaleDataset(BaseDataset):
         # keep/drop edge features
         if not self.encode_cg_edges and GNN_EDGE_FEAT in g.edata.keys():
             del g.edata[GNN_EDGE_FEAT]
+
+        # add nuclei label if required
+        if self.load_nuclei_labels:
+            with h5py.File(os.path.join(self.base_nuclei_label_path,
+                            self.dataset_name,
+                            self.h5_fnames[index]), 'r') as f:
+                d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+                nuclei_labels = h5_to_tensor(f['instance_centroid_label'], self.device).type(d_type)
+                f.close()
+                g.ndata['nuclei_label'] = nuclei_labels
 
         # keep/drop appearance features
         if self.drop_cg_appearance_features:

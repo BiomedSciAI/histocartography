@@ -154,7 +154,7 @@ SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('adh', 'dcis')
 SEVEN_CLASS_DEPENDENCY_GRAPH.add_edge('dcis', 'malignant')
 
 
-KEEP_PERCENTAGE_OF_NODE_IMPORTANCE = [1, 0.5]
+KEEP_PERCENTAGE_OF_NODE_IMPORTANCE = [1, 0.75, 0.5, 0.25, 0.1]
 
 
 # define resize/patch size for CNN-based interpretability method 

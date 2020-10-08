@@ -94,7 +94,7 @@ class PascaleDataset(BaseDataset):
             self.num_cell_features = self._get_cell_features_dim()
             self.num_edge_cell_features = self._get_edge_cell_features_dim()
             if load_nuclei_labels:
-                self.base_nuclei_label_path = os.path.join(self.data_path, '../', 'Nuclei', 'annotation_centroids')
+                self.base_nuclei_label_path = os.path.join(self.data_path, '../', 'Nuclei', 'predictions')
             if load_in_ram:
                 self._load_cell_graph_in_ram()
 
@@ -247,8 +247,7 @@ class PascaleDataset(BaseDataset):
             with h5py.File(os.path.join(self.base_nuclei_label_path,
                             self.dataset_name,
                             self.h5_fnames[index]), 'r') as f:
-                d_type = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
-                nuclei_labels = h5_to_tensor(f['instance_centroid_label'], self.device).type(d_type)
+                nuclei_labels = h5_to_tensor(f['instance_centroid_label'], 'cpu').type(torch.FloatTensor)
                 f.close()
                 g.ndata['nuclei_label'] = nuclei_labels
 
@@ -466,7 +465,7 @@ def make_data_loader(
         dataloaders[split] = torch.utils.data.DataLoader(
                 data,
                 batch_size=batch_size,
-                shuffle=split == 'train',
+                shuffle=True,  #split == 'train',
                 num_workers=num_workers,
                 collate_fn=collate
             )

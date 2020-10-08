@@ -140,7 +140,8 @@ class GraphPruningExplainer(BaseExplainer):
         node_importance = node_importance[node_idx]
         centroids = data[0].ndata['centroid'].squeeze()
         pruned_centroids = centroids[node_idx, :]
-        explanation_graph = adj_to_dgl(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids)
+        pruned_nuclei_labels = data[0].ndata['nuclei_label'][node_idx]
+        explanation_graph = adj_to_dgl(adj, feats, node_importance=node_importance, threshold=self.model_params['adj_thresh'], centroids=pruned_centroids, nuclei_labels=pruned_nuclei_labels)
 
         # forward pass with the original and pruned graph to get the latent embeddings
         self.model.cpu()
@@ -188,6 +189,7 @@ class GraphPruningExplainer(BaseExplainer):
         exp['num_edges'] = graph.number_of_edges()
         exp['node_importance'] = node_importance   
         exp['centroid'] = torch_to_list(graph.ndata['centroid'])
+        exp['nuclei_label'] = torch_to_list(graph.ndata['nuclei_label'])
         if instance_map is not None:
             exp['instance_map'] = instance_map
         return exp

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os 
 
 
 class BoxPlotVisualization:
@@ -8,12 +9,14 @@ class BoxPlotVisualization:
     """
 
     def __init__(self, cuda=False):
-        super(BoxPlotVisualization, self).__init__(cuda)
+        self.cuda = cuda
 
-    def __call__(self, importances_per_tumor_type):  # node importance ?
+    def __call__(self, importances_per_tumor_type, name='NucleiViz', save_path=''):
         """
         """
+        # for _, val in importances_per_tumor_type.items():
+        #     print('Name:', name, len(val['all']))
         fig, ax = plt.subplots()
-        ax.set_title('Multiple Samples with Different sizes')
-        ax.boxplot([val for _, val in importances_per_tumor_type.items()])
-        plt.show()
+        ax.set_title(name)
+        ax.boxplot([val['all'] for _, val in importances_per_tumor_type.items()])
+        plt.savefig(os.path.join(save_path, name))

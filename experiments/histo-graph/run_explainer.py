@@ -69,7 +69,8 @@ def main(args):
         load_image=True,
         load_nuclei_seg_map=load_cell_graph(config['model_type']),
         load_superpx_map=load_superpx_graph(config['model_type']),
-        fold_id=0
+        fold_id=0,
+        load_nuclei_labels=True
     )
 
     # append dataset info to config
@@ -113,7 +114,7 @@ def main(args):
 
     # explain instance from the train set
     counter = 0
-    with_exception = False
+    with_exception = True
     all_explanations = []
     for data, label in tqdm(dataloaders[args.split]):
 
@@ -140,6 +141,9 @@ def main(args):
             all_explanations.append(explanation)
             
         counter += 1
+
+        # if counter >= 5:
+        #     break
 
     # wrap all the explanations in object and write 
     meta_module = importlib.import_module('histocartography.interpretability.meta_explanation')

@@ -72,5 +72,6 @@ class BaseExplainer:
         pruned_graph.ndata['centroid'] = graph.ndata['centroid'][node_idx_to_keep, :].clone()
         pruned_graph.ndata['node_importance'] = graph.ndata['node_importance'][node_idx_to_keep].clone()
         pruned_graph.ndata['nuclei_label'] = graph.ndata['nuclei_label'][node_idx_to_keep].clone()
+        pruned_graph.ndata['node_idx_to_keep'] = torch.FloatTensor(node_idx_to_keep).to(self.device)
 
         return pruned_graph

@@ -119,7 +119,8 @@ def get_label_to_tumor_type(class_split):
     grouped_classes = class_split.split('VS')
 
     # build mapping 
-    label_to_tumor_type = {group_idx: str(c) for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
+    # label_to_tumor_type = {group_idx: str(c) for group_idx, group in enumerate(grouped_classes) for c in group.split('+')}
+    label_to_tumor_type = {group_idx: group.replace('+', '_') for group_idx, group in enumerate(grouped_classes)}
     return label_to_tumor_type
 
 
@@ -191,13 +192,13 @@ CLASS_SPLIT_TO_MODEL_URL = {
 
 
 NUCLEI_TYPE_TO_LABEL = {
-    'background': 0,
-    'normal': 1,
-    'atypical': 2,
-    'tumor': 3,
-    'stromal': 4,
-    'lymphocyte': 5,
-    'dead': 6
+    # 'background': 0,
+    'normal': 0,
+    'atypical': 1,
+    'tumor': 2,
+    'stromal': 3,
+    'lymphocyte': 4,
+    'dead': 5
 }
 
 LABEL_TO_NUCLEI_TYPE = {val: key for key, val in NUCLEI_TYPE_TO_LABEL.items()}

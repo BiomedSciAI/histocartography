@@ -10,6 +10,7 @@ import pathlib
 from typing import Tuple, Callable
 
 import dgl
+from dgl.data.utils import save_graphs
 import pandas as pd
 from tqdm.auto import tqdm
 
@@ -53,7 +54,7 @@ def process_image(
 
     # Graph building
     graph = graph_builder(structure=superpixels, features=features)
-    dgl.save_graphs(str(output_dir / f"{name}.bin"), [graph])
+    save_graphs(str(output_dir / f"{name}.bin"), [graph])
 
 
 def preprocessing(cores: int):

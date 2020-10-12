@@ -107,14 +107,14 @@ def generate_mask_folder_structure(delete: bool = False) -> None:
     if not TEST_ANNOTATION_PATH.exists():
         TEST_ANNOTATION_PATH.mkdir()
 
-    for _, pathologist_path in TEST_ANNOTATIONS_PATHS:
-        new_pathologist_path = TEST_ANNOTATION_PATH / pathologist_path.name
+    for _, new_pathologist_path in TEST_ANNOTATIONS_PATHS:
+        old_pathologist_path = BASE_PATH / new_pathologist_path.name
         if not new_pathologist_path.exists():
             new_pathologist_path.mkdir()
-        for file in pathologist_path.iterdir():
+        for file in old_pathologist_path.iterdir():
             shutil.copy(file, new_pathologist_path)
         if delete:
-            shutil.rmtree(pathologist_path)
+            shutil.rmtree(old_pathologist_path)
 
 
 def generate_annotations_meta_df() -> None:

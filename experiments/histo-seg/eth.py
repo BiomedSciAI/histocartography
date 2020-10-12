@@ -2,12 +2,20 @@
 
 import argparse
 import logging
+import os
 import shutil
+from argparse import PARSER
 from pathlib import Path
 
 import pandas as pd
 
-BASE_PATH = Path("/Users/anv/Documents/ETH")
+hostname = os.popen("hostname").read()
+if hostname.startswith("zhcc"):
+    BASE_PATH = Path("/dataT/anv/Data/ETH")
+elif hostname.startswith("Gerbil"):
+    BASE_PATH = Path("/Users/anv/Documents/ETH")
+else:
+    assert False, f"Hostname {hostname} does not have the data path specified"
 
 MASK_VALUE_TO_TEXT = {
     0: "Benign",

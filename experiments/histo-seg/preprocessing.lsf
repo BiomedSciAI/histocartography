@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#BSUB -q prod.med
+#BSUB -n 32
+
+module purge
+module load Miniconda3
+conda activate histocartography
+
+#BSUB -J "log_preprocessing"
+#BSUB -o "log_preprocessing"
+#BSUB -e "log_preprocessing.stderr"
+
+python experiment.py preprocessing --cores 32

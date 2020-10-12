@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 from eth import ANNOTATIONS_DF, BASE_PATH, IMAGES_DF
 from graph_builders import RAGGraphBuilder, BaseGraphBuilder
 from superpixel import HandcraftedFeatureExtractor, SuperpixelExtractor
-from utils import read_image, start_logging, start_multiprocessing_logging
+from utils import read_image, start_logging
 
 
 def process_image(

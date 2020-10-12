@@ -86,8 +86,8 @@ class SuperpixelExtractor:
             n_segments=self.nr_superpixels,
             max_iter=10,
             compactness=20,
-            start_label=1,
         )
+        superpixels += 1
         if self.downsampling_factor != 1:
             superpixels = self._upsample(superpixels, original_height, original_width)
             logging.debug(f"Upsampled to {superpixels.shape}")

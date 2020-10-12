@@ -70,8 +70,8 @@ def preprocessing(cores: int):
 
     # Define pipeline steps
     superpixel_extractor = partial(SuperpixelExtractor, nr_superpixels=1000)
-    feature_extractor = (HandcraftedFeatureExtractor,)
-    graph_builder = (RAGGraphBuilder,)
+    feature_extractor = HandcraftedFeatureExtractor
+    graph_builder = RAGGraphBuilder
 
     # Setup multiprocessing
     worker_pool = multiprocessing.Pool(cores)

@@ -4,6 +4,7 @@ import math
 
 from typing import Union
 
+import torch
 import cv2
 import h5py
 import matplotlib.pyplot as plt
@@ -184,7 +185,7 @@ class HandcraftedFeatureExtractor:
     def __init__(self) -> None:
         pass
 
-    def process(self, input_image: np.array, superpixels: np.array) -> np.array:
+    def process(self, input_image: np.array, superpixels: np.array) -> torch.Tensor:
         node_feat = []
 
         img_gray = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
@@ -298,7 +299,7 @@ class HandcraftedFeatureExtractor:
         # endfor
 
         node_feat = np.vstack(node_feat)
-        return node_feat
+        return torch.Tensor(node_feat)
 
     def process_and_save(
         self, input_image: np.array, superpixels: np.array, output_path: str

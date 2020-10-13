@@ -1,5 +1,6 @@
 import logging
 import math
+
 """This module handles everything related to superpixels"""
 
 from typing import Union
@@ -20,13 +21,12 @@ from constants import EMBEDDINGS_KEY, SUPERPIXEL_KEY
 
 
 class SuperpixelExtractor:
-    """Helper class to extract superpixels from images
-    """
+    """Helper class to extract superpixels from images"""
+
     def __init__(
         self,
         nr_superpixels: int,
-        downsampling_factor: int = 1,
-        blur_kernel_size: float = 0,
+        downsampling_factor: int = 1
     ) -> None:
         """Extracts superpixels from RGB Images
 
@@ -36,7 +36,6 @@ class SuperpixelExtractor:
             blur_kernel_size (float, optional): Size of Gaussian smoothing kernel. Defaults to 0.
         """
         self.downsampling_factor = downsampling_factor
-        self.blur_kernel_size = blur_kernel_size
         self.nr_superpixels = nr_superpixels
 
     def process(self, input_image: np.array) -> np.array:
@@ -48,7 +47,15 @@ class SuperpixelExtractor:
         Returns:
             np.array: Extracted superpixels
         """
+        logging.debug(f"Input size: {input_image.shape}")
+        original_height, original_width, _ = input_image.shape
+        if self.downsampling_factor != 1:
+            input_image = self._downsample(input_image, self.downsampling_factor)
+            logging.debug(f"Downsampled to {input_image.shape}")
         superpixels = self._extract_superpixels(input_image)
+        if self.downsampling_factor != 1:
+            superpixels = self._upsample(superpixels, original_height, original_width)
+            logging.debug(f"Upsampled to {superpixels.shape}")
         return superpixels
 
     def process_and_save(self, input_image: np.array, output_path: str) -> str:
@@ -75,23 +82,7 @@ class SuperpixelExtractor:
         Returns:
             np.array: Output tensor
         """
-        logging.debug(f"Input size: {image.shape}")
-        original_height, original_width, _ = image.shape
-        if self.downsampling_factor != 1:
-            image = self._downsample(image, self.downsampling_factor)
-            logging.debug(f"Downsampled to {image.shape}")
-        superpixels = slic(
-            image,
-            sigma=self.blur_kernel_size,
-            n_segments=self.nr_superpixels,
-            max_iter=10,
-            compactness=20,
-        )
-        superpixels += 1
-        if self.downsampling_factor != 1:
-            superpixels = self._upsample(superpixels, original_height, original_width)
-            logging.debug(f"Upsampled to {superpixels.shape}")
-        return superpixels
+        raise NotImplementedError
 
     @staticmethod
     def _downsample(image: np.array, downsampling_factor: int) -> np.array:
@@ -130,9 +121,44 @@ class SuperpixelExtractor:
         return upsampled_image
 
 
+class SLICSuperpixelExtractor(SuperpixelExtractor):
+    """Use the SLIC algorithm to extract superpixels"""
+    def __init__(
+        self,
+        nr_superpixels: int,
+        downsampling_factor: int = 1,
+        blur_kernel_size: float = 0,
+        max_iter: int = 10,
+        compactness: int = 30,
+    ) -> None:
+        super().__init__(nr_superpixels=nr_superpixels, downsampling_factor=downsampling_factor)
+        self.blur_kernel_size = blur_kernel_size
+        self.max_iter = max_iter
+        self.compactness = compactness
+
+    def _extract_superpixels(self, image: np.array) -> np.array:
+        """Perform the superpixel extraction
+
+        Args:
+            image (np.array): Input tensor
+
+        Returns:
+            np.array: Output tensor
+        """
+        superpixels = slic(
+            image,
+            sigma=self.blur_kernel_size,
+            n_segments=self.nr_superpixels,
+            max_iter=self.max_iter,
+            compactness=self.compactness,
+        )
+        superpixels += 1  # Handle old version of skimage does not support start_label argument
+        return superpixels
+
+
 class SuperpixelVisualizer:
-    """Helper class that handles visualizing superpixels in a notebook
-    """
+    """Helper class that handles visualizing superpixels in a notebook"""
+
     def __init__(
         self, height: int = 14, width: int = 14, patch_size: int = 1000
     ) -> None:
@@ -180,8 +206,8 @@ class SuperpixelVisualizer:
 
 
 class HandcraftedFeatureExtractor:
-    """Helper class to extract handcrafted features from superpixels
-    """
+    """Helper class to extract handcrafted features from superpixels"""
+
     def __init__(self) -> None:
         pass
 

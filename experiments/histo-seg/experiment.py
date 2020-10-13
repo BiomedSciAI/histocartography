@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 
 from eth import ANNOTATIONS_DF, BASE_PATH, IMAGES_DF
 from graph_builders import RAGGraphBuilder, BaseGraphBuilder
-from superpixel import HandcraftedFeatureExtractor, SuperpixelExtractor
+from superpixel import HandcraftedFeatureExtractor, SLICSuperpixelExtractor, SuperpixelExtractor
 from utils import read_image, start_logging
 
 
@@ -70,7 +70,7 @@ def preprocessing(cores: int):
         graph_path.mkdir()
 
     # Define pipeline steps
-    superpixel_extractor = partial(SuperpixelExtractor, nr_superpixels=1000)
+    superpixel_extractor = partial(SLICSuperpixelExtractor, nr_superpixels=1000)
     feature_extractor = HandcraftedFeatureExtractor
     graph_builder = RAGGraphBuilder
 

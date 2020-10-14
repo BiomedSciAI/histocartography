@@ -4,7 +4,6 @@ import argparse
 import logging
 import os
 import shutil
-from argparse import PARSER
 from pathlib import Path
 
 import pandas as pd
@@ -35,6 +34,9 @@ TEST_PATHOLOGISTS = [1, 2]
 TEST_ANNOTATIONS_PATHS = [
     (i, TEST_ANNOTATION_PATH / f"{TEST_ANNOTATION}{i}") for i in TEST_PATHOLOGISTS
 ]
+
+PREPROCESS_PATH = BASE_PATH / "preprocess"
+DATASET_PATH = BASE_PATH / "datasets"
 
 IMAGES_DF = BASE_PATH / "images.pickle"
 ANNOTATIONS_DF = BASE_PATH / "annotations.pickle"

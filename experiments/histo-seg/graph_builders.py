@@ -1,28 +1,28 @@
 """This module handles all the graph building"""
 
+import logging
+from abc import abstractmethod
+
+import cv2
+import dgl
 import numpy as np
 import pandas as pd
-import cv2
-from skimage.measure import regionprops
-import dgl
 import torch
-import logging
+from dgl.data.utils import load_graphs, save_graphs
 
-from constants import GNN_NODE_FEAT_IN, GNN_EDGE_FEAT, CENTROID
-from torch.tensor import Tensor
+from constants import CENTROID, GNN_EDGE_FEAT, GNN_NODE_FEAT_IN
+from utils import PipelineStep
 
 
-class BaseGraphBuilder:
+class BaseGraphBuilder(PipelineStep):
     """
     Base interface class for graph building.
     """
 
-    def __init__(self):
-        """
-        Base Graph Builder constructor.
-        """
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
-    def __call__(self, structure: np.array, features: torch.Tensor) -> dgl.DGLGraph:
+    def process(self, structure: np.array, features: torch.Tensor) -> dgl.DGLGraph:
         """Generates a graph with a given structure and features
 
         Args:
@@ -48,6 +48,25 @@ class BaseGraphBuilder:
         )
         return graph
 
+    def process_and_save(
+        self, structure: np.array, features: torch.Tensor, output_name: str
+    ) -> dgl.DGLGraph:
+        assert (
+            self.base_path is not None
+        ), f"Can only save intermediate output if base_path was not None when constructing the object"
+        output_path = self.output_dir / f"{output_name}.bin"
+        if output_path.exists():
+            logging.info(
+                f"Output of {output_name} already exists, using it instead of recomputing"
+            )
+            graphs, _ = load_graphs(str(output_path))
+            assert len(graphs) == 1
+            graph = graphs[0]
+        else:
+            graph = self.process(structure=structure, features=features)
+            save_graphs(str(output_path), [graph])
+        return graph
+
     @staticmethod
     def _set_node_features(features: torch.Tensor, graph: dgl.DGLGraph) -> None:
         """Set the provided node features
@@ -58,17 +77,14 @@ class BaseGraphBuilder:
         """
         graph.ndata[GNN_NODE_FEAT_IN] = features
 
+    @abstractmethod
     def _build_topology(self, instances: np.array, graph: dgl.DGLGraph) -> None:
         """Generate the graph topology from the provided structure
 
         Args:
             instances (np.array): Graph structure
             graph (dgl.DGLGraph): Graph to add the edges
-
-        Raises:
-            NotImplementedError: For the superclass
         """
-        raise NotImplementedError("Implementation in subclasses.")
 
     def __repr__(self) -> str:
         """Representation of a graph builder
@@ -84,7 +100,7 @@ class RAGGraphBuilder(BaseGraphBuilder):
     Super-pixel Graphs class for graph building.
     """
 
-    def __init__(self, kernel_size: int = 5) -> None:
+    def __init__(self, kernel_size: int = 5, **kwargs) -> None:
         """Create a graph builder that uses a provided kernel size to detect connectivity
 
         Args:
@@ -93,6 +109,7 @@ class RAGGraphBuilder(BaseGraphBuilder):
         super(RAGGraphBuilder, self).__init__()
         logging.debug("*** RAG Graph Builder ***")
         self.kernel_size = kernel_size
+        super().__init__(**kwargs)
 
     def _build_topology(self, instances: np.array, graph: dgl.DGLGraph) -> None:
         """Create the graph topology from the connectivty of the provided superpixels

@@ -1,42 +1,32 @@
-import logging
-import math
-
 """This module handles everything related to superpixels"""
 
-from typing import Union
+import logging
+import math
+from abc import abstractmethod
 
-import torch
 import cv2
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import skew
-from skimage.feature import greycomatrix, greycoprops
-from skimage.filters.rank import entropy as Entropy
-from skimage.measure import regionprops
-from skimage.morphology import disk
 from skimage.segmentation import mark_boundaries, slic
 
-from constants import EMBEDDINGS_KEY, SUPERPIXEL_KEY
+from utils import PipelineStep
 
 
-class SuperpixelExtractor:
+class SuperpixelExtractor(PipelineStep):
     """Helper class to extract superpixels from images"""
 
     def __init__(
-        self,
-        nr_superpixels: int,
-        downsampling_factor: int = 1
+        self, nr_superpixels: int, downsampling_factor: int = 1, **kwargs
     ) -> None:
-        """Extracts superpixels from RGB Images
+        """Abstract class that extracts superpixels from RGB Images
 
         Args:
             nr_superpixels (int): Upper bound of super pixels
             downsampling_factor (int, optional): Downsampling factor from the input image resolution. Defaults to 1.
-            blur_kernel_size (float, optional): Size of Gaussian smoothing kernel. Defaults to 0.
         """
         self.downsampling_factor = downsampling_factor
         self.nr_superpixels = nr_superpixels
+        super().__init__(**kwargs)
 
     def process(self, input_image: np.array) -> np.array:
         """Return the superpixels of a given input image
@@ -58,21 +48,7 @@ class SuperpixelExtractor:
             logging.debug(f"Upsampled to {superpixels.shape}")
         return superpixels
 
-    def process_and_save(self, input_image: np.array, output_path: str) -> str:
-        """Calculate the superpixels of a given input image and save in the provided path as as .h5 file
-
-        Args:
-            input_image (np.array): Input image
-            output_path (str): Output path
-
-        Returns:
-            str: Name of the dataset of the file in output_path
-        """
-        superpixels = self.process(input_image)
-        output_file = h5py.File(output_path, "w")
-        output_file.create_dataset(SUPERPIXEL_KEY, data=superpixels, dtype="float32")
-        output_file.close()
-
+    @abstractmethod
     def _extract_superpixels(self, image: np.array) -> np.array:
         """Perform the superpixel extraction
 
@@ -82,7 +58,6 @@ class SuperpixelExtractor:
         Returns:
             np.array: Output tensor
         """
-        raise NotImplementedError
 
     @staticmethod
     def _downsample(image: np.array, downsampling_factor: int) -> np.array:
@@ -123,18 +98,25 @@ class SuperpixelExtractor:
 
 class SLICSuperpixelExtractor(SuperpixelExtractor):
     """Use the SLIC algorithm to extract superpixels"""
+
     def __init__(
         self,
-        nr_superpixels: int,
-        downsampling_factor: int = 1,
         blur_kernel_size: float = 0,
         max_iter: int = 10,
         compactness: int = 30,
+        **kwargs,
     ) -> None:
-        super().__init__(nr_superpixels=nr_superpixels, downsampling_factor=downsampling_factor)
+        """Extract superpixels with the SLIC algorithm
+
+        Args:
+            blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.
+            max_iter (int, optional): Number of iterations of the slic algorithm. Defaults to 10.
+            compactness (int, optional): Compactness of the superpixels. Defaults to 30.
+        """
         self.blur_kernel_size = blur_kernel_size
         self.max_iter = max_iter
         self.compactness = compactness
+        super().__init__(**kwargs)
 
     def _extract_superpixels(self, image: np.array) -> np.array:
         """Perform the superpixel extraction
@@ -152,7 +134,9 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             max_iter=self.max_iter,
             compactness=self.compactness,
         )
-        superpixels += 1  # Handle old version of skimage does not support start_label argument
+        superpixels += (
+            1  # Handle old version of skimage does not support start_label argument
+        )
         return superpixels
 
 
@@ -203,134 +187,3 @@ class SuperpixelVisualizer:
         ax.imshow(marked_image)
         ax.set_axis_off()
         fig.show()
-
-
-class HandcraftedFeatureExtractor:
-    """Helper class to extract handcrafted features from superpixels"""
-
-    def __init__(self) -> None:
-        pass
-
-    def process(self, input_image: np.array, superpixels: np.array) -> torch.Tensor:
-        node_feat = []
-
-        img_gray = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
-        img_square = np.square(input_image)
-
-        # -------------------------------------------------------------------------- Entropy per channel
-        img_entropy = Entropy(img_gray, disk(3))
-
-        # For each super-pixel
-        regions = regionprops(superpixels)
-
-        for _, region in enumerate(regions):
-            sp_mask = np.array(superpixels == region["label"], np.uint8)
-            sp_rgb = cv2.bitwise_and(input_image, input_image, mask=sp_mask)
-            sp_gray = img_gray * sp_mask
-            mask_size = np.sum(sp_mask)
-            mask_idx = np.where(sp_mask != 0)
-
-            # -------------------------------------------------------------------------- CONTOUR-BASED SHAPE FEATURES
-            # Compute using mask [12 features]
-            area = region["area"]
-            convex_area = region["convex_area"]
-            eccentricity = region["eccentricity"]
-            equivalent_diameter = region["equivalent_diameter"]
-            euler_number = region["euler_number"]
-            extent = region["extent"]
-            filled_area = region["filled_area"]
-            major_axis_length = region["major_axis_length"]
-            minor_axis_length = region["minor_axis_length"]
-            orientation = region["orientation"]
-            perimeter = region["perimeter"]
-            solidity = region["solidity"]
-            feats_shape = [
-                area,
-                convex_area,
-                eccentricity,
-                equivalent_diameter,
-                euler_number,
-                extent,
-                filled_area,
-                major_axis_length,
-                minor_axis_length,
-                orientation,
-                perimeter,
-                solidity,
-            ]
-
-            # -------------------------------------------------------------------------- COLOR FEATURES
-            # (rgb color space) [13 x 3 features]
-            def color_features_per_channel(img_rgb_ch, img_rgb_sq_ch):
-                codes = img_rgb_ch[mask_idx[0], mask_idx[1]].ravel()
-                hist, _ = np.histogram(codes, bins=np.arange(0, 257, 32))  # 8 bins
-                feats_ = list(hist / mask_size)
-                color_mean = np.mean(codes)
-                color_std = np.std(codes)
-                color_median = np.median(codes)
-                color_skewness = skew(codes)
-
-                codes = img_rgb_sq_ch[mask_idx[0], mask_idx[1]].ravel()
-                color_energy = np.mean(codes)
-
-                feats_.append(color_mean)
-                feats_.append(color_std)
-                feats_.append(color_median)
-                feats_.append(color_skewness)
-                feats_.append(color_energy)
-                return feats_
-
-            # enddef
-
-            feats_r = color_features_per_channel(sp_rgb[:, :, 0], img_square[:, :, 0])
-            feats_g = color_features_per_channel(sp_rgb[:, :, 1], img_square[:, :, 1])
-            feats_b = color_features_per_channel(sp_rgb[:, :, 2], img_square[:, :, 2])
-            feats_color = [feats_r, feats_g, feats_b]
-            feats_color = [item for sublist in feats_color for item in sublist]
-
-            # -------------------------------------------------------------------------- TEXTURE FEATURES
-            # Entropy (gray color space) [1 feature]
-            entropy = cv2.mean(img_entropy, mask=sp_mask)[0]
-
-            # GLCM texture features (gray color space) [5 features]
-            glcm = greycomatrix(sp_gray, [1], [0])
-            # Filter out the first row and column
-            filt_glcm = glcm[1:, 1:, :, :]
-
-            glcm_contrast = greycoprops(filt_glcm, prop="contrast")
-            glcm_contrast = glcm_contrast[0, 0]
-            glcm_dissimilarity = greycoprops(filt_glcm, prop="dissimilarity")
-            glcm_dissimilarity = glcm_dissimilarity[0, 0]
-            glcm_homogeneity = greycoprops(filt_glcm, prop="homogeneity")
-            glcm_homogeneity = glcm_homogeneity[0, 0]
-            glcm_energy = greycoprops(filt_glcm, prop="energy")
-            glcm_energy = glcm_energy[0, 0]
-            glcm_ASM = greycoprops(filt_glcm, prop="ASM")
-            glcm_ASM = glcm_ASM[0, 0]
-
-            feats_texture = [
-                entropy,
-                glcm_contrast,
-                glcm_dissimilarity,
-                glcm_homogeneity,
-                glcm_energy,
-                glcm_ASM,
-            ]
-
-            # -------------------------------------------------------------------------- STACKING ALL FEATURES
-            sp_feats = feats_shape + feats_color + feats_texture
-
-            features = np.hstack(sp_feats)
-            node_feat.append(features)
-        # endfor
-
-        node_feat = np.vstack(node_feat)
-        return torch.Tensor(node_feat)
-
-    def process_and_save(
-        self, input_image: np.array, superpixels: np.array, output_path: str
-    ) -> None:
-        features = self.process(input_image, superpixels)
-        output_file = h5py.File(output_path, "w")
-        output_file.create_dataset(EMBEDDINGS_KEY, data=features, dtype="float32")
-        output_file.close()

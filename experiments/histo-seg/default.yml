@@ -1,0 +1,12 @@
+preprocess:
+  stages:
+    superpixel_extractor:
+      class: "SLICSuperpixelExtractor"
+      params:
+        nr_superpixels: 1000
+    feature_extractor:
+      class: "HandcraftedFeatureExtractor"
+    graph_builder:
+      class: "RAGGraphBuilder"
+  params:
+    cores: 80

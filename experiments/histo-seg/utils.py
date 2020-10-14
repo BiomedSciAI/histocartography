@@ -1,9 +1,10 @@
 """This module handles helper general functions"""
+import importlib
 import logging
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Union, Any
+from typing import Any, Union
 
 import dgl
 import h5py
@@ -181,3 +182,17 @@ def get_next_version_number(path: Path) -> int:
         return 0
     else:
         return max(existing) + 1
+
+
+def dynamic_import_from(source_file: str, class_name: str) -> Any:
+    """Do a from source_file import class_name dynamically
+
+    Args:
+        source_file (str): Where to import from
+        class_name (str): What to import
+
+    Returns:
+        Any: The class to be imported
+    """
+    module = importlib.import_module(source_file)
+    return getattr(module, class_name)

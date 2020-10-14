@@ -1,26 +1,30 @@
 """This module is the main executable of the experiment"""
 
 import argparse
+import importlib
 import logging
 import multiprocessing
 import sys
 from functools import partial
+from pathlib import Path
 from typing import Callable, Tuple
 
 import pandas as pd
+import yaml
 from tqdm.auto import tqdm
 
 from eth import DATASET_PATH, IMAGES_DF, PREPROCESS_PATH
-from feature_extraction import HandcraftedFeatureExtractor
-from graph_builders import BaseGraphBuilder, RAGGraphBuilder
-from superpixel import SLICSuperpixelExtractor, SuperpixelExtractor
-from utils import get_next_version_number, read_image, start_logging
+from feature_extraction import FeatureExtractor
+from graph_builders import BaseGraphBuilder
+from superpixel import SuperpixelExtractor
+from utils import (dynamic_import_from, get_next_version_number, read_image,
+                   start_logging)
 
 
 def process_image(
     data: Tuple[str, pd.core.series.Series],
     superpixel_extractor: Callable[[], SuperpixelExtractor],
-    feature_extractor: Callable[[], HandcraftedFeatureExtractor],
+    feature_extractor: Callable[[], FeatureExtractor],
     graph_builder: Callable[[], BaseGraphBuilder],
 ) -> None:
     """Process an image given the row of the metadata dataframe
@@ -58,7 +62,7 @@ def process_image(
     )
 
 
-def preprocessing(cores: int, nr_superpixels: int, test: bool = False):
+def preprocessing(config: dict, test: bool = False, cores: int = 1, **kwargs):
     """Runs the preprocessing with a given number of cores
 
     Args:
@@ -67,24 +71,38 @@ def preprocessing(cores: int, nr_superpixels: int, test: bool = False):
     images_metadata = pd.read_pickle(IMAGES_DF)
     if test:
         images_metadata = images_metadata.iloc[[0, 1]]
-        nr_superpixels = 10
+        cores = 1
+        config["superpixel_extractor"]["params"]["nr_superpixels"] = 10
 
     if not PREPROCESS_PATH.exists():
         PREPROCESS_PATH.mkdir()
 
-    # Define pipeline steps
+    # -------------------------------------------------------------------------- SUPERPIXEL EXTRACTION
+    superpixel_config = config["superpixel_extractor"]
+    superpixel_class = dynamic_import_from("superpixel", superpixel_config["class"])
     superpixel_extractor = partial(
-        SLICSuperpixelExtractor,
-        nr_superpixels=nr_superpixels,
+        superpixel_class,
         base_path=PREPROCESS_PATH,
+        **superpixel_config.get("params", {}),
     )
     feature_path = superpixel_extractor().mkdir()
 
-    feature_extractor = partial(HandcraftedFeatureExtractor, base_path=feature_path)
+    # -------------------------------------------------------------------------- FEATURE EXTRACTION
+    feature_config = config["feature_extractor"]
+    feature_class = dynamic_import_from("feature_extraction", feature_config["class"])
+    feature_extractor = partial(
+        feature_class, base_path=feature_path, **feature_config.get("params", {})
+    )
     graph_path = feature_extractor().mkdir()
 
-    graph_builder = partial(RAGGraphBuilder, base_path=graph_path)
+    # -------------------------------------------------------------------------- GRAPH CONSTRUCTION
+    graph_config = config["graph_builder"]
+    graph_class = dynamic_import_from("graph_builders", graph_config["class"])
+    graph_builder = partial(
+        graph_class, base_path=graph_path, **graph_config.get("params", {})
+    )
     final_path = graph_builder().mkdir()
+    # --------------------------------------------------------------------------
 
     worker_task = partial(
         process_image,
@@ -149,17 +167,27 @@ def preprocessing(cores: int, nr_superpixels: int, test: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["preprocess", "train"])
-    parser.add_argument("--cores", type=int, default=1)
-    parser.add_argument("--nr_superpixels", type=int, default=1000)
+    parser.add_argument("--config", type=str, default="default.yml")
     parser.add_argument("--test", action="store_const", const=True, default=False)
     args = parser.parse_args()
 
     start_logging()
+    assert Path(args.config).exists(), f"Config path does not exist: {args.config}"
+    config = yaml.load(open(args.config), Loader=yaml.FullLoader)
+    assert (
+        args.command in config
+    ), f"Config does not have an entry ({config.keys()}) for the desired command {args.command}"
+    config = config[args.command]
+
     if args.command == "preprocess":
         logging.info("Start preprocessing")
-        preprocessing(
-            cores=args.cores, nr_superpixels=args.nr_superpixels, test=args.test
-        )
+        assert (
+            "stages" in config
+        ), f"stages not defined in config {args.config}: {config.keys()}"
+        assert (
+            "params" in config
+        ), f"params not defined in config {args.config}: {config.keys()}"
+        preprocessing(test=args.test, config=config["stages"], **config["params"])
     elif args.command == "train":
         logging.info("Training GNN")
         raise NotImplementedError

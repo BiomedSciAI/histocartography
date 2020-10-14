@@ -3,6 +3,7 @@
 import argparse
 import logging
 import multiprocessing
+import sys
 from functools import partial
 from typing import Callable, Tuple
 
@@ -104,6 +105,7 @@ def preprocessing(cores: int, nr_superpixels: int, test: bool = False):
                 images_metadata.iterrows(),
             ),
             total=len(images_metadata),
+            file=sys.stdout,
         ):
             pass
         worker_pool.join()

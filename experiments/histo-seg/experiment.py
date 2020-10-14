@@ -126,8 +126,8 @@ def preprocessing(config: dict, test: bool = False, cores: int = 1, **kwargs):
             file=sys.stdout,
         ):
             pass
-        worker_pool.join()
         worker_pool.close()
+        worker_pool.join()
 
     # Create dataset version file
     next_version = get_next_version_number(DATASET_PATH)

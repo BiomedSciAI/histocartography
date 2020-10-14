@@ -11,4 +11,4 @@ source activate histocartography
 #BSUB -o "/dataT/anv/logs/preprocessing"
 #BSUB -e "/dataT/anv/logs/preprocessing.stderr"
 
-python experiment.py preprocessing --cores 80 --nr_superpixels 1000
+python experiment.py preprocess --config default.yml

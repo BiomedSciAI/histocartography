@@ -1,14 +1,14 @@
 #!/bin/bash
 
 #BSUB -q prod.med
-#BSUB -n 32
+#BSUB -n 10
 
 module purge
 module load Miniconda3
-conda activate histocartography
+source activate histocartography
 
-#BSUB -J "log_preprocessing"
-#BSUB -o "log_preprocessing"
-#BSUB -e "log_preprocessing.stderr"
+#BSUB -J "/dataT/anv/logs/preprocessing"
+#BSUB -o "/dataT/anv/logs/preprocessing"
+#BSUB -e "/dataT/anv/logs/preprocessing.stderr"
 
-python experiment.py preprocessing --cores 32
+python experiment.py preprocessing --cores 80 --nr_superpixels 1000

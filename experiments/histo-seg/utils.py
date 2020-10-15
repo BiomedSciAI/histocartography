@@ -73,7 +73,7 @@ class PipelineStep(ABC):
         else:
             output = self.process(**kwargs)
             output_file = h5py.File(output_path, "w")
-            output_file.create_dataset(self.output_key, data=output)
+            output_file.create_dataset(self.output_key, data=output, compression="gzip", compression_opts=9)
             output_file.close()
         return output
 

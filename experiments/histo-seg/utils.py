@@ -22,7 +22,8 @@ class PipelineStep(ABC):
         """Abstract class that helps with saving and loading precomputed results
 
         Args:
-            base_path (Union[None, str, Path], optional): Base path to save results. Defaults to None.
+            base_path (Union[None, str, Path], optional): Base path to save results.
+                Defaults to None.
         """
         name = self.__repr__()
         self.base_path = base_path

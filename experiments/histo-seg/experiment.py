@@ -1,7 +1,6 @@
 """This module is the main executable of the experiment"""
 
 import argparse
-import importlib
 import logging
 import multiprocessing
 import sys
@@ -30,10 +29,14 @@ def process_image(
     """Process an image given the row of the metadata dataframe
 
     Args:
-        data (Tuple[str, pd.core.series.Series]): (name, row) where row corresponds to the dataframe output
-        superpixel_extractor (Callable[[], SuperpixelExtractor]): Function that returns a SuperpixelExtractor object
-        feature_extractor (Callable[[], HandcraftedFeatureExtractor]): Function that returns a FeatureExtractor object
-        graph_builder (Callable[[], BaseGraphBuilder]): Function that returns a BaseGraphBuilder object
+        data (Tuple[str, pd.core.series.Series]): (name, row) where row corresponds to the
+            dataframe output
+        superpixel_extractor (Callable[[], SuperpixelExtractor]): Function that returns a
+            SuperpixelExtractor object
+        feature_extractor (Callable[[], HandcraftedFeatureExtractor]): Function that returns a
+            FeatureExtractor object
+        graph_builder (Callable[[], BaseGraphBuilder]): Function that returns a BaseGraphBuilder
+            object
         output_dir (pathlib.Path): Output directory
     """
     superpixel_extractor = superpixel_extractor()
@@ -68,6 +71,8 @@ def preprocessing(config: dict, test: bool = False, cores: int = 1, **kwargs):
     Args:
         cores (int): Number of cores to use
     """
+    if len(kwargs) > 0:
+        logging.warning(f'Unmatched arguments: {kwargs}')
     images_metadata = pd.read_pickle(IMAGES_DF)
     if test:
         images_metadata = images_metadata.iloc[[0, 1]]
@@ -91,7 +96,9 @@ def preprocessing(config: dict, test: bool = False, cores: int = 1, **kwargs):
     feature_config = config["feature_extractor"]
     feature_class = dynamic_import_from("feature_extraction", feature_config["class"])
     feature_extractor = partial(
-        feature_class, base_path=feature_path, **feature_config.get("params", {})
+        feature_class,
+        base_path=feature_path,
+        **feature_config.get("params", {})
     )
     graph_path = feature_extractor().mkdir()
 
@@ -99,7 +106,9 @@ def preprocessing(config: dict, test: bool = False, cores: int = 1, **kwargs):
     graph_config = config["graph_builder"]
     graph_class = dynamic_import_from("graph_builders", graph_config["class"])
     graph_builder = partial(
-        graph_class, base_path=graph_path, **graph_config.get("params", {})
+        graph_class,
+        base_path=graph_path,
+        **graph_config.get("params", {})
     )
     final_path = graph_builder().mkdir()
     # --------------------------------------------------------------------------

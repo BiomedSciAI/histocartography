@@ -7,6 +7,7 @@ from abc import abstractmethod
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from skimage.color.colorconv import rgb2hed
 from skimage.segmentation import mark_boundaries, slic
 
 from utils import PipelineStep
@@ -104,6 +105,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         blur_kernel_size: float = 0,
         max_iter: int = 10,
         compactness: int = 30,
+        color_space: str = "rgb",
         **kwargs,
     ) -> None:
         """Extract superpixels with the SLIC algorithm
@@ -116,6 +118,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         self.blur_kernel_size = blur_kernel_size
         self.max_iter = max_iter
         self.compactness = compactness
+        self.color_space = color_space
         super().__init__(**kwargs)
 
     def _extract_superpixels(self, image: np.array) -> np.array:
@@ -127,6 +130,8 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         Returns:
             np.array: Output tensor
         """
+        if self.color_space == "hed":
+            image = rgb2hed(image)
         superpixels = slic(
             image,
             sigma=self.blur_kernel_size,

@@ -4,9 +4,10 @@ preprocess:
       class: "SLICSuperpixelExtractor"
       params:
         nr_superpixels: 1000
+        color_space: "hed"
     feature_extractor:
       class: "HandcraftedFeatureExtractor"
     graph_builder:
       class: "RAGGraphBuilder"
   params:
-    cores: 80
+    cores: 40

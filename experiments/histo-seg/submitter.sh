@@ -11,7 +11,7 @@ else
         cp $FILE $TMPFILE
         sed -i -e "s,{PATH},$1,g" $TMPFILE
         bsub < $TMPFILE;
-        rm $TMPFILE "$TMPFILE-e"
+        rm $TMPFILE
         sleep 0.1
     done
 fi

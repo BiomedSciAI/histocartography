@@ -212,8 +212,6 @@ if __name__ == "__main__":
     parser.add_argument("--nosave", action="store_const", const=True, default=False)
     args = parser.parse_args()
 
-    print(args)
-
     start_logging()
     assert Path(args.config).exists(), f"Config path does not exist: {args.config}"
     config = yaml.load(open(args.config), Loader=yaml.FullLoader)

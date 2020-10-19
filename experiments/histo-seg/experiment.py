@@ -126,7 +126,7 @@ def preprocessing(
         superpixel_path = tmp_normalizer.mkdir()
         if not tmp_normalizer.save_path.exists():
             target = normalizer_config["params"]["target"]
-            logging.info("Fitting {normalizer_class.__name__} to {target}")
+            logging.info(f"Fitting {normalizer_class.__name__} to {target}")
             target_path = images_metadata.loc[target].path
             target_image = read_image(target_path)
             tmp_normalizer.fit(target_image)

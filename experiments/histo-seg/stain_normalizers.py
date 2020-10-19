@@ -1,9 +1,11 @@
 from abc import abstractmethod
+import logging
 
 import cv2
 import h5py
 import numpy as np
 import spams
+from PIL import Image
 
 from utils import PipelineStep
 
@@ -148,6 +150,28 @@ class StainNormalizer(PipelineStep):
         self._load_precomputed()
         standardized_image = self._standardize_brightness(input_image)
         return self._normalize_image(standardized_image)
+
+    def process_and_save(self, output_name: str, **kwargs) -> np.array:
+        """Process and save in the provided path as a png image
+
+        Args:
+            output_name (str): Name of output file
+        """
+        assert (
+            self.base_path is not None
+        ), f"Can only save intermediate output if base_path was not None when constructing the object"
+        output_path = self.output_dir / f"{output_name}.png"
+        if output_path.exists():
+            logging.info(
+                f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
+            )
+            input_file = Image.open(output_path)
+            output = np.array(input_file)
+        else:
+            output = self.process(**kwargs)
+            output_image = Image.fromarray(output)
+            output_image.save(output_path)
+        return output
 
 
 class MacenkoStainNormalizer(StainNormalizer):

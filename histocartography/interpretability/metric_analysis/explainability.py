@@ -7,6 +7,10 @@ from plotting import *
 from matplotlib import pyplot as plt
 from skimage import exposure
 from PIL import ImageDraw, Image
+from collections import defaultdict
+import numpy as np 
+from functools import partial
+
 
 class Explainability:
     def __init__(self, args, config, explainer, percentage, verbose=False, visualize=False):
@@ -21,12 +25,12 @@ class Explainability:
         self.dist = Distance(self.args.similarity)
         self.n_tumors = len(np.unique(self.config.tumor_labels))
 
-
     def get_node_info(self, exp):
         node_importance = exp.node_importance
         node_label = exp.node_label
         node_concept = exp.node_concept
         node_centroid = exp.node_centroid
+        is_correct = exp.label_index == np.argmax(exp.logits)
 
         # Select epithelial nuclei
         idx = np.sort(np.where((node_label==0) | (node_label==1) | (node_label==2))[0])
@@ -35,21 +39,19 @@ class Explainability:
         node_concept = node_concept[idx]
         node_centroid = node_centroid[idx]
 
-        return node_importance, node_label, node_concept, node_centroid
+        return node_importance, node_label, node_concept, node_centroid, is_correct
 
 
-    def get_sample_explanation(self, path):
+    def get_sample_explanation(self, path, rm_misclassification=False):
         exp = Explanation(path, self.args, self.config)
 
         # Get all epithelial nuclei information
-        node_importance, node_label, node_concept, node_centroid = self.get_node_info(exp)
+        node_importance, node_label, node_concept, node_centroid, is_correct = self.get_node_info(exp)
 
-        return node_importance, node_label, node_concept, node_centroid
-
-
-    def get_tumor_explanation(self, tumor_type):
+        return node_importance, node_label, node_concept, node_centroid, is_correct
+ 
+    def get_tumor_explanation(self, tumor_type, rm_misclassification=False):
         paths = glob.glob(self.explainer_path + tumor_type + '/*.json')
-
         node_importance = []
         node_concept = []
         node_label = []
@@ -61,31 +63,33 @@ class Explainability:
             if basename not in self.config.samples:
                 continue
 
-            importance, label, concept, centroid = self.get_sample_explanation(paths[i])
+            importance, label, concept, centroid, is_correct = self.get_sample_explanation(paths[i])
 
             if importance is not None:
-                node_importance.append(importance)
-                node_concept.append(concept)
-                node_label.append(label)
-                node_centroid.append(centroid)
+                # if remove misclassication is true and sample is wrongly predicted, we don't append it 
+                if not rm_misclassification or is_correct:
+                    node_importance.append(importance)
+                    node_concept.append(concept)
+                    node_label.append(label)
+                    node_centroid.append(centroid)
 
         return node_importance, node_label, node_concept, node_centroid
 
 
-    def get_explanation(self):
+    def get_explanation(self, rm_misclassification=False):
         self.node_importance = []
         self.node_concept = []
         self.node_label = []
         self.node_centroid = []
 
         for t in self.config.tumor_types:
-            importance, label, concept, centroid = self.get_tumor_explanation(tumor_type=t)
+            importance, label, concept, centroid = self.get_tumor_explanation(tumor_type=t, rm_misclassification=rm_misclassification)
 
             self.node_importance.append(importance)        # list[list[array]]
             self.node_label.append(label)                  # list[list[array]]
             self.node_concept.append(concept)              # list[list[array]]
             self.node_centroid.append(centroid)            # list[list[array]]
-
+        
         # Outlier removal from node concept & node importance
         self.outlier_removal()
 

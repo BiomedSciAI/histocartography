@@ -4,13 +4,14 @@ import os
 
 class Configuration:
     def __init__(self, args):
-        self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/explainability/'
+        self.base_path = '/Users/gja/Documents/PhD/histocartography/data/explainability/'
 
         self.explainer_path = self.base_path + 'explainers/'
         self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_hc_/'
         self.centroids_path = self.base_path + 'nuclei_info/nuclei_detected/centroids/'
         self.classes_path = self.base_path + 'nuclei_info/predictions/'
         self.figure_save_path = self.base_path + 'explainer_analysis/' + str(args.classification_mode) + '/'
+        os.makedirs(self.figure_save_path, exist_ok=True)
 
         # Tumor types
         self.tumor_types = ['benign', 'pathologicalbenign', 'udh', 'adh', 'fea', 'dcis', 'malignant']
@@ -32,7 +33,7 @@ class Configuration:
             self.tumor_labels = [0, 1, 1, 2, 2, 3, 4]
             self.tumor_colors = ['lime', 'darkgreen', 'darkgreen', 'blue', 'blue', 'magenta', 'red']
 
-        elif args.classification_mode == 5:
+        elif args.classification_mode == 7:
             self.tumor_labels = [0, 1, 2, 3, 4, 5, 6]
             self.tumor_colors = ['lime', 'darkgreen', 'teal', 'blue', 'purple', 'magenta', 'red']
 

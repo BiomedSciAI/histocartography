@@ -34,6 +34,7 @@ INTERPRETABILITY_METHOD_TO_META_OBJ = {
     'pruning_explainer.graph_pruning_explainer': 'MetaGraphExplanation',
     'lrp_explainer.lrp_gnn_explainer': 'MetaGraphExplanation',
     'saliency_explainer.graph_gradcam_explainer': 'MetaGraphExplanation',
+    'saliency_explainer.graph_gradcampp_explainer': 'MetaGraphExplanation',
     'saliency_explainer.image_gradcam_explainer': 'MetaImageExplanation',
     'saliency_explainer.image_gradcampp_explainer': 'MetaImageExplanation',
     'saliency_explainer.image_deeplift_explainer': 'MetaImageExplanation'
@@ -107,6 +108,8 @@ def main(args):
             )
         )
 
+    print('Model is:', model)
+
     # mlflow log parameters
     inter_config = flatten_dict(config['explanation_params'])
     for key, val in inter_config.items():
@@ -114,7 +117,7 @@ def main(args):
 
     # explain instance from the train set
     counter = 0
-    with_exception = True
+    with_exception = False
     all_explanations = []
     for data, label in tqdm(dataloaders[args.split]):
 

@@ -8,14 +8,14 @@ import dgl
 import networkx as nx 
 import gc
 
-from histocartography.interpretability.saliency_explainer.grad_cam import GradCAM
+from histocartography.interpretability.saliency_explainer.grad_cam import GradCAMpp, GradCAM
 from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE, MODEL_TYPE_TO_GNN_LAYER_NAME
 from ..explanation import GraphExplanation
 from ..base_explainer import BaseExplainer
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
 
 
-class GraphGradCAMExplainer(BaseExplainer):
+class GraphGradCAMPPExplainer(BaseExplainer):
     def __init__(
             self,
             model,
@@ -24,13 +24,13 @@ class GraphGradCAMExplainer(BaseExplainer):
             verbose=False
     ):
         """
-        GradCAM for GNN-based saliency explanation constructor
+        GradCAM++ for GNN-based saliency explanation constructor
         :param model: (nn.Module) a pre-trained model to run the forward pass
         :param config: (dict) method-specific parameters
         :param cuda: (bool) if cuda is enable
         :param verbose: (bool) if verbose is enable
         """
-        super(GraphGradCAMExplainer, self).__init__(model, config, cuda, verbose)
+        super(GraphGradCAMPPExplainer, self).__init__(model, config, cuda, verbose)
 
         self.gnn_layer_ids = ['0', '1', '2']  # @TODO read from the config file
         self.gnn_layer_name = MODEL_TYPE_TO_GNN_LAYER_NAME[config['model_params']['model_type']]
@@ -52,19 +52,16 @@ class GraphGradCAMExplainer(BaseExplainer):
         self.model.zero_grad()
         self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer for extracting latent representation
 
-        # 2/ forward-pass -- applying avgGradCAM (avg over all the GNN layers)
+        # 2/ forward-pass -- applying avgGradCAM++ (avg over all the GNN layers)
         all_node_importances = []
         for layer_id in self.gnn_layer_ids:
-            self.extractor = GradCAM(getattr(self.model, self.gnn_layer_name).layers, layer_id)
+            self.extractor = GradCAMpp(getattr(self.model, self.gnn_layer_name).layers, layer_id)
             original_logits = self.model([deepcopy(graph)])
             winning_class = original_logits.argmax().item()
             node_importance = self.extractor(winning_class, original_logits).cpu()
             all_node_importances.append(node_importance)
-
-            # if not (sum(node_importance) == 0):
-            graph.ndata['node_importance_' + str(layer_id)] = node_importance
-
             self.extractor.clear_hooks()
+            
         graph.ndata['node_importance'] = torch.stack(all_node_importances, dim=1).mean(dim=1)
 
         # 3/ prune the graph using the node importance -- then forward again and store the logits/latent representation

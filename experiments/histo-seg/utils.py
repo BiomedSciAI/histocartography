@@ -65,7 +65,7 @@ class PipelineStep(ABC):
         output_path = self.output_dir / f"{output_name}.h5"
         if output_path.exists():
             logging.info(
-                f"Output of {output_name} already exists, using it instead of recomputing"
+                f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )
             input_file = h5py.File(output_path, "r")
             output = input_file[self.output_key][()]

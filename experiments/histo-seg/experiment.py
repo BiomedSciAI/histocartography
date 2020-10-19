@@ -16,6 +16,7 @@ from eth import DATASET_PATH, IMAGES_DF, PREPROCESS_PATH
 from feature_extraction import FeatureExtractor
 from graph_builders import BaseGraphBuilder
 from superpixel import SuperpixelExtractor
+from stain_normalizers import StainNormalizer
 from utils import (
     dynamic_import_from,
     get_next_version_number,
@@ -26,6 +27,7 @@ from utils import (
 
 def process_image(
     data: Tuple[str, pd.core.series.Series],
+    normalizer: Callable[[], StainNormalizer],
     superpixel_extractor: Callable[[], SuperpixelExtractor],
     feature_extractor: Callable[[], FeatureExtractor],
     graph_builder: Callable[[], BaseGraphBuilder],
@@ -36,6 +38,8 @@ def process_image(
     Args:
         data (Tuple[str, pd.core.series.Series]): (name, row) where row corresponds to the
             dataframe output
+        normalizer (Callable[[], StainNormalizer]): Function that returns a
+            StainNormalizer object
         superpixel_extractor (Callable[[], SuperpixelExtractor]): Function that returns a
             SuperpixelExtractor object
         feature_extractor (Callable[[], HandcraftedFeatureExtractor]): Function that returns a
@@ -44,6 +48,7 @@ def process_image(
             object
         output_dir (pathlib.Path): Output directory
     """
+    normalizer = normalizer()
     superpixel_extractor = superpixel_extractor()
     feature_extractor = feature_extractor()
     graph_builder = graph_builder()
@@ -52,23 +57,30 @@ def process_image(
     name, row = data
     image = read_image(row.path)
 
-    # TODO: stain normalization
+    if save:
+        normalized_image = normalizer.process_and_save(
+            input_image=image, output_name=name
+        )
+    else:
+        normalized_image = normalizer.process(input_image=image)
 
     # Superpixels
     if save:
         superpixels = superpixel_extractor.process_and_save(
-            input_image=image, output_name=name
+            input_image=normalized_image, output_name=name
         )
     else:
-        superpixels = superpixel_extractor.process(input_image=image)
+        superpixels = superpixel_extractor.process(input_image=normalized_image)
 
     # Features
     if save:
         features = feature_extractor.process_and_save(
-            input_image=image, superpixels=superpixels, output_name=name
+            input_image=normalized_image, superpixels=superpixels, output_name=name
         )
     else:
-        features = feature_extractor.process(input_image=image, superpixels=superpixels)
+        features = feature_extractor.process(
+            input_image=normalized_image, superpixels=superpixels
+        )
 
     # Graph building
     if save:
@@ -96,28 +108,37 @@ def preprocessing(
         logging.warning(f"Unmatched arguments: {kwargs}")
     images_metadata = pd.read_pickle(IMAGES_DF)
 
-    # Handle test mode
-    if test:
-        images_metadata = images_metadata.iloc[[0]]
-        cores = 1
-        config["superpixel_extractor"]["params"]["nr_superpixels"] = 10
-
-    # Handle subsample mode
-    if subsample is not None:
-        assert (
-            1 <= subsample <= len(images_metadata)
-        ), f"Subsample needs to be larger than 1 and smaller than the number of rows but is {subsample}"
-        images_metadata = images_metadata.sample(subsample)
-
     if save and not PREPROCESS_PATH.exists():
         PREPROCESS_PATH.mkdir()
+
+    # -------------------------------------------------------------------------- STAIN NORMALIZATION
+    normalizer_config = config["stain_normalizer"]
+    normalizer_class = dynamic_import_from(
+        "stain_normalizers", normalizer_config["class"]
+    )
+    normalizer = partial(
+        normalizer_class,
+        base_path=PREPROCESS_PATH,
+        **normalizer_config.get("params", {}),
+    )
+    if save:
+        tmp_normalizer = normalizer()
+        superpixel_path = tmp_normalizer.mkdir()
+        if not tmp_normalizer.save_path.exists():
+            target = normalizer_config["params"]["target"]
+            logging.info("Fitting {normalizer_class.__name__} to {target}")
+            target_path = images_metadata.loc[target].path
+            target_image = read_image(target_path)
+            tmp_normalizer.fit(target_image)
+    else:
+        superpixel_path = None
 
     # -------------------------------------------------------------------------- SUPERPIXEL EXTRACTION
     superpixel_config = config["superpixel_extractor"]
     superpixel_class = dynamic_import_from("superpixel", superpixel_config["class"])
     superpixel_extractor = partial(
         superpixel_class,
-        base_path=PREPROCESS_PATH,
+        base_path=superpixel_path,
         **superpixel_config.get("params", {}),
     )
     feature_path = superpixel_extractor().mkdir() if save else None
@@ -141,11 +162,25 @@ def preprocessing(
 
     worker_task = partial(
         process_image,
+        normalizer=normalizer,
         superpixel_extractor=superpixel_extractor,
         feature_extractor=feature_extractor,
         graph_builder=graph_builder,
         save=save,
     )
+
+    # Handle test mode
+    if test:
+        images_metadata = images_metadata.iloc[[0]]
+        cores = 1
+        config["superpixel_extractor"]["params"]["nr_superpixels"] = 10
+
+    # Handle subsample mode
+    if subsample is not None:
+        assert (
+            1 <= subsample <= len(images_metadata)
+        ), f"Subsample needs to be larger than 1 and smaller than the number of rows but is {subsample}"
+        images_metadata = images_metadata.sample(subsample)
 
     if cores == 1:
         for image_metadata in tqdm(

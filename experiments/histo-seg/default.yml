@@ -1,5 +1,9 @@
 preprocess:
   stages:
+    stain_normalizer:
+      class: "MacenkoStainNormalizer"
+      params:
+        target: "ZT111_4_C_7_1"
     superpixel_extractor:
       class: "SLICSuperpixelExtractor"
       params:

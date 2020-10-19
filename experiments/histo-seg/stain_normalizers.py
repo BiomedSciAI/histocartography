@@ -1,18 +1,16 @@
-import logging
 from abc import abstractmethod
-from typing import Any
 
 import cv2
 import h5py
 import numpy as np
 import spams
-from PIL import Image
 
 from utils import PipelineStep
 
 
 class StainNormalizer(PipelineStep):
     """Base class for creating fancy stain normalizers"""
+
     def __init__(self, lambda_c: float = 0.01, **kwargs) -> None:
         """Create a stain normalizer with appropriate penaltz for optimizing getting stains
 
@@ -21,6 +19,7 @@ class StainNormalizer(PipelineStep):
         """
         self.lambda_c = lambda_c
         super().__init__(**kwargs)
+        self.save_path = self.output_dir / "normalizer.h5"
 
     @staticmethod
     def _standardize_brightness(input_image: np.array) -> np.array:
@@ -65,7 +64,9 @@ class StainNormalizer(PipelineStep):
         """
         return input_array / np.linalg.norm(input_array, axis=1)[:, None]
 
-    def _get_concentrations(self, input_image: np.array, stain_matrix: np.array) -> np.array:
+    def _get_concentrations(
+        self, input_image: np.array, stain_matrix: np.array
+    ) -> np.array:
         """Extracts the stain concentrations for all pixels of the given input image
 
         Args:
@@ -107,24 +108,20 @@ class StainNormalizer(PipelineStep):
         """
 
     def _load_precomputed(self) -> None:
-        """Loads the precomputed values of a previous fit
-        """
+        """Loads the precomputed values of a previous fit"""
         assert (
             self.base_path is not None
         ), f"Can only save intermediate output if base_path was not None when constructing the object"
-        input_path = self.output_dir / "normalizer.h5"
-        input_file = h5py.File(input_path, "r")
+        input_file = h5py.File(self.save_path, "r")
         self._load_values(input_file)
         input_file.close()
 
     def _save_precomputed(self):
-        """Saves the precomputed values
-        """
+        """Saves the precomputed values"""
         assert (
             self.base_path is not None
         ), "Can only save intermediate output if base_path was not None when constructing the object"
-        output_path = self.output_dir / "normalizer.h5"
-        output_file = h5py.File(output_path, "w")
+        output_file = h5py.File(self.save_path, "w")
         self._save_values(output_file)
         output_file.close()
 
@@ -160,7 +157,10 @@ class MacenkoStainNormalizer(StainNormalizer):
     in 2009 IEEE International Symposium on Biomedical Imaging:
     From Nano to Macro, 2009, pp. 1107–1110.
     """
-    def __init__(self, target: str, alpha: float = 1.0, beta: float = 0.15, **kwargs) -> None:
+
+    def __init__(
+        self, target: str, alpha: float = 1.0, beta: float = 0.15, **kwargs
+    ) -> None:
         """Apply the stain normalization with a given target and parameters
 
         Args:
@@ -286,6 +286,7 @@ class VahadaneStainNormalizer(StainNormalizer):
     for Histological Images’, IEEE Transactions on Medical Imaging,
     vol. 35, no. 8, pp. 1962–1971, Aug. 2016.
     """
+
     def __init__(self, target, threshold=0.8, lambda_s=0.1, **kwargs) -> None:
         self.target = target
         self.thres = threshold
@@ -328,7 +329,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         """
         I_LAB = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
         L = I_LAB[:, :, 0] / 255.0
-        return (L < threshold)
+        return L < threshold
 
     def _get_stain_matrix(self, input_image: np.array) -> np.array:
         """Compute the 2x3 stain matrix with the method from the paper

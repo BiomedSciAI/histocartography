@@ -10,6 +10,7 @@ import torch
 from .cam import _CAM
 
 __all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp']
+EPS = 10e-7
 
 
 class _GradCAM(_CAM):
@@ -44,6 +45,7 @@ class _GradCAM(_CAM):
             raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
 
         # Backpropagate to get the gradients on the hooked layer
+        # print('Logits are:', scores, class_idx)
         loss = scores[:, class_idx].sum()
         self.model.zero_grad()
         loss.backward(retain_graph=True)
@@ -91,9 +93,10 @@ class GradCAM(_GradCAM):
         self._backprop(scores, class_idx)
 
         # Global average pool the gradients over spatial dimensions
-        axis = list(range(len(list(self.hook_g.squeeze(0).shape))))
-        axis.remove(0)
-        return self.hook_g.squeeze(0).mean(axis=axis)
+        # axis = list(range(len(list(self.hook_g.squeeze(0).shape))))
+        # axis.remove(0)
+        # axis = self.hook_g.squeeze(0).shape[-1]
+        return self.hook_g.squeeze(0).mean(axis=0)
 
 
 class GradCAMpp(_GradCAM):
@@ -142,10 +145,10 @@ class GradCAMpp(_GradCAM):
         # Alpha coefficient for each pixel
         grad_2 = self.hook_g.pow(2)
         grad_3 = self.hook_g.pow(3)
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a).sum(axis=(2, 3), keepdims=True))
+        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a).sum(axis=(0), keepdims=True) + EPS)
 
         # Apply pixel coefficient in each weight
-        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(axis=(1, 2))
+        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(axis=(0))
 
 
 class SmoothGradCAMpp(_GradCAM):

@@ -98,7 +98,7 @@ class GraphExplanation(BaseExplanation):
     def write(self):
 
         # 1. write image 
-        explanation_as_image = self.draw()
+        explanation_as_image = self.draw() 
         save_image(os.path.join(self.save_path, self.image_name + '_explanation.png'), explanation_as_image)
 
         # 2. write json 
@@ -130,6 +130,8 @@ class GraphExplanation(BaseExplanation):
         """
         Draw explanation on the image 
         """
+
+        # draw average over 3 layers  
         visualizer = GraphVisualization(save=False)
         explanation_as_image = visualizer(
             show_cg=load_cell_graph(self.config['model_params']['model_type']),
@@ -137,12 +139,14 @@ class GraphExplanation(BaseExplanation):
             data=[self.explanation_graphs[1], self.image, self.image_name],
             node_importance=self.explanation_graphs[1]['node_importance']
         )
+
         return explanation_as_image
 
 
 IMAGE_INTER_METHOD_TO_DRAWING_FN = {
     'saliency_explainer.image_deeplift_explainer': lambda heatmap, image: overlay_mask(image, heatmap),  # lambda heatmap, image: numpy_to_pil(heatmap, image),
     'saliency_explainer.image_gradcam_explainer': lambda heatmap, image: overlay_mask(image, heatmap),
+    'saliency_explainer.image_gradcampp_explainer': lambda heatmap, image: overlay_mask(image, heatmap),
     'saliency_explainer.image_gradcampp_explainer': lambda heatmap, image: overlay_mask(image, heatmap)
 }
 

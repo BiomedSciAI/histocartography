@@ -8,6 +8,7 @@ AVAILABLE_EXPLAINABILITY_METHODS = {
     'lrp_explainer.lrp_gnn_explainer': 'LRPGNNExplainer',
     'attention_based_explainer.attention_gnn_explainer': 'AttentionGNNExplainer',
     'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer',
+    'saliency_explainer.graph_gradcampp_explainer': 'GraphGradCAMPPExplainer',
     'saliency_explainer.image_gradcam_explainer': 'ImageGradCAMExplainer',
     'saliency_explainer.image_gradcampp_explainer': 'ImageGradCAMPPExplainer',
     'saliency_explainer.image_deeplift_explainer': 'ImageDeepLiftExplainer'
@@ -30,7 +31,8 @@ MODEL_TO_MLFLOW_ID = {
             'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '70a419364cda43548a6e3733ad0ef0b5/artifacts/model_best_val_weighted_f1_score_0',
             'pruning_explainer.graph_pruning_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0',   # '55ebbd5a765e4a1d80818112212e1875/artifacts/model_best_val_loss_0',
             'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0',
-            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0'
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcampp_explainer': BASE_S3 + '7ad2792ad69940e0a54dc554af3c4716/artifacts/model_best_val_weighted_f1_score_0'
         },
         'multi_level_graph_model': {
             'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '5ced95f2b389478cb3e57aaa1c77fc94/artifacts/model_best_val_loss_0',
@@ -55,7 +57,8 @@ MODEL_TO_MLFLOW_ID = {
             'attention_based_explainer.attention_gnn_explainer': BASE_S3 + 'bf7d631ec3ba4a8db10a566c85e094e0/artifacts/model_best_val_weighted_f1_score_0',
             'pruning_explainer.graph_pruning_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0',   
             'lrp_explainer.lrp_gnn_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0',
-            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0'
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcampp_explainer': BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0'
         },
         'multi_level_graph_model': {
             'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
@@ -75,7 +78,8 @@ MODEL_TO_MLFLOW_ID = {
             'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '57b7ce4984774f7f85e2cdc24794051a/artifacts/model_best_val_weighted_f1_score_0',
             'pruning_explainer.graph_pruning_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0',   
             'lrp_explainer.lrp_gnn_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0',
-            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0'
+            'saliency_explainer.graph_gradcam_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0',
+            'saliency_explainer.graph_gradcampp_explainer': BASE_S3 + 'ac170b8c6da247cea4076b988f3f3218/artifacts/model_best_val_weighted_f1_score_0'
         },
         'multi_level_graph_model': {
             'attention_based_explainer.attention_gnn_explainer': BASE_S3 + '',
@@ -100,6 +104,7 @@ INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN = {
     'saliency_explainer.graph_gradcam_explainer': 'plain_model_loading',
     'saliency_explainer.image_gradcam_explainer': 'plain_model_loading',
     'saliency_explainer.image_gradcampp_explainer': 'plain_model_loading',
+    'saliency_explainer.graph_gradcampp_explainer': 'plain_model_loading',
     'saliency_explainer.image_deeplift_explainer': 'plain_model_loading'
 }
 
@@ -109,6 +114,7 @@ EXPLANATION_TYPE_SAVE_SUBDIR = {
     'pruning_explainer.graph_pruning_explainer': 'GNNExplainer',
     'lrp_explainer.lrp_gnn_explainer': 'GraphLRP',
     'saliency_explainer.graph_gradcam_explainer': 'GraphGradCAMExplainer',
+    'saliency_explainer.graph_gradcampp_explainer': 'GraphGradCAMppExplainer',
     'saliency_explainer.image_gradcam_explainer': 'ImageGradCAMExplainer',
     'saliency_explainer.image_gradcampp_explainer': 'ImageGradCAMPPExplainer',
     'saliency_explainer.image_deeplift_explainer': 'ImageDeepLiftExplainer'

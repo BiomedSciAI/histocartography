@@ -183,7 +183,10 @@ def read_txt(dir, fname, extension):
    Reads files from a text file and adds the extension for each file name in the text
     """
     with open(complete_path(dir, fname)) as f:
-        files = f.read().split()
+        print('Fname:', fname, dir, extension)
+        files = f.read()
+        print('Files are:', files)
+        files = files.split()
         files = [x + extension for x in files]
     return files
 

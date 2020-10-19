@@ -1,5 +1,13 @@
 import numpy as np
 from distance import Distance
+from sklearn.metrics import precision_score
+
+
+TUMOR_LABEL_TO_RELEVANT_NUCLEI_TYPE = {
+    0: 0,
+    1: 1,
+    2: 2
+}
 
 class Metric:
     def __init__(self, args, config, explainer, percentage, explanation, verbose=False):
@@ -13,6 +21,7 @@ class Metric:
 
         # Merge correlation values per tumor group
         self.concept = self.merge_per_tumor_type(self.explanation.node_concept)
+        self.nuclei_labels = self.merge_per_tumor_type(self.explanation.node_label)
 
         # Get similarity function
         self.dist = Distance(self.args.similarity)
@@ -24,8 +33,11 @@ class Metric:
         for i in range(self.n_tumors):
             idx = np.where(self.config.tumor_labels == i)[0]
             for id in idx:
-                for x in input[id]:
-                    output[i] = np.append(output[i], x)
+                if isinstance(input[id], float):
+                    output[i] = np.append(output[i], input[id])
+                else:
+                    for x in input[id]:
+                        output[i] = np.append(output[i], x)
 
         return output
 
@@ -64,3 +76,14 @@ class Metric:
         self.get_risk()
         self.score = np.multiply(self.tumor_similarity, self.risk)
         return round(np.sum(self.score) / 2, 4)
+
+    def compute_nuclei_selection_relevance(self):
+        all_precisions = []
+        for tumor_type, nuclei_per_tumor_type in enumerate(self.nuclei_labels):
+            precision = precision_score(
+                            np.ones(nuclei_per_tumor_type.shape) * tumor_type,
+                            nuclei_per_tumor_type,
+                            average='micro'
+                            )
+            all_precisions.append(precision)
+        return sum(all_precisions) / len(all_precisions)

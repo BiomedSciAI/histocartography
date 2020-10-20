@@ -4,7 +4,7 @@ import os
 
 class Configuration:
     def __init__(self, args):
-        self.base_path = '/Users/gja/Documents/PhD/histocartography/data/explainability/'
+        self.base_path = args.base_path
 
         self.explainer_path = self.base_path + 'explainers/'
         self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_hc_/'

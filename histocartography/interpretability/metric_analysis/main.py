@@ -10,6 +10,11 @@ parser.add_argument('--explainer',
                     help='Explainability method',
                     choices=['GraphLRP', 'GraphGradCAM', 'GNNExplainer', 'GraphGradCAMpp', '-1'],
                     required=True)
+parser.add_argument('--nuclei-selection-type',
+                    help='Nuclei selection type, eg. w/ hard thresholding, w/ cumulutative',
+                    choices=['cumul', 'thresh'],
+                    default='cumul',
+                    required=False)
 parser.add_argument('--classification-mode',
                     help='Classification mode',
                     choices=[2, 3, 5, 7],
@@ -44,6 +49,14 @@ parser.add_argument('--rm_misclassification',
                     help='If we should filter out misclassified samples.',
                     default='False',
                     required=False)
+parser.add_argument('--rm-non-epithelial-nuclei',
+                    help='If we should remove all the non epithial nuclei.',
+                    default='False',
+                    required=False)
+parser.add_argument('--with-nuclei-selection-plot',
+                    help='If we should plot the nuclei selection along with the image for each sample.',
+                    default='False',
+                    required=False)
 
 args = parser.parse_args()
 config = Configuration(args=args)
@@ -53,6 +66,8 @@ config = Configuration(args=args)
 verbose = eval(args.verbose)
 visualize = eval(args.visualize)
 rm_misclassification = eval(args.rm_misclassification)
+with_nuclei_selection_plot = eval(args.with_nuclei_selection_plot)
+args.rm_non_epithelial_nuclei = eval(args.rm_non_epithelial_nuclei)
 
 percentages = config.percentages
 explainers = config.explainers
@@ -70,8 +85,19 @@ for e in explainers:
     scores = np.array([])
 
     for p in percentages:
-        exp = Explainability(args=args, config=config, explainer=e, percentage=p, verbose=verbose, visualize=visualize)
+        exp = Explainability(
+            args=args,
+            config=config,
+            explainer=e,
+            percentage=p,
+            verbose=verbose,
+            visualize=visualize
+        )
         exp.get_explanation(rm_misclassification)
+
+        # plot nuclei selection on the original image 
+        if with_nuclei_selection_plot:
+            plot_nuclei_selection(exp)
 
         m = Metric(args=args, config=config, explainer=e, percentage=p, explanation=exp)
         score = m.compute_score()

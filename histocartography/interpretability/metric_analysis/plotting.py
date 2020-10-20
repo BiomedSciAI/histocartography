@@ -2,6 +2,11 @@ import copy
 import numpy as np
 from matplotlib import pyplot as plt
 from utils import *
+from PIL import Image
+from PIL import ImageDraw
+import os 
+from histocartography.utils.draw_utils import draw_ellipse
+from histocartography.utils.io import save_image 
 
 
 def plot_concept_map_per_tumor_type(args, config, explainer, percentage, explanation, xlim=[-0.05, 1.05], ylim=[-0.05, 1.05]):
@@ -100,3 +105,24 @@ def plot_scatter(node_importance, node_concept):
     plt.show()
 
 
+def plot_nuclei_selection(exp):
+    base_path = '/Users/gja/Documents/PhD/histocartography/data/explainability/Images_norm'
+    for t_type, image_name_per_t_type in enumerate(exp.image_names):
+        for sample_id, image_name in enumerate(image_name_per_t_type):
+            try:
+
+                # 1. load image
+                tumor_dir = image_name.split('_')[1]
+                image = Image.open(os.path.join(base_path, tumor_dir, image_name + '.png'))
+
+                # 2. draw the centroids 
+                canvas = image.copy()
+                draw = ImageDraw.Draw(canvas, 'RGBA')
+                for centroid in exp.node_centroid[t_type][sample_id]:
+                    draw_ellipse(centroid, draw, fill_col=None, size=10, outline=(255, 0, 0))
+
+                # 3. save the image 
+                save_image(os.path.join(base_path, '..', 'nuclei_selection', image_name + '.png'), canvas)
+
+            except:
+                pass

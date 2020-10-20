@@ -26,7 +26,6 @@ class Metric:
         # Get similarity function
         self.dist = Distance(self.args.similarity)
 
-
     def merge_per_tumor_type(self, input):
         output = [np.array([]) for i in range(self.n_tumors)]
 
@@ -40,7 +39,6 @@ class Metric:
                         output[i] = np.append(output[i], x)
 
         return output
-
 
     def compute_tumor_similarity(self):
         M = np.zeros(shape=(self.n_tumors, self.n_tumors))
@@ -80,10 +78,11 @@ class Metric:
     def compute_nuclei_selection_relevance(self):
         all_precisions = []
         for tumor_type, nuclei_per_tumor_type in enumerate(self.nuclei_labels):
-            precision = precision_score(
-                            np.ones(nuclei_per_tumor_type.shape) * tumor_type,
-                            nuclei_per_tumor_type,
-                            average='micro'
-                            )
-            all_precisions.append(precision)
+
+            precision_tumor = sum(nuclei_per_tumor_type == tumor_type) / len(nuclei_per_tumor_type)
+            precision_epi = sum((nuclei_per_tumor_type == 0) + (nuclei_per_tumor_type == 1) + (nuclei_per_tumor_type == 2)) / len(nuclei_per_tumor_type)
+            print('Precision for tumor:', precision_tumor)
+            print('Precision for selecting epi:', precision_epi)
+            all_precisions.append(precision_epi)
+
         return sum(all_precisions) / len(all_precisions)

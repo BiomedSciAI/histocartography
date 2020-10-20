@@ -10,6 +10,7 @@ from PIL import ImageDraw, Image
 from collections import defaultdict
 import numpy as np 
 from functools import partial
+import torch 
 
 
 class Explainability:
@@ -20,6 +21,8 @@ class Explainability:
         self.percentage = percentage
         self.verbose = verbose
         self.visualize = visualize
+        self.nuclei_selection_type = args.nuclei_selection_type
+        self.rm_non_epithelial_nuclei = args.rm_non_epithelial_nuclei
 
         self.explainer_path = config.explainer_path + str(args.classification_mode) + '/' + explainer + '/'
         self.dist = Distance(self.args.similarity)
@@ -33,22 +36,25 @@ class Explainability:
         is_correct = exp.label_index == np.argmax(exp.logits)
 
         # Select epithelial nuclei
-        idx = np.sort(np.where((node_label==0) | (node_label==1) | (node_label==2))[0])
-        node_importance = node_importance[idx]
-        node_label = node_label[idx]
-        node_concept = node_concept[idx]
-        node_centroid = node_centroid[idx]
+        if self.rm_non_epithelial_nuclei:
+            idx = np.sort(np.where((node_label==0) | (node_label==1) | (node_label==2))[0])
+            node_importance = node_importance[idx]
+            node_label = node_label[idx]
+            node_concept = node_concept[idx]
+            node_centroid = node_centroid[idx]
 
         return node_importance, node_label, node_concept, node_centroid, is_correct
-
 
     def get_sample_explanation(self, path, rm_misclassification=False):
         exp = Explanation(path, self.args, self.config)
 
+        # extract image name 
+        image_name = path.split('/')[-1].split('.')[0].replace('_explanation', '')
+
         # Get all epithelial nuclei information
         node_importance, node_label, node_concept, node_centroid, is_correct = self.get_node_info(exp)
 
-        return node_importance, node_label, node_concept, node_centroid, is_correct
+        return node_importance, node_label, node_concept, node_centroid, is_correct, image_name
  
     def get_tumor_explanation(self, tumor_type, rm_misclassification=False):
         paths = glob.glob(self.explainer_path + tumor_type + '/*.json')
@@ -56,6 +62,7 @@ class Explainability:
         node_concept = []
         node_label = []
         node_centroid = []
+        image_names = []
 
         for i in range(len(paths)):
             basename = os.path.basename(paths[i]).split('.')[0].replace('_explanation', '')
@@ -63,7 +70,7 @@ class Explainability:
             if basename not in self.config.samples:
                 continue
 
-            importance, label, concept, centroid, is_correct = self.get_sample_explanation(paths[i])
+            importance, label, concept, centroid, is_correct, image_name = self.get_sample_explanation(paths[i])
 
             if importance is not None:
                 # if remove misclassication is true and sample is wrongly predicted, we don't append it 
@@ -72,8 +79,9 @@ class Explainability:
                     node_concept.append(concept)
                     node_label.append(label)
                     node_centroid.append(centroid)
+                    image_names.append(image_name)
 
-        return node_importance, node_label, node_concept, node_centroid
+        return node_importance, node_label, node_concept, node_centroid, image_names
 
 
     def get_explanation(self, rm_misclassification=False):
@@ -81,34 +89,62 @@ class Explainability:
         self.node_concept = []
         self.node_label = []
         self.node_centroid = []
+        self.image_names = []
 
         for t in self.config.tumor_types:
-            importance, label, concept, centroid = self.get_tumor_explanation(tumor_type=t, rm_misclassification=rm_misclassification)
+            importance, label, concept, centroid, names = self.get_tumor_explanation(tumor_type=t, rm_misclassification=rm_misclassification)
 
             self.node_importance.append(importance)        # list[list[array]]
             self.node_label.append(label)                  # list[list[array]]
             self.node_concept.append(concept)              # list[list[array]]
             self.node_centroid.append(centroid)            # list[list[array]]
+            self.image_names.append(names)
         
         # Outlier removal from node concept & node importance
-        self.outlier_removal()
+        # self.outlier_removal()
 
         # Normalize the node concepts across all samples and all tumor types
         self.normalize_node_concept()
 
         # Normalize the node importances per sample
-        self.normalize_node_importance()
+        # self.normalize_node_importance()
 
-        # Get explanation per 'percentage'
+        # Get explanation per 'percentage': nuclei selection
         for i in range(len(self.node_importance)):
             for j in range(len(self.node_importance[i])):
-                idx = np.where(self.node_importance[i][j] < (1 - self.percentage))[0]
+
+                if self.nuclei_selection_type == 'thresh':
+                    # nuclei selection based on hard threshold p
+                    idx = np.where(self.node_importance[i][j] < (1 - self.percentage))[0]
+                elif self.nuclei_selection_type == 'cumul':
+                    # nuclei selection based on cumulutative node importance p
+                    idx_to_keep = self._compute_cumul_nuclei_selection(self.node_importance[i][j], self.percentage)
+                    idx = [candidate for candidate in range(len(self.node_importance[i][j])) if candidate not in idx_to_keep]
+                else:
+                    raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh" and "cumul".')
+
                 self.node_importance[i][j] = np.delete(self.node_importance[i][j], idx, axis=0)
                 self.node_concept[i][j] = np.delete(self.node_concept[i][j], idx, axis=0)
                 self.node_label[i][j] = np.delete(self.node_label[i][j], idx, axis=0)
+                self.node_centroid[i][j] = np.delete(self.node_centroid[i][j], idx, axis=0)
 
         self.printing()
 
+    def _compute_cumul_nuclei_selection(self, node_importance, p):
+        node_importance = torch.FloatTensor(node_importance)
+        total_node_importance = torch.sum(node_importance)
+        keep_node_importance = (total_node_importance * p).cpu().item()
+        sorted_node_importance, indices_node_importance = torch.sort(node_importance, descending=True)
+        node_idx_to_keep = []
+        culumative_node_importance = 0
+        for node_imp, idx in zip(sorted_node_importance, indices_node_importance):
+            culumative_node_importance += node_imp
+            if culumative_node_importance <= keep_node_importance + 10e-3:
+                node_idx_to_keep.append(idx.item())
+            else:
+                break
+        node_idx_to_keep = sorted(node_idx_to_keep)
+        return node_idx_to_keep
 
     def outlier_removal(self):
         concept = np.array([])
@@ -129,7 +165,6 @@ class Explainability:
                 self.node_concept[i][j] = np.delete(self.node_concept[i][j], idx, axis=0)
                 self.node_importance[i][j] = np.delete(self.node_importance[i][j], idx, axis=0)
 
-
     def normalize_node_importance(self):
         for i in range(len(self.node_importance)):
             for j in range(len(self.node_importance[i])):
@@ -149,7 +184,6 @@ class Explainability:
                 for j in range(len(self.node_concept[i])):
                     self.node_concept[i][j] = (self.node_concept[i][j] - minm)/ (maxm - minm)
 
-
     def printing(self):
         print('\nNode label distribution:')
 
@@ -166,27 +200,3 @@ class Explainability:
 
             if self.verbose:
                 print('#TRoI: ', len(x), ' #Nodes: ', len(labels), ' Label: ', np.unique(labels, return_counts=True))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

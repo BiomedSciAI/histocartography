@@ -26,8 +26,8 @@ class Configuration:
             self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', '', '', 'red', 'red']
 
         elif args.classification_mode == 3:
-            self.tumor_labels = [0, 0, 0, 1, 1, 2, 2]
-            self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', 'blue', 'blue', 'red', 'red']
+            self.tumor_labels = [0, 0, 0, 1, -1, 2, 2]  # exclude FEA samples
+            self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', 'blue', '', 'red', 'red']
 
         elif args.classification_mode == 5:
             self.tumor_labels = [0, 1, 1, 2, 2, 3, 4]

@@ -105,15 +105,14 @@ def plot_scatter(node_importance, node_concept):
     plt.show()
 
 
-def plot_nuclei_selection(exp):
-    base_path = '/Users/gja/Documents/PhD/histocartography/data/explainability/Images_norm'
+def plot_nuclei_selection(exp, base_path):
     for t_type, image_name_per_t_type in enumerate(exp.image_names):
         for sample_id, image_name in enumerate(image_name_per_t_type):
             try:
 
                 # 1. load image
                 tumor_dir = image_name.split('_')[1]
-                image = Image.open(os.path.join(base_path, tumor_dir, image_name + '.png'))
+                image = Image.open(os.path.join(base_path, 'Images_norm', tumor_dir, image_name + '.png'))
 
                 # 2. draw the centroids 
                 canvas = image.copy()
@@ -122,7 +121,9 @@ def plot_nuclei_selection(exp):
                     draw_ellipse(centroid, draw, fill_col=None, size=10, outline=(255, 0, 0))
 
                 # 3. save the image 
-                save_image(os.path.join(base_path, '..', 'nuclei_selection', image_name + '.png'), canvas)
+                save_path = os.path.join(base_path, '..', 'nuclei_selection')
+                os.makedirs(save_path, exist_ok=True)
+                save_image(os.path.join(save_image, image_name + '.png'), canvas)
 
             except:
                 pass

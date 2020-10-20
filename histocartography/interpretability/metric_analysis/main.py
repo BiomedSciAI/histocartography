@@ -10,6 +10,9 @@ parser.add_argument('--explainer',
                     help='Explainability method',
                     choices=['GraphLRP', 'GraphGradCAM', 'GNNExplainer', 'GraphGradCAMpp', '-1'],
                     required=True)
+parser.add_argument('--base-path',
+                    help='Base path to the data folder',
+                    required=True)
 parser.add_argument('--nuclei-selection-type',
                     help='Nuclei selection type, eg. w/ hard thresholding, w/ cumulutative',
                     choices=['cumul', 'thresh'],
@@ -97,7 +100,8 @@ for e in explainers:
 
         # plot nuclei selection on the original image 
         if with_nuclei_selection_plot:
-            plot_nuclei_selection(exp)
+            print('here')
+            plot_nuclei_selection(exp, base_path=args.base_path)
 
         m = Metric(args=args, config=config, explainer=e, percentage=p, explanation=exp)
         score = m.compute_score()

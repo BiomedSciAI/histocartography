@@ -100,7 +100,6 @@ for e in explainers:
 
         # plot nuclei selection on the original image 
         if with_nuclei_selection_plot:
-            print('here')
             plot_nuclei_selection(exp, base_path=args.base_path)
 
         m = Metric(args=args, config=config, explainer=e, percentage=p, explanation=exp)

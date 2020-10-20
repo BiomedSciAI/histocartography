@@ -1,7 +1,7 @@
 from abc import abstractmethod
 import logging
 
-import cv2
+from skimage.color import rgb2lab
 import h5py
 import numpy as np
 import spams
@@ -51,7 +51,7 @@ class StainNormalizer(PipelineStep):
         """
         mask = input_image == 0
         if mask.any():
-            input_image = input_image[mask] = 1
+            input_image[mask] = 1
         return -1 * np.log(input_image / 255)
 
     @staticmethod
@@ -149,7 +149,8 @@ class StainNormalizer(PipelineStep):
         """
         self._load_precomputed()
         standardized_image = self._standardize_brightness(input_image)
-        return self._normalize_image(standardized_image)
+        normalized_image = self._normalize_image(standardized_image)
+        return normalized_image
 
     def process_and_save(self, output_name: str, **kwargs) -> np.array:
         """Process and save in the provided path as a png image
@@ -167,10 +168,12 @@ class StainNormalizer(PipelineStep):
             )
             input_file = Image.open(output_path)
             output = np.array(input_file)
+            input_file.close()
         else:
             output = self.process(**kwargs)
             output_image = Image.fromarray(output)
             output_image.save(output_path)
+            output_image.close()
         return output
 
 
@@ -351,9 +354,9 @@ class VahadaneStainNormalizer(StainNormalizer):
         Returns:
             np.array: Mask for the image
         """
-        I_LAB = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-        L = I_LAB[:, :, 0] / 255.0
-        return L < threshold
+        image_lab = rgb2lab(image)
+        lightness = image_lab[:, :, 0] / 255.0
+        return lightness < threshold
 
     def _get_stain_matrix(self, input_image: np.array) -> np.array:
         """Compute the 2x3 stain matrix with the method from the paper

@@ -130,6 +130,7 @@ def preprocessing(
             target_path = images_metadata.loc[target].path
             target_image = read_image(target_path)
             tmp_normalizer.fit(target_image)
+            logging.info(f"Fitting completed")
     else:
         superpixel_path = None
 

@@ -75,14 +75,34 @@ class Metric:
         self.score = np.multiply(self.tumor_similarity, self.risk)
         return round(np.sum(self.score) / 2, 4)
 
+
     def compute_nuclei_selection_relevance(self):
         all_precisions = []
+        print('Nuclei types: ', self.config.nuclei_types[1:], '\n')
+
         for tumor_type, nuclei_per_tumor_type in enumerate(self.nuclei_labels):
+            print('Tumor type: ', tumor_type)
 
             precision_tumor = sum(nuclei_per_tumor_type == tumor_type) / len(nuclei_per_tumor_type)
-            precision_epi = sum((nuclei_per_tumor_type == 0) + (nuclei_per_tumor_type == 1) + (nuclei_per_tumor_type == 2)) / len(nuclei_per_tumor_type)
-            print('Precision for tumor:', precision_tumor)
-            print('Precision for selecting epi:', precision_epi)
+            precision_epi = sum((nuclei_per_tumor_type == 0) + (nuclei_per_tumor_type == 1) + (nuclei_per_tumor_type == 2) + (nuclei_per_tumor_type == 5)) / len(nuclei_per_tumor_type)
+            print('Precision for tumor:', round(precision_tumor, 4))
+            print('Precision for selecting epi:', round(precision_epi, 4))
             all_precisions.append(precision_epi)
 
-        return sum(all_precisions) / len(all_precisions)
+            nuclei, count = np.unique(np.asarray(nuclei_per_tumor_type), return_counts=True)
+            count = np.round(count/np.sum(count), 4)
+            print('Nuclei classes distribution: ',  count, '\n')
+
+        return round(sum(all_precisions) / len(all_precisions), 4)
+
+
+
+
+
+
+
+
+
+
+
+

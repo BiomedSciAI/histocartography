@@ -51,6 +51,8 @@ def process_image(
     """
     # Disable multiprocessing
     os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["OMP_NUM_THREADS"] = "1"
 
     normalizer = normalizer()
     superpixel_extractor = superpixel_extractor()
@@ -75,7 +77,7 @@ def process_image(
         )
     else:
         superpixels = superpixel_extractor.process(input_image=normalized_image)
-
+    
     # Features
     if save:
         features = feature_extractor.process_and_save(

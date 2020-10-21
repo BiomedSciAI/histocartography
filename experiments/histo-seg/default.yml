@@ -1,17 +1,21 @@
 preprocess:
   stages:
     stain_normalizer:
-      class: "MacenkoStainNormalizer"
+      class: "VahadaneStainNormalizer"
       params:
         target: "ZT111_4_C_7_1"
     superpixel_extractor:
       class: "SLICSuperpixelExtractor"
       params:
-        nr_superpixels: 1000
-        color_space: "hed"
+        nr_superpixels: 2000
+        color_space: "rgb"
     feature_extractor:
-      class: "HandcraftedFeatureExtractor"
+      class: "DeepFeatureExtractor"
+      params:
+        architecture: "resnet18"
+        mask: True
+        size: 224
     graph_builder:
       class: "RAGGraphBuilder"
   params:
-    cores: 40
+    cores: 32

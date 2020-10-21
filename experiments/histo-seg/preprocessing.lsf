@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #BSUB -q prod.med
-#BSUB -n 5
+#BSUB -n 4
 
 module purge
 module load Miniconda3
@@ -11,4 +11,4 @@ source activate histocartography
 #BSUB -o "/dataT/anv/logs/preprocessing"
 #BSUB -e "/dataT/anv/logs/preprocessing.stderr"
 
-python experiment.py preprocess --config default.yml
+OMP_NUM_THREADS=1 python experiment.py preprocess --config default.yml

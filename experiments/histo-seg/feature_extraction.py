@@ -1,12 +1,20 @@
 from abc import abstractmethod
+from typing import Tuple, Union
 
 import numpy as np
 import torch
+import torchvision
+from PIL import Image
 from scipy.stats import skew
 from skimage.feature import greycomatrix, greycoprops
 from skimage.filters.rank import entropy as Entropy
 from skimage.measure import regionprops
+from skimage.measure._regionprops import _RegionProperties
 from skimage.morphology import disk
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
+from tqdm.auto import tqdm
 
 from utils import PipelineStep
 
@@ -180,3 +188,247 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
 
         node_feat = np.vstack(node_feat)
         return torch.Tensor(node_feat)
+
+
+class SuperpixelPatchDataset(Dataset):
+    """Helper class to use a give image and extracted superpixels as a dataset"""
+
+    def __init__(
+        self,
+        image: np.ndarray,
+        superpixels: np.ndarray,
+        size: int,
+        fill_value: Union[int, None],
+    ) -> None:
+        """Create a dataset for a given image and extracted superpixel with desired patches of (size, size, 3).
+            If fill_value is not None, it fills up pixels outside the superpixel with this value (all channels)
+
+        Args:
+            image (np.ndarray): RGB input image
+            superpixels (np.ndarray): Extracted superpixels
+            size (int): Desired size of patches
+            fill_value (Union[int, None]): Value to fill outside the superpixels (None means do not fill)
+        """
+        self.image = image
+        self.superpixel = superpixels
+        self.properties = regionprops(superpixels)
+        self.dataset_transform = transforms.Compose(
+            [
+                transforms.Resize(224),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
+        self.patch_size = (size, size, 3)
+        self.fill_value = fill_value
+
+    def _get_superpixel_patch(self, region_property: _RegionProperties) -> np.ndarray:
+        """Returns the image patch with the correct padding for a given region property
+
+        Args:
+            region_property (_RegionProperties): Region property of the superpixel
+
+        Returns:
+            np.ndarray: Representative image patch
+        """
+        # Prepare input and output data
+        output_image = np.ones(self.patch_size, dtype=np.uint8)
+        if self.fill_value is not None:
+            output_image *= self.fill_value
+        else:
+            output_image *= 255  # Have a white background in case we are at the border
+
+        # Extract center
+        center_x, center_y = region_property.centroid
+        center_x = int(round(center_x))
+        center_y = int(round(center_y))
+
+        # Extract only super pixel
+        if self.fill_value is not None:
+            min_x, min_y, max_x, max_y = region_property.bbox
+            x_length = max_x - min_x
+            y_length = max_y - min_y
+
+        # Handle no mask scenario and too large superpixels
+        if self.fill_value is None or x_length > self.patch_size[0]:
+            min_x = center_x - (self.patch_size[0] // 2)
+            max_x = center_x + (self.patch_size[0] // 2)
+
+        if self.fill_value is None or y_length > self.patch_size[1]:
+            min_y = center_y - (self.patch_size[1] // 2)
+            max_y = center_y + (self.patch_size[1] // 2)
+
+        # Handle border cases
+        min_x = max(0, min_x)
+        min_y = max(0, min_y)
+        max_x = min(self.image.shape[0], max_x)
+        max_y = min(self.image.shape[1], max_y)
+        x_length = max_x - min_x
+        y_length = max_y - min_y
+        assert x_length <= self.patch_size[0]
+        assert y_length <= self.patch_size[1]
+
+        # Actual image copying
+        image_top_left = (
+            ((self.patch_size[0] - x_length) // 2),
+            ((self.patch_size[1] - y_length) // 2),
+        )
+        image_region = self.image[min_x:max_x, min_y:max_y]
+        mask_region = (self.superpixel != region_property.label)[
+            min_x:max_x, min_y:max_y
+        ]
+        image_region[mask_region] = self.fill_value
+        output_image[
+            image_top_left[0] : image_top_left[0] + x_length,
+            image_top_left[1] : image_top_left[1] + y_length,
+        ] = image_region
+        return output_image
+
+    def __getitem__(self, index: int) -> Tuple[int, torch.Tensor]:
+        """Loads an image for a given superpixel index
+
+        Args:
+            index (int): Superpixel index
+
+        Returns:
+            Tuple[int, torch.Tensor]: superpixel_index, image as tensor
+        """
+        input_image = self._get_superpixel_patch(self.properties[index])
+        transformed_image = self.dataset_transform(Image.fromarray(input_image))
+        return self.properties[index].label, transformed_image
+
+    def __len__(self) -> int:
+        """Returns the length of the dataset
+
+        Returns:
+            int: Length of the dataset
+        """
+        return len(self.properties)
+
+
+class PatchFeatureExtractor:
+    """Helper class to use a CNN to extract features from an image"""
+
+    def __init__(self, architecture: str) -> None:
+        """Create a patch feature extracter of a given architecture and put it on GPU if available
+
+        Args:
+            architecture (str): String of architecture. Can be [resnet{18,34,50,101,152}, vgg{16,19}]
+        """
+        self.model, self.num_features = self._select_model(architecture)
+        self.model.eval()
+
+        # Handle GPU
+        cuda = torch.cuda.is_available()
+        self.device = torch.device("cuda:0" if cuda else "cpu")
+        self.model = self.model.to(self.device)
+
+    @staticmethod
+    def _select_model(architecture: str) -> Tuple[nn.Module, int]:
+        """Returns the model and number of features for a given name
+
+        Args:
+            architecture (str): Name of architecture. Can be [resnet{18,34,50,101,152}, vgg{16,19}]
+
+        Returns:
+            Tuple[nn.Module, int]: The model and the number of features
+        """
+        if "resnet" in architecture:
+            if "18" in architecture:
+                model = torchvision.models.resnet18(pretrained=True)
+            elif "34" in architecture:
+                model = torchvision.models.resnet34(pretrained=True)
+            elif "50" in architecture:
+                model = torchvision.models.resnet50(pretrained=True)
+            elif "101" in architecture:
+                model = torchvision.models.resnet101(pretrained=True)
+            elif "152" in architecture:
+                model = torchvision.models.resnet152(pretrained=True)
+            else:
+                raise NotImplementedError("ERROR: Select from Resnet: 34, 50, 101, 152")
+            num_features = list(model.children())[-1].in_features
+            model = torch.nn.Sequential(*(list(model.children())[:-1]))
+        elif "vgg" in architecture:
+            if "16" in architecture:
+                model = torchvision.models.vgg16_bn(pretrained=True)
+            elif "19" in architecture:
+                model = torchvision.models.vgg19_bn(pretrained=True)
+            else:
+                raise NotImplementedError("ERROR: Select from VGG: 16, 19")
+            classifier = list(model.classifier.children())[:1]
+            num_features = list(model.classifier.children())[-1].in_features
+            model.classifier = nn.Sequential(*classifier)
+        else:
+            raise NotImplementedError("ERROR: Select from resnet, vgg")
+        return model, num_features
+
+    def __call__(self, image: torch.Tensor) -> torch.Tensor:
+        """Computes the embedding of a normalized image input
+
+        Args:
+            image (torch.Tensor): Normalized image input
+
+        Returns:
+            torch.Tensor: Embedding of image
+        """
+        with torch.no_grad():
+            embeddings = self.model(image).squeeze()
+            embeddings = embeddings.cpu().detach()
+            return embeddings
+
+
+class DeepFeatureExtractor(FeatureExtractor):
+    """Helper class to extract deep features from superpixels"""
+
+    def __init__(
+        self,
+        architecture: str,
+        mask: bool = True,
+        size: int = 224,
+        **kwargs,
+    ) -> None:
+        """Create a deep feature extractor
+
+        Args:
+            architecture (str): Name of the architecture to use. Can be [resnet{18,34,50,101,152}, vgg{16,19}]
+            mask (bool, optional): Whether to mask out the parts outside the superpixel. Defaults to True.
+            size (int, optional): Desired size of patches. Defaults to 224.
+        """
+        self.architecture = architecture
+        self.mask = mask
+        self.size = size
+        super().__init__(**kwargs)
+        self.patch_feature_extractor = PatchFeatureExtractor(self.architecture)
+        self.fill_value = 255 if self.mask else None
+
+        # Handle GPU
+        cuda = torch.cuda.is_available()
+        self.device = torch.device("cuda:0" if cuda else "cpu")
+
+    def _extract_features(
+        self, input_image: np.ndarray, superpixels: np.ndarray
+    ) -> torch.Tensor:
+        """Extract features for a given RGB image and its extracted superpixels
+
+        Args:
+            input_image (np.ndarray): RGB input image
+            superpixels (np.ndarray): Extracted superpixels
+
+        Returns:
+            torch.Tensor: Extracted features
+        """
+        image_dataset = SuperpixelPatchDataset(
+            input_image, superpixels, self.size, self.fill_value
+        )
+        image_loader = DataLoader(
+            image_dataset, shuffle=False, batch_size=32, num_workers=1
+        )
+        features = torch.empty(
+            size=(len(image_dataset), self.patch_feature_extractor.num_features),
+            dtype=torch.float32,
+            device=self.device,
+        )
+        for i, image_batch in tqdm(image_loader):
+            image_batch = image_batch.to(self.device)
+            features[i, :] = self.patch_feature_extractor(image_batch)
+        return features.cpu().detach()

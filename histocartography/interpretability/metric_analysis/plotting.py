@@ -6,7 +6,7 @@ from PIL import Image
 from PIL import ImageDraw
 import os 
 from histocartography.utils.draw_utils import draw_ellipse
-from histocartography.utils.io import save_image 
+from histocartography.utils.io import save_image
 
 
 def plot_concept_map_per_tumor_type(args, config, explainer, percentage, explanation, xlim=[-0.05, 1.05], ylim=[-0.05, 1.05]):

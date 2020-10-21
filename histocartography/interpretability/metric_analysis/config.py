@@ -9,7 +9,7 @@ class Configuration:
         self.explainer_path = self.base_path + 'explainers/'
         self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_hc_/'
         self.centroids_path = self.base_path + 'nuclei_info/nuclei_detected/centroids/'
-        self.classes_path = self.base_path + 'nuclei_info/predictions/'
+        self.classes_path = self.base_path + 'nuclei_info/nuclei_classes/'
         self.figure_save_path = self.base_path + 'explainer_analysis/' + str(args.classification_mode) + '/'
         os.makedirs(self.figure_save_path, exist_ok=True)
 
@@ -26,8 +26,8 @@ class Configuration:
             self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', '', '', 'red', 'red']
 
         elif args.classification_mode == 3:
-            self.tumor_labels = [0, 0, 0, 1, -1, 2, 2]  # exclude FEA samples
-            self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', 'blue', '', 'red', 'red']
+            self.tumor_labels = [0, 0, 0, 1, 1, 2, 2]  # exclude FEA samples
+            self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', 'blue', 'blue', 'red', 'red']
 
         elif args.classification_mode == 5:
             self.tumor_labels = [0, 1, 1, 2, 2, 3, 4]

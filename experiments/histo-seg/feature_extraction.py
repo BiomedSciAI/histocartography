@@ -386,7 +386,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         mask: bool = True,
         size: int = 224,
         batch_size: int = 32,
-        num_workers: int = 1,
+        num_workers: int = 0,
         **kwargs,
     ) -> None:
         """Create a deep feature extractor
@@ -404,6 +404,8 @@ class DeepFeatureExtractor(FeatureExtractor):
         self.fill_value = 255 if self.mask else None
         self.batch_size = batch_size
         self.num_workers = num_workers
+        if self.num_workers in [0, 1]:
+            torch.set_num_threads(1)
 
         # Handle GPU
         cuda = torch.cuda.is_available()

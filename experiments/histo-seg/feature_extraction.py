@@ -1,6 +1,5 @@
 from abc import abstractmethod
 
-import cv2
 import numpy as np
 import torch
 from scipy.stats import skew
@@ -17,7 +16,7 @@ class FeatureExtractor(PipelineStep):
         """Abstract class that extracts features from superpixels"""
         super().__init__(**kwargs)
 
-    def process(self, input_image: np.array, superpixels: np.array) -> torch.Tensor:
+    def process(self, input_image: np.ndarray, superpixels: np.ndarray) -> torch.Tensor:
         """Extract features from the input_image for the defined superpixels
 
         Args:
@@ -31,7 +30,7 @@ class FeatureExtractor(PipelineStep):
 
     @abstractmethod
     def _extract_features(
-        self, input_image: np.array, superpixels: np.array
+        self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> torch.Tensor:
         """Extract features from the input_image for the defined superpixels
 
@@ -53,9 +52,10 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
     ) -> None:
         """Extract handcrafted features from images"""
         super().__init__(**kwargs)
+        import cv2
 
     def _extract_features(
-        self, input_image: np.array, superpixels: np.array
+        self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> torch.Tensor:
         """Extract handcrafted features from the input_image in the defined superpixel regions
 

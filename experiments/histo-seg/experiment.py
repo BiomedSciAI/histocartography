@@ -4,6 +4,7 @@ import argparse
 import logging
 import multiprocessing
 import sys
+import os
 from functools import partial
 from pathlib import Path
 from typing import Callable, Tuple, Union
@@ -48,6 +49,9 @@ def process_image(
             object
         output_dir (pathlib.Path): Output directory
     """
+    # Disable multiprocessing
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
     normalizer = normalizer()
     superpixel_extractor = superpixel_extractor()
     feature_extractor = feature_extractor()
@@ -189,7 +193,6 @@ def preprocessing(
         ):
             worker_task(image_metadata)
     else:
-        # Run multiprocessing
         worker_pool = multiprocessing.Pool(cores)
         for _ in tqdm(
             worker_pool.imap_unordered(
@@ -243,12 +246,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["preprocess", "train"])
     parser.add_argument("--config", type=str, default="default.yml")
+    parser.add_argument("--level", type=str, default="WARNING")
     parser.add_argument("--subsample", type=int, default=-1)
     parser.add_argument("--test", action="store_const", const=True, default=False)
     parser.add_argument("--nosave", action="store_const", const=True, default=False)
     args = parser.parse_args()
 
-    start_logging()
+    start_logging(args.level)
     assert Path(args.config).exists(), f"Config path does not exist: {args.config}"
     config = yaml.load(open(args.config), Loader=yaml.FullLoader)
     assert (

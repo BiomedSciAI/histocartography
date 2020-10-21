@@ -24,7 +24,7 @@ class StainNormalizer(PipelineStep):
         self.save_path = self.output_dir / "normalizer.h5"
 
     @staticmethod
-    def _standardize_brightness(input_image: np.array) -> np.array:
+    def _standardize_brightness(input_image: np.ndarray) -> np.array:
         """Standardize an image by moving all values above the 90 percentile to 255
 
         Args:
@@ -39,7 +39,7 @@ class StainNormalizer(PipelineStep):
         )
 
     @staticmethod
-    def _RGB_to_OD(input_image: np.array) -> np.array:
+    def _RGB_to_OD(input_image: np.ndarray) -> np.array:
         """Convert a given image to the optical density space,
             also sets all values of 0 to 1 to avoid problems in the logarithm
 
@@ -55,7 +55,7 @@ class StainNormalizer(PipelineStep):
         return -1 * np.log(input_image / 255)
 
     @staticmethod
-    def _normalize_rows(input_array: np.array) -> np.array:
+    def _normalize_rows(input_array: np.ndarray) -> np.array:
         """Normalizes the rows of a given image
 
         Args:
@@ -67,7 +67,7 @@ class StainNormalizer(PipelineStep):
         return input_array / np.linalg.norm(input_array, axis=1)[:, None]
 
     def _get_concentrations(
-        self, input_image: np.array, stain_matrix: np.array
+        self, input_image: np.ndarray, stain_matrix: np.ndarray
     ) -> np.array:
         """Extracts the stain concentrations for all pixels of the given input image
 
@@ -80,13 +80,13 @@ class StainNormalizer(PipelineStep):
         """
         OD = self._RGB_to_OD(input_image).reshape((-1, 3))
         return (
-            spams.lasso(OD.T, D=stain_matrix.T, mode=2, lambda1=self.lambda_c, pos=True)
+            spams.lasso(OD.T, D=stain_matrix.T, mode=2, lambda1=self.lambda_c, pos=True, numThreads=1)
             .toarray()
             .T
         )
 
     @abstractmethod
-    def fit(self, target_image: np.array):
+    def fit(self, target_image: np.ndarray):
         """Fit a normalizer by precomputing the required information
 
         Args:
@@ -128,7 +128,7 @@ class StainNormalizer(PipelineStep):
         output_file.close()
 
     @abstractmethod
-    def _normalize_image(self, input_image: np.array) -> np.array:
+    def _normalize_image(self, input_image: np.ndarray) -> np.array:
         """Perform the normalization of an image with precomputed values
 
         Args:
@@ -138,7 +138,7 @@ class StainNormalizer(PipelineStep):
             np.array: Normalized image
         """
 
-    def process(self, input_image: np.array) -> np.array:
+    def process(self, input_image: np.ndarray) -> np.array:
         """Stain normalizes a given image
 
         Args:
@@ -233,7 +233,7 @@ class MacenkoStainNormalizer(StainNormalizer):
             compression_opts=9,
         )
 
-    def _get_stain_matrix(self, input_image: np.array) -> np.array:
+    def _get_stain_matrix(self, input_image: np.ndarray) -> np.array:
         """Compute the 2x3 stain matrix with the method from the paper
 
         Args:
@@ -262,7 +262,7 @@ class MacenkoStainNormalizer(StainNormalizer):
             HE = np.array([v2, v1])
         return self._normalize_rows(HE)
 
-    def _normalize_image(self, input_image: np.array) -> np.array:
+    def _normalize_image(self, input_image: np.ndarray) -> np.array:
         """Compute the normalization according to the paper
 
         Args:
@@ -289,7 +289,7 @@ class MacenkoStainNormalizer(StainNormalizer):
             )
         ).astype(np.uint8)
 
-    def fit(self, target_image: np.array) -> None:
+    def fit(self, target_image: np.ndarray) -> None:
         """Fit the normalizer to a target value and save it for the future
 
         Args:
@@ -344,7 +344,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         )
 
     @staticmethod
-    def _notwhite_mask(image: np.array, threshold: float) -> np.array:
+    def _notwhite_mask(image: np.ndarray, threshold: float) -> np.array:
         """Computed a mask where the image has values over the percentage threshold in LAB color space
 
         Args:
@@ -358,7 +358,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         lightness = image_lab[:, :, 0] / 255.0
         return lightness < threshold
 
-    def _get_stain_matrix(self, input_image: np.array) -> np.array:
+    def _get_stain_matrix(self, input_image: np.ndarray) -> np.array:
         """Compute the 2x3 stain matrix with the method from the paper
 
         Args:
@@ -379,13 +379,14 @@ class VahadaneStainNormalizer(StainNormalizer):
             posAlpha=True,
             posD=True,
             verbose=False,
+            numThreads=1,
         ).T
         if dictionary[0, 0] < dictionary[1, 0]:
             dictionary = dictionary[[1, 0], :]
         dictionary = self._normalize_rows(dictionary)
         return dictionary
 
-    def _normalize_image(self, input_image: np.array) -> np.array:
+    def _normalize_image(self, input_image: np.ndarray) -> np.array:
         """Compute the normalization according to the paper
 
         Args:
@@ -408,7 +409,7 @@ class VahadaneStainNormalizer(StainNormalizer):
             )
         ).astype(np.uint8)
 
-    def fit(self, target_image: np.array) -> None:
+    def fit(self, target_image: np.ndarray) -> None:
         """Fit the normalizer to a target value and save it for the future
 
         Args:

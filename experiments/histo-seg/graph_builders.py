@@ -22,7 +22,7 @@ class BaseGraphBuilder(PipelineStep):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    def process(self, structure: np.array, features: torch.Tensor) -> dgl.DGLGraph:
+    def process(self, structure: np.ndarray, features: torch.Tensor) -> dgl.DGLGraph:
         """Generates a graph with a given structure and features
 
         Args:
@@ -49,7 +49,7 @@ class BaseGraphBuilder(PipelineStep):
         return graph
 
     def process_and_save(
-        self, structure: np.array, features: torch.Tensor, output_name: str
+        self, structure: np.ndarray, features: torch.Tensor, output_name: str
     ) -> dgl.DGLGraph:
         assert (
             self.base_path is not None
@@ -78,7 +78,7 @@ class BaseGraphBuilder(PipelineStep):
         graph.ndata[GNN_NODE_FEAT_IN] = features
 
     @abstractmethod
-    def _build_topology(self, instances: np.array, graph: dgl.DGLGraph) -> None:
+    def _build_topology(self, instances: np.ndarray, graph: dgl.DGLGraph) -> None:
         """Generate the graph topology from the provided structure
 
         Args:
@@ -111,7 +111,7 @@ class RAGGraphBuilder(BaseGraphBuilder):
         self.kernel_size = kernel_size
         super().__init__(**kwargs)
 
-    def _build_topology(self, instances: np.array, graph: dgl.DGLGraph) -> None:
+    def _build_topology(self, instances: np.ndarray, graph: dgl.DGLGraph) -> None:
         """Create the graph topology from the connectivty of the provided superpixels
 
         Args:

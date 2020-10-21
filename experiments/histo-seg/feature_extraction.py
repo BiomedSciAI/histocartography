@@ -295,7 +295,7 @@ class SuperpixelPatchDataset(Dataset):
         """
         input_image = self._get_superpixel_patch(self.properties[index])
         transformed_image = self.dataset_transform(Image.fromarray(input_image))
-        return self.properties[index].label, transformed_image
+        return self.properties[index].label - 1, transformed_image  # It needs -1 since skimage starts at 1 for some reason
 
     def __len__(self) -> int:
         """Returns the length of the dataset
@@ -385,6 +385,8 @@ class DeepFeatureExtractor(FeatureExtractor):
         architecture: str,
         mask: bool = True,
         size: int = 224,
+        batch_size: int = 32,
+        num_workers: int = 1,
         **kwargs,
     ) -> None:
         """Create a deep feature extractor
@@ -400,6 +402,8 @@ class DeepFeatureExtractor(FeatureExtractor):
         super().__init__(**kwargs)
         self.patch_feature_extractor = PatchFeatureExtractor(self.architecture)
         self.fill_value = 255 if self.mask else None
+        self.batch_size = batch_size
+        self.num_workers = num_workers
 
         # Handle GPU
         cuda = torch.cuda.is_available()
@@ -421,14 +425,18 @@ class DeepFeatureExtractor(FeatureExtractor):
             input_image, superpixels, self.size, self.fill_value
         )
         image_loader = DataLoader(
-            image_dataset, shuffle=False, batch_size=32, num_workers=1
+            image_dataset,
+            shuffle=False,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
         )
         features = torch.empty(
             size=(len(image_dataset), self.patch_feature_extractor.num_features),
             dtype=torch.float32,
             device=self.device,
         )
-        for i, image_batch in tqdm(image_loader):
+        for i, image_batch in image_loader:
             image_batch = image_batch.to(self.device)
-            features[i, :] = self.patch_feature_extractor(image_batch)
+            embeddings = self.patch_feature_extractor(image_batch)
+            features[i, :] = embeddings
         return features.cpu().detach()

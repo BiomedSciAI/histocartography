@@ -139,6 +139,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             max_iter=self.max_iter,
             compactness=self.compactness,
         )
+        superpixels += 1  # Handle regionprops that ignores all values of 0
         return superpixels
 
 

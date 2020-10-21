@@ -139,9 +139,6 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             max_iter=self.max_iter,
             compactness=self.compactness,
         )
-        superpixels += (
-            1  # Handle old version of skimage does not support start_label argument
-        )
         return superpixels
 
 

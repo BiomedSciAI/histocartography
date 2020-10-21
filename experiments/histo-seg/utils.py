@@ -78,7 +78,7 @@ class PipelineStep(ABC):
         return output
 
 
-def fast_mode(input_array: np.ndarray, nr_values, axis: int = 0) -> np.array:
+def fast_mode(input_array: np.ndarray, nr_values, axis: int = 0) -> np.ndarray:
     """Calculates the mode of an tensor over an axis where only values from 0 up to (excluding) nr_values occur.
 
     Args:
@@ -95,7 +95,7 @@ def fast_mode(input_array: np.ndarray, nr_values, axis: int = 0) -> np.array:
     return np.argmax(output_array, axis=0)
 
 
-def fast_histogram(input_array: np.ndarray, nr_values: int) -> np.array:
+def fast_histogram(input_array: np.ndarray, nr_values: int) -> np.ndarray:
     """Calculates a histogram of a matrix of the values from 0 up to (excluding) nr_values
 
     Args:
@@ -111,7 +111,7 @@ def fast_histogram(input_array: np.ndarray, nr_values: int) -> np.array:
     return output_array
 
 
-def read_image(image_path: str) -> np.array:
+def read_image(image_path: str) -> np.ndarray:
     """Reads an image from a path and converts it into a numpy array
 
     Args:

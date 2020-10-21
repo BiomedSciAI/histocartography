@@ -29,7 +29,7 @@ class SuperpixelExtractor(PipelineStep):
         self.nr_superpixels = nr_superpixels
         super().__init__(**kwargs)
 
-    def process(self, input_image: np.ndarray) -> np.array:
+    def process(self, input_image: np.ndarray) -> np.ndarray:
         """Return the superpixels of a given input image
 
         Args:
@@ -50,7 +50,7 @@ class SuperpixelExtractor(PipelineStep):
         return superpixels
 
     @abstractmethod
-    def _extract_superpixels(self, image: np.ndarray) -> np.array:
+    def _extract_superpixels(self, image: np.ndarray) -> np.ndarray:
         """Perform the superpixel extraction
 
         Args:
@@ -61,7 +61,7 @@ class SuperpixelExtractor(PipelineStep):
         """
 
     @staticmethod
-    def _downsample(image: np.ndarray, downsampling_factor: int) -> np.array:
+    def _downsample(image: np.ndarray, downsampling_factor: int) -> np.ndarray:
         """Downsample an input image with a given downsampling factor
 
         Args:
@@ -80,7 +80,7 @@ class SuperpixelExtractor(PipelineStep):
         return downsampled_image
 
     @staticmethod
-    def _upsample(image: np.ndarray, new_height: int, new_width: int) -> np.array:
+    def _upsample(image: np.ndarray, new_height: int, new_width: int) -> np.ndarray:
         """Upsample an input image to a speficied new height and width
 
         Args:
@@ -121,7 +121,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         self.color_space = color_space
         super().__init__(**kwargs)
 
-    def _extract_superpixels(self, image: np.ndarray) -> np.array:
+    def _extract_superpixels(self, image: np.ndarray) -> np.ndarray:
         """Perform the superpixel extraction
 
         Args:

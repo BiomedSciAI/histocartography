@@ -24,7 +24,7 @@ class StainNormalizer(PipelineStep):
         self.save_path = self.output_dir / "normalizer.h5"
 
     @staticmethod
-    def _standardize_brightness(input_image: np.ndarray) -> np.array:
+    def _standardize_brightness(input_image: np.ndarray) -> np.ndarray:
         """Standardize an image by moving all values above the 90 percentile to 255
 
         Args:
@@ -39,7 +39,7 @@ class StainNormalizer(PipelineStep):
         )
 
     @staticmethod
-    def _RGB_to_OD(input_image: np.ndarray) -> np.array:
+    def _RGB_to_OD(input_image: np.ndarray) -> np.ndarray:
         """Convert a given image to the optical density space,
             also sets all values of 0 to 1 to avoid problems in the logarithm
 
@@ -55,7 +55,7 @@ class StainNormalizer(PipelineStep):
         return -1 * np.log(input_image / 255)
 
     @staticmethod
-    def _normalize_rows(input_array: np.ndarray) -> np.array:
+    def _normalize_rows(input_array: np.ndarray) -> np.ndarray:
         """Normalizes the rows of a given image
 
         Args:
@@ -68,7 +68,7 @@ class StainNormalizer(PipelineStep):
 
     def _get_concentrations(
         self, input_image: np.ndarray, stain_matrix: np.ndarray
-    ) -> np.array:
+    ) -> np.ndarray:
         """Extracts the stain concentrations for all pixels of the given input image
 
         Args:
@@ -128,7 +128,7 @@ class StainNormalizer(PipelineStep):
         output_file.close()
 
     @abstractmethod
-    def _normalize_image(self, input_image: np.ndarray) -> np.array:
+    def _normalize_image(self, input_image: np.ndarray) -> np.ndarray:
         """Perform the normalization of an image with precomputed values
 
         Args:
@@ -138,7 +138,7 @@ class StainNormalizer(PipelineStep):
             np.array: Normalized image
         """
 
-    def process(self, input_image: np.ndarray) -> np.array:
+    def process(self, input_image: np.ndarray) -> np.ndarray:
         """Stain normalizes a given image
 
         Args:
@@ -152,7 +152,7 @@ class StainNormalizer(PipelineStep):
         normalized_image = self._normalize_image(standardized_image)
         return normalized_image
 
-    def process_and_save(self, output_name: str, **kwargs) -> np.array:
+    def process_and_save(self, output_name: str, **kwargs) -> np.ndarray:
         """Process and save in the provided path as a png image
 
         Args:
@@ -233,7 +233,7 @@ class MacenkoStainNormalizer(StainNormalizer):
             compression_opts=9,
         )
 
-    def _get_stain_matrix(self, input_image: np.ndarray) -> np.array:
+    def _get_stain_matrix(self, input_image: np.ndarray) -> np.ndarray:
         """Compute the 2x3 stain matrix with the method from the paper
 
         Args:
@@ -262,7 +262,7 @@ class MacenkoStainNormalizer(StainNormalizer):
             HE = np.array([v2, v1])
         return self._normalize_rows(HE)
 
-    def _normalize_image(self, input_image: np.ndarray) -> np.array:
+    def _normalize_image(self, input_image: np.ndarray) -> np.ndarray:
         """Compute the normalization according to the paper
 
         Args:
@@ -344,7 +344,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         )
 
     @staticmethod
-    def _notwhite_mask(image: np.ndarray, threshold: float) -> np.array:
+    def _notwhite_mask(image: np.ndarray, threshold: float) -> np.ndarray:
         """Computed a mask where the image has values over the percentage threshold in LAB color space
 
         Args:
@@ -358,7 +358,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         lightness = image_lab[:, :, 0] / 255.0
         return lightness < threshold
 
-    def _get_stain_matrix(self, input_image: np.ndarray) -> np.array:
+    def _get_stain_matrix(self, input_image: np.ndarray) -> np.ndarray:
         """Compute the 2x3 stain matrix with the method from the paper
 
         Args:
@@ -386,7 +386,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         dictionary = self._normalize_rows(dictionary)
         return dictionary
 
-    def _normalize_image(self, input_image: np.ndarray) -> np.array:
+    def _normalize_image(self, input_image: np.ndarray) -> np.ndarray:
         """Compute the normalization according to the paper
 
         Args:

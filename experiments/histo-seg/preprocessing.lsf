@@ -11,4 +11,4 @@ source activate histocartography
 #BSUB -o "/dataT/anv/logs/preprocessing"
 #BSUB -e "/dataT/anv/logs/preprocessing.stderr"
 
-OMP_NUM_THREADS=1 python experiment.py preprocess --config default.yml
+OMP_NUM_THREADS=1 python preprocess.py --config default.yml

@@ -1,4 +1,4 @@
-"""This module is the main executable of the experiment"""
+"""This module is the main executable of the preprocessing"""
 
 import argparse
 import logging
@@ -77,7 +77,7 @@ def process_image(
         )
     else:
         superpixels = superpixel_extractor.process(input_image=normalized_image)
-    
+
     # Features
     if save:
         features = feature_extractor.process_and_save(
@@ -246,7 +246,6 @@ def preprocessing(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["preprocess", "train"])
     parser.add_argument("--config", type=str, default="default.yml")
     parser.add_argument("--level", type=str, default="WARNING")
     parser.add_argument("--subsample", type=int, default=-1)
@@ -258,25 +257,21 @@ if __name__ == "__main__":
     assert Path(args.config).exists(), f"Config path does not exist: {args.config}"
     config = yaml.load(open(args.config), Loader=yaml.FullLoader)
     assert (
-        args.command in config
-    ), f"Config does not have an entry ({config.keys()}) for the desired command {args.command}"
-    config = config[args.command]
+        "preprocess" in config
+    ), f"Config does not have an entry preprocess ({config.keys()})"
+    config = config["preprocess"]
 
-    if args.command == "preprocess":
-        logging.info("Start preprocessing")
-        assert (
-            "stages" in config
-        ), f"stages not defined in config {args.config}: {config.keys()}"
-        assert (
-            "params" in config
-        ), f"params not defined in config {args.config}: {config.keys()}"
-        preprocessing(
-            test=args.test,
-            config=config["stages"],
-            save=(not args.nosave),
-            subsample=None if args.subsample < 0 else args.subsample,
-            **config["params"],
-        )
-    elif args.command == "train":
-        logging.info("Training GNN")
-        raise NotImplementedError
+    logging.info("Start preprocessing")
+    assert (
+        "stages" in config
+    ), f"stages not defined in config {args.config}: {config.keys()}"
+    assert (
+        "params" in config
+    ), f"params not defined in config {args.config}: {config.keys()}"
+    preprocessing(
+        test=args.test,
+        config=config["stages"],
+        save=(not args.nosave),
+        subsample=None if args.subsample < 0 else args.subsample,
+        **config["params"],
+    )

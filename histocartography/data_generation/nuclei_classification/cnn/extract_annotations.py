@@ -19,7 +19,7 @@ class ExtractAnnotation:
         self.base_instance_map_path = self.config.base_instance_map_path
 
         # Output
-        self.base_annotation_centroid_path = self.config.base_annotation_centroid_path
+        self.base_annotation_info_path = self.config.base_annotation_info_path
         self.base_overlaid_path = self.config.base_overlaid_path
 
 
@@ -29,7 +29,7 @@ class ExtractAnnotation:
 
         for t in self.tumor_types:
             print('****************************************************************** Tumor type: ', t)
-            create_directory(self.base_annotation_centroid_path + t)
+            create_directory(self.base_annotation_info_path + t)
             create_directory(self.base_overlaid_path + t)
 
             annotation_masks_path = glob.glob(self.base_masks_path + t + '/*.png')
@@ -60,7 +60,7 @@ class ExtractAnnotation:
                     nuclei_count[unique[i] + 1] += count[i]
 
                 # Saving
-                save_info(self.base_annotation_centroid_path + t + '/' + basename + '.h5',
+                save_info(self.base_annotation_info_path + t + '/' + basename + '.h5',
                           keys=['instance_centroid_location', 'instance_centroid_label', 'image_dimension'],
                           values=[centroids, labels, img_dim],
                           dtypes=['float32', 'int32', 'int32'])
@@ -111,7 +111,7 @@ class ExtractAnnotation:
         tumor_type = basename.split('_')[1]
         img = read_image(self.base_img_path + tumor_type + '/' + basename + '.png')
 
-        centroids, labels, img_dim = read_centroids(self.base_annotation_centroid_path + tumor_type + '/' + basename + '.h5', is_label=True)
+        centroids, labels, img_dim = read_centroids(self.base_annotation_info_path + tumor_type + '/' + basename + '.h5', is_label=True)
         # labels: -1=NA, 0=normal, 1=atypical, 2=tumor, 3=stromal, 4=lymphocyte, 5=dead
 
         fig, ax = plt.subplots(1)

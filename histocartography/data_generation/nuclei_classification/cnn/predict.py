@@ -22,14 +22,16 @@ class Predict:
         self.patch_size_2 = int(self.config.patch_size / 2)
         self.pad = self.patch_size_2
 
+
     def get_samplenames(self, tumor_type):
         samplenames = []
-        with open(self.config.base_test_samples_path + 'test_list_' + tumor_type + '.txt', 'r') as f:
+        with open(self.config.base_predict_samples_path + 'test_list_' + tumor_type + '.txt', 'r') as f:
             for line in f:
                 line = line.split('\n')[0]
                 if line != '':
                     samplenames.append(line)
         return samplenames
+
 
     def get_nuclei_colors(self):
         self.nuclei_labels = copy.deepcopy(self.config.nuclei_labels)
@@ -38,6 +40,7 @@ class Predict:
         # Remove nuclei type = 'NA'
         idx = self.nuclei_labels.index(-1)
         del self.nuclei_colors[-idx]
+
 
     def load_checkpoint(self, modelmode):
         embedding_checkpoint = torch.load(self.model_save_path + 'embedding_model_best_' + modelmode + '.th', map_location=self.device)
@@ -59,9 +62,11 @@ class Predict:
         self.embedding_model.eval()
         self.classification_model.eval()
 
+
     def flow(self, centroids):
         for i in range(0, centroids.shape[0], self.args.batch_size):
             yield centroids[i : i + self.args.batch_size]
+
 
     def read_patches(self, img, centroids):
         patches = []
@@ -76,11 +81,13 @@ class Predict:
 
         return torch.stack(patches)
 
+
     def get_predictions(self, img, centroids):
         generator = self.flow(centroids)
         ctr = int(math.ceil(centroids.shape[0] / self.args.batch_size))
 
         pred_labels = np.array([])
+        pred_embedding = np.array([])
 
         with torch.no_grad():
             for i in range(ctr):
@@ -88,18 +95,23 @@ class Predict:
                 patches = self.read_patches(img, centroids_)
                 patches = patches.to(self.device)
 
-                embedding = self.embedding_model(patches)
-                outputs = self.classification_model(embedding)
+                embedding_ = self.embedding_model(patches)
+                if i == 0:
+                    pred_embedding = copy.deepcopy(embedding_)
+                else:
+                    pred_embedding = torch.cat([pred_embedding, embedding_], dim=0)
 
+                outputs = self.classification_model(embedding_)
                 pred_labels_ = torch.argmax(outputs, dim=1)
                 pred_labels = np.concatenate((pred_labels, pred_labels_.cpu().detach().numpy()))
 
-        return pred_labels
+        return pred_labels, pred_embedding.cpu().detach().numpy()
+
 
     def visualize(self, img, basename):
         tumor_type = basename.split('_')[1]
 
-        centroids, labels, img_dim = read_centroids(self.config.base_test_save_path + tumor_type + '/' + basename + '.h5', is_label=True)
+        centroids, labels, img_dim = read_centroids(self.config.base_predict_info_path + tumor_type + '/' + basename + '.h5', is_label=True)
 
         fig, ax = plt.subplots(1)
         ax.set_aspect('equal')
@@ -114,14 +126,15 @@ class Predict:
         plt.imshow(img)
         plt.axis('off')
 
-        plt.savefig(self.config.base_test_overlaid_path + tumor_type + '/' + basename + '.png', dpi=600, bbox_inches='tight')
+        plt.savefig(self.config.base_predict_overlaid_path + tumor_type + '/' + basename + '.png', dpi=600, bbox_inches='tight')
         plt.close()
+
 
     def predict(self, is_visualize=False):
         for t in self.config.tumor_types:
             print('Predicting for: ', t)
-            create_directory(self.config.base_test_save_path + t)
-            create_directory(self.config.base_test_overlaid_path + t)
+            create_directory(self.config.base_predict_info_path + t)
+            create_directory(self.config.base_predict_overlaid_path + t)
 
             samplenames = self.get_samplenames(t)
 
@@ -132,7 +145,7 @@ class Predict:
                 basename = samplenames[i]
                 print(basename)
 
-                img_path = self.config.base_test_img_path + t + '/' + basename + '.png'
+                img_path = self.config.base_predict_img_path + t + '/' + basename + '.png'
                 img = read_image(img_path)
 
                 centroid_path = self.config.base_centroid_path + t + '/' + basename + '.h5'
@@ -140,13 +153,13 @@ class Predict:
 
                 img_pad = np.pad(img, ((self.pad, self.pad), (self.pad, self.pad), (0, 0)), mode='constant', constant_values=255)
 
-                pred_labels = self.get_predictions(img_pad, centroids + self.pad)
+                pred_labels, pred_embedding = self.get_predictions(img_pad, centroids + self.pad)
                 # labels: 0=normal, 1=atypical, 2=tumor, 3=stromal, 4=lymphocyte, 5=dead
 
-                save_info(self.config.base_test_save_path + t + '/' + basename + '.h5',
-                          keys=['instance_centroid_location', 'instance_centroid_label', 'image_dimension'],
-                          values=[centroids, pred_labels, img.shape],
-                          dtypes=['float32', 'int32', 'int32'])
+                save_info(self.config.base_predict_info_path + t + '/' + basename + '.h5',
+                          keys=['instance_centroid_location', 'instance_centroid_label', 'image_dimension', 'instance_embedding'],
+                          values=[centroids, pred_labels, img_dim, pred_embedding],
+                          dtypes=['float32', 'int32', 'int32', 'float32'])
 
                 if is_visualize:
                     self.visualize(img, basename)

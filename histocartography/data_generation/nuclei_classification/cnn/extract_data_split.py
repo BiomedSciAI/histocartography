@@ -6,7 +6,7 @@ class DataSplit:
     def __init__(self, config):
         self.config = config
         self.tumor_types = self.config.tumor_types
-        self.base_annotation_centroid_path = self.config.base_annotation_centroid_path
+        self.base_annotation_info_path = self.config.base_annotation_info_path
         self.base_data_split_path = self.config.base_data_split_path
         self.base_patches_path = self.config.base_patches_path
         self.nuclei_types = self.get_nuclei_types()
@@ -18,15 +18,15 @@ class DataSplit:
         test_list = []
 
         for t in self.tumor_types:
-            annotation_centroid_paths = glob.glob(self.base_annotation_centroid_path + t + '/*.h5')
-            annotation_centroid_paths = [os.path.basename(x).split('.')[0] for x in annotation_centroid_paths]
-            annotation_centroid_paths.sort()
+            annotation_info_paths = glob.glob(self.base_annotation_info_path + t + '/*.h5')
+            annotation_info_paths = [os.path.basename(x).split('.')[0] for x in annotation_info_paths]
+            annotation_info_paths.sort()
 
             np.random.seed(0)
-            test_idx = np.random.choice(np.arange(len(annotation_centroid_paths)),
-                                        size=int(0.15 * len(annotation_centroid_paths)),
+            test_idx = np.random.choice(np.arange(len(annotation_info_paths)),
+                                        size=int(0.15 * len(annotation_info_paths)),
                                         replace=False)
-            train_val_idx = np.delete(np.arange(len(annotation_centroid_paths)), test_idx, axis=0)
+            train_val_idx = np.delete(np.arange(len(annotation_info_paths)), test_idx, axis=0)
 
             np.random.seed(1)
             pseudo_val_idx = np.random.choice(np.arange(len(train_val_idx)),
@@ -37,9 +37,9 @@ class DataSplit:
             val_idx = train_val_idx[pseudo_val_idx]
             train_idx = train_val_idx[pseudo_train_idx]
 
-            train_list += [annotation_centroid_paths[x] for x in train_idx]
-            val_list += [annotation_centroid_paths[x] for x in val_idx]
-            test_list += [annotation_centroid_paths[x] for x in test_idx]
+            train_list += [annotation_info_paths[x] for x in train_idx]
+            val_list += [annotation_info_paths[x] for x in val_idx]
+            test_list += [annotation_info_paths[x] for x in test_idx]
 
         print('#Train samples: ', len(train_list))
         print('#Val samples: ', len(val_list))

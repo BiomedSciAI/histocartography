@@ -16,8 +16,8 @@ parser.add_argument('--data-param', choices=['local',
 parser.add_argument('--mode', choices=['extract_annotations',
                                        'extract_patches',
                                        'extract_data_split',
-                                       'extract_embedding',
                                        'train',
+                                       'extract_embedding',
                                        'predict'],
                     default='extract_embedding',
                     help='Processing mode', required=False)
@@ -105,11 +105,6 @@ elif args.mode == 'extract_data_split':
     extract = DataSplit(config=config)
     extract.prepare_data_split()
 
-elif args.mode == 'extract_embedding':
-    from extract_embedding import *
-    extract = ExtractEmbedding(config=config, args=args)
-    extract.extract_embedding()
-
 elif args.mode == 'train':
     from train import *
     train = Train(config=config, args=args)
@@ -119,6 +114,15 @@ elif args.mode == 'train':
 
     # Test
     train.test()
+
+
+# To be used after CNN training.
+# It extracts CNN-based nuclei embeddings for train images, that are used to initialize GNN for nuclei classification.
+elif args.mode == 'extract_embedding':
+    from extract_embedding import *
+    extract = ExtractEmbedding(config=config, args=args)
+    extract.extract_embedding()
+
 
 elif args.mode == 'predict':
     from predict import *

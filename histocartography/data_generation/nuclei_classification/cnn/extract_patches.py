@@ -27,15 +27,15 @@ class ExtractPatches:
         for t in self.config.tumor_types:
             print('Extracting patches from: ', t)
 
-            annotation_centroid_paths = glob.glob(self.config.base_annotation_centroid_path + t + '/*.h5')
-            annotation_centroid_paths.sort()
+            annotation_info_paths = glob.glob(self.config.base_annotation_info_path + t + '/*.h5')
+            annotation_info_paths.sort()
 
-            for i in range(len(annotation_centroid_paths)):
-                print(i, '/', len(annotation_centroid_paths))
+            for i in range(len(annotation_info_paths)):
+                print(i, '/', len(annotation_info_paths))
 
-                basename = os.path.basename(annotation_centroid_paths[i]).split('.')[0]
+                basename = os.path.basename(annotation_info_paths[i]).split('.')[0]
                 image = read_image(self.config.base_img_path + t + '/' + basename + '.png')
-                centroids, labels, img_dim = read_centroids(annotation_centroid_paths[i], is_label=True)
+                centroids, labels, img_dim = read_centroids(annotation_info_paths[i], is_label=True)
                 # labels: -1=background, 0=normal, 1=atypical, 2=tumor, 3=stromal, 4=lymphocyte, 5=dead
 
                 image = np.pad(image, ((self.pad, self.pad), (self.pad, self.pad), (0, 0)),

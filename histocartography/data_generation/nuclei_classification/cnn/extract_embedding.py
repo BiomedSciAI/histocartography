@@ -89,26 +89,25 @@ class ExtractEmbedding:
         for t in self.config.tumor_types:
             print('Extracting embeddings for: ', t)
 
-            annotation_centroid_paths = glob.glob(self.config.base_annotation_centroid_path + t + '/*.h5')
-            annotation_centroid_paths.sort()
+            annotation_info_paths = glob.glob(self.config.base_annotation_info_path + t + '/*.h5')
+            annotation_info_paths.sort()
             create_directory(self.config.base_annotation_embedding_path + t)
 
-            for i in range(len(annotation_centroid_paths)):
+            for i in range(len(annotation_info_paths)):
                 if i % 10 == 0:
-                    print(i, '/', len(annotation_centroid_paths))
+                    print(i, '/', len(annotation_info_paths))
 
-                basename = os.path.basename(annotation_centroid_paths[i]).split('.')[0]
+                basename = os.path.basename(annotation_info_paths[i]).split('.')[0]
                 img = read_image(self.config.base_img_path + t + '/' + basename + '.png')
                 img_pad = np.pad(img, ((self.pad, self.pad), (self.pad, self.pad), (0, 0)), mode='constant', constant_values=255)
-                centroids, labels, img_dim = read_centroids(annotation_centroid_paths[i], is_label=True)
+                centroids, labels, img_dim = read_centroids(annotation_info_paths[i], is_label=True)
 
                 embedding = self.get_embedding(img_pad, centroids + self.pad)
-                print(embedding.shape)
 
                 if centroids.shape[0] != embedding.shape[0]:
-                    print(basename, centroids.shape, embedding.shape)
+                    print('ERROR: #centroids != #embeddings: ', basename, centroids.shape, embedding.shape)
 
-                save_info(self.config.base_annotation_embedding_path + t + '/' + basename + '.h5',
+                save_info(self.config.base_annotation_info_path + t + '/' + basename + '.h5',
                           keys=['instance_centroid_location', 'instance_centroid_label', 'image_dimension', 'instance_embedding'],
                           values=[centroids, labels, img_dim, embedding],
                           dtypes=['float32', 'int32', 'int32', 'float32'])

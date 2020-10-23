@@ -9,6 +9,7 @@ def create_directory(path):
     if not os.path.isdir(path):
         os.mkdir(path)
 
+
 def plot(img, cmap=''):
     if cmap != '':
         plt.imshow(img, cmap=cmap)
@@ -16,16 +17,19 @@ def plot(img, cmap=''):
         plt.imshow(img)
     plt.show()
 
+
 def read_image(path):
     img_ = Image.open(path)
     img = np.array(img_)
     img_.close()
     return img
 
+
 def read_instance_map(map_path):
     with h5py.File(map_path, 'r') as f:
         instance_map = np.array(f['detected_instance_map']).astype(int)
     return instance_map
+
 
 def read_centroids(centroids_path, is_label=False):
     with h5py.File(centroids_path, 'r') as f:
@@ -38,12 +42,6 @@ def read_centroids(centroids_path, is_label=False):
 
     return centroids, img_dim
 
-def save_annotation_centroids(h5_filename, centroid, label, img_dim, data_dtype='float32'):
-    h5_fout = h5py.File(h5_filename, 'w')
-    h5_fout.create_dataset('instance_centroid_location', data=centroid, dtype=data_dtype)
-    h5_fout.create_dataset('instance_centroid_label', data=label, dtype='int32')
-    h5_fout.create_dataset('image_dimension', data=img_dim, dtype='int32')
-    h5_fout.close()
 
 def save_info(h5_filename, keys, values, dtypes):
     h5_fout = h5py.File(h5_filename, 'w')

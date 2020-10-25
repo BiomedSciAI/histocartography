@@ -1,17 +1,23 @@
 import numpy as np
 import glob
 import os
+from utils import *
 
 class Configuration:
     def __init__(self, args):
         self.base_path = args.base_path
 
+        self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/explainability_cvpr/'
+
         self.explainer_path = self.base_path + 'explainers/'
+        self.img_path = self.base_path + 'Images_norm/'
         self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_hc_/'
-        self.centroids_path = self.base_path + 'nuclei_info/nuclei_detected/centroids/'
-        self.classes_path = self.base_path + 'nuclei_info/nuclei_classes/'
-        self.figure_save_path = self.base_path + 'explainer_analysis/' + str(args.classification_mode) + '/'
-        os.makedirs(self.figure_save_path, exist_ok=True)
+        self.instance_map_path = self.base_path + 'nuclei_info/nuclei_instance_map/'
+        self.info_path = self.base_path + 'nuclei_info/nuclei_prediction_gnn/'
+
+        create_directory(self.base_path + 'analysis/')
+        self.analysis_save_path = self.base_path + 'analysis/' + str(args.classification_mode) + '/'
+        create_directory(self.analysis_save_path)
 
         # Tumor types
         self.tumor_types = ['benign', 'pathologicalbenign', 'udh', 'adh', 'fea', 'dcis', 'malignant']
@@ -58,17 +64,19 @@ class Configuration:
             self.explainers = [args.explainer]
 
 
-
         # List of concepts
         self.feature_names = ['mean_fg', 'mean_diff', 'var_fg', 'skew_fg', 'mean_entropy',
                               'glcm_dissimilarity', 'glcm_homogeneity', 'glcm_energy', 'glcm_ASM',
                               'eccentricity', 'area', 'majoraxis_length', 'minoraxis_length', 'perimeter', 'solidity', 'orientation',
+                              'roundness', 'ellipticity', 'crowdedness', 'mean_h', 'std_h', 'median_h'
                               ]
 
-        # CONCEPTS:
-        # nuclei type: class prediction
-        # nuclei shape: area, perimeter, majoraxis_length, minoraxis_length, circularity, eccentricity, MinorMajorAxisRatio, convexity (Solidity)
-        # nuclei packing:
+        # IMPORTANT CONCEPTS:
+        # nuclei type: distribution of nuclei classes, percentage of
+        # nuclei size: area
+        # nuclei shape: roundness, ellipticity
+        # nuclei spatial organization: crowdedness
+        # nuclei chromatin: mean, std, median of H channel
 
     def get_sample_names(self, args, explainers):
         samples = []

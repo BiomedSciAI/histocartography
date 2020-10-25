@@ -12,7 +12,7 @@ parser.add_argument('--explainer',
                     required=True)
 parser.add_argument('--base-path',
                     help='Base path to the data folder',
-                    required=True)
+                    required=False)
 parser.add_argument('--nuclei-selection-type',
                     help='Nuclei selection type, eg. w/ hard thresholding, w/ cumulutative',
                     choices=['cumul', 'thresh'],
@@ -60,6 +60,10 @@ parser.add_argument('--with-nuclei-selection-plot',
                     help='If we should plot the nuclei selection along with the image for each sample.',
                     default='False',
                     required=False)
+parser.add_argument('--extract_features',
+                    help='If we should extract nuclei features',
+                    default='True',
+                    required=False)
 
 args = parser.parse_args()
 config = Configuration(args=args)
@@ -78,6 +82,14 @@ explainers = config.explainers
 # Get TRoI sample names
 config.get_sample_names(args, explainers)
 print('Total #TRoI: ', len(config.samples))
+
+
+# *************************************************************************** Extract features
+if eval(args.extract_features):
+    from extract_features import *
+    extract = ExtractFeatures(config)
+    extract.extract_feature()
+
 
 # *************************************************************************** Get explanation
 p_scores = []

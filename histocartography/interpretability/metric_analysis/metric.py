@@ -52,7 +52,6 @@ class Metric:
                 input[id] = [np.asarray(x) for x in input[id]]
                 output_ = np.append(output_, input[id])
             output.append(output_)
-        print('nuclei labels per tumor type:', output)
         return output
 
     def get_distance(self, input):
@@ -134,20 +133,16 @@ class Metric:
 
     def compute_nuclei_relevance(self):
         all_precisions = []
-        print('Nuclei types: ', self.config.nuclei_types[1:], '\n')
 
         for tumor_type, nuclei_per_tumor_type in enumerate(self.nuclei_labels):
-            print('Tumor type: ', tumor_type)
 
             precision_tumor = sum(nuclei_per_tumor_type == tumor_type) / len(nuclei_per_tumor_type)
             precision_epi = sum((nuclei_per_tumor_type == 0) + (nuclei_per_tumor_type == 1) + (nuclei_per_tumor_type == 2) + (nuclei_per_tumor_type == 5)) / len(nuclei_per_tumor_type)
-            print('Precision for tumor:', round(precision_tumor, 4))
-            print('Precision for selecting epi:', round(precision_epi, 4))
+
             all_precisions.append(precision_epi)
 
             nuclei, count = np.unique(np.asarray(nuclei_per_tumor_type), return_counts=True)
             count = np.round(count/np.sum(count), 4)
-            print('Nuclei classes distribution: ',  count, '\n')
 
         return round(sum(all_precisions) / len(all_precisions), 4)
 

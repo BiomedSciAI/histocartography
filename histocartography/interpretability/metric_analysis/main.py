@@ -15,7 +15,7 @@ parser.add_argument('--base-path',
                     required=False)
 parser.add_argument('--nuclei-selection-type',
                     help='Nuclei selection type, eg. w/ hard thresholding, w/ cumulutative',
-                    choices=['cumul', 'thresh', 'absolute'],
+                    choices=['cumul', 'thresh', 'absolute', 'random'],
                     default='absolute',
                     required=False)
 parser.add_argument('--classification-mode',

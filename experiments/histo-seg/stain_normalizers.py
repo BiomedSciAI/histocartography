@@ -80,7 +80,14 @@ class StainNormalizer(PipelineStep):
         """
         OD = self._RGB_to_OD(input_image).reshape((-1, 3))
         return (
-            spams.lasso(OD.T, D=stain_matrix.T, mode=2, lambda1=self.lambda_c, pos=True, numThreads=1)
+            spams.lasso(
+                OD.T,
+                D=stain_matrix.T,
+                mode=2,
+                lambda1=self.lambda_c,
+                pos=True,
+                numThreads=1,
+            )
             .toarray()
             .T
         )
@@ -166,7 +173,11 @@ class StainNormalizer(PipelineStep):
             logging.info(
                 f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )
-            input_file = Image.open(output_path)
+            try:
+                input_file = Image.open(output_path)
+            except OSError as e:
+                logging.critical(f"Could not open {output_path}")
+                raise OSError(e)
             output = np.array(input_file)
             input_file.close()
         else:
@@ -314,7 +325,16 @@ class VahadaneStainNormalizer(StainNormalizer):
     vol. 35, no. 8, pp. 1962–1971, Aug. 2016.
     """
 
-    def __init__(self, target, threshold=0.8, lambda_s=0.1, **kwargs) -> None:
+    def __init__(
+        self, target: str, threshold: float = 0.8, lambda_s: float = 0.1, **kwargs
+    ) -> None:
+        """Create a Vahadame normalizer for a given target image
+
+        Args:
+            target (str): Name of the target image
+            threshold (float, optional): Threshold for the non-white mask in lab color space. Defaults to 0.8.
+            lambda_s (float, optional): Optimization parameter for the stain extraction. Defaults to 0.1.
+        """
         self.target = target
         self.thres = threshold
         self.lambda_s = lambda_s

@@ -121,7 +121,11 @@ def read_image(image_path: str) -> np.ndarray:
         np.array: A numpy array representation of the image
     """
     assert image_path.exists()
-    img = Image.open(image_path)
+    try:
+        img = Image.open(image_path)
+    except OSError as e:
+        logging.critical(f"Could not open {output_path}")
+        raise OSError(e)
     image = np.array(img)
     img.close()
     return image

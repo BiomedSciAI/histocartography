@@ -10,8 +10,12 @@ from histocartography.utils.io import save_image
 
 
 def plot_concept_map_per_tumor_type(args, config, explainer, percentage, explanation, xlim=[-0.05, 1.05], ylim=[-0.05, 1.05]):
+    concept_title = ''
+    for x in args.concept:
+        concept_title += '_' + x
+
     fig, axes = plt.subplots(len(explanation.node_importance))
-    fig.suptitle(explainer + ' : ' + args.concept + ' : ' + str(round(percentage, 2)))
+    fig.suptitle(explainer + ' : ' + concept_title + ' : ' + str(round(percentage, 2)))
 
     for t in range(len(explanation.node_importance)):
         importance = np.array([])
@@ -32,15 +36,19 @@ def plot_concept_map_per_tumor_type(args, config, explainer, percentage, explana
         if t != len(explanation.node_importance) - 1:
             axes[t].get_xaxis().set_visible(False)
 
-    plt.savefig(config.figure_save_path + explainer + ' - ' + args.concept + '_' + str(percentage, 2) + '_per_tumor_type.png', dpi=300)
+    plt.savefig(config.figure_save_path + explainer + ' - ' + concept_title + '_' + str(percentage, 2) + '_per_tumor_type.png', dpi=300)
     plt.close()
 
 
 def plot_concept_map_per_tumor_class(args, config, explainer, percentage, explanation, xlim=[-0.05, 1.05], ylim=[-0.05, 1.05]):
+    concept_title = ''
+    for x in args.concept:
+        concept_title += '_' + x
+
     n_tumors = len(np.unique(config.tumor_labels))
 
     fig, axes = plt.subplots(n_tumors)
-    fig.suptitle(explainer + ' : ' + args.concept + ' : ' + str(round(percentage, 2)))
+    fig.suptitle(explainer + ' : ' + concept_title + ' : ' + str(round(percentage, 2)))
 
     for t in range(n_tumors):
         idx = np.where(config.tumor_labels == t)[0]
@@ -64,14 +72,18 @@ def plot_concept_map_per_tumor_class(args, config, explainer, percentage, explan
         axes[t].set_xlim(xlim)
         axes[t].set_ylim(ylim)
 
-    plt.savefig(config.figure_save_path + explainer + ' - ' + args.concept + '_' + str(round(percentage, 2)) + '_per_tumor_class.png', dpi=300)
+    plt.savefig(config.figure_save_path + explainer + ' - ' + concept_title + '_' + str(round(percentage, 2)) + '_per_tumor_class.png', dpi=300)
     plt.close()
 
 
-def plot_auc_map(args, config, p_scores):
+def plot_auc_map(args, config, p_scores, title, filename):
+    concept_title = ''
+    for x in args.concept:
+        concept_title += '_' + x
+
     fill_colors = ['chartreuse', 'gold', 'violet', 'coral']
     line_colors = ['green', 'darkgoldenrod', 'purple', 'red']
-    plt.title('Score vs Percentage: ' + args.concept)
+    plt.title(title)
     for i in range(len(config.explainers)):
         plt.plot(config.percentages, p_scores[i], 'ko')
         plt.plot(config.percentages, p_scores[i], line_colors[i], label=config.explainers[i])
@@ -85,7 +97,7 @@ def plot_auc_map(args, config, p_scores):
     for e in config.explainers:
         name += e + '_'
 
-    plt.savefig(config.figure_save_path + name + args.concept + '.png', dpi=300)
+    plt.savefig(config.figure_save_path + name + concept_title + '_' + filename + '.png', dpi=300)
     plt.close()
 
 

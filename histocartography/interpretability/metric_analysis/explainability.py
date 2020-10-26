@@ -1,16 +1,8 @@
 import glob
 from explanation import *
-from utils import *
 from distance import *
-from scipy import stats
 from plotting import *
-from matplotlib import pyplot as plt
-from skimage import exposure
-from PIL import ImageDraw, Image
-from collections import defaultdict
-import numpy as np 
-from functools import partial
-import torch 
+import numpy as np
 
 
 class Explainability:
@@ -25,8 +17,8 @@ class Explainability:
         self.rm_non_epithelial_nuclei = args.rm_non_epithelial_nuclei
 
         self.explainer_path = config.explainer_path + str(args.classification_mode) + '/' + explainer + '/'
-        self.dist = Distance(self.args.similarity)
         self.n_tumors = len(np.unique(self.config.tumor_labels))
+
 
     def get_node_info(self, exp):
         node_importance = exp.node_importance
@@ -45,7 +37,8 @@ class Explainability:
 
         return node_importance, node_label, node_concept, node_centroid, is_correct
 
-    def get_sample_explanation(self, path, rm_misclassification=False):
+
+    def get_sample_explanation(self, path):
         exp = Explanation(path, self.args, self.config)
 
         # extract image name 
@@ -55,7 +48,8 @@ class Explainability:
         node_importance, node_label, node_concept, node_centroid, is_correct = self.get_node_info(exp)
 
         return node_importance, node_label, node_concept, node_centroid, is_correct, image_name
- 
+
+
     def get_tumor_explanation(self, tumor_type, rm_misclassification=False):
         paths = glob.glob(self.explainer_path + tumor_type + '/*.json')
         node_importance = []
@@ -72,7 +66,7 @@ class Explainability:
 
             importance, label, concept, centroid, is_correct, image_name = self.get_sample_explanation(paths[i])
 
-            if importance is not None:
+            if len(importance) != 0:
                 # if remove misclassication is true and sample is wrongly predicted, we don't append it 
                 if not rm_misclassification or is_correct:
                     node_importance.append(importance)
@@ -99,7 +93,7 @@ class Explainability:
             self.node_concept.append(concept)              # list[list[array]]
             self.node_centroid.append(centroid)            # list[list[array]]
             self.image_names.append(names)
-        
+
         # Outlier removal from node concept & node importance
         # self.outlier_removal()
 
@@ -107,7 +101,7 @@ class Explainability:
         self.normalize_node_concept()
 
         # Normalize the node importances per sample
-        # self.normalize_node_importance()
+        self.normalize_node_importance()
 
         # Get explanation per 'percentage': nuclei selection
         for i in range(len(self.node_importance)):
@@ -115,26 +109,37 @@ class Explainability:
 
                 if self.nuclei_selection_type == 'thresh':
                     # nuclei selection based on hard threshold p
-                    idx = np.where(self.node_importance[i][j] < (1 - self.percentage))[0]
+                    idx = np.where(self.node_importance[i][j] > (1 - self.percentage))[0]
                 elif self.nuclei_selection_type == 'cumul':
                     # nuclei selection based on cumulutative node importance p
-                    idx_to_keep = self._compute_cumul_nuclei_selection(self.node_importance[i][j], self.percentage)
-                    idx = [candidate for candidate in range(len(self.node_importance[i][j])) if candidate not in idx_to_keep]
+                    idx = self.get_cumulative_pruned_index(self.node_importance[i][j], self.percentage)
                 else:
                     raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh" and "cumul".')
 
-                self.node_importance[i][j] = np.delete(self.node_importance[i][j], idx, axis=0)
-                self.node_concept[i][j] = np.delete(self.node_concept[i][j], idx, axis=0)
-                self.node_label[i][j] = np.delete(self.node_label[i][j], idx, axis=0)
-                self.node_centroid[i][j] = np.delete(self.node_centroid[i][j], idx, axis=0)
+                self.node_importance[i][j] = self.node_importance[i][j][idx]
+                self.node_concept[i][j] = self.node_concept[i][j][idx]
+                self.node_label[i][j] = self.node_label[i][j][idx]
+                self.node_centroid[i][j] = self.node_centroid[i][j][idx]
 
-        self.printing()
 
-    def _compute_cumul_nuclei_selection(self, node_importance, p):
-        node_importance = torch.FloatTensor(node_importance)
-        total_node_importance = torch.sum(node_importance)
-        keep_node_importance = (total_node_importance * p).cpu().item()
-        sorted_node_importance, indices_node_importance = torch.sort(node_importance, descending=True)
+        self.samples = np.array([])
+        self.labels = np.array([])
+        for x in self.node_label:
+            self.samples = np.append(self.samples, len(x))
+            for y in x:
+                self.labels = np.append(self.labels, y)
+
+        if self.verbose:
+            self.printing()
+
+
+    def get_cumulative_pruned_index(self, node_importance, p):
+        total_node_importance = np.sum(node_importance)
+        keep_node_importance = total_node_importance * p
+
+        indices_node_importance = np.flip(np.argsort(node_importance))
+        sorted_node_importance = node_importance[indices_node_importance]
+
         node_idx_to_keep = []
         culumative_node_importance = 0
         for node_imp, idx in zip(sorted_node_importance, indices_node_importance):
@@ -143,8 +148,13 @@ class Explainability:
                 node_idx_to_keep.append(idx.item())
             else:
                 break
+
+        if len(node_idx_to_keep) == 0:
+            node_idx_to_keep.append(indices_node_importance[0])
+
         node_idx_to_keep = sorted(node_idx_to_keep)
         return node_idx_to_keep
+
 
     def outlier_removal(self):
         concept = np.array([])
@@ -165,6 +175,7 @@ class Explainability:
                 self.node_concept[i][j] = np.delete(self.node_concept[i][j], idx, axis=0)
                 self.node_importance[i][j] = np.delete(self.node_importance[i][j], idx, axis=0)
 
+
     def normalize_node_importance(self):
         for i in range(len(self.node_importance)):
             for j in range(len(self.node_importance[i])):
@@ -172,31 +183,29 @@ class Explainability:
 
 
     def normalize_node_concept(self):
-        concept = np.array([])
-        for x in self.node_concept:
-            for y in x:
-                concept = np.append(concept, y)
+        for i in range(len(self.node_concept)):
+            for j in range(len(self.node_concept[i])):
+                if i == 0 and j == 0:
+                    concept = self.node_concept[i][j]
+                else:
+                    concept = np.append(concept, self.node_concept[i][j], axis=0)
 
-        minm = np.min(concept)
-        maxm = np.max(concept)
-        if maxm - minm != 0:
-            for i in range(len(self.node_concept)):
-                for j in range(len(self.node_concept[i])):
-                    self.node_concept[i][j] = (self.node_concept[i][j] - minm)/ (maxm - minm)
+        minm = np.min(concept, axis=0)
+        maxm = np.max(concept, axis=0)
+        for k in range(maxm.size):
+            if maxm[k] - minm[k] != 0:
+                for i in range(len(self.node_concept)):
+                    for j in range(len(self.node_concept[i])):
+                        self.node_concept[i][j][:, k] = (self.node_concept[i][j][:, k] - minm[k])/ (maxm[k] - minm[k])
+
 
     def printing(self):
         print('\nNode label distribution:')
-
-        self.labels = np.array([])
-        self.samples = np.array([])
-
         for x in self.node_label:
-            self.samples = np.append(self.samples, len(x))
-
             labels = np.array([])
             for y in x:
                 labels = np.append(labels, y)
-            self.labels = np.append(self.labels, labels)
+            _, count = np.unique(labels, return_counts=True)
 
-            if self.verbose:
-                print('#TRoI: ', len(x), ' #Nodes: ', len(labels), ' Label: ', np.unique(labels, return_counts=True))
+            print('#TRoI: ', len(x), ' #Nodes: ', len(labels), ' %Label: ', np.round(count/len(labels), 2))
+

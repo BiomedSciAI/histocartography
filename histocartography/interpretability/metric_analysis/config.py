@@ -11,7 +11,7 @@ class Configuration:
 
         self.explainer_path = self.base_path + 'explainers/'
         self.img_path = self.base_path + 'Images_norm/'
-        self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_hc_/'
+        self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_interpretable_/'
         self.instance_map_path = self.base_path + 'nuclei_info/nuclei_instance_map/'
         self.info_path = self.base_path + 'nuclei_info/nuclei_prediction_gnn/'
 
@@ -53,13 +53,13 @@ class Configuration:
 
         # Set percentage
         if args.p == -1:
-            self.percentages = np.arange(0.05, 1, 0.45)
+            self.percentages = np.array([0.05, 0.10, 0.25, 0.50])
         else:
             self.percentages = np.array([args.p])
 
         if args.explainer == '-1':
-            #self.explainers = ['GraphLRP', 'GraphGradCAM', 'GraphGradCAMpp', 'GNNExplainer']
-            self.explainers = ['GraphGradCAMpp', 'GNNExplainer']
+            self.explainers = ['GraphLRP', 'GraphGradCAM', 'GraphGradCAMpp', 'GNNExplainer']
+            #self.explainers = ['GraphGradCAMpp', 'GNNExplainer']
         else:
             self.explainers = [args.explainer]
 

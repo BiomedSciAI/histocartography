@@ -15,8 +15,8 @@ parser.add_argument('--base-path',
                     required=False)
 parser.add_argument('--nuclei-selection-type',
                     help='Nuclei selection type, eg. w/ hard thresholding, w/ cumulutative',
-                    choices=['cumul', 'thresh'],
-                    default='cumul',
+                    choices=['cumul', 'thresh', 'absolute'],
+                    default='absolute',
                     required=False)
 parser.add_argument('--classification-mode',
                     help='Classification mode',
@@ -123,7 +123,7 @@ for e in explainers:
         concept_scores = np.append(concept_scores, concept_score)
 
         precision_epi, nuclei_score = m.compute_nuclei_score()
-        precision_epi_scores = np.append(precision_epi_scores, precision_epi)
+        # precision_epi_scores = np.append(precision_epi_scores, precision_epi)
         nuclei_scores = np.append(nuclei_scores, nuclei_score)
 
         print(
@@ -137,8 +137,8 @@ for e in explainers:
             concept_score,
             ' --nuclei-score= ',
             nuclei_score,
-            ' --precision-epi= ',
-            precision_epi_scores
+            # ' --precision-epi= ',
+            # precision_epi_scores
             )
 
         if visualize:

@@ -19,7 +19,6 @@ class Explainability:
         self.explainer_path = config.explainer_path + str(args.classification_mode) + '/' + explainer + '/'
         self.n_tumors = len(np.unique(self.config.tumor_labels))
 
-
     def get_node_info(self, exp):
         node_importance = exp.node_importance
         node_label = exp.node_label
@@ -113,6 +112,8 @@ class Explainability:
                 elif self.nuclei_selection_type == 'cumul':
                     # nuclei selection based on cumulutative node importance p
                     idx = self.get_cumulative_pruned_index(self.node_importance[i][j], self.percentage)
+                elif self.nuclei_selection_type == 'absolute':
+                    idx = (-self.node_importance[i][j]).argsort()[:int(self.percentage)]
                 else:
                     raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh" and "cumul".')
 
@@ -120,7 +121,6 @@ class Explainability:
                 self.node_concept[i][j] = self.node_concept[i][j][idx]
                 self.node_label[i][j] = self.node_label[i][j][idx]
                 self.node_centroid[i][j] = self.node_centroid[i][j][idx]
-
 
         self.samples = np.array([])
         self.labels = np.array([])

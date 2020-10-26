@@ -26,7 +26,6 @@ class Metric:
         # Get distance function
         self.dist = Distance(self.args.distance)
 
-
     def merge_concepts_per_tumor_type(self, input):
         output = []
         for i in range(self.n_tumors):
@@ -44,7 +43,6 @@ class Metric:
             output.append(output__)
         return output
 
-
     def merge_labels_per_tumor_type(self, input):
         output = []
         for i in range(self.n_tumors):
@@ -54,8 +52,8 @@ class Metric:
                 input[id] = [np.asarray(x) for x in input[id]]
                 output_ = np.append(output_, input[id])
             output.append(output_)
+        print('nuclei labels per tumor type:', output)
         return output
-
 
     def get_distance(self, input):
         M = np.zeros(shape=(self.n_tumors, self.n_tumors))
@@ -67,7 +65,6 @@ class Metric:
                 M[j, i] = self.dist.distance(input[j], input[i], metric='l2')
 
         return np.round(M, 4)
-
 
     def get_risk(self):
         risk = np.ones(shape=(self.n_tumors, self.n_tumors))
@@ -94,12 +91,14 @@ class Metric:
         nuclei = []
         for i in range(len(self.nuclei_labels)):
             for j in range(len(self.nuclei_labels[i])):
-                if isinstance(self.nuclei_labels[i][j], float):
-                    self.nuclei_labels[i][j] = np.array([self.nuclei_labels[i][j]])
 
                 nuclei_ = np.zeros(len(self.config.nuclei_types[1:]))
                 for k in range(len(nuclei_)):
-                    nuclei_[k] = sum(self.nuclei_labels[i][j] == k)
+                    mask = self.nuclei_labels[i][j] == k
+                    if isinstance(self.nuclei_labels[i][j], np.float64):
+                        nuclei_[k] = mask
+                    else:
+                        nuclei_[k] = sum(mask)
 
                 if j == 0:
                     nuclei__ = nuclei_ / np.sum(nuclei_)

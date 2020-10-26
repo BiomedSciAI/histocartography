@@ -73,7 +73,6 @@ class Metric:
                     risk[i, j] = abs(i - j)
         return risk
 
-
     def compute_concept_score(self):
         distance =  self.get_distance(self.concept)
         risk = self.get_risk()
@@ -83,7 +82,6 @@ class Metric:
         #print(distance, '\n')
 
         return round(score, 4)
-
 
     def compute_nuclei_score(self):
         # Score based on per sample nuclei statistics

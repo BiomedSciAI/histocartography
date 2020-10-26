@@ -3,6 +3,7 @@ from explanation import *
 from distance import *
 from plotting import *
 import numpy as np
+import random
 
 
 class Explainability:
@@ -114,8 +115,10 @@ class Explainability:
                     idx = self.get_cumulative_pruned_index(self.node_importance[i][j], self.percentage)
                 elif self.nuclei_selection_type == 'absolute':
                     idx = (-self.node_importance[i][j]).argsort()[:int(self.percentage)]
+                elif self.nuclei_selection_type == 'random':
+                    idx = random.sample(range(len(self.node_importance[i][j])), self.percentage)
                 else:
-                    raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh" and "cumul".')
+                    raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh", "cumul", "absolute" and "random".')
 
                 self.node_importance[i][j] = self.node_importance[i][j][idx]
                 self.node_concept[i][j] = self.node_concept[i][j][idx]

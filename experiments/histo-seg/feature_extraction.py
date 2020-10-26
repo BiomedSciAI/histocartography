@@ -277,7 +277,8 @@ class SuperpixelPatchDataset(Dataset):
         mask_region = (self.superpixel != region_property.label)[
             min_x:max_x, min_y:max_y
         ]
-        image_region[mask_region] = self.fill_value
+        if self.fill_value is not None:
+            image_region[mask_region] = self.fill_value
         output_image[
             image_top_left[0] : image_top_left[0] + x_length,
             image_top_left[1] : image_top_left[1] + y_length,
@@ -383,7 +384,7 @@ class DeepFeatureExtractor(FeatureExtractor):
     def __init__(
         self,
         architecture: str,
-        mask: bool = True,
+        mask: bool = False,
         size: int = 224,
         batch_size: int = 32,
         num_workers: int = 0,

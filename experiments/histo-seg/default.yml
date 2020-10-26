@@ -13,7 +13,7 @@ preprocess:
       class: "DeepFeatureExtractor"
       params:
         architecture: "resnet18"
-        mask: True
+        mask: False
         size: 224
     graph_builder:
       class: "RAGGraphBuilder"

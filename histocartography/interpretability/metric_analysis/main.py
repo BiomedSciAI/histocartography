@@ -31,8 +31,8 @@ parser.add_argument('--p',
                     type=float,
                     default=-1,
                     required=False)
-parser.add_argument('--similarity',
-                    help='Point cloud similarity measure',
+parser.add_argument('--distance',
+                    help='Point cloud distance measure',
                     choices=['pair', 'chamfer', 'hausdorff'],
                     default='chamfer',
                     required=False)
@@ -46,11 +46,11 @@ parser.add_argument('--verbose',
                     required=False)
 parser.add_argument('--visualize',
                     help='Visualize flag',
-                    default='True',
+                    default='False',
                     required=False)
 parser.add_argument('--rm_misclassification',
                     help='If we should filter out misclassified samples.',
-                    default='False',
+                    default='True',
                     required=False)
 parser.add_argument('--rm-non-epithelial-nuclei',
                     help='If we should remove all the non epithial nuclei.',
@@ -62,11 +62,12 @@ parser.add_argument('--with-nuclei-selection-plot',
                     required=False)
 parser.add_argument('--extract_features',
                     help='If we should extract nuclei features',
-                    default='True',
+                    default='False',
                     required=False)
 
 args = parser.parse_args()
 config = Configuration(args=args)
+args.concept = args.concept.split(',')
 
 
 # *************************************************************************** Set parameters
@@ -92,12 +93,15 @@ if eval(args.extract_features):
 
 
 # *************************************************************************** Get explanation
-p_scores = []
+p_concept_scores = []
+p_nuclei_scores = []
 
 for e in explainers:
     print('\n********************************************')
     print('Explainer: ', e)
-    scores = np.array([])
+    concept_scores = np.array([])
+    nuclei_scores = np.array([])
+    precision_epi_scores = np.array([])
 
     for p in percentages:
         exp = Explainability(
@@ -115,9 +119,13 @@ for e in explainers:
             plot_nuclei_selection(exp, base_path=args.base_path)
 
         m = Metric(args=args, config=config, explainer=e, percentage=p, explanation=exp)
-        score = m.compute_score()
-        nuclei_selection_score = m.compute_nuclei_selection_relevance()
-        scores = np.append(scores, score)
+        concept_score = m.compute_concept_score()
+        concept_scores = np.append(concept_scores, concept_score)
+
+        precision_epi, nuclei_score = m.compute_nuclei_score()
+        precision_epi_scores = np.append(precision_epi_scores, precision_epi)
+        nuclei_scores = np.append(nuclei_scores, nuclei_score)
+
         print(
             'p= ',
             round(p, 2),
@@ -126,19 +134,24 @@ for e in explainers:
             ' --nNodes: ',
             len(exp.labels),
             ' --concept-score= ',
-            score,
+            concept_score,
             ' --nuclei-score= ',
-            nuclei_selection_score
+            nuclei_score,
+            ' --precision-epi= ',
+            precision_epi_scores
             )
 
         if visualize:
             #plot_concept_map_per_tumor_type(args, config, e, p, exp)
             plot_concept_map_per_tumor_class(args, config, e, p, exp)
 
-    p_scores.append(scores)
+    p_concept_scores.append(concept_scores)
+    p_nuclei_scores.append(nuclei_scores)
+
 
 if visualize:
-    plot_auc_map(args, config, p_scores)
+    plot_auc_map(args, config, p_concept_scores, title='Concept score vs Percentage: ' + args.concept, filename='concept')
+    plot_auc_map(args, config, p_nuclei_scores, title='Nuclei score vs Percentage: ' + args.concept, filename='nuclei')
 
 
 

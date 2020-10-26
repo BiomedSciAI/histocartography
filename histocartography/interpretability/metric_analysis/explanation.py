@@ -28,11 +28,14 @@ class Explanation:
         self.node_importance = np.asarray(explanation['node_importance'])
         self.node_centroid = np.asarray(explanation['centroid'])
         self.node_label = np.asarray(explanation['nuclei_label'])
-        self.node_idx_to_keep = np.arange(len(self.node_importance))
 
     def read_concept(self):
         with h5py.File(self.config.features_path + self.tumor_type + '/' + self.basename + '.h5', 'r') as f:
             self.embeddings = np.array(f['embeddings'])
 
-        idx = self.config.feature_names.index(self.args.concept)
-        self.node_concept = self.embeddings[self.node_idx_to_keep, idx]
+        idx = []
+        for x in self.args.concept:
+            idx.append(self.config.feature_names.index(x))
+        idx = [int(x) for x in idx]
+
+        self.node_concept = self.embeddings[:, idx]

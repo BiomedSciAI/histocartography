@@ -4,11 +4,11 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.distance import directed_hausdorff
 
 class Distance:
-    def __init__(self, similarity):
-        distance = {'pair' : self.pair_wise_distance,
+    def __init__(self, distance):
+        distance_ = {'pair' : self.pair_wise_distance,
                     'chamfer' : self.chamfer_distance,
                     'hausdorff' : self.hausdorff_distance}
-        self.similarity = distance[similarity]
+        self.distance = distance_[distance]
 
     def pair_wise_distance(self, x, y, metric='euclidean'):
         '''
@@ -26,8 +26,8 @@ class Distance:
 
     def chamfer_distance(self, x, y, metric='l2'):
         """
-        Compute the point cloud similarity between 2 sets of points.
-        The similarity is based on the L2 bidirectional Chamfer loss.
+        Compute the point cloud distance between 2 sets of points.
+        The distance is based on the L2 bidirectional Chamfer loss.
         Note: for categorical variables (eg nuclei type), use a one-hot encoding
               of the category.
         Param:

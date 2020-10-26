@@ -7,7 +7,7 @@ class Configuration:
     def __init__(self, args):
         self.base_path = args.base_path
 
-        self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/explainability_cvpr/'
+        # self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/explainability_cvpr/'
 
         self.explainer_path = self.base_path + 'explainers/'
         self.img_path = self.base_path + 'Images_norm/'
@@ -53,7 +53,7 @@ class Configuration:
 
         # Set percentage
         if args.p == -1:
-            self.percentages = np.array([0.05, 0.10, 0.25, 0.50])
+            self.percentages = [10, 20, 30, 40, 50]
         else:
             self.percentages = np.array([args.p])
 

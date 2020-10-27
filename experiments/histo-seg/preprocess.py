@@ -191,7 +191,9 @@ def preprocessing(
 
     if cores == 1:
         for image_metadata in tqdm(
-            images_metadata.iterrows(), total=len(images_metadata)
+            images_metadata.iterrows(),
+            total=len(images_metadata),
+            file=sys.stdout,
         ):
             worker_task(image_metadata)
     else:

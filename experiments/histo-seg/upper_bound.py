@@ -25,13 +25,16 @@ from utils import (
     get_next_version_number,
     read_image,
     start_logging,
-    fast_histogram
+    fast_histogram,
 )
+
 
 def best_possible_assignment(annotation, superpixel):
     mask = np.empty_like(annotation)
     for pixel in pd.unique(np.ravel(superpixel)):
-        assignment = np.argmax(fast_histogram(annotation[superpixel == pixel], nr_values=5))
+        assignment = np.argmax(
+            fast_histogram(annotation[superpixel == pixel], nr_values=5)
+        )
         mask[superpixel == pixel] = assignment
     return mask
 
@@ -64,9 +67,7 @@ def process_best_possible_mask(
     image = read_image(row.path)
     annotation = read_image(row.annotation_path)
 
-    normalized_image = normalizer.process_and_save(
-        input_image=image, output_name=name
-    )
+    normalized_image = normalizer.process_and_save(input_image=image, output_name=name)
 
     superpixels = superpixel_extractor.process_and_save(
         input_image=normalized_image, output_name=name
@@ -89,8 +90,10 @@ def best_possible_masks(
     images_metadata = pd.read_pickle(IMAGES_DF)
     annotations_metadata = pd.read_pickle(ANNOTATIONS_DF)
 
-    annot = annotations_metadata[annotations_metadata.pathologist == 1][["path", "name"]].set_index("name")
-    annot = annot.rename(columns={"path":"annotation_path"})
+    annot = annotations_metadata[annotations_metadata.pathologist == 1][
+        ["path", "name"]
+    ].set_index("name")
+    annot = annot.rename(columns={"path": "annotation_path"})
     images_metadata = images_metadata.join(annot)
 
     if not PREPROCESS_PATH.exists():
@@ -132,13 +135,17 @@ def best_possible_masks(
         superpixel_extractor=superpixel_extractor,
     )
 
-    with h5py.File(superpixels_path / 'best_masks.h5', 'w') as output_file:
+    with h5py.File(superpixels_path / "best_masks.h5", "w") as output_file:
         if cores == 1:
             for image_metadata in tqdm(
-                images_metadata.iterrows(), total=len(images_metadata)
+                images_metadata.iterrows(),
+                total=len(images_metadata),
+                file=sys.stdout,
             ):
                 name, result = worker_task(image_metadata)
-                output_file.create_dataset(name, data=result, compression="gzip", compression_opts=9)
+                output_file.create_dataset(
+                    name, data=result, compression="gzip", compression_opts=9
+                )
 
         else:
             worker_pool = multiprocessing.Pool(cores)
@@ -150,7 +157,9 @@ def best_possible_masks(
                 total=len(images_metadata),
                 file=sys.stdout,
             ):
-                output_file.create_dataset(name, data=result, compression="gzip", compression_opts=9)
+                output_file.create_dataset(
+                    name, data=result, compression="gzip", compression_opts=9
+                )
             worker_pool.close()
             worker_pool.join()
 

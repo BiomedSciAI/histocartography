@@ -32,7 +32,7 @@ parser.add_argument('--p',
                     required=False)
 parser.add_argument('--distance',
                     help='Point cloud distance measure',
-                    choices=['pair', 'chamfer', 'hausdorff'],
+                    choices=['pair', 'chamfer', 'hausdorff', 'svm'],
                     default='pair',
                     required=False)
 parser.add_argument('--nuclei-selection-type',

@@ -63,10 +63,11 @@ class Metric:
         # Tumor distance
         for i in range(len(input)):
             for j in range(len(input)):
-                M[i, j] = self.dist.distance(input[i], input[j], metric='euclidean')
-                M[j, i] = self.dist.distance(input[j], input[i], metric='euclidean')
+                if i != j and i < j:
+                    score = self.dist.distance(input[i], input[j], metric='euclidean')
+                    M[i, j] = score
+                    M[j, i] = score
         return np.round(M, 4)
-
 
     def get_risk(self):
         risk = np.ones(shape=(self.n_tumors, self.n_tumors))

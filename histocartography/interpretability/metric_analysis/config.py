@@ -7,7 +7,7 @@ class Configuration:
     def __init__(self, args):
         self.base_path = args.base_path
 
-        # self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/explainability_cvpr/'
+        #self.base_path = '/Users/pus/Desktop/Projects/Data/Histocartography/explainability_cvpr/'
 
         self.explainer_path = self.base_path + 'explainers/'
         self.img_path = self.base_path + 'Images_norm/'
@@ -53,13 +53,14 @@ class Configuration:
 
         # Set percentage
         if args.p == -1:
-            self.percentages = [10, 20, 30, 40, 50]
+            self.percentages = [5, 10, 25, 50]
+            #self.percentages = [10]
         else:
             self.percentages = np.array([args.p])
 
         if args.explainer == '-1':
-            self.explainers = ['GraphLRP', 'GraphGradCAM', 'GraphGradCAMpp', 'GNNExplainer']
-            #self.explainers = ['GraphGradCAMpp', 'GNNExplainer']
+            self.explainers = ['GraphLRP', 'GraphGradCAM', 'GraphGradCAMpp', 'GNNExplainer', 'Random']
+            #self.explainers = ['GNNExplainer', 'Random']
         else:
             self.explainers = [args.explainer]
 
@@ -82,6 +83,8 @@ class Configuration:
         samples = []
 
         for e in explainers:
+            if e == 'Random':
+                continue
             samples_ = []
             for t in self.tumor_types:
                 samples__ = glob.glob(self.explainer_path +  str(args.classification_mode) + '/' + e + '/' + t + '/*.json')

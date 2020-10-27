@@ -19,12 +19,13 @@ class Metric:
         self.verbose = verbose
         self.n_tumors = len(np.unique(config.tumor_labels))
 
-        # Merge correlation values per tumor group
+        # Merge values per tumor group
         self.concept = self.merge_concepts_per_tumor_type(self.explanation.node_concept)
         self.nuclei_labels = self.merge_labels_per_tumor_type(self.explanation.node_label)
 
         # Get distance function
         self.dist = Distance(self.args.distance)
+
 
     def merge_concepts_per_tumor_type(self, input):
         output = []
@@ -43,16 +44,18 @@ class Metric:
             output.append(output__)
         return output
 
+
     def merge_labels_per_tumor_type(self, input):
         output = []
         for i in range(self.n_tumors):
             idx = np.where(self.config.tumor_labels == i)[0]
-            output_ = np.array([])
+            output_ = []
             for id in idx:
                 input[id] = [np.asarray(x) for x in input[id]]
-                output_ = np.append(output_, input[id])
+                output_ += input[id]
             output.append(output_)
         return output
+
 
     def get_distance(self, input):
         M = np.zeros(shape=(self.n_tumors, self.n_tumors))
@@ -60,10 +63,10 @@ class Metric:
         # Tumor distance
         for i in range(len(input)):
             for j in range(len(input)):
-                M[i, j] = self.dist.distance(input[i], input[j], metric='l2')
-                M[j, i] = self.dist.distance(input[j], input[i], metric='l2')
-
+                M[i, j] = self.dist.distance(input[i], input[j], metric='euclidean')
+                M[j, i] = self.dist.distance(input[j], input[i], metric='euclidean')
         return np.round(M, 4)
+
 
     def get_risk(self):
         risk = np.ones(shape=(self.n_tumors, self.n_tumors))
@@ -72,6 +75,7 @@ class Metric:
                 for j in range(self.n_tumors):
                     risk[i, j] = abs(i - j)
         return risk
+
 
     def compute_concept_score(self):
         distance =  self.get_distance(self.concept)
@@ -83,19 +87,22 @@ class Metric:
 
         return round(score, 4)
 
+
     def compute_nuclei_score(self):
         # Score based on per sample nuclei statistics
         nuclei = []
         for i in range(len(self.nuclei_labels)):
             for j in range(len(self.nuclei_labels[i])):
-
                 nuclei_ = np.zeros(len(self.config.nuclei_types[1:]))
-                for k in range(len(nuclei_)):
+                for k in range(nuclei_.size):
+                    nuclei_[k] = sum(self.nuclei_labels[i][j] == k)
+                    '''
                     mask = self.nuclei_labels[i][j] == k
                     if isinstance(self.nuclei_labels[i][j], np.float64):
                         nuclei_[k] = mask
                     else:
                         nuclei_[k] = sum(mask)
+                    #'''
 
                 if j == 0:
                     nuclei__ = nuclei_ / np.sum(nuclei_)
@@ -110,7 +117,7 @@ class Metric:
         #print(distance, '\n')
 
         # Nuclei statistics per tumor type
-        all_precisions = []
+        precision_epi = []
         for i in range(len(self.nuclei_labels)):
             nuclei = np.array([])
             for y in self.nuclei_labels[i]:
@@ -120,29 +127,15 @@ class Metric:
             for k in range(len(nuclei_)):
                 nuclei_[k] = sum(nuclei == k)
 
-            precision_epi = round(sum((nuclei == 0) + (nuclei == 1) + (nuclei == 2) + (nuclei == 5)) / len(nuclei), 4)
-            all_precisions.append(precision_epi)
-            #print('Tumor type: ', i, ' %Nuclei: ', np.round(nuclei_/np.sum(nuclei_), 2), ' precision_epi: ', precision_epi)
-        precision_epi = round(sum(all_precisions) / len(all_precisions), 4)
+            precision_epi_ = round(sum((nuclei == 0) + (nuclei == 1) + (nuclei == 2) + (nuclei == 5)) / len(nuclei), 4)
+            precision_epi.append(precision_epi_)
+            #print('Tumor type: ', i, ' %Nuclei: ', np.round(nuclei_/np.sum(nuclei_), 2), ' precision_epi: ', precision_epi_)
 
-        return precision_epi, score
+        precision_epi = round(sum(precision_epi) / len(precision_epi), 4)
+        return score, precision_epi
 
 
 
-    def compute_nuclei_relevance(self):
-        all_precisions = []
-
-        for tumor_type, nuclei_per_tumor_type in enumerate(self.nuclei_labels):
-
-            precision_tumor = sum(nuclei_per_tumor_type == tumor_type) / len(nuclei_per_tumor_type)
-            precision_epi = sum((nuclei_per_tumor_type == 0) + (nuclei_per_tumor_type == 1) + (nuclei_per_tumor_type == 2) + (nuclei_per_tumor_type == 5)) / len(nuclei_per_tumor_type)
-
-            all_precisions.append(precision_epi)
-
-            nuclei, count = np.unique(np.asarray(nuclei_per_tumor_type), return_counts=True)
-            count = np.round(count/np.sum(count), 4)
-
-        return round(sum(all_precisions) / len(all_precisions), 4)
 
 
 

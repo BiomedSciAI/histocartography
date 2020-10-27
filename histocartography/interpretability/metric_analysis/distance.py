@@ -2,12 +2,15 @@ import numpy as np
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.distance import directed_hausdorff
+from sklearn import svm
+
 
 class Distance:
     def __init__(self, distance):
         distance_ = {'pair' : self.pair_wise_distance,
                     'chamfer' : self.chamfer_distance,
-                    'hausdorff' : self.hausdorff_distance}
+                    'hausdorff' : self.hausdorff_distance,
+                    'svm': self.svm_distance}
         self.distance = distance_[distance]
 
 
@@ -24,6 +27,22 @@ class Distance:
         distance = cdist(x, y, metric=metric)
         return np.mean(distance)
 
+    def svm_distance(self, x, y, metric='euclidean'):
+        '''
+        :param x: (ndarray) [n_points_1, n_dims]
+        :param y: (ndarray) [n_points_2, n_dims]
+        :param metric: Unused here
+        :return distance: Fit an SVM model - then return accuracy as measure of "distance" (the larger the better)
+        '''
+        labels = np.concatenate(([0 for _ in range(x.shape[0])], [1 for _ in range(y.shape[0])]), axis=0)
+        feats = np.concatenate((x, y), axis=0)
+
+        clf = svm.SVC()
+        clf.fit(feats, labels)
+        predictions = clf.predict(feats)
+        accuracy = sum(predictions == labels) / labels.shape[0]
+
+        return accuracy
 
     def chamfer_distance(self, x, y, metric='euclidean'):
         """

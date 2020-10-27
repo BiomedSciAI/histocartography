@@ -53,7 +53,8 @@ class Configuration:
 
         # Set percentage
         if args.p == -1:
-            self.percentages = [5, 10, 25, 50]
+            # self.percentages = [5, 10, 25, 50]
+            self.percentages = [0.05, 0.1, 0.25, 0.5]
             #self.percentages = [10]
         else:
             self.percentages = np.array([args.p])

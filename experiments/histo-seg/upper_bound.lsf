@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#BSUB -q prod.med
+#BSUB -n 4
+
+module purge
+module load Miniconda3
+source activate histocartography
+
+#BSUB -J "/dataT/anv/logs/upper_bound"
+#BSUB -o "/dataT/anv/logs/upper_bound"
+#BSUB -e "/dataT/anv/logs/upper_bound.stderr"
+
+OMP_NUM_THREADS=1 python upper_bound.py --config default.yml

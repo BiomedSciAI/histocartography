@@ -18,4 +18,17 @@ preprocess:
     graph_builder:
       class: "RAGGraphBuilder"
   params:
-    cores: 32
+    cores: 16
+upper_bound:
+  stages:
+    stain_normalizer:
+      class: "VahadaneStainNormalizer"
+      params:
+        target: "ZT111_4_C_7_1"
+    superpixel_extractor:
+      class: "SLICSuperpixelExtractor"
+      params:
+        nr_superpixels: 2000
+        color_space: "rgb"
+  params:
+    cores: 16

@@ -10,6 +10,7 @@ class Distance:
                     'hausdorff' : self.hausdorff_distance}
         self.distance = distance_[distance]
 
+
     def pair_wise_distance(self, x, y, metric='euclidean'):
         '''
         :param x: (ndarray) [n_points_1, n_dims]
@@ -21,10 +22,10 @@ class Distance:
         :return distance: Compute distance between each pair of the two collections of inputs.
         '''
         distance = cdist(x, y, metric=metric)
-        return np.median(distance)
+        return np.mean(distance)
 
 
-    def chamfer_distance(self, x, y, metric='l2'):
+    def chamfer_distance(self, x, y, metric='euclidean'):
         """
         Compute the point cloud distance between 2 sets of points.
         The distance is based on the L2 bidirectional Chamfer loss.
@@ -42,7 +43,8 @@ class Distance:
         chamfer_dist = np.mean(min_y_to_x) + np.mean(min_x_to_y)
         return chamfer_dist
 
-    def hausdorff_distance(self, x, y):
+
+    def hausdorff_distance(self, x, y, metric='euclidean'):
         '''
         The function h(A, B) is called the directed Hausdorff distance from A to B,
         which identifies the point a ∈ A that is farthest from any point of B,

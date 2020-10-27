@@ -16,9 +16,16 @@ class Explainability:
         self.visualize = visualize
         self.nuclei_selection_type = args.nuclei_selection_type
         self.rm_non_epithelial_nuclei = args.rm_non_epithelial_nuclei
+        self.rm_misclassification = args.rm_misclassification
 
         self.explainer_path = config.explainer_path + str(args.classification_mode) + '/' + explainer + '/'
         self.n_tumors = len(np.unique(self.config.tumor_labels))
+
+        # Only to get all the node information. Random indexing is applied at the end
+        if self.explainer == 'Random':
+            self.explainer_path = config.explainer_path + str(args.classification_mode) + '/GNNExplainer/'
+            self.nuclei_selection_type = 'random'
+
 
     def get_node_info(self, exp):
         node_importance = exp.node_importance
@@ -46,11 +53,10 @@ class Explainability:
 
         # Get all epithelial nuclei information
         node_importance, node_label, node_concept, node_centroid, is_correct = self.get_node_info(exp)
-
         return node_importance, node_label, node_concept, node_centroid, is_correct, image_name
 
 
-    def get_tumor_explanation(self, tumor_type, rm_misclassification=False):
+    def get_tumor_explanation(self, tumor_type):
         paths = glob.glob(self.explainer_path + tumor_type + '/*.json')
         node_importance = []
         node_concept = []
@@ -68,7 +74,7 @@ class Explainability:
 
             if len(importance) != 0:
                 # if remove misclassication is true and sample is wrongly predicted, we don't append it 
-                if not rm_misclassification or is_correct:
+                if not self.rm_misclassification or is_correct:
                     node_importance.append(importance)
                     node_concept.append(concept)
                     node_label.append(label)
@@ -78,7 +84,7 @@ class Explainability:
         return node_importance, node_label, node_concept, node_centroid, image_names
 
 
-    def get_explanation(self, rm_misclassification=False):
+    def get_explanation(self):
         self.node_importance = []
         self.node_concept = []
         self.node_label = []
@@ -86,7 +92,7 @@ class Explainability:
         self.image_names = []
 
         for t in self.config.tumor_types:
-            importance, label, concept, centroid, names = self.get_tumor_explanation(tumor_type=t, rm_misclassification=rm_misclassification)
+            importance, label, concept, centroid, names = self.get_tumor_explanation(tumor_type=t)
 
             self.node_importance.append(importance)        # list[list[array]]
             self.node_label.append(label)                  # list[list[array]]
@@ -104,26 +110,7 @@ class Explainability:
         self.normalize_node_importance()
 
         # Get explanation per 'percentage': nuclei selection
-        for i in range(len(self.node_importance)):
-            for j in range(len(self.node_importance[i])):
-
-                if self.nuclei_selection_type == 'thresh':
-                    # nuclei selection based on hard threshold p
-                    idx = np.where(self.node_importance[i][j] > (1 - self.percentage))[0]
-                elif self.nuclei_selection_type == 'cumul':
-                    # nuclei selection based on cumulutative node importance p
-                    idx = self.get_cumulative_pruned_index(self.node_importance[i][j], self.percentage)
-                elif self.nuclei_selection_type == 'absolute':
-                    idx = (-self.node_importance[i][j]).argsort()[:int(self.percentage)]
-                elif self.nuclei_selection_type == 'random':
-                    idx = random.sample(range(len(self.node_importance[i][j])), self.percentage)
-                else:
-                    raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh", "cumul", "absolute" and "random".')
-
-                self.node_importance[i][j] = self.node_importance[i][j][idx]
-                self.node_concept[i][j] = self.node_concept[i][j][idx]
-                self.node_label[i][j] = self.node_label[i][j][idx]
-                self.node_centroid[i][j] = self.node_centroid[i][j][idx]
+        self.select_node_info()
 
         self.samples = np.array([])
         self.labels = np.array([])
@@ -134,6 +121,56 @@ class Explainability:
 
         if self.verbose:
             self.printing()
+
+
+    def normalize_node_importance(self):
+        for i in range(len(self.node_importance)):
+            for j in range(len(self.node_importance[i])):
+                self.node_importance[i][j] = normalize(self.node_importance[i][j])
+
+
+    def normalize_node_concept(self):
+        for i in range(len(self.node_concept)):
+            for j in range(len(self.node_concept[i])):
+                if i == 0 and j == 0:
+                    concept = self.node_concept[i][j]
+                else:
+                    concept = np.append(concept, self.node_concept[i][j], axis=0)
+
+        minm = np.min(concept, axis=0)
+        maxm = np.max(concept, axis=0)
+        for k in range(maxm.size):
+            if maxm[k] - minm[k] != 0:
+                for i in range(len(self.node_concept)):
+                    for j in range(len(self.node_concept[i])):
+                        self.node_concept[i][j][:, k] = (self.node_concept[i][j][:, k] - minm[k])/ (maxm[k] - minm[k])
+
+
+    def select_node_info(self):
+        for i in range(len(self.node_importance)):
+            for j in range(len(self.node_importance[i])):
+                if self.nuclei_selection_type == 'thresh':
+                    # nuclei selection based on hard threshold p
+                    idx = np.where(self.node_importance[i][j] > (1 - self.percentage))[0]
+
+                elif self.nuclei_selection_type == 'cumul':
+                    # nuclei selection based on cumulutative node importance p
+                    idx = self.get_cumulative_pruned_index(self.node_importance[i][j], self.percentage)
+
+                elif self.nuclei_selection_type == 'absolute':
+                    idx = (-self.node_importance[i][j]).argsort()[:int(self.percentage)]
+
+                elif self.nuclei_selection_type == 'random':
+                    random.seed(0)
+                    idx = random.sample(range(len(self.node_importance[i][j])), self.percentage)
+
+                else:
+                    raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh", "cumul", "absolute" and "random".')
+
+                self.node_importance[i][j] = self.node_importance[i][j][idx]
+                self.node_concept[i][j] = self.node_concept[i][j][idx]
+                self.node_label[i][j] = self.node_label[i][j][idx]
+                self.node_centroid[i][j] = self.node_centroid[i][j][idx]
 
 
     def get_cumulative_pruned_index(self, node_importance, p):
@@ -177,29 +214,6 @@ class Explainability:
                 idx = np.where(self.node_concept[i][j] > threshold)[0]
                 self.node_concept[i][j] = np.delete(self.node_concept[i][j], idx, axis=0)
                 self.node_importance[i][j] = np.delete(self.node_importance[i][j], idx, axis=0)
-
-
-    def normalize_node_importance(self):
-        for i in range(len(self.node_importance)):
-            for j in range(len(self.node_importance[i])):
-                self.node_importance[i][j] = normalize(self.node_importance[i][j])
-
-
-    def normalize_node_concept(self):
-        for i in range(len(self.node_concept)):
-            for j in range(len(self.node_concept[i])):
-                if i == 0 and j == 0:
-                    concept = self.node_concept[i][j]
-                else:
-                    concept = np.append(concept, self.node_concept[i][j], axis=0)
-
-        minm = np.min(concept, axis=0)
-        maxm = np.max(concept, axis=0)
-        for k in range(maxm.size):
-            if maxm[k] - minm[k] != 0:
-                for i in range(len(self.node_concept)):
-                    for j in range(len(self.node_concept[i])):
-                        self.node_concept[i][j][:, k] = (self.node_concept[i][j][:, k] - minm[k])/ (maxm[k] - minm[k])
 
 
     def printing(self):

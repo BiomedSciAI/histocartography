@@ -58,3 +58,5 @@ def read_info(path):
         centroids = np.array(f['instance_centroid_location']).astype(int)
         labels = np.array(f['instance_centroid_label']).astype(int)
     return centroids, labels
+
+

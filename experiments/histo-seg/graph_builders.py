@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 from dgl.data.utils import load_graphs, save_graphs
+from skimage.measure import regionprops
 
 from constants import CENTROID, GNN_EDGE_FEAT, GNN_NODE_FEAT_IN
 from utils import PipelineStep
@@ -40,6 +41,7 @@ class BaseGraphBuilder(PipelineStep):
 
         # add node features
         self._set_node_features(features, graph)
+        self._set_node_centroids(structure, graph)
 
         # build edges
         self._build_topology(
@@ -76,6 +78,18 @@ class BaseGraphBuilder(PipelineStep):
             graph (dgl.DGLGraph): Graph to add the features to
         """
         graph.ndata[GNN_NODE_FEAT_IN] = features
+
+    @staticmethod
+    def _set_node_centroids(superpixels: np.ndarray, graph: dgl.DGLGraph) -> None:
+        regions = regionprops(superpixels)
+        centroids = np.empty((len(regions), 2))
+        for i, region in enumerate(regions):
+            center_x, center_y = region.centroid
+            center_x = int(round(center_x))
+            center_y = int(round(center_y))
+            centroids[i, 0] = center_x
+            centroids[i, 1] = center_y
+        graph.ndata[CENTROID] = centroids
 
     @abstractmethod
     def _build_topology(self, instances: np.ndarray, graph: dgl.DGLGraph) -> None:
@@ -122,11 +136,10 @@ class RAGGraphBuilder(BaseGraphBuilder):
         kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
         adjacency = np.zeros(shape=(len(instance_ids), len(instance_ids)))
         for instance_id in instance_ids:
-            mask = np.array(instances == instance_id, np.uint8)
+            mask = (instances == instance_id).astype(np.uint8)
             dilation = cv2.dilate(mask, kernel, iterations=1)
             boundary = dilation - mask
-            mask = boundary * instances
-            idx = np.array(pd.unique(np.ravel(mask))).astype(int)[1:]  # remove 0
+            idx = pd.unique(instances[boundary.astype(bool)])
             instance_id -= 1  # because instance_map id starts from 1
             idx -= 1  # because instance_map id starts from 1
             adjacency[instance_id, idx] = 1

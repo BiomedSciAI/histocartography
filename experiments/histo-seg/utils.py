@@ -67,14 +67,12 @@ class PipelineStep(ABC):
             logging.info(
                 f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )
-            input_file = h5py.File(output_path, "r")
-            output = input_file[self.output_key][()]
-            input_file.close()
+            with h5py.File(output_path, "r") as input_file:
+                output = input_file[self.output_key][()]
         else:
             output = self.process(**kwargs)
-            output_file = h5py.File(output_path, "w")
-            output_file.create_dataset(self.output_key, data=output, compression="gzip", compression_opts=9)
-            output_file.close()
+            with h5py.File(output_path, "w") as output_file:
+                output_file.create_dataset(self.output_key, data=output, compression="gzip", compression_opts=9)
         return output
 
 
@@ -122,12 +120,11 @@ def read_image(image_path: str) -> np.ndarray:
     """
     assert image_path.exists()
     try:
-        img = Image.open(image_path)
+        with Image.open(image_path) as img:
+            image = np.array(img)
     except OSError as e:
-        logging.critical(f"Could not open {output_path}")
+        logging.critical(f"Could not open {image_path}")
         raise OSError(e)
-    image = np.array(img)
-    img.close()
     return image
 
 

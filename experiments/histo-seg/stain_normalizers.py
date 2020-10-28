@@ -121,18 +121,17 @@ class StainNormalizer(PipelineStep):
         assert (
             self.base_path is not None
         ), f"Can only save intermediate output if base_path was not None when constructing the object"
-        input_file = h5py.File(self.save_path, "r")
-        self._load_values(input_file)
-        input_file.close()
+        with h5py.File(self.save_path, "r") as input_file:
+            self._load_values(input_file)
 
     def _save_precomputed(self):
         """Saves the precomputed values"""
         assert (
             self.base_path is not None
         ), "Can only save intermediate output if base_path was not None when constructing the object"
-        output_file = h5py.File(self.save_path, "w")
-        self._save_values(output_file)
-        output_file.close()
+        with h5py.File(self.save_path, "w") as output_file:
+            self._save_values(output_file)
+
 
     @abstractmethod
     def _normalize_image(self, input_image: np.ndarray) -> np.ndarray:
@@ -174,17 +173,15 @@ class StainNormalizer(PipelineStep):
                 f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )
             try:
-                input_file = Image.open(output_path)
+                with Image.open(output_path) as input_file:
+                    output = np.array(input_file)
             except OSError as e:
                 logging.critical(f"Could not open {output_path}")
                 raise OSError(e)
-            output = np.array(input_file)
-            input_file.close()
         else:
             output = self.process(**kwargs)
-            output_image = Image.fromarray(output)
-            output_image.save(output_path)
-            output_image.close()
+            with Image.fromarray(output) as output_image:
+                output_image.save(output_path)
         return output
 
 

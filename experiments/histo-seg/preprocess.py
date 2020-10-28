@@ -257,7 +257,8 @@ if __name__ == "__main__":
 
     start_logging(args.level)
     assert Path(args.config).exists(), f"Config path does not exist: {args.config}"
-    config = yaml.load(open(args.config), Loader=yaml.FullLoader)
+    with open(args.config) as config_file:
+        config = yaml.load(config_file, Loader=yaml.FullLoader)
     assert (
         "preprocess" in config
     ), f"Config does not have an entry preprocess ({config.keys()})"

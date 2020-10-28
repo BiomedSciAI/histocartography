@@ -57,6 +57,42 @@ class Metric:
             output.append(output_)
         return output
 
+    def histogram_analysis_per_concept(self, input, step):
+        # Histogram bin edges along dimensions
+        # x = np.array([])
+        count = []
+        for i, x in enumerate(input):
+
+            # 1. extract bins
+            minm = np.min(x, axis=0)
+            maxm = np.max(x, axis=0)
+            bins = []
+            for i in range(len(minm)):
+                bins_ = np.array([])
+                ctr = math.ceil((maxm[i] - minm[i]) / step)
+                j = 0
+                while j <= ctr:
+                    bins_ = np.append(bins_, minm[i] + j * step)
+                    j += 1
+                bins.append(bins_)
+
+            # 2. compute histogram 
+            H, _ = np.histogramdd(x, bins=bins, density=True)
+            count.append(H)
+
+            minm = np.inf
+            maxm = -np.inf
+            for i in range(len(count)):
+                if np.min(count[i]) < minm:
+                    minm = np.min(count[i])
+                if np.max(count[i]) > maxm:
+                    maxm = np.max(count[i])
+
+            if maxm - minm != 0:
+                for i in range(len(count)):
+                    count[i] = (count[i] - minm)/ (maxm - minm)
+            
+        return count
 
     def histogram_analysis(self, input, step):
         # Histogram bin edges along dimensions
@@ -96,7 +132,7 @@ class Metric:
         if maxm - minm != 0:
             for i in range(len(count)):
                 count[i] = (count[i] - minm)/ (maxm - minm)
-
+        
         return count
 
 
@@ -160,9 +196,18 @@ class Metric:
 
         # Histogram analysis
         if self.args.distance == 'hist':
-            nuclei = self.histogram_analysis(nuclei, step=0.05)
+            nuclei_histogram = self.histogram_analysis(nuclei, step=0.05)
+            all_nuclei_histograms = []
+            for nuclei_type in range(nuclei[0].shape[1]):  # 0 to 5
+                nuclei_type_data = [nuclei[tumor_type][:, nuclei_type, None] for tumor_type in range(len(nuclei))]
+                histogram = self.histogram_analysis(nuclei_type_data, step=0.05)
+                all_nuclei_histograms.append(histogram)
 
-        distance = self.get_distance(nuclei)
+        if self.args.distance == 'hist':
+            distance = sum([self.get_distance(x) for x in all_nuclei_histograms])
+        else:
+            distance = self.get_distance(nuclei_histogram)
+
         risk = self.get_risk()
         score = round(np.sum(np.multiply(distance, risk)) / 2, 4)
         #print('********** Nuclei-based tumor distance')

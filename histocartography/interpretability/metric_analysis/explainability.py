@@ -182,7 +182,8 @@ class Explainability:
 
                 elif self.nuclei_selection_type == 'random':
                     random.seed(0)
-                    idx = random.sample(range(len(self.node_importance[i][j])), min(len(self.node_importance[i][j]), 200))
+                    idx = list(range(len(self.node_importance[i][j])))
+                    # idx = random.sample(range(len(self.node_importance[i][j])), min(len(self.node_importance[i][j]), 200))
                 else:
                     raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh", "cumul", "absolute" and "random".')
 

@@ -10,7 +10,8 @@ class Distance:
         distance_ = {'pair' : self.pair_wise_distance,
                     'chamfer' : self.chamfer_distance,
                     'hausdorff' : self.hausdorff_distance,
-                    'svm': self.svm_distance}
+                    'svm': self.svm_distance,
+                    'hist': self.histogram_distance}
         self.distance = distance_[distance]
 
 
@@ -43,6 +44,10 @@ class Distance:
         accuracy = sum(predictions == labels) / labels.shape[0]
 
         return accuracy
+
+    def histogram_distance(self, x, y, metric='euclidean'):
+        # return np.sum(np.abs(x - y))              # Manhattan
+        return np.sqrt(np.sum(np.square(x - y)))    # Euclidean
 
     def chamfer_distance(self, x, y, metric='euclidean'):
         """

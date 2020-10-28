@@ -32,7 +32,7 @@ class Configuration:
             self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', '', '', 'red', 'red']
 
         elif args.classification_mode == 3:
-            self.tumor_labels = [0, 0, 0, 1, 1, 2, 2]  # exclude FEA samples
+            self.tumor_labels = [0, 0, 0, 1, 1, 2, 2]
             self.tumor_colors = ['darkgreen', 'darkgreen', 'darkgreen', 'blue', 'blue', 'red', 'red']
 
         elif args.classification_mode == 5:
@@ -61,7 +61,7 @@ class Configuration:
 
         if args.explainer == '-1':
             self.explainers = ['GraphLRP', 'GraphGradCAM', 'GraphGradCAMpp', 'GNNExplainer', 'Random']
-            #self.explainers = ['GNNExplainer', 'Random']
+            #self.explainers = ['GraphGradCAMpp']
         else:
             self.explainers = [args.explainer]
 

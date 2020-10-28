@@ -1,9 +1,15 @@
+def warn(*args, **kwargs):
+    pass
+import warnings
+warnings.warn = warn
+
 import argparse
 from config import *
 from explainability import *
 from metric import *
 from sklearn.metrics import auc
 from plotting import *
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--explainer',
@@ -32,13 +38,13 @@ parser.add_argument('--p',
                     required=False)
 parser.add_argument('--distance',
                     help='Point cloud distance measure',
-                    choices=['pair', 'chamfer', 'hausdorff', 'svm'],
-                    default='pair',
+                    choices=['pair', 'chamfer', 'hausdorff', 'svm', 'hist'],
+                    default='hist',
                     required=False)
 parser.add_argument('--nuclei-selection-type',
                     help='Nuclei selection type, eg. w/ hard thresholding, w/ cumulutative',
                     choices=['cumul', 'thresh', 'absolute', 'random'],
-                    default='absolute',
+                    default='thresh',
                     required=False)
 parser.add_argument('--rm-non-epithelial-nuclei',
                     help='If we should remove all the non epithelial nuclei.',

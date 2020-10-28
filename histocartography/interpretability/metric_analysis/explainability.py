@@ -4,7 +4,8 @@ from distance import *
 from plotting import *
 import numpy as np
 import random
-
+import math
+from scipy.stats import wasserstein_distance
 
 class Explainability:
     def __init__(self, args, config, explainer, percentage, verbose=False, visualize=False):
@@ -123,6 +124,25 @@ class Explainability:
             self.printing()
 
 
+    def merge_concepts_per_tumor_type(self, input):
+        output = []
+
+        for i in range(self.n_tumors):
+            idx = np.where(self.config.tumor_labels == i)[0]
+            output_ = []
+
+            for j in range(len(idx)):
+                output_ += input[idx[j]]
+
+            for j in range(len(output_)):
+                if j == 0:
+                    output__ = output_[j]
+                else:
+                    output__ = np.vstack((output__, output_[j]))
+            output.append(output__)
+        return output
+
+
     def normalize_node_importance(self):
         for i in range(len(self.node_importance)):
             for j in range(len(self.node_importance[i])):
@@ -162,7 +182,7 @@ class Explainability:
 
                 elif self.nuclei_selection_type == 'random':
                     random.seed(0)
-                    idx = random.sample(range(len(self.node_importance[i][j])), min(len(self.node_importance[i][j]), 100))
+                    idx = random.sample(range(len(self.node_importance[i][j])), min(len(self.node_importance[i][j]), 200))
                 else:
                     raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh", "cumul", "absolute" and "random".')
 

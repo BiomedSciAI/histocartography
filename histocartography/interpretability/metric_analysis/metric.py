@@ -1,6 +1,7 @@
 import numpy as np
 from distance import Distance
 from sklearn.metrics import precision_score
+import math
 
 
 TUMOR_LABEL_TO_RELEVANT_NUCLEI_TYPE = {
@@ -57,6 +58,48 @@ class Metric:
         return output
 
 
+    def histogram_analysis(self, input, step):
+        # Histogram bin edges along dimensions
+        x = np.array([])
+        for i in range(len(input)):
+            if i == 0:
+                x = input[i]
+            else:
+                x = np.vstack((x, input[i]))
+        minm = np.min(x, axis=0)
+        maxm = np.max(x, axis=0)
+
+        bins = []
+        for i in range(len(minm)):
+            bins_ = np.array([])
+            ctr = math.ceil((maxm[i] - minm[i]) / step)
+            j = 0
+            while j <= ctr:
+                bins_ = np.append(bins_, minm[i] + j * step)
+                j += 1
+            bins.append(bins_)
+
+        # Create D-dimensional histogram
+        count = []
+        for i in range(len(input)):
+            H, _ = np.histogramdd(input[i], bins=bins, density=True)
+            count.append(H)
+
+        minm = np.inf
+        maxm = -np.inf
+        for i in range(len(count)):
+            if np.min(count[i]) < minm:
+                minm = np.min(count[i])
+            if np.max(count[i]) > maxm:
+                maxm = np.max(count[i])
+
+        if maxm - minm != 0:
+            for i in range(len(count)):
+                count[i] = (count[i] - minm)/ (maxm - minm)
+
+        return count
+
+
     def get_distance(self, input):
         M = np.zeros(shape=(self.n_tumors, self.n_tumors))
 
@@ -69,6 +112,7 @@ class Metric:
                     M[j, i] = score
         return np.round(M, 4)
 
+
     def get_risk(self):
         risk = np.ones(shape=(self.n_tumors, self.n_tumors))
         if eval(self.args.risk):
@@ -79,6 +123,9 @@ class Metric:
 
 
     def compute_concept_score(self):
+        if self.args.distance == 'hist':
+            self.concept = self.histogram_analysis(self.concept, step=0.01)
+
         distance =  self.get_distance(self.concept)
         risk = self.get_risk()
         score = np.sum(np.multiply(distance, risk)) / 2
@@ -110,6 +157,10 @@ class Metric:
                 else:
                     nuclei__ = np.vstack((nuclei__, nuclei_ / np.sum(nuclei_)))
             nuclei.append(nuclei__)
+
+        # Histogram analysis
+        if self.args.distance == 'hist':
+            nuclei = self.histogram_analysis(nuclei, step=0.05)
 
         distance = self.get_distance(nuclei)
         risk = self.get_risk()

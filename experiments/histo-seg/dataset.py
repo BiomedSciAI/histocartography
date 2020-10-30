@@ -1,6 +1,8 @@
 """Dataloader for precomputed graphs in .bin format"""
+from sys import meta_path
 from typing import List, Tuple
 
+import h5py
 import dgl
 import numpy as np
 import pandas as pd
@@ -10,19 +12,20 @@ from dgl.graph import DGLGraph
 from PIL import Image
 from torch.utils.data import Dataset
 
-from constants import CENTROID
+from constants import CENTROID, LABEL
 
 
 class GraphClassificationDataset(Dataset):
     def __init__(
-        self, metadata: pd.DataFrame, patch_size: Tuple[int, int], nr_classes: int = 5
+        self, metadata: pd.DataFrame, patch_size: Tuple[int, int], nr_classes: int = 4, ignore_class: Tuple[int, None] = 4,
     ) -> None:
         self._check_metadata(metadata)
         self.metadata = metadata
         self.names, self.graphs = self._load_graphs(self.metadata)
-        self.annotations = self._load_annotations(self.metadata)
+        self.image_sizes = self._load_image_sizes(self.metadata)
         self.patch_size = patch_size
         self.nr_classes = nr_classes
+        self.ignore_class = ignore_class
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -33,21 +36,9 @@ class GraphClassificationDataset(Dataset):
         """
         assert not metadata.isna().any().any(), f"Some entries in metadata are NaN"
         assert (
-            "image_path" in metadata
-        ), f"Metadata lacks image path ({metadata.columns})"
-        assert (
-            "annotation_path" in metadata
-        ), f"Metadata lacks annotation path ({metadata.columns})"
-        assert (
             "graph_path" in metadata
         ), f"Metadata lacks graph path ({metadata.columns})"
         for name, row in metadata.iterrows():
-            assert (
-                row.image_path.exists()
-            ), f"Image {name} referenced in metadata does not exist: {row.image_path}"
-            assert (
-                row.annotation_path.exists()
-            ), f"Annotation {name} referenced in metadata does not exist: {row.annotation_path}"
             assert (
                 row.graph_path.exists()
             ), f"Graph {name} referenced in metadata does not exist: {row.graph_path}"
@@ -67,6 +58,13 @@ class GraphClassificationDataset(Dataset):
             names.append(name)
             graphs.append(load_graphs(str(row["graph_path"]))[0][0])
         return names, graphs
+
+    @staticmethod
+    def _load_image_sizes(metadata: pd.DataFrame) -> List[Tuple[int, int]]:
+        image_sizes = list()
+        for _, row in metadata.iterrows():
+            image_sizes.append((row.height, row.width))
+        return image_sizes
 
     @staticmethod
     def _get_indices_in_bounding_box(
@@ -112,23 +110,6 @@ class GraphClassificationDataset(Dataset):
         return subgraph
 
     @staticmethod
-    def _load_annotations(metadata: pd.DataFrame) -> List[np.ndarray]:
-        """Loads all annotations from disk into memory
-
-        Args:
-            metadata (pd.DataFrame): Metadata dataframe
-
-        Returns:
-            List[np.ndarray]: A list of annotations
-        """
-        annotations = list()
-        for _, row in metadata.iterrows():
-            with Image.open(row.annotation_path) as annotation_file:
-                annotation = np.array(annotation_file)
-            annotations.append(annotation)
-        return annotations
-
-    @staticmethod
     def _get_random_patch(
         full_size: Tuple[int, int], patch_size: Tuple[int, int]
     ) -> Tuple[int, int, int, int]:
@@ -152,29 +133,30 @@ class GraphClassificationDataset(Dataset):
             index (int): Index of graph
 
         Returns:
-            Tuple[dgl.DGLGraph, int]: Subgraph and corresponding one-hot encoded label
+            Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Subgraph and corresponding one-hot encoded graph label and the (not-onehot) node label
         """
-        annotation = self.annotations[index]
         graph = self.graphs[index]
+        image_size = self.image_sizes[index]
+        annotation = graph.ndata[LABEL]
 
         # Random patch sampling
         if self.patch_size is not None:
             bounding_box = self._get_random_patch(
-                full_size=annotation.shape, patch_size=self.patch_size
+                full_size=image_size, patch_size=self.patch_size
             )
             relevant_nodes = self._get_indices_in_bounding_box(
                 graph.ndata[CENTROID], bounding_box
             )
             graph = self._generate_subgraph(graph, relevant_nodes)
-            annotation = annotation[
-                bounding_box[0] : bounding_box[2], bounding_box[1] : bounding_box[3]
-            ]
+            annotation = annotation[relevant_nodes]
 
         # Label extraction
-        label = pd.unique(np.ravel(annotation))
-        one_hot_label = torch.zeros(self.nr_classes, dtype=torch.int)
-        one_hot_label[label.astype(int)] = 1
-        return graph, one_hot_label
+        graph_label = pd.unique(annotation.numpy())
+        if self.ignore_class is not None:
+            graph_label = graph_label[graph_label != self.ignore_class]
+        one_hot_graph_label = torch.zeros(self.nr_classes, dtype=torch.int)
+        one_hot_graph_label[graph_label.astype(int)] = 1
+        return graph, one_hot_graph_label, annotation
 
     def __len__(self) -> int:
         """Number of graphs in the dataset

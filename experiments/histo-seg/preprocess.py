@@ -3,24 +3,24 @@
 import argparse
 import logging
 import multiprocessing
-import sys
 import os
+import sys
 from functools import partial
 from pathlib import Path
 from typing import Callable, Tuple, Union
 
-import pandas as pd
 import yaml
 from tqdm.auto import tqdm
 
-from eth import DATASET_PATH, IMAGES_DF, PREPROCESS_PATH
+from eth import ANNOTATIONS_DF, DATASET_PATH, IMAGES_DF, PREPROCESS_PATH
 from feature_extraction import FeatureExtractor
 from graph_builders import BaseGraphBuilder
-from superpixel import SuperpixelExtractor
 from stain_normalizers import StainNormalizer
+from superpixel import SuperpixelExtractor
 from utils import (
     dynamic_import_from,
     get_next_version_number,
+    merge_metadata,
     read_image,
     start_logging,
 )
@@ -88,13 +88,23 @@ def process_image(
             input_image=normalized_image, superpixels=superpixels
         )
 
+    # Optional annotation loading
+    annotation = None
+    if "annotation_path" in row:
+        annotation = read_image(row.annotation_path)
+
     # Graph building
     if save:
         graph_builder.process_and_save(
-            structure=superpixels, features=features, output_name=name
+            structure=superpixels,
+            features=features,
+            annotation=annotation,
+            output_name=name,
         )
     else:
-        graph_builder.process(structure=superpixels, features=features)
+        graph_builder.process(
+            structure=superpixels, features=features, annotation=annotation
+        )
 
 
 def preprocessing(
@@ -102,6 +112,7 @@ def preprocessing(
     test: bool = False,
     save: bool = True,
     cores: int = 1,
+    labels: bool = False,
     subsample: Union[None, int] = None,
     **kwargs,
 ):
@@ -113,6 +124,9 @@ def preprocessing(
     if len(kwargs) > 0:
         logging.warning(f"Unmatched arguments: {kwargs}")
     images_metadata = pd.read_pickle(IMAGES_DF)
+    if labels:
+        annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+        images_metadata = merge_metadata(images_metadata, annotation_metadata)
 
     if save and not PREPROCESS_PATH.exists():
         PREPROCESS_PATH.mkdir()

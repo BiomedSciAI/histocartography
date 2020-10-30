@@ -2,6 +2,7 @@
 
 import logging
 from abc import abstractmethod
+from typing import Union
 
 import cv2
 import dgl
@@ -11,8 +12,8 @@ import torch
 from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 
-from constants import CENTROID, GNN_EDGE_FEAT, GNN_NODE_FEAT_IN
-from utils import PipelineStep
+from constants import CENTROID, GNN_EDGE_FEAT, GNN_NODE_FEAT_IN, LABEL
+from utils import PipelineStep, fast_histogram
 
 
 class BaseGraphBuilder(PipelineStep):
@@ -20,15 +21,22 @@ class BaseGraphBuilder(PipelineStep):
     Base interface class for graph building.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, nr_classes: int, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.nr_classes = nr_classes
 
-    def process(self, structure: np.ndarray, features: torch.Tensor) -> dgl.DGLGraph:
+    def process(
+        self,
+        structure: np.ndarray,
+        features: torch.Tensor,
+        annotation: Union[None, np.ndarray] = None,
+    ) -> dgl.DGLGraph:
         """Generates a graph with a given structure and features
 
         Args:
             structure (np.array): Structure, depending on the graph can be superpixel connectivity, or centroids
             features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)
+            annotation (Union[None, np.array], optional): Optional node level to include. Defaults to None.
 
         Returns:
             dgl.DGLGraph: The constructed graph
@@ -42,6 +50,8 @@ class BaseGraphBuilder(PipelineStep):
         # add node features
         self._set_node_features(features, graph)
         self._set_node_centroids(structure, graph)
+        if annotation is not None:
+            self._set_node_labels(structure, annotation, graph)
 
         # build edges
         self._build_topology(
@@ -51,7 +61,11 @@ class BaseGraphBuilder(PipelineStep):
         return graph
 
     def process_and_save(
-        self, structure: np.ndarray, features: torch.Tensor, output_name: str
+        self,
+        structure: np.ndarray,
+        features: torch.Tensor,
+        output_name: str,
+        annotation: Union[None, np.ndarray] = None,
     ) -> dgl.DGLGraph:
         assert (
             self.base_path is not None
@@ -65,7 +79,9 @@ class BaseGraphBuilder(PipelineStep):
             assert len(graphs) == 1
             graph = graphs[0]
         else:
-            graph = self.process(structure=structure, features=features)
+            graph = self.process(
+                structure=structure, features=features, annotation=annotation
+            )
             save_graphs(str(output_path), [graph])
         return graph
 
@@ -90,6 +106,23 @@ class BaseGraphBuilder(PipelineStep):
             centroids[i, 0] = center_x
             centroids[i, 1] = center_y
         graph.ndata[CENTROID] = centroids
+
+    def _set_node_labels(
+        self, superpixels: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
+    ) -> None:
+        assert (
+            self.nr_classes < 256
+        ), f"Cannot handle that many classes with 8 byte representation"
+        region_labels = pd.unique(np.ravel(superpixels))
+        labels = torch.empty(len(region_labels), dtype=torch.uint8)
+        for region_label in region_labels:
+            assignment = np.argmax(
+                fast_histogram(
+                    annotation[superpixels == region_label], nr_values=self.nr_classes
+                )
+            )
+            labels[region_label - 1] = int(assignment)
+        graph.ndata[LABEL] = labels
 
     @abstractmethod
     def _build_topology(self, instances: np.ndarray, graph: dgl.DGLGraph) -> None:
@@ -120,7 +153,6 @@ class RAGGraphBuilder(BaseGraphBuilder):
         Args:
             kernel_size (int, optional): Size of the kernel to detect connectivity. Defaults to 5.
         """
-        super(RAGGraphBuilder, self).__init__()
         logging.debug("*** RAG Graph Builder ***")
         self.kernel_size = kernel_size
         super().__init__(**kwargs)

@@ -1,15 +1,12 @@
 """Dataloader for precomputed graphs in .bin format"""
-from sys import meta_path
 from typing import List, Tuple
 
-import h5py
 import dgl
 import numpy as np
 import pandas as pd
 import torch
 from dgl.data.utils import load_graphs
 from dgl.graph import DGLGraph
-from PIL import Image
 from torch.utils.data import Dataset
 
 from constants import CENTROID, LABEL
@@ -17,7 +14,9 @@ from constants import CENTROID, LABEL
 
 class GraphClassificationDataset(Dataset):
     def __init__(
-        self, metadata: pd.DataFrame, patch_size: Tuple[int, int],
+        self,
+        metadata: pd.DataFrame,
+        patch_size: Tuple[int, int],
     ) -> None:
         self._check_metadata(metadata)
         self.names, self.graphs = self._load_graphs(self.metadata)

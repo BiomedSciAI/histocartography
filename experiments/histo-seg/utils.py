@@ -8,6 +8,7 @@ from typing import Any, Tuple, Union
 
 import dgl
 import h5py
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -209,6 +210,7 @@ def merge_metadata(
     annotation_metadata: pd.DataFrame,
     graph_directory: Union[None, Path] = None,
     superpixel_directory: Union[None, Path] = None,
+    add_image_sizes: bool = False,
 ):
     # Prepare annotation paths
     annot = annotation_metadata[annotation_metadata.pathologist == 1][
@@ -238,6 +240,17 @@ def merge_metadata(
         superpixel_metadata = superpixel_metadata.set_index("name")
         image_metadata = image_metadata.join(superpixel_metadata)
 
+    # Add image sizes
+    if add_image_sizes:
+        image_heights, image_widths = list(), list()
+        for name, row in image_metadata.iterrows():
+            image = Image.open(row.annotation_path)
+            height, width = image.size
+            image_heights.append(height)
+            image_widths.append(width)
+        image_metadata['height'] = image_heights
+        image_metadata['width'] = image_widths
+
     return image_metadata
 
 
@@ -246,7 +259,7 @@ def compute_graph_overlay(
     name: Union[None, str] = None,
     image: Union[None, np.ndarray] = None,
     superpixels: Union[None, np.ndarray] = None,
-) -> Union[None, Tuple[plt.figure.Figure, plt.axes.Axis]]:
+) -> Union[None, Tuple[mpl.figure.Figure, mpl.axes.Axes]]:
     """Creates a plot of the graph, optionally with labels, overlayed with the image or even with the image and superpixels. Saves to name if not None.
 
     Args:

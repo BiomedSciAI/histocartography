@@ -9,6 +9,7 @@ from functools import partial
 from pathlib import Path
 from typing import Callable, Tuple, Union
 
+import pandas as pd
 import yaml
 from tqdm.auto import tqdm
 

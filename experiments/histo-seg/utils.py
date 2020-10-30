@@ -1,4 +1,5 @@
 """This module handles helper general functions"""
+import gc
 import importlib
 import logging
 import re
@@ -256,7 +257,7 @@ def merge_metadata(
 
 def compute_graph_overlay(
     graph: dgl.DGLGraph,
-    name: Union[None, str] = None,
+    path: Union[None, str] = None,
     image: Union[None, np.ndarray] = None,
     superpixels: Union[None, np.ndarray] = None,
 ) -> Union[None, Tuple[mpl.figure.Figure, mpl.axes.Axes]]:
@@ -264,7 +265,7 @@ def compute_graph_overlay(
 
     Args:
         graph (dgl.DGLGraph): Graph to plot
-        name (Union[None, str], optional): Name to save to. None refers to returning instead of saving. Defaults to None.
+        path (Union[None, str], optional): Path to save to. None refers to returning instead of saving. Defaults to None.
         image (Union[None, np.ndarray], optional): Image that goes with the graph. Defaults to None.
         superpixels (Union[None, np.ndarray], optional): Superpixels that go with the image. Defaults to None.
 
@@ -309,6 +310,15 @@ def compute_graph_overlay(
         width=0.5,
         edge_color="black",
     )
-    if name is None:
+    if path is None:
         return fig, ax
-    fig.savefig(f"{name}_overlay.png", dpi=100, bbox_inches="tight")
+    fig.savefig(path, dpi=100, bbox_inches="tight")
+    
+    # Clear the current axes.
+    plt.cla() 
+    # Clear the current figure.
+    plt.clf() 
+    # Closes all the figure windows.
+    plt.close('all')   
+    plt.close(fig)
+    gc.collect()

@@ -4,15 +4,17 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
 import dgl
 import h5py
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from PIL import Image
+from skimage.segmentation import mark_boundaries
 
 
 class PipelineStep(ABC):
@@ -72,7 +74,9 @@ class PipelineStep(ABC):
         else:
             output = self.process(**kwargs)
             with h5py.File(output_path, "w") as output_file:
-                output_file.create_dataset(self.output_key, data=output, compression="gzip", compression_opts=9)
+                output_file.create_dataset(
+                    self.output_key, data=output, compression="gzip", compression_opts=9
+                )
         return output
 
 
@@ -198,3 +202,100 @@ def dynamic_import_from(source_file: str, class_name: str) -> Any:
     """
     module = importlib.import_module(source_file)
     return getattr(module, class_name)
+
+
+def merge_metadata(
+    image_metadata: pd.DataFrame,
+    annotation_metadata: pd.DataFrame,
+    graph_directory: Union[None, Path] = None,
+    superpixel_directory: Union[None, Path] = None,
+):
+    # Prepare annotation paths
+    annot = annotation_metadata[annotation_metadata.pathologist == 1][
+        ["path", "name"]
+    ].set_index("name")
+    annot = annot.rename(columns={"path": "annotation_path"})
+
+    # Join with image metadata
+    image_metadata = image_metadata.join(annot)
+
+    if graph_directory is not None:
+        graph_metadata = pd.DataFrame(
+            [(path.name.split(".")[0], path) for path in graph_directory.iterdir()],
+            columns=["name", "graph_path"],
+        )
+        graph_metadata = graph_metadata.set_index("name")
+        image_metadata = image_metadata.join(graph_metadata)
+
+    if superpixel_directory is not None:
+        superpixel_metadata = pd.DataFrame(
+            [
+                (path.name.split(".")[0], path)
+                for path in superpixel_directory.iterdir()
+            ],
+            columns=["name", "superpixel_path"],
+        )
+        superpixel_metadata = superpixel_metadata.set_index("name")
+        image_metadata = image_metadata.join(superpixel_metadata)
+
+    return image_metadata
+
+
+def compute_graph_overlay(
+    graph: dgl.DGLGraph,
+    name: Union[None, str] = None,
+    image: Union[None, np.ndarray] = None,
+    superpixels: Union[None, np.ndarray] = None,
+) -> Union[None, Tuple[plt.figure.Figure, plt.axes.Axis]]:
+    """Creates a plot of the graph, optionally with labels, overlayed with the image or even with the image and superpixels. Saves to name if not None.
+
+    Args:
+        graph (dgl.DGLGraph): Graph to plot
+        name (Union[None, str], optional): Name to save to. None refers to returning instead of saving. Defaults to None.
+        image (Union[None, np.ndarray], optional): Image that goes with the graph. Defaults to None.
+        superpixels (Union[None, np.ndarray], optional): Superpixels that go with the image. Defaults to None.
+
+    Returns:
+        Union[None, Tuple[plt.figure.Figure, plt.axes.Axis]]: Either None if name is not None or returns the fig, ax like plt.subplots
+    """
+
+    fig, ax = plt.subplots(figsize=(30, 30))
+    if image is not None:
+        if superpixels is not None:
+            image = mark_boundaries(image, superpixels, color=(0, 1, 1))
+        ax.imshow(image, alpha=0.5)
+
+    nxgraph = graph.to_networkx()
+
+    if "label" in graph.ndata:
+        color_map = []
+        for i in range(nxgraph.number_of_nodes()):
+            label = graph.ndata["label"][i].item()
+            if label == 4:
+                color_map.append("gray")
+            if label == 0:
+                color_map.append("lime")
+            if label == 1:
+                color_map.append("mediumblue")
+            if label == 2:
+                color_map.append("gold")
+            if label == 3:
+                color_map.append("darkred")
+    else:
+        color_map = "black"
+    pos = graph.ndata["centroid"].numpy().copy()
+    pos[:, [0, 1]] = pos[:, [1, 0]]
+    nx.draw_networkx(
+        nxgraph,
+        pos=pos,
+        node_color=color_map,
+        arrows=False,
+        with_labels=False,
+        ax=ax,
+        node_size=40,
+        width=0.5,
+        edge_color="black",
+    )
+    if name is None:
+        return fig, ax
+    fig.savefig(f"{name}_overlay.png", dpi=100, bbox_inches="tight")

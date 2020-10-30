@@ -17,15 +17,12 @@ from constants import CENTROID, LABEL
 
 class GraphClassificationDataset(Dataset):
     def __init__(
-        self, metadata: pd.DataFrame, patch_size: Tuple[int, int], nr_classes: int = 4, ignore_class: Tuple[int, None] = 4,
+        self, metadata: pd.DataFrame, patch_size: Tuple[int, int],
     ) -> None:
         self._check_metadata(metadata)
-        self.metadata = metadata
         self.names, self.graphs = self._load_graphs(self.metadata)
         self.image_sizes = self._load_image_sizes(self.metadata)
         self.patch_size = patch_size
-        self.nr_classes = nr_classes
-        self.ignore_class = ignore_class
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -133,11 +130,11 @@ class GraphClassificationDataset(Dataset):
             index (int): Index of graph
 
         Returns:
-            Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Subgraph and corresponding one-hot encoded graph label and the (not-onehot) node label
+            Tuple[dgl.DGLGraph, Set[ind], torch.Tensor]: Subgraph and graph label and the node labels
         """
         graph = self.graphs[index]
         image_size = self.image_sizes[index]
-        annotation = graph.ndata[LABEL]
+        node_labels = graph.ndata[LABEL]
 
         # Random patch sampling
         if self.patch_size is not None:
@@ -148,15 +145,11 @@ class GraphClassificationDataset(Dataset):
                 graph.ndata[CENTROID], bounding_box
             )
             graph = self._generate_subgraph(graph, relevant_nodes)
-            annotation = annotation[relevant_nodes]
+            node_labels = node_labels[relevant_nodes]
 
         # Label extraction
-        graph_label = pd.unique(annotation.numpy())
-        if self.ignore_class is not None:
-            graph_label = graph_label[graph_label != self.ignore_class]
-        one_hot_graph_label = torch.zeros(self.nr_classes, dtype=torch.int)
-        one_hot_graph_label[graph_label.astype(int)] = 1
-        return graph, one_hot_graph_label, annotation
+        graph_label = set(pd.unique(node_labels.numpy()))
+        return graph, graph_label, node_labels
 
     def __len__(self) -> int:
         """Number of graphs in the dataset
@@ -164,4 +157,4 @@ class GraphClassificationDataset(Dataset):
         Returns:
             int: Length of the dataset
         """
-        return len(self.metadata)
+        return len(self.graphs)

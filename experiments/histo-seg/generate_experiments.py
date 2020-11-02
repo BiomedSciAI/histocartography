@@ -79,10 +79,10 @@ def generate_upper_bounds(path: str, base: str):
     job_name = "upper_bound_test"
     job_id = 0
     cores = 6
-    for nr_superpixels in [100, 500, 1000, 4000, 8000]:
+    for nr_superpixels in [100, 250, 500, 1000, 2000, 4000, 8000]:
         # Generate config
         new_config = config.copy()
-        new_config["upper_bound"]["params"]["cores"] = cores * 8
+        new_config["upper_bound"]["params"]["cores"] = cores * 6
         new_config["upper_bound"]["stages"]["superpixel_extractor"]["params"] = {
             "nr_superpixels": nr_superpixels,
         }
@@ -90,7 +90,7 @@ def generate_upper_bounds(path: str, base: str):
         # Generate lsf file
         lsf_content = get_lsf(
             config_name=f"job{job_id}",
-            queue="prod.short",
+            queue="prod.med",
             cores=cores,
             log_name=f"{job_name}{job_id}",
             main_file_name="upper_bound"

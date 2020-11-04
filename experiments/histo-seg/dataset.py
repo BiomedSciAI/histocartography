@@ -1,5 +1,5 @@
 """Dataloader for precomputed graphs in .bin format"""
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import dgl
 import numpy as np
@@ -16,12 +16,17 @@ class GraphClassificationDataset(Dataset):
     def __init__(
         self,
         metadata: pd.DataFrame,
-        patch_size: Tuple[int, int],
+        patch_size: Union[None, Tuple[int, int]],
+        num_classes: int = 4,
+        background_index: int = 4,
     ) -> None:
         self._check_metadata(metadata)
-        self.names, self.graphs = self._load_graphs(self.metadata)
-        self.image_sizes = self._load_image_sizes(self.metadata)
+        self.names, self.graphs = self._load_graphs(metadata)
+        self.image_sizes = self._load_image_sizes(metadata)
         self.patch_size = patch_size
+        self.num_classes = num_classes
+        self.background_index = background_index
+        self.name_to_index = dict(zip(self.names, range(len(self.names))))
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -122,15 +127,47 @@ class GraphClassificationDataset(Dataset):
         y_min = np.random.randint(full_size[1] - patch_size[1])
         return (x_min, y_min, x_min + patch_size[0], y_min + patch_size[1])
 
-    def __getitem__(self, index: int) -> Tuple[dgl.DGLGraph, int]:
+    def _to_onehot_with_ignore(self, input_vector: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
+        """Converts an input vector into a one-hot encoded matrix using the num_classes and background class attributes
+
+        Args:
+            input_vector (Union[np.ndarray, torch.Tensor]): Input vector (1 dimensional)
+
+        Raises:
+            NotImplementedError: Handles only numpy arrays and tensors
+
+        Returns:
+            torch.Tensor: One-hot encoded matrix with shape: nr_samples x num_classes
+        """
+        if isinstance(input_vector, np.ndarray):
+            input_vector = torch.Tensor(input_vector.astype(np.int64)).to(torch.int64)
+        elif isinstance(input_vector, torch.Tensor):
+            input_vector = input_vector.to(torch.int64)
+        else:
+            raise NotImplementedError(f"Only support numpy arrays and torch tensors")
+        one_hot_vector = torch.nn.functional.one_hot(
+            input_vector, num_classes=self.num_classes + 1
+        )
+        clean_one_hot_vector = torch.cat(
+            [
+                one_hot_vector[:, 0 : self.background_index],
+                one_hot_vector[:, self.background_index + 1 :],
+            ],
+            dim=1,
+        )
+        return clean_one_hot_vector.to(torch.int8)
+
+    def __getitem__(self, index: int) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
         """Returns a sample (patch) of graph i
 
         Args:
             index (int): Index of graph
 
         Returns:
-            Tuple[dgl.DGLGraph, Set[ind], torch.Tensor]: Subgraph and graph label and the node labels
+            Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Subgraph and graph label and the node labels
         """
+        if isinstance(index, str):
+            index = self.name_to_index[index]
         graph = self.graphs[index]
         image_size = self.image_sizes[index]
         node_labels = graph.ndata[LABEL]
@@ -147,7 +184,9 @@ class GraphClassificationDataset(Dataset):
             node_labels = node_labels[relevant_nodes]
 
         # Label extraction
-        graph_label = set(pd.unique(node_labels.numpy()))
+        graph_label = self._to_onehot_with_ignore(pd.unique(node_labels.numpy()))
+        graph_label = graph_label.sum(axis=0)
+
         return graph, graph_label, node_labels
 
     def __len__(self) -> int:

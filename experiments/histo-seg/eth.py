@@ -5,10 +5,16 @@ import logging
 import os
 import shutil
 from pathlib import Path
+from typing import List, Tuple
 
 import pandas as pd
+from torch.utils.data.dataset import Dataset
 
-hostname = os.popen("hostname").read()
+from dataset import GraphClassificationDataset
+from utils import merge_metadata
+
+with os.popen("hostname") as subprocess:
+    hostname = subprocess.read()
 if hostname.startswith("zhcc"):
     BASE_PATH = Path("/dataT/anv/Data/ETH")
 elif hostname.startswith("Gerbil"):
@@ -25,6 +31,8 @@ MASK_VALUE_TO_TEXT = {
 }
 
 MASK_VALUE_TO_COLOR = {0: "green", 1: "blue", 2: "yellow", 3: "red", 4: "white"}
+NR_CLASSES = 4
+BACKGROUND_CLASS = 4
 
 TMA_IMAGE_PATH = BASE_PATH / "TMA_Images"
 TRAIN_ANNOTATION_PATH = BASE_PATH / "Gleason_masks_train"
@@ -138,6 +146,48 @@ def generate_annotations_meta_df() -> None:
             df.append((name, file, pathologist, "test"))
     df = pd.DataFrame(df, columns=["name", "path", "pathologist", "use"])
     df.to_pickle(ANNOTATIONS_DF)
+
+
+def prepare_datasets(
+    graph_directory: Path,
+    training_slides: List[int],
+    validation_slides: List[int],
+    patch_size: int,
+) -> Tuple[Dataset, Dataset]:
+    """Create the datset from the hardcoded values in this file as well as dynamic information
+
+    Args:
+        graph_directory (Path): Directory of the dumped graphs
+        training_slides (List[int]): List of slides to use for training
+        validation_slides (List[int]): List of slides to use for validation
+        patch_size (int): Size of the patches
+
+    Returns:
+        Tuple[Dataset, Dataset]: Training set, validation set
+    """
+    all_metadata = merge_metadata(
+        pd.read_pickle(IMAGES_DF),
+        pd.read_pickle(ANNOTATIONS_DF),
+        graph_directory=PREPROCESS_PATH / graph_directory,
+        add_image_sizes=True,
+    )
+    training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
+    validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
+
+    training_dataset = GraphClassificationDataset(
+        training_metadata,
+        patch_size=(patch_size, patch_size),
+        num_classes=NR_CLASSES,
+        background_index=BACKGROUND_CLASS,
+    )
+    validation_dataset = GraphClassificationDataset(
+        validation_metadata,
+        patch_size=None,
+        num_classes=NR_CLASSES,
+        background_index=BACKGROUND_CLASS,
+    )
+
+    return training_dataset, validation_dataset
 
 
 if __name__ == "__main__":

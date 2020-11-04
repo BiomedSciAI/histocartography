@@ -17,8 +17,11 @@ preprocess:
         size: 224
     graph_builder:
       class: "RAGGraphBuilder"
+      params:
+        nr_classes: 5
   params:
-    cores: 16
+    cores: 64
+    labels: True
 upper_bound:
   stages:
     stain_normalizer:
@@ -32,3 +35,39 @@ upper_bound:
         color_space: "rgb"
   params:
     cores: 16
+train:
+  data:
+    training_slides:
+      - 111
+      - 199
+      - 204
+    validation_slides:
+      - 76
+    patch_size: 2500
+    graph_directory:  "outputs/v0"
+  model:
+    gnn:
+      activation: "relu"
+      agg_operator: "none"
+      input_dim: 512
+      hidden_dim: 64
+      layer_type: "gin_layer"
+      n_layers: 3
+      output_dim: 64
+      neighbor_pooling_type: "mean"
+      graph_norm: False
+      with_rlp: False
+      edge_dim: 16
+    graph_classifier:
+      n_layers: 2
+      hidden_dim: 64
+    node_classifier:
+      n_layers: 2
+      hidden_dim: 32
+  params:
+    optimizer:
+      class: "Adam"
+      params:
+        lr: 0.001
+    batch_size: 8
+    nr_epochs: 1000

@@ -55,7 +55,7 @@ def train_graph_classifier(
     )
     validation_loader = DataLoader(validation_dataset, batch_size=1, collate_fn=collate)
 
-    model = WeakTissueClassifier(model_config)
+    model = WeakTissueClassifier(**model_config)
     graph_criterion = GraphLabelLoss()
     node_criterion = NodeLabelLoss(training_dataset.background_index)
 

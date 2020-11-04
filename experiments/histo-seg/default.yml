@@ -46,7 +46,7 @@ train:
     patch_size: 2500
     graph_directory:  "outputs/v0"
   model:
-    gnn:
+    gnn_config:
       activation: "relu"
       agg_operator: "none"
       input_dim: 512
@@ -58,10 +58,10 @@ train:
       graph_norm: False
       with_rlp: False
       edge_dim: 16
-    graph_classifier:
+    graph_classifier_config:
       n_layers: 2
       hidden_dim: 64
-    node_classifier:
+    node_classifier_config:
       n_layers: 2
       hidden_dim: 32
   params:

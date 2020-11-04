@@ -4,14 +4,60 @@ from typing import Dict, Tuple
 import dgl
 import torch
 from histocartography.ml.layers.multi_layer_gnn import MultiLayerGNN
-from torch import nn
+from torch import mode, nn
 
 from constants import GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT
 
 
+class ClassifierHead(nn.Module):
+    """A basic classifier head"""
+    def __init__(
+        self,
+        input_dim: int,
+        output_dim: int,
+        n_layers: int = 2,
+        hidden_dim: int = None,
+    ) -> None:
+        """Create a basic classifier head
+
+        Args:
+            input_dim (int): Dimensionality of the input
+            output_dim (int): Number of output classes
+            n_layers (int, optional): Number of layers (including input to hidden and hidden to output layer). Defaults to 2.
+            hidden_dim (int, optional): Dimensionality of the hidden layers. Defaults to None.
+        """
+        super().__init__()
+        if hidden_dim is None:
+            hidden_dim = input_dim
+        modules = [nn.Linear(input_dim, hidden_dim), nn.ReLU()]
+        for _ in range(n_layers - 2):
+            modules.append(nn.Linear(hidden_dim, hidden_dim))
+            modules.append(nn.ReLU())
+        modules.append(nn.Linear(hidden_dim, output_dim))
+        self.model = nn.Sequential(*modules)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Do a forward pass through the classifier head
+
+        Args:
+            x (torch.Tensor): Input tensor
+
+        Returns:
+            torch.Tensor: Output tensor
+        """
+        return self.model(x)
+
+
 class WeakTissueClassifier(nn.Module):
     """Classifier that uses both weak graph labels and some provided node labels"""
-    def __init__(self, config: Dict, nr_classes : int = 4) -> None:
+
+    def __init__(
+        self,
+        gnn_config: Dict,
+        graph_classifier_config: Dict,
+        node_classifier_config: Dict,
+        nr_classes: int = 4,
+    ) -> None:
         """Build a classifier to classify superpixel tissue graphs
 
         Args:
@@ -19,18 +65,14 @@ class WeakTissueClassifier(nn.Module):
             nr_classes (int, optional): Number of classes to consider. Defaults to 4.
         """
         super().__init__()
-        self.gnn_model = MultiLayerGNN(config["gnn"])
-        self.latent_dim = config["gnn"]["output_dim"]
-        self.graph_classifier = nn.Sequential(
-            torch.nn.Linear(self.latent_dim, self.latent_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.latent_dim, nr_classes),
+        self.gnn_model = MultiLayerGNN(gnn_config)
+        self.latent_dim = gnn_config["output_dim"]
+        self.graph_classifier = ClassifierHead(
+            input_dim=self.latent_dim, output_dim=nr_classes, **graph_classifier_config
         )
         self.node_classifiers = [
-            nn.Sequential(
-                torch.nn.Linear(self.latent_dim, self.latent_dim // 2),
-                torch.nn.ReLU(),
-                torch.nn.Linear(self.latent_dim // 2, 1),
+            ClassifierHead(
+                input_dim=self.latent_dim, output_dim=1, **node_classifier_config
             )
             for _ in range(nr_classes)
         ]
@@ -48,17 +90,12 @@ class WeakTissueClassifier(nn.Module):
         in_features = graph.ndata[GNN_NODE_FEAT_IN]
 
         graph_embedding = self.gnn_model(graph, in_features)
-        logging.debug(f"Graph embeddings: {graph_embedding.shape}")
         graph_logit = self.graph_classifier(graph_embedding)
 
-        logging.debug(f"In features: {in_features.shape}")
         node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
-        logging.debug(f"Node embeddings: {node_embedding.shape}")
         node_logit = torch.empty((in_features.shape[0], self.nr_classes))
-        logging.debug(f"Node logits: {node_logit.shape}")
         for i, node_classifier in enumerate(self.node_classifiers):
             classifier_output = node_classifier(node_embedding).squeeze(1)
-            logging.debug(f"Classifier output: {classifier_output.shape}")
             node_logit[:, i] = classifier_output
 
         return graph_logit, node_logit

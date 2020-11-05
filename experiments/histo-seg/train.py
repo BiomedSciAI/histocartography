@@ -42,6 +42,7 @@ def train_graph_classifier(
     metrics_config: Dict,
     batch_size: int,
     nr_epochs: int,
+    num_workers: int,
     optimizer: Dict,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -69,16 +70,25 @@ def train_graph_classifier(
         metrics_config, "valid."
     )
     training_loader = DataLoader(
-        training_dataset, batch_size=batch_size, collate_fn=collate
+        training_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=collate,
+        num_workers=num_workers,
     )
-    validation_loader = DataLoader(validation_dataset, batch_size=1, collate_fn=collate)
+    validation_loader = DataLoader(
+        validation_dataset,
+        batch_size=batch_size,
+        collate_fn=collate,
+        num_workers=num_workers,
+    )
 
     # Compute device
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
-        mlflow.log_param('device', torch.cuda.get_device_name(0))
+        mlflow.log_param("device", torch.cuda.get_device_name(0))
     else:
-        mlflow.log_param('device', 'CPU')
+        mlflow.log_param("device", "CPU")
 
     # Model
     model = WeakTissueClassifier(**model_config)

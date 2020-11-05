@@ -72,6 +72,7 @@ train:
     optimizer:
       class: "Adam"
       params:
-        lr: 0.001
-    batch_size: 8
+        lr: 0.0001
+    batch_size: 32
     nr_epochs: 1000
+    num_workers: 8

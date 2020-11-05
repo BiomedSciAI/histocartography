@@ -70,12 +70,13 @@ class WeakTissueClassifier(nn.Module):
         self.graph_classifier = ClassifierHead(
             input_dim=self.latent_dim, output_dim=nr_classes, **graph_classifier_config
         )
-        self.node_classifiers = [
+        node_classifiers = [
             ClassifierHead(
                 input_dim=self.latent_dim, output_dim=1, **node_classifier_config
             )
             for _ in range(nr_classes)
         ]
+        self.node_classifiers = nn.ModuleList(node_classifiers)
         self.nr_classes = nr_classes
 
     def forward(self, graph: dgl.DGLGraph) -> Tuple[torch.Tensor, torch.Tensor]:

@@ -37,6 +37,7 @@ upper_bound:
     cores: 16
 train:
   data:
+    overfit_test: False
     training_slides:
       - 111
       - 199
@@ -64,6 +65,9 @@ train:
     node_classifier_config:
       n_layers: 2
       hidden_dim: 32
+  metrics:
+    graph:
+      - "GraphClassificationAccuracy"
   params:
     optimizer:
       class: "Adam"

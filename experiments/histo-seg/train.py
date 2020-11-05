@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import logging
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -90,6 +91,7 @@ def train_graph_classifier(
     for epoch in range(nr_epochs):
 
         # Train model
+        time_before_training = datetime.datetime.now()
         model.train()
         progress_bar = tqdm(
             enumerate(training_loader),
@@ -115,8 +117,13 @@ def train_graph_classifier(
                 node_labels=node_labels,
             )
         training_metric_logger.log_and_clear(step=epoch)
+        training_epoch_duration = (
+            datetime.datetime.now() - time_before_training
+        ).total_seconds()
+        mlflow.log_metric("train.seconds_per_epoch", training_epoch_duration)
 
         # Validate model
+        time_before_validation = datetime.datetime.now()
         model.eval()
         progress_bar = tqdm(
             enumerate(validation_loader),
@@ -141,6 +148,10 @@ def train_graph_classifier(
                     node_labels=node_labels,
                 )
         validation_metric_logger.log_and_clear(step=epoch, model=model)
+        validation_epoch_duration = (
+            datetime.datetime.now() - time_before_validation
+        ).total_seconds()
+        mlflow.log_metric("valid.seconds_per_epoch", validation_epoch_duration)
 
 
 if __name__ == "__main__":

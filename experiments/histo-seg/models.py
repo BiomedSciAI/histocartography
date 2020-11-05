@@ -94,7 +94,7 @@ class WeakTissueClassifier(nn.Module):
         graph_logit = self.graph_classifier(graph_embedding)
 
         node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
-        node_logit = torch.empty((in_features.shape[0], self.nr_classes))
+        node_logit = torch.empty((in_features.shape[0], self.nr_classes), device=graph_logit.device)
         for i, node_classifier in enumerate(self.node_classifiers):
             classifier_output = node_classifier(node_embedding).squeeze(1)
             node_logit[:, i] = classifier_output

@@ -184,7 +184,7 @@ class GraphClassificationDataset(Dataset):
             node_labels = node_labels[relevant_nodes]
 
         # Label extraction
-        graph_label = self._to_onehot_with_ignore(pd.unique(node_labels.numpy()))
+        graph_label = self._to_onehot_with_ignore(pd.unique(node_labels.cpu().numpy()))
         graph_label = graph_label.sum(axis=0)
 
         return graph, graph_label, node_labels

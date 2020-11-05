@@ -1,5 +1,8 @@
 from abc import abstractmethod
+import mlflow
 import torch
+import sklearn.metrics
+import numpy as np
 
 
 class Metric:
@@ -199,3 +202,36 @@ class MeanF1Score(F1Score):
         mask = torch.isnan(class_f1)
         class_f1[mask] = 0
         return torch.sum(class_f1, axis=1) / torch.sum(~mask, axis=1)
+
+
+class GraphClassificationMetric:
+    def __init__(self) -> None:
+        pass
+
+    @abstractmethod
+    def _compute_metric(self, predictions, labels):
+        pass
+
+    def __call__(self, graph_logits: torch.Tensor, graph_labels: torch.Tensor) -> float:
+        """Compute the loss of the logit and targets
+
+        Args:
+            graph_logits (torch.Tensor): Logits for the graph with the shape: B x nr_classes
+            graph_targets (torch.Tensor): Targets one-hot encoded with the shape: B x nr_classes
+
+        Returns:
+            float: Graph loss
+        """
+        predictions = torch.sigmoid(graph_logits)
+        return self._compute_metric(predictions, graph_labels)
+
+    @staticmethod
+    def is_better(value, comparison):
+        return value >= comparison
+
+
+class GraphClassificationAccuracy(GraphClassificationMetric):
+    def _compute_metric(self, predictions, labels):
+        y_pred = np.ravel(predictions.numpy()) > 0.5
+        y_true = np.ravel(labels.numpy())
+        return sklearn.metrics.accuracy_score(y_pred=y_pred, y_true=y_true)

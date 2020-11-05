@@ -4,15 +4,17 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import dgl
+import mlflow
 import torch
 import yaml
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from eth import prepare_datasets
+from logging_helper import GraphClassificationLoggingHelper, log_parameters
 from losses import GraphLabelLoss, NodeLabelLoss
 from models import WeakTissueClassifier
-from utils import dynamic_import_from, merge_metadata, start_logging
+from utils import dynamic_import_from, start_logging
 
 
 def collate(
@@ -36,6 +38,7 @@ def collate(
 def train_graph_classifier(
     model_config: Dict,
     data_config: Dict,
+    metrics_config: Dict,
     batch_size: int,
     nr_epochs: int,
     optimizer: Dict,
@@ -49,16 +52,38 @@ def train_graph_classifier(
         nr_epochs (int): Number of epochs to train
         optimizer (Dict): Configuration of the optimizer
     """
+    mlflow.set_experiment("anv_wsss_train_classifier")
+    log_parameters(
+        data=data_config,
+        model=model_config,
+        batch_size=batch_size,
+        epochs=nr_epochs,
+        optimizer=optimizer,
+    )
+
+    # Data loaders
     training_dataset, validation_dataset = prepare_datasets(**data_config)
+    training_metric_logger = GraphClassificationLoggingHelper(metrics_config, "train.")
+    validation_metric_logger = GraphClassificationLoggingHelper(
+        metrics_config, "valid."
+    )
     training_loader = DataLoader(
         training_dataset, batch_size=batch_size, collate_fn=collate
     )
     validation_loader = DataLoader(validation_dataset, batch_size=1, collate_fn=collate)
 
+    # Model
     model = WeakTissueClassifier(**model_config)
+    nr_trainable_total_params = sum(
+        p.numel() for p in model.parameters() if p.requires_grad
+    )
+    mlflow.log_param("nr_parameters", nr_trainable_total_params)
+
+    # Loss function
     graph_criterion = GraphLabelLoss()
     node_criterion = NodeLabelLoss(training_dataset.background_index)
 
+    # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
     optimizer = optimizer_class(model.parameters(), **optimizer["params"])
 
@@ -66,7 +91,6 @@ def train_graph_classifier(
 
         # Train model
         model.train()
-        running_loss = 0.0
         progress_bar = tqdm(
             enumerate(training_loader),
             desc=f"Train Epoch {epoch}",
@@ -82,12 +106,18 @@ def train_graph_classifier(
             combined_loss.backward()
             optimizer.step()
 
-            running_loss += combined_loss.item()
-            progress_bar.set_postfix({"loss": running_loss / (iteration + 1)})
+            training_metric_logger.add_iteration_outputs(
+                graph_loss=graph_loss.item(),
+                node_loss=node_loss.item(),
+                graph_logits=graph_logits.detach(),
+                node_logits=node_logits.detach(),
+                graph_labels=graph_labels,
+                node_labels=node_labels,
+            )
+        training_metric_logger.log_and_clear(step=epoch)
 
         # Validate model
         model.eval()
-        running_loss = 0.0
         progress_bar = tqdm(
             enumerate(validation_loader),
             desc=f"Valid Epoch {epoch}",
@@ -101,8 +131,16 @@ def train_graph_classifier(
                     node_logits, node_labels, graph.batch_num_nodes
                 )
                 combined_loss = graph_loss + node_loss
-                running_loss += combined_loss.item()
-                progress_bar.set_postfix({"loss": running_loss / (iteration + 1)})
+
+                validation_metric_logger.add_iteration_outputs(
+                    graph_loss=graph_loss.item(),
+                    node_loss=node_loss.item(),
+                    graph_logits=graph_logits.detach(),
+                    node_logits=node_logits.detach(),
+                    graph_labels=graph_labels,
+                    node_labels=node_labels,
+                )
+        validation_metric_logger.log_and_clear(step=epoch, model=model)
 
 
 if __name__ == "__main__":
@@ -126,10 +164,14 @@ if __name__ == "__main__":
         "data" in config
     ), f"data not defined in config {args.config}: {config.keys()}"
     assert (
+        "metrics" in config
+    ), f"metrics not defined in config {args.config}: {config.keys()}"
+    assert (
         "params" in config
     ), f"params not defined in config {args.config}: {config.keys()}"
     train_graph_classifier(
         model_config=config["model"],
         data_config=config["data"],
+        metrics_config=config["metrics"],
         **config["params"],
     )

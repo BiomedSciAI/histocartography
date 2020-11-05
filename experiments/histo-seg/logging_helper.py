@@ -87,7 +87,7 @@ class LoggingHelper:
         if model is not None:
             if current_loss < self.best_loss:
                 self.best_loss = current_loss
-                mlflow.pytorch.log_model(model, f"best_{self.prefix}_loss")
+                mlflow.pytorch.log_model(model, f"best.{self.prefix}.loss")
             all_information = zip(
                 self.metric_names, self.metrics, self.best_metric_values, current_values
             )
@@ -95,7 +95,7 @@ class LoggingHelper:
                 all_information
             ):
                 if metric.is_better(current_value, best_value):
-                    mlflow.pytorch.log_model(model, f"best_{self.prefix}_{name}")
+                    mlflow.pytorch.log_model(model, f"best.{self.prefix}.{name}")
                     self.best_metric_values[i] = current_value
         self._reset_epoch_stats()
 

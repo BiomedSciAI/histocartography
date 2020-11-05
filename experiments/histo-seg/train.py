@@ -73,8 +73,16 @@ def train_graph_classifier(
     )
     validation_loader = DataLoader(validation_dataset, batch_size=1, collate_fn=collate)
 
+    # Compute device
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    if torch.cuda.is_available():
+        mlflow.log_param('device', torch.cuda.get_device_name(0))
+    else:
+        mlflow.log_param('device', 'CPU')
+
     # Model
     model = WeakTissueClassifier(**model_config)
+    model = model.to(device)
     nr_trainable_total_params = sum(
         p.numel() for p in model.parameters() if p.requires_grad
     )
@@ -82,7 +90,9 @@ def train_graph_classifier(
 
     # Loss function
     graph_criterion = GraphLabelLoss()
+    graph_criterion = graph_criterion.to(device)
     node_criterion = NodeLabelLoss(training_dataset.background_index)
+    node_criterion = node_criterion.to(device)
 
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
@@ -99,6 +109,10 @@ def train_graph_classifier(
             total=len(training_loader),
         )
         for iteration, (graph, graph_labels, node_labels) in progress_bar:
+            graph = graph.to(device)
+            graph_labels = graph_labels.to(device)
+            node_labels = node_labels.to(device)
+
             graph_logits, node_logits = model(graph)
 
             graph_loss = graph_criterion(graph_logits, graph_labels)
@@ -111,10 +125,10 @@ def train_graph_classifier(
             training_metric_logger.add_iteration_outputs(
                 graph_loss=graph_loss.item(),
                 node_loss=node_loss.item(),
-                graph_logits=graph_logits.detach(),
-                node_logits=node_logits.detach(),
-                graph_labels=graph_labels,
-                node_labels=node_labels,
+                graph_logits=graph_logits.detach().cpu(),
+                node_logits=node_logits.detach().cpu(),
+                graph_labels=graph_labels.cpu(),
+                node_labels=node_labels.cpu(),
             )
         training_metric_logger.log_and_clear(step=epoch)
         training_epoch_duration = (
@@ -132,20 +146,23 @@ def train_graph_classifier(
         )
         with torch.no_grad():
             for iteration, (graph, graph_labels, node_labels) in progress_bar:
+                graph = graph.to(device)
+                graph_labels = graph_labels.to(device)
+                node_labels = node_labels.to(device)
+
                 graph_logits, node_logits = model(graph)
                 graph_loss = graph_criterion(graph_logits, graph_labels)
                 node_loss = node_criterion(
                     node_logits, node_labels, graph.batch_num_nodes
                 )
-                combined_loss = graph_loss + node_loss
 
                 validation_metric_logger.add_iteration_outputs(
                     graph_loss=graph_loss.item(),
                     node_loss=node_loss.item(),
-                    graph_logits=graph_logits.detach(),
-                    node_logits=node_logits.detach(),
-                    graph_labels=graph_labels,
-                    node_labels=node_labels,
+                    graph_logits=graph_logits.detach().cpu(),
+                    node_logits=node_logits.detach().cpu(),
+                    graph_labels=graph_labels.cpu(),
+                    node_labels=node_labels.cpu(),
                 )
         validation_metric_logger.log_and_clear(step=epoch, model=model)
         validation_epoch_duration = (

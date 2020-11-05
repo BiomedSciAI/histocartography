@@ -153,6 +153,7 @@ def prepare_datasets(
     training_slides: List[int],
     validation_slides: List[int],
     patch_size: int,
+    overfit_test: bool = False,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -173,6 +174,10 @@ def prepare_datasets(
     )
     training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
     validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
+
+    if overfit_test:
+        training_metadata = training_metadata.sample(1)
+        validation_metadata = validation_metadata.sample(1)
 
     training_dataset = GraphClassificationDataset(
         training_metadata,

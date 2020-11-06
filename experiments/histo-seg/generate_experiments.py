@@ -1,8 +1,15 @@
 import argparse
 import copy
+from dataclasses import dataclass
+from functools import reduce
+from itertools import product
 from pathlib import Path
+from typing import Any, Iterable, List, Union
 
 import yaml
+
+BASE = "default.yml"
+PATH = "."
 
 
 def get_lsf(
@@ -36,6 +43,113 @@ def get_lsf(
         f"{f'--subsample {subsample}' if subsample is not None else ''}"
         f"\n"
     )
+
+
+@dataclass
+class ParameterList:
+    path: List[str]
+    value: List[Any]
+
+
+@dataclass
+class Parameter:
+    path: List[str]
+    value: Any
+
+
+class Experiment:
+    def __init__(
+        self,
+        name,
+        cores=1,
+        core_multiplier=6,
+        gpus=1,
+        subsample=None,
+        main_file="train",
+        queue="prod.med",
+        disable_multithreading=False,
+        no_save=False,
+    ) -> None:
+        self.name = name
+        self.cores = cores
+        self.core_mutliplier = core_multiplier
+        self.gpus = gpus
+        self.subsample = subsample
+        self.queue = queue
+        self.disable_multithreading = disable_multithreading
+        self.no_save = no_save
+        self.main_file = main_file
+
+    @staticmethod
+    def _update_config(config, path, value):
+        if len(path) > 0:
+            reduce(dict.get, path[:-1], config).update({path[-1]: value})
+
+    @staticmethod
+    def grid_product(grid):
+        unpacked = list()
+        for grid_parameter in grid:
+            parameter_list = list()
+            for parameter_value in grid_parameter.value:
+                parameter_list.append(Parameter(grid_parameter.path, parameter_value))
+            unpacked.append(parameter_list)
+        return product(*unpacked)
+
+    def create_job(self, job_id, config):
+        global PATH
+        # Generate lsf file
+        lsf_content = get_lsf(
+            config_name=f"job{job_id}",
+            queue=self.queue,
+            cores=self.cores,
+            gpus=self.gpus,
+            log_name=f"{self.name}{job_id}",
+            nosave=self.no_save,
+            subsample=self.subsample,
+            disable_multithreading=self.disable_multithreading,
+            main_file_name=self.main_file,
+        )
+
+        # Write files
+        target_directory = Path(PATH) / self.name
+        print(target_directory)
+        if not target_directory.exists():
+            target_directory.mkdir()
+        with open(target_directory / f"job{job_id}.lsf", "w") as file:
+            file.write(lsf_content)
+        with open(target_directory / f"job{job_id}.yml", "w") as file:
+            yaml.dump(config, file)
+
+    def generate(
+        self,
+        fixed: Iterable[ParameterList] = (),
+        sequential: Iterable[ParameterList] = (ParameterList(list(), list()),),
+        grid: Iterable[ParameterList] = (),
+    ):
+        global BASE
+        with open(BASE) as file:
+            config: dict = yaml.load(file, Loader=yaml.FullLoader)
+
+        for parameter in fixed:
+            self._update_config(config, parameter.path, parameter.value)
+
+        job_id = 0
+        for parameter in sequential:
+            for parameter_value in parameter.value:
+                sequential_config = copy.deepcopy(config)
+                self._update_config(sequential_config, parameter.path, parameter_value)
+                if grid:
+                    for grid_parameters in self.grid_product(grid):
+                        for grid_parameter in grid_parameters:
+                            job_config = copy.deepcopy(sequential_config)
+                            self._update_config(
+                                job_config, grid_parameters.path, grid_parameter.value
+                            )
+                            self.create_job(job_id, job_config)
+                            job_id += 1
+                else:
+                    self.create_job(job_id, sequential_config)
+                    job_id += 1
 
 
 def generate_performance_test(path: str, base: str):
@@ -116,50 +230,6 @@ def generate_upper_bounds(path: str, base: str):
         job_id += 1
 
 
-def tiny_grid_search(path: str, base: str):
-    with open(base) as file:
-        config: dict = yaml.load(file, Loader=yaml.FullLoader)
-
-    job_name = "train_basic_search"
-    job_id = 0
-
-    def schedule_job(new_config):
-        # Generate lsf file
-        lsf_content = get_lsf(
-            config_name=f"job{job_id}",
-            queue="prod.med",
-            cores=1,
-            gpus=1,
-            log_name=f"{job_name}{job_id}",
-            main_file_name="train",
-        )
-
-        # Write files
-        target_directory = Path(path) / job_name
-        if not target_directory.exists():
-            target_directory.mkdir()
-        with open(target_directory / f"job{job_id}.lsf", "w") as file:
-            file.write(lsf_content)
-        with open(target_directory / f"job{job_id}.yml", "w") as file:
-            yaml.dump(new_config, file)
-
-    for lr in [0.0125, 0.0025, 0.0005, 0.0001, 0.00002]:
-        new_config = copy.deepcopy(config)
-        new_config["train"]["params"]["optimizer"]["params"]["lr"] = lr
-        schedule_job(new_config=new_config)
-        job_id += 1
-    for n_layers in [2, 3, 4, 5, 6, 7, 8]:
-        new_config = copy.deepcopy(config)
-        new_config["train"]["model"]["gnn_config"]["n_layers"] = n_layers
-        schedule_job(new_config=new_config)
-        job_id += 1
-    for patch_size in [1000, 2000, 3000]:
-        new_config = copy.deepcopy(config)
-        new_config["train"]["data"]["patch_size"] = patch_size
-        schedule_job(new_config=new_config)
-        job_id += 1
-
-
 def preprocess_nr_superpixels(path: str, base: str):
     with open(base) as file:
         config: dict = yaml.load(file, Loader=yaml.FullLoader)
@@ -205,7 +275,23 @@ if __name__ == "__main__":
     parser.add_argument("--base", type=str, default="default.yml")
     args = parser.parse_args()
 
+    PATH = args.path
+    BASE = args.base
+
     generate_performance_test(path=args.path, base=args.base)
     generate_upper_bounds(path=args.path, base=args.base)
-    tiny_grid_search(path=args.path, base=args.base)
     preprocess_nr_superpixels(path=args.path, base=args.base)
+
+    Experiment(name="train_basic_search").generate(
+        fixed=[Parameter(["train", "params", "num_workers"], 6)],
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"],
+                [0.0125, 0.0025, 0.0005, 0.0001, 0.00002],
+            ),
+            ParameterList(
+                ["train", "model", "gnn_config", "n_layers"], [2, 3, 4, 5, 6, 7, 8]
+            ),
+            ParameterList(["train", "data", "patch_size"], [1000, 2000, 3000]),
+        ],
+    )

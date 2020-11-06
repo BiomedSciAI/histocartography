@@ -1,4 +1,5 @@
 import argparse
+import copy
 from pathlib import Path
 
 import yaml
@@ -100,7 +101,7 @@ def generate_upper_bounds(path: str, base: str):
             cores=cores,
             log_name=f"{job_name}{job_id}",
             main_file_name="upper_bound",
-            disable_multithreading=True
+            disable_multithreading=True,
         )
 
         # Write files
@@ -121,6 +122,7 @@ def tiny_grid_search(path: str, base: str):
 
     job_name = "train_basic_search"
     job_id = 0
+
     def schedule_job(new_config):
         # Generate lsf file
         lsf_content = get_lsf(
@@ -142,17 +144,17 @@ def tiny_grid_search(path: str, base: str):
             yaml.dump(new_config, file)
 
     for lr in [0.0125, 0.0025, 0.0005, 0.0001, 0.00002]:
-        new_config = config.copy()
-        new_config["train"]["params"]["optimizer"]["lr"] = lr
+        new_config = copy.deepcopy(config)
+        new_config["train"]["params"]["optimizer"]["params"]["lr"] = lr
         schedule_job(new_config=new_config)
         job_id += 1
     for n_layers in [2, 3, 4, 5, 6, 7, 8]:
-        new_config = config.copy()
+        new_config = copy.deepcopy(config)
         new_config["train"]["model"]["gnn_config"]["n_layers"] = n_layers
         schedule_job(new_config=new_config)
         job_id += 1
     for patch_size in [1000, 2000, 3000]:
-        new_config = config.copy()
+        new_config = copy.deepcopy(config)
         new_config["train"]["data"]["patch_size"] = patch_size
         schedule_job(new_config=new_config)
         job_id += 1
@@ -180,7 +182,7 @@ def preprocess_nr_superpixels(path: str, base: str):
             cores=cores,
             log_name=f"{job_name}{job_id}",
             main_file_name="preprocess",
-            disable_multithreading=True
+            disable_multithreading=True,
         )
 
         # Write files

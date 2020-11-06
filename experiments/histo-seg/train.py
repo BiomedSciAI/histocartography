@@ -44,6 +44,7 @@ def train_graph_classifier(
     nr_epochs: int,
     num_workers: int,
     optimizer: Dict,
+    config_path: str,
 ) -> None:
     """Train the classification model for a given number of epochs.
 
@@ -55,6 +56,7 @@ def train_graph_classifier(
         optimizer (Dict): Configuration of the optimizer
     """
     mlflow.set_experiment("anv_wsss_train_classifier")
+    mlflow.log_artifact(config_path, "config")
     log_parameters(
         data=data_config,
         model=model_config,
@@ -211,5 +213,6 @@ if __name__ == "__main__":
         model_config=config["model"],
         data_config=config["data"],
         metrics_config=config["metrics"],
+        config_path=args.config,
         **config["params"],
     )

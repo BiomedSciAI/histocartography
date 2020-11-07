@@ -47,6 +47,7 @@ def train_graph_classifier(
     node_loss_weight: float,
     node_loss_drop_probability: float,
     config_path: str,
+    test: bool
 ) -> None:
     """Train the classification model for a given number of epochs.
 
@@ -60,6 +61,9 @@ def train_graph_classifier(
     assert (
         0.0 <= node_loss_weight <= 1.0
     ), f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
+
+    if test:
+        data_config["overfit_test"] = True
 
     # MLflow
     mlflow.set_experiment("anv_wsss_train_classifier")
@@ -209,6 +213,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="default.yml")
     parser.add_argument("--level", type=str, default="WARNING")
+    parser.add_argument("--test", action="store_const", const=True, default=False)
     args = parser.parse_args()
 
     start_logging(args.level)
@@ -236,5 +241,6 @@ if __name__ == "__main__":
         data_config=config["data"],
         metrics_config=config["metrics"],
         config_path=args.config,
+        test=args.test,
         **config["params"],
     )

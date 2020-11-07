@@ -36,7 +36,7 @@ def get_lsf(
         f'#BSUB -o "{log_dir}/{log_name}"\n'
         f'#BSUB -e "{log_dir}/{log_name}.stderr"\n\n'
         f'export PYTHONPATH="$PWD/../../:{{$PYTHONPATH}}"\n'
-        f"{'OMP_NUM_THREADS=1' if disable_multithreading else ''}"
+        f"{'OMP_NUM_THREADS=1 ' if disable_multithreading else ''}"
         f"python {main_file_name}.py "
         f"--config {{PATH}}/{config_name}.yml "
         f"{'--nosave ' if nosave else ''}"

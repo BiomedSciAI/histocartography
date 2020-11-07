@@ -68,6 +68,9 @@ train:
   metrics:
     graph:
       - "GraphClassificationAccuracy"
+    node:
+      - "NodeAccuracy"
+      - "NodeAccuracyWithoutBackground"
   params:
     optimizer:
       class: "Adam"

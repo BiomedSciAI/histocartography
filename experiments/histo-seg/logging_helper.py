@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from typing import DefaultDict
 
 import mlflow
 import numpy as np
@@ -33,7 +33,7 @@ def log_parameters(data, model, **kwargs):
 
 
 class LoggingHelper:
-    def __init__(self, metrics_config, prefix="") -> None:
+    def __init__(self, metrics_config, prefix="", **kwargs) -> None:
         self.metrics_config = metrics_config
         self.prefix = prefix
         self._reset_epoch_stats()
@@ -43,7 +43,7 @@ class LoggingHelper:
         self.best_metric_values = list()
         for metric in metrics_config:
             metric_class = dynamic_import_from("metrics", metric)
-            self.metrics.append(metric_class())
+            self.metrics.append(metric_class(**kwargs))
             self.metric_names.append(metric)
             self.best_metric_values.append(
                 -float("inf") if metric_class.is_better(1, 0) else float("inf")
@@ -53,13 +53,16 @@ class LoggingHelper:
         self.losses = list()
         self.logits = list()
         self.labels = list()
+        self.extra_info = DefaultDict(list)
 
-    def add_iteration_outputs(self, losses, logits=None, labels=None):
+    def add_iteration_outputs(self, losses, logits=None, labels=None, **kwargs):
         self.losses.append(losses)
         if logits is not None:
             self.logits.append(logits)
         if labels is not None:
             self.labels.append(labels)
+        for name, value in kwargs.items():
+            self.extra_info[name].append(value)
 
     def _log(self, name, value, step):
         mlflow.log_metric(self.prefix + str(name), value, step)
@@ -71,7 +74,7 @@ class LoggingHelper:
         labels = torch.cat(self.labels)
         metric_values = list()
         for name, metric in zip(self.metric_names, self.metrics):
-            metric_value = metric(logits, labels)
+            metric_value = metric(logits, labels, **self.extra_info)
             self._log(name, metric_value, step)
             metric_values.append(metric_value)
         return metric_values
@@ -101,12 +104,12 @@ class LoggingHelper:
 
 
 class GraphClassificationLoggingHelper:
-    def __init__(self, metrics_config, prefix) -> None:
+    def __init__(self, metrics_config, prefix, **kwargs) -> None:
         self.graph_logger = LoggingHelper(
-            metrics_config.get("graph", {}), prefix + "graph."
+            metrics_config.get("graph", {}), prefix + "graph.", **kwargs
         )
         self.node_logger = LoggingHelper(
-            metrics_config.get("node", {}), prefix + "node."
+            metrics_config.get("node", {}), prefix + "node.", **kwargs
         )
         self.combined_logger = LoggingHelper({}, prefix + "combined.")
 
@@ -118,9 +121,12 @@ class GraphClassificationLoggingHelper:
         node_logits,
         graph_labels,
         node_labels,
+        node_associations,
     ):
         self.graph_logger.add_iteration_outputs(graph_loss, graph_logits, graph_labels)
-        self.node_logger.add_iteration_outputs(node_loss, node_logits, node_labels)
+        self.node_logger.add_iteration_outputs(
+            node_loss, node_logits, node_labels, node_associations=node_associations
+        )
         self.combined_logger.add_iteration_outputs(graph_loss + node_loss)
 
     def log_and_clear(self, step, model=None):

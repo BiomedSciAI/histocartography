@@ -1,18 +1,22 @@
+import logging
 from abc import abstractmethod
-import mlflow
-import torch
-import sklearn.metrics
+from typing import Any
+
 import numpy as np
+import sklearn.metrics
+import torch
 
 
-class Metric:
-    """Base class for metrics"""
+class SegmentationMetric:
+    """Base class for segmentation metrics"""
 
     def __init__(self):
         """Constructor of Metric"""
 
     @abstractmethod
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
+    def _compute_metric(
+        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+    ) -> torch.Tensor:
         """Actual metric computation
 
         Args:
@@ -23,7 +27,9 @@ class Metric:
                torch.Tensor: Computed metric. Shape: (1 or B)
         """
 
-    def __call__(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
+    def __call__(
+        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+    ) -> torch.Tensor:
         """From either a batched, unbatched or batched with additional empty dimension calculate the metric accordingly
 
         Args:
@@ -51,9 +57,9 @@ class Metric:
         return metric
 
 
-class IoU(Metric):
-    """Compute the class IoU
-    """
+class IoU(SegmentationMetric):
+    """Compute the class IoU"""
+
     def __init__(self, nr_classes: int = 5) -> None:
         """Create a IoU calculator for a certain number of classes
 
@@ -63,7 +69,12 @@ class IoU(Metric):
         self.nr_classes = nr_classes
         self.smooth = 1e-12
 
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor, nan: float = float('nan')) -> torch.Tensor:
+    def _compute_metric(
+        self,
+        ground_truth: torch.Tensor,
+        prediction: torch.Tensor,
+        nan: float = float("nan"),
+    ) -> torch.Tensor:
         """Computes the intersection over union per class
 
         Args:
@@ -92,7 +103,9 @@ class IoU(Metric):
 class MeanIoU(IoU):
     """Mean class IoU"""
 
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
+    def _compute_metric(
+        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+    ) -> torch.Tensor:
         """Computes the average iou over the existing classes in the ground truth
            Same as sklearn.metric.jaccard_score with average='macro', but faster
         Args:
@@ -114,7 +127,9 @@ class fIoU(IoU):
     Code at: https://github.com/lyndonchan/hsn_v1/
     """
 
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
+    def _compute_metric(
+        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+    ) -> torch.Tensor:
         """Computes the metric according to the implementation:
            https://github.com/lyndonchan/hsn_v1/blob/4356e68fc2a94260ab06e2ceb71a7787cba8178c/hsn_v1/hsn_v1.py#L184
 
@@ -138,9 +153,9 @@ class fIoU(IoU):
         return (class_weights * class_iou).sum(axis=1)
 
 
-class F1Score(Metric):
-    """Compute the class F1 score
-    """
+class F1Score(SegmentationMetric):
+    """Compute the class F1 score"""
+
     def __init__(self, nr_classes: int = 5) -> None:
         """Create a F1 calculator for a certain number of classes
 
@@ -150,7 +165,12 @@ class F1Score(Metric):
         self.nr_classes = nr_classes
         self.smooth = 1e-12
 
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor, nan: float = float('nan')) -> torch.Tensor:
+    def _compute_metric(
+        self,
+        ground_truth: torch.Tensor,
+        prediction: torch.Tensor,
+        nan: float = float("nan"),
+    ) -> torch.Tensor:
         """Computes the f1 score per class
 
         Args:
@@ -168,16 +188,16 @@ class F1Score(Metric):
                 class_f1[:, class_label] = nan
                 continue
             class_prediction = prediction == class_label
-            true_positives = (class_ground_truth & class_prediction).sum(
-                axis=(1, 2)
+            true_positives = (class_ground_truth & class_prediction).sum(axis=(1, 2))
+            false_positives = (
+                torch.logical_not(class_ground_truth) & class_prediction
+            ).sum(axis=(1, 2))
+            false_negatives = (
+                class_ground_truth & torch.logical_not(class_prediction)
+            ).sum(axis=(1, 2))
+            precision = true_positives / (
+                true_positives + false_positives + self.smooth
             )
-            false_positives = (torch.logical_not(class_ground_truth) & class_prediction).sum(
-                axis=(1, 2)
-            )
-            false_negatives = (class_ground_truth & torch.logical_not(class_prediction)).sum(
-                axis=(1, 2)
-            )
-            precision = true_positives / (true_positives + false_positives + self.smooth)
             recall = true_positives / (true_positives + false_negatives + self.smooth)
             class_f1[:, class_label] = (2.0 * precision * recall) / (
                 precision + recall + self.smooth
@@ -188,7 +208,10 @@ class F1Score(Metric):
 
 class MeanF1Score(F1Score):
     """Mean class F1 score"""
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
+
+    def _compute_metric(
+        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+    ) -> torch.Tensor:
         """Computes the average f1 score over the existing classes in the ground truth
            Same as sklearn.metric.f1_score with average='macro', but faster
         Args:
@@ -204,15 +227,45 @@ class MeanF1Score(F1Score):
         return torch.sum(class_f1, axis=1) / torch.sum(~mask, axis=1)
 
 
-class GraphClassificationMetric:
-    def __init__(self) -> None:
-        pass
+class ClassificationMetric:
+    """Base class for classification metrics"""
+
+    def __init__(self, *args, **kwargs):
+        """Constructor of Metric"""
+        logging.info(f"Unmatched keyword arguments for metric: {kwargs}")
 
     @abstractmethod
-    def _compute_metric(self, predictions, labels):
+    def _compute_metric(self, logits: torch.Tensor, labels: torch.Tensor, **kwargs) -> Any:
+        """Actual metric computation
+
+        Args:
+            ground_truth (torch.Tensor): Ground truth tensor. Shape: (B x H x W)
+            prediction (torch.Tensor): Prediction tensor. Shape: (B x H x W)
+
+            Returns:
+               Any: Metric value
+        """
+
+    def __call__(self, logits: torch.Tensor, labels: torch.Tensor, **kwargs) -> torch.Tensor:
+        return self._compute_metric(logits, labels, **kwargs)
+
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        """Higher is better"""
+        return value >= comparison
+
+
+class GraphClassificationMetric(ClassificationMetric):
+    def __init__(self, **kwargs) -> None:
+        logging.info(f"Unmatched keyword arguments for metric: {kwargs}")
+
+    @abstractmethod
+    def _compare(self, predictions, labels, **kwargs) -> float:
         pass
 
-    def __call__(self, graph_logits: torch.Tensor, graph_labels: torch.Tensor) -> float:
+    def _compute_metric(
+        self, graph_logits: torch.Tensor, graph_labels: torch.Tensor, **kwargs
+    ) -> float:
         """Compute the loss of the logit and targets
 
         Args:
@@ -223,15 +276,47 @@ class GraphClassificationMetric:
             float: Graph loss
         """
         predictions = torch.sigmoid(graph_logits)
-        return self._compute_metric(predictions, graph_labels)
-
-    @staticmethod
-    def is_better(value, comparison):
-        return value >= comparison
+        return self._compare(predictions, graph_labels, **kwargs)
 
 
 class GraphClassificationAccuracy(GraphClassificationMetric):
-    def _compute_metric(self, predictions, labels):
+    def _compare(self, predictions, labels, **kwargs):
         y_pred = np.ravel(predictions.numpy()) > 0.5
         y_true = np.ravel(labels.numpy())
         return sklearn.metrics.accuracy_score(y_pred=y_pred, y_true=y_true)
+
+
+class NodeClassificationMetric(ClassificationMetric):
+    def __init__(self, background_label, nr_classes, *args, **kwargs) -> None:
+        self.background_label = background_label
+        self.nr_classes = nr_classes
+        super().__init__(*args, **kwargs)
+
+    @abstractmethod
+    def _compare(
+        self, logits: torch.Tensor, labels: torch.Tensor, **kwargs
+    ) -> float:
+        pass
+
+    def _compute_metric(
+        self, node_logits: torch.Tensor, node_labels: torch.Tensor, **kwargs
+    ) -> float:
+        predictions = torch.softmax(node_logits, dim=1)
+        return self._compare(predictions, node_labels, **kwargs)
+
+
+class NodeAccuracy(NodeClassificationMetric):
+    def _compare(
+        self, predictions: torch.Tensor, labels: torch.Tensor, **kwargs
+    ) -> float:
+        y_pred = np.argmax(predictions.numpy(), axis=1)
+        y_true = labels.numpy()
+        return sklearn.metrics.accuracy_score(y_pred=y_pred, y_true=y_true)
+
+
+class NodeAccuracyWithoutBackground(NodeAccuracy):
+    def _compare(
+        self, predictions: torch.Tensor, labels: torch.Tensor, **kwargs
+    ) -> float:
+        mask = labels != self.background_label
+        return super()._compare(predictions[mask], labels[mask])

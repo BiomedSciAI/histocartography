@@ -11,7 +11,7 @@ import yaml
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from eth import prepare_datasets
+from eth import BACKGROUND_CLASS, NR_CLASSES, prepare_datasets
 from logging_helper import GraphClassificationLoggingHelper, log_parameters
 from losses import GraphLabelLoss, NodeLabelLoss
 from models import WeakTissueClassifier
@@ -57,7 +57,11 @@ def train_graph_classifier(
         nr_epochs (int): Number of epochs to train
         optimizer (Dict): Configuration of the optimizer
     """
-    assert 0.0 <= node_loss_weight <= 1.0, f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
+    assert (
+        0.0 <= node_loss_weight <= 1.0
+    ), f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
+
+    # MLflow
     mlflow.set_experiment("anv_wsss_train_classifier")
     mlflow.log_artifact(config_path, "config")
     log_parameters(
@@ -67,13 +71,21 @@ def train_graph_classifier(
         epochs=nr_epochs,
         optimizer=optimizer,
     )
+    training_metric_logger = GraphClassificationLoggingHelper(
+        metrics_config,
+        "train.",
+        background_label=BACKGROUND_CLASS,
+        nr_classes=NR_CLASSES,
+    )
+    validation_metric_logger = GraphClassificationLoggingHelper(
+        metrics_config,
+        "valid.",
+        background_label=BACKGROUND_CLASS,
+        nr_classes=NR_CLASSES,
+    )
 
     # Data loaders
     training_dataset, validation_dataset = prepare_datasets(**data_config)
-    training_metric_logger = GraphClassificationLoggingHelper(metrics_config, "train.")
-    validation_metric_logger = GraphClassificationLoggingHelper(
-        metrics_config, "valid."
-    )
     training_loader = DataLoader(
         training_dataset,
         batch_size=batch_size,
@@ -136,7 +148,9 @@ def train_graph_classifier(
 
             graph_loss = graph_criterion(graph_logits, graph_labels)
             node_loss = node_criterion(node_logits, node_labels, graph.batch_num_nodes)
-            combined_loss = graph_loss_weight * graph_loss + node_loss_weight * node_loss
+            combined_loss = (
+                graph_loss_weight * graph_loss + node_loss_weight * node_loss
+            )
             combined_loss.backward()
             optimizer.step()
 
@@ -147,6 +161,7 @@ def train_graph_classifier(
                 node_logits=node_logits.detach().cpu(),
                 graph_labels=graph_labels.cpu(),
                 node_labels=node_labels.cpu(),
+                node_associations=graph.batch_num_nodes,
             )
         training_metric_logger.log_and_clear(step=epoch)
         training_epoch_duration = (
@@ -181,6 +196,7 @@ def train_graph_classifier(
                     node_logits=node_logits.detach().cpu(),
                     graph_labels=graph_labels.cpu(),
                     node_labels=node_labels.cpu(),
+                    node_associations=graph.batch_num_nodes,
                 )
         validation_metric_logger.log_and_clear(step=epoch, model=model)
         validation_epoch_duration = (

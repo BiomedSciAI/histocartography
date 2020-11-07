@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod
-from typing import Any
+from typing import Any, List
 
 import numpy as np
 import sklearn.metrics
@@ -235,7 +235,9 @@ class ClassificationMetric:
         logging.info(f"Unmatched keyword arguments for metric: {kwargs}")
 
     @abstractmethod
-    def _compute_metric(self, logits: torch.Tensor, labels: torch.Tensor, **kwargs) -> Any:
+    def _compute_metric(
+        self, logits: torch.Tensor, labels: torch.Tensor, **kwargs
+    ) -> Any:
         """Actual metric computation
 
         Args:
@@ -246,7 +248,9 @@ class ClassificationMetric:
                Any: Metric value
         """
 
-    def __call__(self, logits: torch.Tensor, labels: torch.Tensor, **kwargs) -> torch.Tensor:
+    def __call__(
+        self, logits: torch.Tensor, labels: torch.Tensor, **kwargs
+    ) -> torch.Tensor:
         return self._compute_metric(logits, labels, **kwargs)
 
     @staticmethod
@@ -293,9 +297,7 @@ class NodeClassificationMetric(ClassificationMetric):
         super().__init__(*args, **kwargs)
 
     @abstractmethod
-    def _compare(
-        self, logits: torch.Tensor, labels: torch.Tensor, **kwargs
-    ) -> float:
+    def _compare(self, logits: torch.Tensor, labels: torch.Tensor, **kwargs) -> float:
         pass
 
     def _compute_metric(
@@ -307,16 +309,16 @@ class NodeClassificationMetric(ClassificationMetric):
 
 class NodeAccuracy(NodeClassificationMetric):
     def _compare(
-        self, predictions: torch.Tensor, labels: torch.Tensor, **kwargs
+        self, predictions: torch.Tensor, labels: torch.Tensor, node_associations: List[int], **kwargs
     ) -> float:
-        y_pred = np.argmax(predictions.numpy(), axis=1)
-        y_true = labels.numpy()
-        return sklearn.metrics.accuracy_score(y_pred=y_pred, y_true=y_true)
-
-
-class NodeAccuracyWithoutBackground(NodeAccuracy):
-    def _compare(
-        self, predictions: torch.Tensor, labels: torch.Tensor, **kwargs
-    ) -> float:
-        mask = labels != self.background_label
-        return super()._compare(predictions[mask], labels[mask])
+        accuracies = np.empty(len(node_associations))
+        start = 0
+        for i, node_association in enumerate(node_associations):
+            y_pred = np.argmax(
+                predictions[start : start + node_association, ...].numpy(), axis=1
+            )
+            y_true = labels[start : start + node_association].numpy()
+            mask = y_true != self.background_label
+            accuracies[i] = sklearn.metrics.accuracy_score(y_pred=y_pred[mask], y_true=y_true[mask])
+            start += node_association
+        return accuracies.mean()

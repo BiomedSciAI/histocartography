@@ -37,7 +37,7 @@ upper_bound:
     cores: 16
 train:
   data:
-    overfit_test: False
+    overfit_test: True
     training_slides:
       - 111
       - 199
@@ -70,7 +70,6 @@ train:
       - "GraphClassificationAccuracy"
     node:
       - "NodeAccuracy"
-      - "NodeAccuracyWithoutBackground"
   params:
     optimizer:
       class: "Adam"

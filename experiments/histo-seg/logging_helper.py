@@ -62,7 +62,7 @@ class LoggingHelper:
         if labels is not None:
             self.labels.append(labels)
         for name, value in kwargs.items():
-            self.extra_info[name].append(value)
+            self.extra_info[name].extend(value)
 
     def _log(self, name, value, step):
         mlflow.log_metric(self.prefix + str(name), value, step)

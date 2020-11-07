@@ -100,6 +100,7 @@ class LoggingHelper:
                 if metric.is_better(current_value, best_value):
                     mlflow.pytorch.log_model(model, f"best.{self.prefix}.{name}")
                     self.best_metric_values[i] = current_value
+                    self._log(f'best.{name}', best_value, step)
         self._reset_epoch_stats()
 
 

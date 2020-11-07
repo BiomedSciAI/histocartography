@@ -87,20 +87,23 @@ class LoggingHelper:
     def log_and_clear(self, step, model=None):
         current_loss = self._log_loss(step)
         current_values = self._log_metrics(step)
-        if model is not None:
-            if current_loss < self.best_loss:
-                self.best_loss = current_loss
+        if current_loss < self.best_loss:
+            self._log("best_loss", current_loss, step)
+            self.best_loss = current_loss
+            if model is not None:
                 mlflow.pytorch.log_model(model, f"best.{self.prefix}.loss")
-            all_information = zip(
-                self.metric_names, self.metrics, self.best_metric_values, current_values
-            )
-            for i, (name, metric, best_value, current_value) in enumerate(
-                all_information
-            ):
-                if metric.is_better(current_value, best_value):
+        all_information = zip(
+            self.metric_names, self.metrics, self.best_metric_values, current_values
+        )
+        for i, (name, metric, best_value, current_value) in enumerate(
+            all_information
+        ):
+            if metric.is_better(current_value, best_value):
+                self._log(f"best_{name}", current_value, step)
+                if model is not None:
                     mlflow.pytorch.log_model(model, f"best.{self.prefix}.{name}")
-                    self.best_metric_values[i] = current_value
-                    self._log(f'best.{name}', best_value, step)
+                self.best_metric_values[i] = current_value
+
         self._reset_epoch_stats()
 
 

@@ -307,7 +307,7 @@ class NodeClassificationMetric(ClassificationMetric):
         return self._compare(predictions, node_labels, **kwargs)
 
 
-class NodeAccuracy(NodeClassificationMetric):
+class NodeClassificationAccuracy(NodeClassificationMetric):
     def _compare(
         self, predictions: torch.Tensor, labels: torch.Tensor, node_associations: List[int], **kwargs
     ) -> float:

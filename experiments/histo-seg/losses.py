@@ -23,8 +23,10 @@ class GraphLabelLoss(nn.Module):
 
 
 class NodeLabelLoss(nn.Module):
-    def __init__(self, background_label=4) -> None:
+    def __init__(self, drop_probability=0.0, background_label=4) -> None:
         super().__init__()
+        assert 0.0 <= drop_probability <= 1.0, f"drop_probability must be valid proability but is {drop_probability}"
+        self.drop_probability = drop_probability
         self.cross_entropy = nn.CrossEntropyLoss(ignore_index=background_label)
 
     def forward(
@@ -40,5 +42,9 @@ class NodeLabelLoss(nn.Module):
         Returns:
             torch.Tensor: Node loss
         """
+        if self.drop_probability > 0:
+            to_keep_mask = torch.rand(targets.shape[0]) > self.drop_probability
+            targets = targets[to_keep_mask]
+            logits = logits[to_keep_mask]
         targets = targets.to(torch.int64)
         return self.cross_entropy(logits, targets)

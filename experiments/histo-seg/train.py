@@ -44,6 +44,8 @@ def train_graph_classifier(
     nr_epochs: int,
     num_workers: int,
     optimizer: Dict,
+    node_loss_weight: float,
+    node_loss_drop_probability: float,
     config_path: str,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -55,6 +57,7 @@ def train_graph_classifier(
         nr_epochs (int): Number of epochs to train
         optimizer (Dict): Configuration of the optimizer
     """
+    assert 0.0 <= node_loss_weight <= 1.0, f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
     mlflow.set_experiment("anv_wsss_train_classifier")
     mlflow.log_artifact(config_path, "config")
     log_parameters(
@@ -101,9 +104,13 @@ def train_graph_classifier(
     mlflow.log_param("nr_parameters", nr_trainable_total_params)
 
     # Loss function
+    graph_loss_weight = 1.0 - node_loss_weight
     graph_criterion = GraphLabelLoss()
     graph_criterion = graph_criterion.to(device)
-    node_criterion = NodeLabelLoss(training_dataset.background_index)
+    node_criterion = NodeLabelLoss(
+        background_label=training_dataset.background_index,
+        drop_probability=node_loss_drop_probability,
+    )
     node_criterion = node_criterion.to(device)
 
     # Optimizer
@@ -129,8 +136,7 @@ def train_graph_classifier(
 
             graph_loss = graph_criterion(graph_logits, graph_labels)
             node_loss = node_criterion(node_logits, node_labels, graph.batch_num_nodes)
-            combined_loss = graph_loss + node_loss
-
+            combined_loss = graph_loss_weight * graph_loss + node_loss_weight * node_loss
             combined_loss.backward()
             optimizer.step()
 

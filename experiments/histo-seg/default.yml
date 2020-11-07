@@ -76,3 +76,5 @@ train:
     batch_size: 32
     nr_epochs: 1000
     num_workers: 8
+    node_loss_weight: 0.5
+    node_loss_drop_probability: 0.0

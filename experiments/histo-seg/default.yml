@@ -71,6 +71,8 @@ train:
     node:
       - "NodeClassificationAccuracy"
   params:
+    experiment_name: "anv_wsss_train_classifier"
+    experiment_tags: null
     optimizer:
       class: "Adam"
       params:
@@ -83,7 +85,7 @@ train:
         params:
           background_label: 4
           drop_probability: 0.0
-      node_weight: 0.0
+      node_weight: 0.5
     batch_size: 8
     nr_epochs: 1000
-    num_workers: 8
+    num_workers: 6

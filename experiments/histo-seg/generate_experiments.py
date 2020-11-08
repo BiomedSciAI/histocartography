@@ -1,11 +1,14 @@
 import argparse
 import copy
+import logging
 from dataclasses import dataclass
 from functools import reduce
 from itertools import product
+import shutil
 from pathlib import Path
-from typing import Any, Iterable, List, Union
+from typing import Any, Iterable, List
 
+import numpy as np
 import yaml
 
 BASE = "default.yml"
@@ -23,6 +26,7 @@ def get_lsf(
     nosave=False,
     subsample=None,
     disable_multithreading=False,
+    extra_line="",
 ):
     return (
         f"#!/bin/bash\n\n"
@@ -35,6 +39,7 @@ def get_lsf(
         f'#BSUB -J "{log_dir}/{log_name}"\n'
         f'#BSUB -o "{log_dir}/{log_name}"\n'
         f'#BSUB -e "{log_dir}/{log_name}.stderr"\n\n'
+        f"{extra_line}"
         f'export PYTHONPATH="$PWD/../../:{{$PYTHONPATH}}"\n'
         f"{'OMP_NUM_THREADS=1 ' if disable_multithreading else ''}"
         f"python {main_file_name}.py "
@@ -80,9 +85,28 @@ class Experiment:
         self.no_save = no_save
         self.main_file = main_file
 
+        self.target_directory = Path(PATH) / self.name
+        if not self.target_directory.exists():
+            self.target_directory.mkdir()
+        else:
+            shutil.rmtree(self.target_directory)
+            self.target_directory.mkdir()
+
+    @staticmethod
+    def _path_exists(config, path):
+        _element = config
+        for key in path:
+            try:
+                _element = _element[key]
+            except KeyError:
+                return False
+        return True
+
     @staticmethod
     def _update_config(config, path, value):
         if len(path) > 0:
+            if not Experiment._path_exists(config, path):
+                logging.warning(f"Config path {path} does not exist. This might be an error")
             reduce(dict.get, path[:-1], config).update({path[-1]: value})
 
     @staticmethod
@@ -111,19 +135,15 @@ class Experiment:
         )
 
         # Write files
-        target_directory = Path(PATH) / self.name
-        print(target_directory)
-        if not target_directory.exists():
-            target_directory.mkdir()
-        with open(target_directory / f"job{job_id}.lsf", "w") as file:
+        with open(self.target_directory / f"job{job_id}.lsf", "w") as file:
             file.write(lsf_content)
-        with open(target_directory / f"job{job_id}.yml", "w") as file:
+        with open(self.target_directory / f"job{job_id}.yml", "w") as file:
             yaml.dump(config, file)
 
     def generate(
         self,
         fixed: Iterable[ParameterList] = (),
-        sequential: Iterable[ParameterList] = (ParameterList(list(), list()),),
+        sequential: Iterable[ParameterList] = (ParameterList(list(), [None]),),
         grid: Iterable[ParameterList] = (),
     ):
         global BASE
@@ -140,13 +160,13 @@ class Experiment:
                 self._update_config(sequential_config, parameter.path, parameter_value)
                 if grid:
                     for grid_parameters in self.grid_product(grid):
+                        job_config = copy.deepcopy(sequential_config)
                         for grid_parameter in grid_parameters:
-                            job_config = copy.deepcopy(sequential_config)
                             self._update_config(
-                                job_config, grid_parameters.path, grid_parameter.value
+                                job_config, grid_parameter.path, grid_parameter.value
                             )
-                            self.create_job(job_id, job_config)
-                            job_id += 1
+                        self.create_job(job_id, job_config)
+                        job_id += 1
                 else:
                     self.create_job(job_id, sequential_config)
                     job_id += 1
@@ -237,7 +257,7 @@ def preprocess_nr_superpixels(path: str, base: str):
     job_name = "preprocessing_superpixels"
     job_id = 0
     cores = 5
-    for nr_superpixels in [100, 250, 500, 1000, 4000, 8000]:
+    for nr_superpixels in [100, 250, 500, 1000, 2000, 4000, 8000]:
         # Generate config
         new_config = config.copy()
         new_config["preprocess"]["params"]["cores"] = cores * 6
@@ -283,7 +303,6 @@ if __name__ == "__main__":
     preprocess_nr_superpixels(path=args.path, base=args.base)
 
     Experiment(name="train_basic_search").generate(
-        fixed=[Parameter(["train", "params", "num_workers"], 6)],
         sequential=[
             ParameterList(
                 ["train", "params", "optimizer", "params", "lr"],
@@ -294,4 +313,76 @@ if __name__ == "__main__":
             ),
             ParameterList(["train", "data", "patch_size"], [1000, 2000, 3000]),
         ],
+    )
+
+    Experiment(name="node_stochasticity").generate(
+        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "node_stochasticity"})],
+        sequential=[
+            ParameterList(
+                ["train", "params", "loss", "node", "params", "drop_probability"],
+                [0.99, 0.95, 0.9, 0.8, 0.6, 0.4, 0.2, 0.1],
+            ),
+        ],
+    )
+    Experiment(name="node_loss_weight").generate(
+        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "node_loss_weight"})],
+        sequential=[
+            ParameterList(
+                ["train", "params", "loss", "node_weight"],
+                [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0],
+            ),
+        ],
+    )
+    Experiment(name="batch_sizes").generate(
+        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "batch_size"})],
+        sequential=[
+            ParameterList(
+                ["train", "params", "batch_size"],
+                [1, 2, 4, 8, 16, 32, 64],
+            ),
+        ],
+    )
+    Experiment(name="learning_rates").generate(
+        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "learning_rate"})],
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"],
+                list(map(float, np.logspace(-3, -6, 20)))
+            ),
+        ],
+    )
+    Experiment(name="nr_superpixels").generate(
+        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "nr_superpixels"})],
+        sequential=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                ["outputs/v0_100px", "outputs/v0_250px", "outputs/v0_500px", "outputs/v0_1000px", "outputs/v0_2000px", "outputs/v0_4000px"],
+            ),
+        ],
+    )
+    Experiment(name="crop_augmentation").generate(
+        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "patch_size"})],
+        sequential=[
+            ParameterList(
+                ["train", "data", "patch_size"],
+                [1900, 2200, 2800, 3100],
+            ),
+        ],
+    )
+    Experiment(name="gnn_parameters").generate(
+        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "various_gnn_parameters"})],
+        grid=[
+            ParameterList(
+                ["train", "model", "gnn_config", "agg_operator"],
+                ["none", "concat", "lstm"],
+            ),
+            ParameterList(
+                ["train", "model", "gnn_config", "n_layers"],
+                [2, 4, 6]
+            ),
+            ParameterList(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                [32, 64]
+            )
+        ]
     )

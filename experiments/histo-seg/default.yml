@@ -76,7 +76,7 @@ train:
     optimizer:
       class: "Adam"
       params:
-        lr: 0.001
+        lr: 2.0e-5
     loss:
       graph:
         class: "GraphBCELoss"
@@ -87,5 +87,5 @@ train:
           drop_probability: 0.0
       node_weight: 0.5
     batch_size: 8
-    nr_epochs: 1000
+    nr_epochs: 2000
     num_workers: 6

@@ -114,7 +114,7 @@ def preprocessing(
     save: bool = True,
     cores: int = 1,
     labels: bool = False,
-    subsample: Union[None, int] = None,
+    subsample: Optional[int] = None,
     **kwargs,
 ):
     """Runs the preprocessing with a given number of cores

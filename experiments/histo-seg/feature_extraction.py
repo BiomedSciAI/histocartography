@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Tuple, Union
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
@@ -198,7 +198,7 @@ class SuperpixelPatchDataset(Dataset):
         image: np.ndarray,
         superpixels: np.ndarray,
         size: int,
-        fill_value: Union[int, None],
+        fill_value: Optional[int],
     ) -> None:
         """Create a dataset for a given image and extracted superpixel with desired patches of (size, size, 3).
             If fill_value is not None, it fills up pixels outside the superpixel with this value (all channels)
@@ -207,7 +207,7 @@ class SuperpixelPatchDataset(Dataset):
             image (np.ndarray): RGB input image
             superpixels (np.ndarray): Extracted superpixels
             size (int): Desired size of patches
-            fill_value (Union[int, None]): Value to fill outside the superpixels (None means do not fill)
+            fill_value (Optional[None]): Value to fill outside the superpixels (None means do not fill)
         """
         self.image = image
         self.superpixel = superpixels

@@ -1,5 +1,5 @@
 """Dataloader for precomputed graphs in .bin format"""
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import dgl
 import numpy as np
@@ -16,7 +16,7 @@ class GraphClassificationDataset(Dataset):
     def __init__(
         self,
         metadata: pd.DataFrame,
-        patch_size: Union[None, Tuple[int, int]],
+        patch_size: Optional[Tuple[int, int]],
         num_classes: int = 4,
         background_index: int = 4,
     ) -> None:

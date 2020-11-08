@@ -211,8 +211,8 @@ def dynamic_import_from(source_file: str, class_name: str) -> Any:
 def merge_metadata(
     image_metadata: pd.DataFrame,
     annotation_metadata: pd.DataFrame,
-    graph_directory: Union[None, Path] = None,
-    superpixel_directory: Union[None, Path] = None,
+    graph_directory: Optional[Path] = None,
+    superpixel_directory: Optional[Path] = None,
     add_image_sizes: bool = False,
 ):
     # Prepare annotation paths
@@ -259,20 +259,20 @@ def merge_metadata(
 
 def compute_graph_overlay(
     graph: dgl.DGLGraph,
-    path: Union[None, str] = None,
-    image: Union[None, np.ndarray] = None,
-    superpixels: Union[None, np.ndarray] = None,
-) -> Union[None, Tuple[mpl.figure.Figure, mpl.axes.Axes]]:
+    path: Optional[str] = None,
+    image: Optional[np.ndarray] = None,
+    superpixels: Optional[np.ndarray] = None,
+) -> Optional[Tuple[mpl.figure.Figure, mpl.axes.Axes]]:
     """Creates a plot of the graph, optionally with labels, overlayed with the image or even with the image and superpixels. Saves to name if not None.
 
     Args:
         graph (dgl.DGLGraph): Graph to plot
-        path (Union[None, str], optional): Path to save to. None refers to returning instead of saving. Defaults to None.
-        image (Union[None, np.ndarray], optional): Image that goes with the graph. Defaults to None.
-        superpixels (Union[None, np.ndarray], optional): Superpixels that go with the image. Defaults to None.
+        path (Optional[str], optional): Path to save to. None refers to returning instead of saving. Defaults to None.
+        image (Optional[np.ndarray], optional): Image that goes with the graph. Defaults to None.
+        superpixels (Optional[np.ndarray], optional): Superpixels that go with the image. Defaults to None.
 
     Returns:
-        Union[None, Tuple[plt.figure.Figure, plt.axes.Axis]]: Either None if name is not None or returns the fig, ax like plt.subplots
+        Optional[Tuple[plt.figure.Figure, plt.axes.Axis]]: Either None if name is not None or returns the fig, ax like plt.subplots
     """
 
     fig, ax = plt.subplots(figsize=(30, 30))

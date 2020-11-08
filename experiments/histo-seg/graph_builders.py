@@ -2,7 +2,7 @@
 
 import logging
 from abc import abstractmethod
-from typing import Union
+from typing import Optional
 
 import cv2
 import dgl
@@ -29,7 +29,7 @@ class BaseGraphBuilder(PipelineStep):
         self,
         structure: np.ndarray,
         features: torch.Tensor,
-        annotation: Union[None, np.ndarray] = None,
+        annotation: Optional[np.ndarray] = None,
     ) -> dgl.DGLGraph:
         """Generates a graph with a given structure and features
 
@@ -65,7 +65,7 @@ class BaseGraphBuilder(PipelineStep):
         structure: np.ndarray,
         features: torch.Tensor,
         output_name: str,
-        annotation: Union[None, np.ndarray] = None,
+        annotation: Optional[np.ndarray] = None,
     ) -> dgl.DGLGraph:
         assert (
             self.base_path is not None

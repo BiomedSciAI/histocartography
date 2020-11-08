@@ -65,7 +65,7 @@ class LoggingHelper:
             self.extra_info[name].extend(value)
 
     def _log(self, name, value, step):
-        mlflow.log_metric(self.prefix + str(name), value, step)
+        mlflow.log_metric(f"{self.prefix}.{name}", value, step)
 
     def _log_metrics(self, step):
         if len(self.logits) == 0 or len(self.labels) == 0:
@@ -99,7 +99,7 @@ class LoggingHelper:
             all_information
         ):
             if metric.is_better(current_value, best_value):
-                self._log(f"best_{name}", current_value, step)
+                self._log(f"best.{name}", current_value, step)
                 if model is not None:
                     mlflow.pytorch.log_model(model, f"best.{self.prefix}.{name}")
                 self.best_metric_values[i] = current_value
@@ -110,12 +110,12 @@ class LoggingHelper:
 class GraphClassificationLoggingHelper:
     def __init__(self, metrics_config, prefix, **kwargs) -> None:
         self.graph_logger = LoggingHelper(
-            metrics_config.get("graph", {}), prefix + "graph.", **kwargs
+            metrics_config.get("graph", {}), f"{prefix}.graph", **kwargs
         )
         self.node_logger = LoggingHelper(
-            metrics_config.get("node", {}), prefix + "node.", **kwargs
+            metrics_config.get("node", {}), f"{prefix}.node", **kwargs
         )
-        self.combined_logger = LoggingHelper({}, prefix + "combined.")
+        self.combined_logger = LoggingHelper({}, f"{prefix}.combined")
 
     def add_iteration_outputs(
         self,

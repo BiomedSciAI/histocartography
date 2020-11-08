@@ -83,13 +83,13 @@ def train_graph_classifier(
     )
     training_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,
-        "train.",
+        "train",
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
     )
     validation_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,
-        "valid.",
+        "valid",
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
     )

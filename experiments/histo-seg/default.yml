@@ -45,7 +45,7 @@ train:
     validation_slides:
       - 76
     patch_size: 2500
-    graph_directory:  "outputs/v0"
+    graph_directory:  "outputs/v0_2000px"
   model:
     gnn_config:
       activation: "relu"

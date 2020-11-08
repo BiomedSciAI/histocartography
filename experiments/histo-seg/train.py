@@ -174,7 +174,7 @@ def train_graph_classifier(
         training_epoch_duration = (
             datetime.datetime.now() - time_before_training
         ).total_seconds()
-        mlflow.log_metric("train.seconds_per_epoch", training_epoch_duration)
+        mlflow.log_metric("train.seconds_per_epoch", training_epoch_duration, step=epoch)
 
         # Validate model
         time_before_validation = datetime.datetime.now()
@@ -205,11 +205,11 @@ def train_graph_classifier(
                     node_labels=node_labels.cpu(),
                     node_associations=graph.batch_num_nodes,
                 )
-        validation_metric_logger.log_and_clear(step=epoch, model=model)
+        validation_metric_logger.log_and_clear(step=epoch, model=model if not test else None)
         validation_epoch_duration = (
             datetime.datetime.now() - time_before_validation
         ).total_seconds()
-        mlflow.log_metric("valid.seconds_per_epoch", validation_epoch_duration)
+        mlflow.log_metric("valid.seconds_per_epoch", validation_epoch_duration, step=epoch)
 
 
 if __name__ == "__main__":

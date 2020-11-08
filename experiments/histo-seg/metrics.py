@@ -321,4 +321,4 @@ class NodeClassificationAccuracy(NodeClassificationMetric):
             mask = y_true != self.background_label
             accuracies[i] = sklearn.metrics.accuracy_score(y_pred=y_pred[mask], y_true=y_true[mask])
             start += node_association
-        return accuracies.mean()
+        return np.mean(accuracies[accuracies==accuracies])

@@ -2,10 +2,11 @@
 import gc
 import importlib
 import logging
+import random
 import re
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import dgl
 import h5py
@@ -15,6 +16,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import torch
 from PIL import Image
 from skimage.segmentation import mark_boundaries
 
@@ -249,8 +251,8 @@ def merge_metadata(
             height, width = image.size
             image_heights.append(height)
             image_widths.append(width)
-        image_metadata['height'] = image_heights
-        image_metadata['width'] = image_widths
+        image_metadata["height"] = image_heights
+        image_metadata["width"] = image_widths
 
     return image_metadata
 
@@ -313,12 +315,30 @@ def compute_graph_overlay(
     if path is None:
         return fig, ax
     fig.savefig(path, dpi=100, bbox_inches="tight")
-    
+
     # Clear the current axes.
-    plt.cla() 
+    plt.cla()
     # Clear the current figure.
-    plt.clf() 
+    plt.clf()
     # Closes all the figure windows.
-    plt.close('all')   
+    plt.close("all")
     plt.close(fig)
     gc.collect()
+
+
+def fix_seeds(seed: Optional[int] = None) -> int:
+    """Fixes all the seeds to a random value or a provided seed and returns the seed
+
+    Args:
+        seed (Optional[int], optional): Seed to use. Defaults to None.
+
+    Returns:
+        int: The used seed
+    """
+    if seed is None:
+        seed = random.randint(0, 2 ** 31 - 1)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    dgl.random.seed(seed)
+    return seed

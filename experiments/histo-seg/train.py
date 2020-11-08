@@ -2,7 +2,7 @@ import argparse
 import datetime
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import dgl
 import mlflow
@@ -15,7 +15,7 @@ from eth import BACKGROUND_CLASS, NR_CLASSES, prepare_datasets
 from logging_helper import GraphClassificationLoggingHelper, log_parameters
 from losses import GraphLabelLoss, NodeLabelLoss
 from models import WeakTissueClassifier
-from utils import dynamic_import_from, start_logging
+from utils import dynamic_import_from, fix_seeds, start_logging
 
 
 def collate(
@@ -47,7 +47,8 @@ def train_graph_classifier(
     node_loss_weight: float,
     node_loss_drop_probability: float,
     config_path: str,
-    test: bool
+    test: bool,
+    seed: Optional[int] = None,
 ) -> None:
     """Train the classification model for a given number of epochs.
 
@@ -65,7 +66,8 @@ def train_graph_classifier(
     if test:
         data_config["overfit_test"] = True
 
-    # MLflow
+    # Reproducibility
+    seed = fix_seeds(seed)
     mlflow.set_experiment("anv_wsss_train_classifier")
     mlflow.log_artifact(config_path, "config")
     log_parameters(
@@ -74,6 +76,7 @@ def train_graph_classifier(
         batch_size=batch_size,
         epochs=nr_epochs,
         optimizer=optimizer,
+        seed=seed,
     )
     training_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,

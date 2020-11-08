@@ -66,7 +66,12 @@ class WeakTissueClassifier(nn.Module):
         """
         super().__init__()
         self.gnn_model = MultiLayerGNN(gnn_config)
-        self.latent_dim = gnn_config["output_dim"]
+        if gnn_config["agg_operator"] in ["none", "lstm"]:
+            self.latent_dim = gnn_config["output_dim"]
+        elif gnn_config["agg_operator"] in ["concat"]:
+            self.latent_dim = gnn_config["output_dim"] * gnn_config["n_layers"]
+        else:
+            raise NotImplementedError(f"Only supported agg operators are [none, lstm, concat]")
         self.graph_classifier = ClassifierHead(
             input_dim=self.latent_dim, output_dim=nr_classes, **graph_classifier_config
         )

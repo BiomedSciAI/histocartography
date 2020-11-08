@@ -27,6 +27,7 @@ class GraphClassificationDataset(Dataset):
         self.num_classes = num_classes
         self.background_index = background_index
         self.name_to_index = dict(zip(self.names, range(len(self.names))))
+        self.graph_labels = self._compute_graph_labels()
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -127,6 +128,15 @@ class GraphClassificationDataset(Dataset):
         y_min = np.random.randint(full_size[1] - patch_size[1])
         return (x_min, y_min, x_min + patch_size[0], y_min + patch_size[1])
 
+    def _compute_graph_labels(self):
+        graph_labels = list()
+        for graph in self.graphs:
+            node_labels = graph.ndata[LABEL]
+            graph_label = self._to_onehot_with_ignore(pd.unique(node_labels.numpy()))
+            graph_label = graph_label.sum(axis=0)
+            graph_labels.append(graph_label)
+        return graph_labels
+
     def _to_onehot_with_ignore(self, input_vector: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
         """Converts an input vector into a one-hot encoded matrix using the num_classes and background class attributes
 
@@ -171,6 +181,7 @@ class GraphClassificationDataset(Dataset):
         graph = self.graphs[index]
         image_size = self.image_sizes[index]
         node_labels = graph.ndata[LABEL]
+        graph_label = self.graph_labels[index]
 
         # Random patch sampling
         if self.patch_size is not None:
@@ -182,10 +193,6 @@ class GraphClassificationDataset(Dataset):
             )
             graph = self._generate_subgraph(graph, relevant_nodes)
             node_labels = node_labels[relevant_nodes]
-
-        # Label extraction
-        graph_label = self._to_onehot_with_ignore(pd.unique(node_labels.cpu().numpy()))
-        graph_label = graph_label.sum(axis=0)
 
         return graph, graph_label, node_labels
 

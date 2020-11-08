@@ -53,7 +53,9 @@ def train_graph_classifier(
     optimizer: Dict,
     loss: Dict,
     config_path: str,
+    experiment_name: str,
     test: bool,
+    experiment_tags: Optional[List[str]] = None,
     seed: Optional[int] = None,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -71,7 +73,9 @@ def train_graph_classifier(
 
     # Reproducibility
     seed = fix_seeds(seed)
-    mlflow.set_experiment("anv_wsss_train_classifier")
+    mlflow.set_experiment(experiment_name)
+    if experiment_tags is not None:
+        mlflow.set_tags(experiment_tags)
     mlflow.log_artifact(config_path, "config")
     log_parameters(
         data=data_config,

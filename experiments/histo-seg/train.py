@@ -36,6 +36,13 @@ def collate(
     return dgl.batch(graphs), torch.stack(graph_labels), torch.cat(node_labels)
 
 
+def get_loss(config, name, device):
+    loss_config = config[name]
+    loss_class = dynamic_import_from("losses", loss_config["class"])
+    criterion = loss_class(**loss_config.get("params", {}))
+    return criterion.to(device)
+
+
 def train_graph_classifier(
     model_config: Dict,
     data_config: Dict,
@@ -44,8 +51,7 @@ def train_graph_classifier(
     nr_epochs: int,
     num_workers: int,
     optimizer: Dict,
-    node_loss_weight: float,
-    node_loss_drop_probability: float,
+    loss: Dict,
     config_path: str,
     test: bool,
     seed: Optional[int] = None,
@@ -59,9 +65,6 @@ def train_graph_classifier(
         nr_epochs (int): Number of epochs to train
         optimizer (Dict): Configuration of the optimizer
     """
-    assert (
-        0.0 <= node_loss_weight <= 1.0
-    ), f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
 
     if test:
         data_config["overfit_test"] = True
@@ -123,14 +126,13 @@ def train_graph_classifier(
     mlflow.log_param("nr_parameters", nr_trainable_total_params)
 
     # Loss function
+    graph_criterion = get_loss(loss, "graph", device)
+    node_criterion = get_loss(loss, "node", device)
+    node_loss_weight = loss.get("node_weight", 0.5)
+    assert (
+        0.0 <= node_loss_weight <= 1.0
+    ), f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
     graph_loss_weight = 1.0 - node_loss_weight
-    graph_criterion = GraphBCELoss()
-    graph_criterion = graph_criterion.to(device)
-    node_criterion = NodeStochasticCrossEntropy(
-        background_label=training_dataset.background_index,
-        drop_probability=node_loss_drop_probability,
-    )
-    node_criterion = node_criterion.to(device)
 
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])

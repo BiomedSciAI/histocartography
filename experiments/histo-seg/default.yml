@@ -74,9 +74,16 @@ train:
     optimizer:
       class: "Adam"
       params:
-        lr: 0.0001
+        lr: 0.001
+    loss:
+      graph:
+        class: "GraphBCELoss"
+      node:
+        class: "NodeStochasticCrossEntropy"
+        params:
+          background_label: 4
+          drop_probability: 0.0
+      node_weight: 0.0
     batch_size: 32
     nr_epochs: 1000
     num_workers: 8
-    node_loss_weight: 0.5
-    node_loss_drop_probability: 0.0

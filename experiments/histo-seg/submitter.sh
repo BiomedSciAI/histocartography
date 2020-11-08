@@ -5,7 +5,8 @@ if [ -z "$1" ]; then
     echo "Like this: $0 <ABSOLUTE_PATH_TO_FOLDER>"
     exit 1
 else
-    for FILE in $1/*.lsf; do
+    find $1 -name \*.lsf | sort --version-sort | while read -r FILE
+    do
         echo "Job $FILE"
         TMPFILE="$FILE.tmp.lsf"
         cp $FILE $TMPFILE

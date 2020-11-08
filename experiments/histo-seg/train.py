@@ -83,6 +83,8 @@ def train_graph_classifier(
         batch_size=batch_size,
         epochs=nr_epochs,
         optimizer=optimizer,
+        loss=loss,
+        metrics=metrics_config,
         seed=seed,
     )
     training_metric_logger = GraphClassificationLoggingHelper(

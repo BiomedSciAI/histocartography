@@ -49,16 +49,16 @@ train:
   model:
     gnn_config:
       activation: "relu"
-      agg_operator: "none"
+      agg_operator: "concat"
       input_dim: 512
       hidden_dim: 64
       layer_type: "gin_layer"
-      n_layers: 3
+      n_layers: 4
       output_dim: 64
       neighbor_pooling_type: "mean"
       graph_norm: False
       with_rlp: False
-      edge_dim: 16
+      edge_dim: null
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 64
@@ -84,6 +84,6 @@ train:
           background_label: 4
           drop_probability: 0.0
       node_weight: 0.0
-    batch_size: 32
+    batch_size: 8
     nr_epochs: 1000
     num_workers: 8

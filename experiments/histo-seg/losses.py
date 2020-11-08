@@ -4,7 +4,8 @@ import torch
 from torch import nn
 
 
-class GraphLabelLoss(nn.Module):
+class GraphBCELoss(nn.Module):
+    """Binary Cross Entropy loss over each label seperately, then averaged"""
     def __init__(self) -> None:
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss()
@@ -22,7 +23,32 @@ class GraphLabelLoss(nn.Module):
         return self.bce(input=logits, target=targets.to(torch.float32))
 
 
-class NodeLabelLoss(nn.Module):
+class GraphSoftMacroF1Loss(nn.Module):
+    """Soft variant of the macro F1 score as a loss function"""
+    def __init__(self) -> None:
+        super().__init__()
+        self.smooth = 1e-16
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """Compute the loss of the logit and targets
+
+        Args:
+            logits (torch.Tensor): Logits for the graph with the shape: B x nr_classes
+            targets (torch.Tensor): Targets one-hot encoded with the shape: B x nr_classes
+
+        Returns:
+            torch.Tensor: Graph loss
+        """
+        soft_tp = torch.sum(logits * targets, dim=0)
+        soft_fp = torch.sum(logits * (1 - targets), dim=0)
+        soft_fn = torch.sum((1 - logits) * targets, dim=0)
+        soft_f1 = 2 * soft_tp / (2 * soft_tp + soft_fn + soft_fp + self.smooth)
+        cost = 1 - soft_f1
+        macro_cost = torch.mean(cost)
+        return macro_cost
+
+
+class NodeStochasticCrossEntropy(nn.Module):
     def __init__(self, drop_probability=0.0, background_label=4) -> None:
         super().__init__()
         assert 0.0 <= drop_probability <= 1.0, f"drop_probability must be valid proability but is {drop_probability}"

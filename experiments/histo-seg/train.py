@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 
 from eth import BACKGROUND_CLASS, NR_CLASSES, prepare_datasets
 from logging_helper import GraphClassificationLoggingHelper, log_parameters
-from losses import GraphLabelLoss, NodeLabelLoss
+from losses import GraphBCELoss, NodeStochasticCrossEntropy
 from models import WeakTissueClassifier
 from utils import dynamic_import_from, fix_seeds, start_logging
 
@@ -124,9 +124,9 @@ def train_graph_classifier(
 
     # Loss function
     graph_loss_weight = 1.0 - node_loss_weight
-    graph_criterion = GraphLabelLoss()
+    graph_criterion = GraphBCELoss()
     graph_criterion = graph_criterion.to(device)
-    node_criterion = NodeLabelLoss(
+    node_criterion = NodeStochasticCrossEntropy(
         background_label=training_dataset.background_index,
         drop_probability=node_loss_drop_probability,
     )

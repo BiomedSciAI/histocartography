@@ -2,7 +2,7 @@ from typing import List
 
 import torch
 from torch import nn
-
+from torch.functional import F
 
 class GraphBCELoss(nn.Module):
     """Binary Cross Entropy loss over each label seperately, then averaged"""
@@ -24,10 +24,12 @@ class GraphBCELoss(nn.Module):
 
 
 class GraphSoftMacroF1Loss(nn.Module):
-    """Soft variant of the macro F1 score as a loss function"""
+    """Soft variant of the macro F1 score as a loss function
+       According to https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
+    """
     def __init__(self) -> None:
         super().__init__()
-        self.smooth = 1e-16
+        self.epsilon = 1e-7
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """Compute the loss of the logit and targets
@@ -39,10 +41,13 @@ class GraphSoftMacroF1Loss(nn.Module):
         Returns:
             torch.Tensor: Graph loss
         """
+        
+        targets = targets.to(torch.float32) / targets.sum(dim=1)
+        logits = F.softmax(logits, dim=1).to(torch.float32) 
         soft_tp = torch.sum(logits * targets, dim=0)
         soft_fp = torch.sum(logits * (1 - targets), dim=0)
         soft_fn = torch.sum((1 - logits) * targets, dim=0)
-        soft_f1 = 2 * soft_tp / (2 * soft_tp + soft_fn + soft_fp + self.smooth)
+        soft_f1 = 2 * soft_tp / (2 * soft_tp + soft_fn + soft_fp + self.epsilon)
         cost = 1 - soft_f1
         macro_cost = torch.mean(cost)
         return macro_cost

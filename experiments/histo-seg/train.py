@@ -2,7 +2,7 @@ import argparse
 import datetime
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import dgl
 import mlflow
@@ -55,7 +55,7 @@ def train_graph_classifier(
     config_path: str,
     experiment_name: str,
     test: bool,
-    experiment_tags: Optional[List[str]] = None,
+    experiment_tags: Optional[Dict[str, Any]] = None,
     seed: Optional[int] = None,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -180,7 +180,9 @@ def train_graph_classifier(
         training_epoch_duration = (
             datetime.datetime.now() - time_before_training
         ).total_seconds()
-        mlflow.log_metric("train.seconds_per_epoch", training_epoch_duration, step=epoch)
+        mlflow.log_metric(
+            "train.seconds_per_epoch", training_epoch_duration, step=epoch
+        )
 
         # Validate model
         time_before_validation = datetime.datetime.now()
@@ -211,11 +213,15 @@ def train_graph_classifier(
                     node_labels=node_labels.cpu(),
                     node_associations=graph.batch_num_nodes,
                 )
-        validation_metric_logger.log_and_clear(step=epoch, model=model if not test else None)
+        validation_metric_logger.log_and_clear(
+            step=epoch, model=model if not test else None
+        )
         validation_epoch_duration = (
             datetime.datetime.now() - time_before_validation
         ).total_seconds()
-        mlflow.log_metric("valid.seconds_per_epoch", validation_epoch_duration, step=epoch)
+        mlflow.log_metric(
+            "valid.seconds_per_epoch", validation_epoch_duration, step=epoch
+        )
 
 
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 import argparse
 import copy
 import logging
+import shutil
 from dataclasses import dataclass
 from functools import reduce
 from itertools import product
-import shutil
 from pathlib import Path
-from typing import Any, Iterable, List
+from typing import Any, Iterable, List, Union
 
 import numpy as np
 import yaml
@@ -106,18 +106,28 @@ class Experiment:
     def _update_config(config, path, value):
         if len(path) > 0:
             if not Experiment._path_exists(config, path):
-                logging.warning(f"Config path {path} does not exist. This might be an error")
+                logging.warning(
+                    f"Config path {path} does not exist. This might be an error"
+                )
             reduce(dict.get, path[:-1], config).update({path[-1]: value})
 
     @staticmethod
-    def grid_product(grid):
+    def unpack(parameters: Iterable[ParameterList]):
         unpacked = list()
-        for grid_parameter in grid:
+        for parameter in parameters:
             parameter_list = list()
-            for parameter_value in grid_parameter.value:
-                parameter_list.append(Parameter(grid_parameter.path, parameter_value))
+            for parameter_value in parameter.value:
+                parameter_list.append(Parameter(parameter.path, parameter_value))
             unpacked.append(parameter_list)
-        return product(*unpacked)
+        return unpacked
+
+    @staticmethod
+    def grid_product(grid: Iterable[ParameterList]):
+        return product(*Experiment.unpack(grid))
+
+    @staticmethod
+    def zip(*parameters):
+        return zip(*Experiment.unpack(parameters))
 
     def create_job(self, job_id, config):
         global PATH
@@ -143,7 +153,9 @@ class Experiment:
     def generate(
         self,
         fixed: Iterable[ParameterList] = (),
-        sequential: Iterable[ParameterList] = (ParameterList(list(), [None]),),
+        sequential: Union[
+            Iterable[ParameterList], Iterable[Iterable[ParameterList]]
+        ] = (ParameterList(list(), [None]),),
         grid: Iterable[ParameterList] = (),
     ):
         global BASE
@@ -154,16 +166,23 @@ class Experiment:
             self._update_config(config, parameter.path, parameter.value)
 
         job_id = 0
-        for parameter in sequential:
-            for parameter_value in parameter.value:
+        for parameter_combo in sequential:
+            if not isinstance(parameter_combo, Iterable):
+                parameter_combo = (parameter_combo,)
+            for parameters in self.zip(*parameter_combo):
                 sequential_config = copy.deepcopy(config)
-                self._update_config(sequential_config, parameter.path, parameter_value)
+                for parameter in parameters:
+                    self._update_config(
+                        sequential_config, parameter.path, parameter.value
+                    )
                 if grid:
                     for grid_parameters in self.grid_product(grid):
                         job_config = copy.deepcopy(sequential_config)
                         for grid_parameter in grid_parameters:
                             self._update_config(
-                                job_config, grid_parameter.path, grid_parameter.value
+                                job_config,
+                                grid_parameter.path,
+                                grid_parameter.value,
                             )
                         self.create_job(job_id, job_config)
                         job_id += 1
@@ -316,7 +335,12 @@ if __name__ == "__main__":
     )
 
     Experiment(name="node_stochasticity").generate(
-        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "node_stochasticity"})],
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "node_stochasticity", "fix": "add_centroid_features"},
+            )
+        ],
         sequential=[
             ParameterList(
                 ["train", "params", "loss", "node", "params", "drop_probability"],
@@ -325,7 +349,12 @@ if __name__ == "__main__":
         ],
     )
     Experiment(name="node_loss_weight").generate(
-        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "node_loss_weight"})],
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "node_loss_weight", "fix": "add_centroid_features"},
+            )
+        ],
         sequential=[
             ParameterList(
                 ["train", "params", "loss", "node_weight"],
@@ -334,7 +363,12 @@ if __name__ == "__main__":
         ],
     )
     Experiment(name="batch_sizes").generate(
-        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "batch_size"})],
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "batch_size", "fix": "add_centroid_features"},
+            )
+        ],
         sequential=[
             ParameterList(
                 ["train", "params", "batch_size"],
@@ -343,25 +377,47 @@ if __name__ == "__main__":
         ],
     )
     Experiment(name="learning_rates").generate(
-        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "learning_rate"})],
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "learning_rate", "fix": "add_centroid_features"},
+            )
+        ],
         sequential=[
             ParameterList(
                 ["train", "params", "optimizer", "params", "lr"],
-                list(map(float, np.logspace(-3, -6, 20)))
+                list(map(float, np.logspace(-3, -6, 20))),
             ),
         ],
     )
     Experiment(name="nr_superpixels").generate(
-        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "nr_superpixels"})],
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "nr_superpixels", "fix": "add_centroid_features"},
+            )
+        ],
         sequential=[
             ParameterList(
                 ["train", "data", "graph_directory"],
-                ["outputs/v0_100px", "outputs/v0_250px", "outputs/v0_500px", "outputs/v0_1000px", "outputs/v0_2000px", "outputs/v0_4000px"],
+                [
+                    "outputs/v0_100px",
+                    "outputs/v0_250px",
+                    "outputs/v0_500px",
+                    "outputs/v0_1000px",
+                    "outputs/v0_2000px",
+                    "outputs/v0_4000px",
+                ],
             ),
         ],
     )
     Experiment(name="crop_augmentation").generate(
-        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "patch_size"})],
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "patch_size", "fix": "add_centroid_features"},
+            )
+        ],
         sequential=[
             ParameterList(
                 ["train", "data", "patch_size"],
@@ -370,19 +426,39 @@ if __name__ == "__main__":
         ],
     )
     Experiment(name="gnn_parameters").generate(
-        fixed=[Parameter(["train", "params", "experiment_tags"], {"grid_search" : "various_gnn_parameters"})],
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {
+                    "grid_search": "various_gnn_parameters",
+                    "fix": "add_centroid_features",
+                },
+            )
+        ],
         grid=[
             ParameterList(
                 ["train", "model", "gnn_config", "agg_operator"],
                 ["none", "concat", "lstm"],
             ),
-            ParameterList(
-                ["train", "model", "gnn_config", "n_layers"],
-                [2, 4, 6]
-            ),
-            ParameterList(
-                ["train", "model", "gnn_config", "hidden_dim"],
-                [32, 64]
+            ParameterList(["train", "model", "gnn_config", "n_layers"], [2, 4, 6]),
+            ParameterList(["train", "model", "gnn_config", "hidden_dim"], [32, 64]),
+        ],
+    )
+    Experiment(name="centroid_features").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "centroid_features", "fix": "add_centroid_features"},
             )
-        ]
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "data", "centroid_features"], ["cat", "only", "no"]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "input_dim"], [514, 2, 512]
+                ),
+            ]
+        ],
     )

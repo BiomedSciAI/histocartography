@@ -69,7 +69,11 @@ train:
       hidden_dim: 32
   metrics:
     graph:
-      - "GraphClassificationAccuracy"
+      - "GraphClassificationBalancedAccuracy"
+      - "GraphClassificationBenignAccuracy"
+      - "GraphClassificationGleason3Accuracy"
+      - "GraphClassificationGleason4Accuracy"
+      - "GraphClassificationGleason5Accuracy"
     node:
       - "NodeClassificationAccuracy"
   params:

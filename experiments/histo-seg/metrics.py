@@ -290,6 +290,33 @@ class GraphClassificationAccuracy(GraphClassificationMetric):
         return sklearn.metrics.accuracy_score(y_pred=y_pred, y_true=y_true)
 
 
+class GraphClassificationBalancedAccuracy(GraphClassificationMetric):
+    def _compare(self, predictions, labels, **kwargs):
+        y_pred = np.ravel(predictions.numpy()) > 0.5
+        y_true = np.ravel(labels.numpy())
+        return sklearn.metrics.balanced_accuracy_score(y_pred=y_pred, y_true=y_true)
+
+
+class GraphClassificationBenignAccuracy(GraphClassificationAccuracy):
+    def _compare(self, predictions, labels, **kwargs) -> float:
+        return super()._compare(predictions[:, 0], labels[:, 0], **kwargs)
+
+
+class GraphClassificationGleason3Accuracy(GraphClassificationAccuracy):
+    def _compare(self, predictions, labels, **kwargs) -> float:
+        return super()._compare(predictions[:, 1], labels[:, 1], **kwargs)
+
+
+class GraphClassificationGleason4Accuracy(GraphClassificationAccuracy):
+    def _compare(self, predictions, labels, **kwargs) -> float:
+        return super()._compare(predictions[:, 2], labels[:, 2], **kwargs)
+
+
+class GraphClassificationGleason5Accuracy(GraphClassificationAccuracy):
+    def _compare(self, predictions, labels, **kwargs) -> float:
+        return super()._compare(predictions[:, 3], labels[:, 3], **kwargs)
+
+
 class NodeClassificationMetric(ClassificationMetric):
     def __init__(self, background_label, nr_classes, *args, **kwargs) -> None:
         self.background_label = background_label

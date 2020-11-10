@@ -7,7 +7,7 @@ import os
 import sys
 from functools import partial
 from pathlib import Path
-from typing import Callable, Tuple, Union
+from typing import Callable, Tuple, Optional
 
 import pandas as pd
 import yaml

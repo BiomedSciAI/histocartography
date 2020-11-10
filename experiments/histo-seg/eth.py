@@ -155,6 +155,7 @@ def prepare_datasets(
     patch_size: int,
     use_patches_for_validation: bool,
     overfit_test: bool = False,
+    centroid_features: str = "no",
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -185,12 +186,14 @@ def prepare_datasets(
         patch_size=(patch_size, patch_size),
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
+        centroid_features=centroid_features,
     )
     validation_dataset = GraphClassificationDataset(
         validation_metadata,
         patch_size=(patch_size, patch_size) if use_patches_for_validation else None,
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
+        centroid_features=centroid_features,
     )
 
     return training_dataset, validation_dataset

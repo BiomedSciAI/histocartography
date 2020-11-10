@@ -12,7 +12,7 @@ import torch
 from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 
-from constants import CENTROID, GNN_EDGE_FEAT, GNN_NODE_FEAT_IN, LABEL
+from constants import CENTROID, GNN_EDGE_FEAT, GNN_NODE_FEAT_IN, LABEL, FEATURES
 from utils import PipelineStep, fast_histogram
 
 
@@ -93,7 +93,7 @@ class BaseGraphBuilder(PipelineStep):
             features (torch.Tensor): Node features
             graph (dgl.DGLGraph): Graph to add the features to
         """
-        graph.ndata[GNN_NODE_FEAT_IN] = features
+        graph.ndata[FEATURES] = features
 
     @staticmethod
     def _set_node_centroids(superpixels: np.ndarray, graph: dgl.DGLGraph) -> None:

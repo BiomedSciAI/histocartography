@@ -9,7 +9,7 @@ from dgl.data.utils import load_graphs
 from dgl.graph import DGLGraph
 from torch.utils.data import Dataset
 
-from constants import CENTROID, LABEL
+from constants import CENTROID, LABEL, GNN_NODE_FEAT_IN, FEATURES
 
 
 class GraphClassificationDataset(Dataset):
@@ -19,7 +19,13 @@ class GraphClassificationDataset(Dataset):
         patch_size: Optional[Tuple[int, int]],
         num_classes: int = 4,
         background_index: int = 4,
+        centroid_features: str = "no",
     ) -> None:
+        assert centroid_features in [
+            "no",
+            "cat",
+            "only",
+        ], f"centroid_features must be in [no, cat, only] but is {centroid_features}"
         self._check_metadata(metadata)
         self.names, self.graphs = self._load_graphs(metadata)
         self.image_sizes = self._load_image_sizes(metadata)
@@ -28,6 +34,7 @@ class GraphClassificationDataset(Dataset):
         self.background_index = background_index
         self.name_to_index = dict(zip(self.names, range(len(self.names))))
         self.graph_labels = self._compute_graph_labels()
+        self._select_graph_features(centroid_features)
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -67,6 +74,24 @@ class GraphClassificationDataset(Dataset):
         for _, row in metadata.iterrows():
             image_sizes.append((row.height, row.width))
         return image_sizes
+
+    def _select_graph_features(self, centroid_features):
+        for graph, image_size in zip(self.graphs, self.image_sizes):
+            if centroid_features == "no":
+                graph.ndata[GNN_NODE_FEAT_IN] = graph.ndata.pop(FEATURES).to(torch.float32)
+            elif centroid_features == "only":
+                graph.ndata[GNN_NODE_FEAT_IN] = graph.ndata[CENTROID] / torch.Tensor(
+                    image_size
+                ).to(torch.float32)
+                graph.ndata.pop(FEATURES)
+            elif centroid_features == "cat":
+                graph.ndata[GNN_NODE_FEAT_IN] = torch.cat(
+                    [
+                        graph.ndata.pop(FEATURES),
+                        (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(torch.float32),
+                    ],
+                    dim=1,
+                )
 
     @staticmethod
     def _get_indices_in_bounding_box(
@@ -137,7 +162,9 @@ class GraphClassificationDataset(Dataset):
             graph_labels.append(graph_label)
         return graph_labels
 
-    def _to_onehot_with_ignore(self, input_vector: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
+    def _to_onehot_with_ignore(
+        self, input_vector: Union[np.ndarray, torch.Tensor]
+    ) -> torch.Tensor:
         """Converts an input vector into a one-hot encoded matrix using the num_classes and background class attributes
 
         Args:
@@ -167,7 +194,9 @@ class GraphClassificationDataset(Dataset):
         )
         return clean_one_hot_vector.to(torch.int8)
 
-    def __getitem__(self, index: int) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
+    def __getitem__(
+        self, index: int
+    ) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
         """Returns a sample (patch) of graph i
 
         Args:

@@ -80,9 +80,9 @@ class GraphClassificationDataset(Dataset):
             if centroid_features == "no":
                 graph.ndata[GNN_NODE_FEAT_IN] = graph.ndata.pop(FEATURES).to(torch.float32)
             elif centroid_features == "only":
-                graph.ndata[GNN_NODE_FEAT_IN] = graph.ndata[CENTROID] / torch.Tensor(
+                graph.ndata[GNN_NODE_FEAT_IN] = (graph.ndata[CENTROID] / torch.Tensor(
                     image_size
-                ).to(torch.float32)
+                )).to(torch.float32)
                 graph.ndata.pop(FEATURES)
             elif centroid_features == "cat":
                 graph.ndata[GNN_NODE_FEAT_IN] = torch.cat(

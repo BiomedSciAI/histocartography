@@ -55,6 +55,7 @@ def train_graph_classifier(
     config_path: str,
     experiment_name: str,
     test: bool,
+    clip_gradient_norm: Optional[float] = None,
     experiment_tags: Optional[Dict[str, Any]] = None,
     seed: Optional[int] = None,
 ) -> None:
@@ -116,7 +117,7 @@ def train_graph_classifier(
         num_workers=num_workers,
     )
 
-    # Compute device
+    # Compute device 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
         mlflow.log_param("device", torch.cuda.get_device_name(0))
@@ -126,6 +127,8 @@ def train_graph_classifier(
     # Model
     model = WeakTissueClassifier(**model_config)
     model = model.to(device)
+    if clip_gradient_norm is not None:
+        torch.nn.utils.clip_grad.clip_grad_norm_(model.parameters(), clip_gradient_norm)
     nr_trainable_total_params = sum(
         p.numel() for p in model.parameters() if p.requires_grad
     )

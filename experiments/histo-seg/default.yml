@@ -46,12 +46,13 @@ train:
       - 76
     patch_size: 2500
     graph_directory:  "outputs/v0_2000px"
+    centroid_features: "cat"
     use_patches_for_validation: false
   model:
     gnn_config:
       activation: "relu"
       agg_operator: "concat"
-      input_dim: 512
+      input_dim: 514
       hidden_dim: 64
       layer_type: "gin_layer"
       n_layers: 4
@@ -90,3 +91,4 @@ train:
     batch_size: 8
     nr_epochs: 2000
     num_workers: 6
+    clip_gradient_norm: null

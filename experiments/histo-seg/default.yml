@@ -46,6 +46,7 @@ train:
       - 76
     patch_size: 2500
     graph_directory:  "outputs/v0_2000px"
+    use_patches_for_validation: false
   model:
     gnn_config:
       activation: "relu"

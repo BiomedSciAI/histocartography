@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import DefaultDict
 
 import mlflow
@@ -30,6 +31,12 @@ def log_parameters(data, model, **kwargs):
     mlflow.log_params(flatten(data, "data"))
     mlflow.log_params(flatten(model, "model"))
     mlflow.log_params(flatten(kwargs))
+
+
+def log_sources():
+    for file in Path(".").iterdir():
+        if file.name.endswith(".py"):
+            mlflow.log_artifact(str(file), "sources")
 
 
 class LoggingHelper:
@@ -95,9 +102,7 @@ class LoggingHelper:
         all_information = zip(
             self.metric_names, self.metrics, self.best_metric_values, current_values
         )
-        for i, (name, metric, best_value, current_value) in enumerate(
-            all_information
-        ):
+        for i, (name, metric, best_value, current_value) in enumerate(all_information):
             if metric.is_better(current_value, best_value):
                 self._log(f"best.{name}", current_value, step)
                 if model is not None:

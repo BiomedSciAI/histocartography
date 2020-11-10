@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from eth import BACKGROUND_CLASS, NR_CLASSES, prepare_datasets
-from logging_helper import GraphClassificationLoggingHelper, log_parameters
+from logging_helper import GraphClassificationLoggingHelper, log_parameters, log_sources
 from losses import GraphBCELoss, NodeStochasticCrossEntropy
 from models import WeakTissueClassifier
 from utils import dynamic_import_from, fix_seeds, start_logging
@@ -78,6 +78,7 @@ def train_graph_classifier(
     if experiment_tags is not None:
         mlflow.set_tags(experiment_tags)
     mlflow.log_artifact(config_path, "config")
+    log_sources()
     log_parameters(
         data=data_config,
         model=model_config,
@@ -170,7 +171,9 @@ def train_graph_classifier(
             )
             combined_loss.backward()
             if clip_gradient_norm is not None:
-                torch.nn.utils.clip_grad.clip_grad_norm_(model.parameters(), clip_gradient_norm)
+                torch.nn.utils.clip_grad.clip_grad_norm_(
+                    model.parameters(), clip_gradient_norm
+                )
             optimizer.step()
 
             training_metric_logger.add_iteration_outputs(

@@ -87,6 +87,7 @@ def train_graph_classifier(
         loss=loss,
         metrics=metrics_config,
         seed=seed,
+        clip_gradient_norm=clip_gradient_norm,
     )
     training_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,
@@ -117,7 +118,7 @@ def train_graph_classifier(
         num_workers=num_workers,
     )
 
-    # Compute device 
+    # Compute device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
         mlflow.log_param("device", torch.cuda.get_device_name(0))
@@ -127,8 +128,6 @@ def train_graph_classifier(
     # Model
     model = WeakTissueClassifier(**model_config)
     model = model.to(device)
-    if clip_gradient_norm is not None:
-        torch.nn.utils.clip_grad.clip_grad_norm_(model.parameters(), clip_gradient_norm)
     nr_trainable_total_params = sum(
         p.numel() for p in model.parameters() if p.requires_grad
     )
@@ -170,6 +169,8 @@ def train_graph_classifier(
                 graph_loss_weight * graph_loss + node_loss_weight * node_loss
             )
             combined_loss.backward()
+            if clip_gradient_norm is not None:
+                torch.nn.utils.clip_grad.clip_grad_norm_(model.parameters(), clip_gradient_norm)
             optimizer.step()
 
             training_metric_logger.add_iteration_outputs(

@@ -92,51 +92,57 @@ class LoggingHelper:
         return mean_loss
 
     def log_and_clear(self, step, model=None):
-        current_loss = self._log_loss(step)
-        current_values = self._log_metrics(step)
-        if current_loss < self.best_loss:
-            self._log("best_loss", current_loss, step)
-            self.best_loss = current_loss
-            if model is not None:
-                mlflow.pytorch.log_model(model, f"best.{self.prefix}.loss")
-        all_information = zip(
-            self.metric_names, self.metrics, self.best_metric_values, current_values
-        )
-        for i, (name, metric, best_value, current_value) in enumerate(all_information):
-            if metric.is_better(current_value, best_value):
-                self._log(f"best.{name}", current_value, step)
+        if len(self.losses) > 0:
+            current_loss = self._log_loss(step)
+            if current_loss < self.best_loss:
+                self._log("best_loss", current_loss, step)
+                self.best_loss = current_loss
                 if model is not None:
-                    mlflow.pytorch.log_model(model, f"best.{self.prefix}.{name}")
-                self.best_metric_values[i] = current_value
-
+                    mlflow.pytorch.log_model(model, f"best.{self.prefix}.loss")
+        if len(self.logits) > 0:
+            current_values = self._log_metrics(step)
+            all_information = zip(
+                self.metric_names, self.metrics, self.best_metric_values, current_values
+            )
+            for i, (name, metric, best_value, current_value) in enumerate(all_information):
+                if metric.is_better(current_value, best_value):
+                    self._log(f"best.{name}", current_value, step)
+                    if model is not None:
+                        mlflow.pytorch.log_model(model, f"best.{self.prefix}.{name}")
+                    self.best_metric_values[i] = current_value
         self._reset_epoch_stats()
 
 
 class GraphClassificationLoggingHelper:
-    def __init__(self, metrics_config, prefix, **kwargs) -> None:
+    def __init__(self, metrics_config, prefix, node_loss_weight, graph_loss_weight, **kwargs) -> None:
         self.graph_logger = LoggingHelper(
             metrics_config.get("graph", {}), f"{prefix}.graph", **kwargs
         )
         self.node_logger = LoggingHelper(
             metrics_config.get("node", {}), f"{prefix}.node", **kwargs
         )
+        self.node_loss_weight = node_loss_weight
+        self.graph_loss_weight = graph_loss_weight
         self.combined_logger = LoggingHelper({}, f"{prefix}.combined")
 
     def add_iteration_outputs(
         self,
-        graph_loss,
-        node_loss,
-        graph_logits,
-        node_logits,
-        graph_labels,
-        node_labels,
-        node_associations,
+        graph_loss=None,
+        node_loss=None,
+        graph_logits=None,
+        node_logits=None,
+        graph_labels=None,
+        node_labels=None,
+        node_associations=None,
     ):
-        self.graph_logger.add_iteration_outputs(graph_loss, graph_logits, graph_labels)
-        self.node_logger.add_iteration_outputs(
-            node_loss, node_logits, node_labels, node_associations=node_associations
-        )
-        self.combined_logger.add_iteration_outputs(graph_loss + node_loss)
+        if graph_loss is not None:
+            self.graph_logger.add_iteration_outputs(graph_loss, graph_logits, graph_labels)
+        if node_loss is not None:
+            self.node_logger.add_iteration_outputs(
+                node_loss, node_logits, node_labels, node_associations=node_associations
+            )
+        if graph_loss is not None and node_loss is not None:
+            self.combined_logger.add_iteration_outputs(self.graph_loss_weight * graph_loss + self.node_loss_weight * node_loss)
 
     def log_and_clear(self, step, model=None):
         self.graph_logger.log_and_clear(step, model)

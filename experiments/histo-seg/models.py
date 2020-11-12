@@ -72,16 +72,22 @@ class WeakTissueClassifier(nn.Module):
             self.latent_dim = gnn_config["output_dim"] * gnn_config["n_layers"]
         else:
             raise NotImplementedError(f"Only supported agg operators are [none, lstm, concat]")
-        self.graph_classifier = ClassifierHead(
-            input_dim=self.latent_dim, output_dim=nr_classes, **graph_classifier_config
-        )
-        node_classifiers = [
-            ClassifierHead(
-                input_dim=self.latent_dim, output_dim=1, **node_classifier_config
+        if graph_classifier_config is not None:
+            self.graph_classifier = ClassifierHead(
+                input_dim=self.latent_dim, output_dim=nr_classes, **graph_classifier_config
             )
-            for _ in range(nr_classes)
-        ]
-        self.node_classifiers = nn.ModuleList(node_classifiers)
+        else:
+            self.graph_classifier = None
+        if node_classifier_config is not None:
+            node_classifiers = [
+                ClassifierHead(
+                    input_dim=self.latent_dim, output_dim=1, **node_classifier_config
+                )
+                for _ in range(nr_classes)
+            ]
+            self.node_classifiers = nn.ModuleList(node_classifiers)
+        else:
+            self.node_classifiers = None
         self.nr_classes = nr_classes
 
     def forward(self, graph: dgl.DGLGraph) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -96,12 +102,16 @@ class WeakTissueClassifier(nn.Module):
         in_features = graph.ndata[GNN_NODE_FEAT_IN]
 
         graph_embedding = self.gnn_model(graph, in_features)
-        graph_logit = self.graph_classifier(graph_embedding)
-
-        node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
-        node_logit = torch.empty((in_features.shape[0], self.nr_classes), device=graph_logit.device)
-        for i, node_classifier in enumerate(self.node_classifiers):
-            classifier_output = node_classifier(node_embedding).squeeze(1)
-            node_logit[:, i] = classifier_output
-
+        if self.graph_classifier is not None:
+            graph_logit = self.graph_classifier(graph_embedding)
+        else:
+            graph_logit = None
+        if self.node_classifiers is not None:
+            node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
+            node_logit = torch.empty((in_features.shape[0], self.nr_classes), device=graph_embedding.device)
+            for i, node_classifier in enumerate(self.node_classifiers):
+                classifier_output = node_classifier(node_embedding).squeeze(1)
+                node_logit[:, i] = classifier_output
+        else:
+            node_logit = None
         return graph_logit, node_logit

@@ -92,18 +92,6 @@ def train_graph_classifier(
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     prepare_datasets = dynamic_import_from(dataset, "prepare_datasets")
-    training_metric_logger = GraphClassificationLoggingHelper(
-        metrics_config,
-        "train",
-        background_label=BACKGROUND_CLASS,
-        nr_classes=NR_CLASSES,
-    )
-    validation_metric_logger = GraphClassificationLoggingHelper(
-        metrics_config,
-        "valid",
-        background_label=BACKGROUND_CLASS,
-        nr_classes=NR_CLASSES,
-    )
 
     # Data loaders
     training_dataset, validation_dataset = prepare_datasets(**data_config)
@@ -130,6 +118,8 @@ def train_graph_classifier(
 
     # Model
     model = WeakTissueClassifier(**model_config)
+    use_graph_head = model_config["graph_classifier_config"] is not None
+    use_node_head = model_config["node_classifier_config"] is not None
     model = model.to(device)
     nr_trainable_total_params = sum(
         p.numel() for p in model.parameters() if p.requires_grad
@@ -137,13 +127,33 @@ def train_graph_classifier(
     mlflow.log_param("nr_parameters", nr_trainable_total_params)
 
     # Loss function
-    graph_criterion = get_loss(loss, "graph", device)
-    node_criterion = get_loss(loss, "node", device)
-    node_loss_weight = loss.get("node_weight", 0.5)
-    assert (
-        0.0 <= node_loss_weight <= 1.0
-    ), f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
-    graph_loss_weight = 1.0 - node_loss_weight
+    if use_graph_head:
+        graph_criterion = get_loss(loss, "graph", device)
+    if use_node_head:
+        node_criterion = get_loss(loss, "node", device)
+    if use_graph_head and use_node_head:
+        node_loss_weight = loss.get("node_weight", 0.5)
+        assert (
+            0.0 <= node_loss_weight <= 1.0
+        ), f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
+        graph_loss_weight = 1.0 - node_loss_weight
+
+    training_metric_logger = GraphClassificationLoggingHelper(
+        metrics_config,
+        "train",
+        background_label=BACKGROUND_CLASS,
+        nr_classes=NR_CLASSES,
+        node_loss_weight=node_loss_weight if use_graph_head and use_node_head else None,
+        graph_loss_weight=graph_loss_weight if use_graph_head and use_node_head else None,
+    )
+    validation_metric_logger = GraphClassificationLoggingHelper(
+        metrics_config,
+        "valid",
+        background_label=BACKGROUND_CLASS,
+        nr_classes=NR_CLASSES,
+        node_loss_weight=node_loss_weight if use_graph_head and use_node_head else None,
+        graph_loss_weight=graph_loss_weight if use_graph_head and use_node_head else None,
+    )
 
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
@@ -166,12 +176,19 @@ def train_graph_classifier(
 
             graph_logits, node_logits = model(graph)
 
-            graph_loss = graph_criterion(graph_logits, graph_labels)
-            node_loss = node_criterion(node_logits, node_labels, graph.batch_num_nodes)
-            combined_loss = (
-                graph_loss_weight * graph_loss + node_loss_weight * node_loss
-            )
-            combined_loss.backward()
+            if use_graph_head:
+                graph_loss = graph_criterion(graph_logits, graph_labels)
+            if use_node_head:
+                node_loss = node_criterion(node_logits, node_labels, graph.batch_num_nodes)
+            if use_graph_head and use_node_head:
+                combined_loss = (
+                    graph_loss_weight * graph_loss + node_loss_weight * node_loss
+                )
+                combined_loss.backward()
+            elif use_node_head:
+                node_loss.backward()
+            elif use_graph_head:
+                graph_loss.backward()
             if clip_gradient_norm is not None:
                 torch.nn.utils.clip_grad.clip_grad_norm_(
                     model.parameters(), clip_gradient_norm
@@ -179,10 +196,10 @@ def train_graph_classifier(
             optimizer.step()
 
             training_metric_logger.add_iteration_outputs(
-                graph_loss=graph_loss.item(),
-                node_loss=node_loss.item(),
-                graph_logits=graph_logits.detach().cpu(),
-                node_logits=node_logits.detach().cpu(),
+                graph_loss=graph_loss.item() if use_graph_head else None,
+                node_loss=node_loss.item() if use_node_head else None,
+                graph_logits=graph_logits.detach().cpu() if graph_logits is not None else None,
+                node_logits=node_logits.detach().cpu() if node_logits is not None else None,
                 graph_labels=graph_labels.cpu(),
                 node_labels=node_labels.cpu(),
                 node_associations=graph.batch_num_nodes,
@@ -210,16 +227,16 @@ def train_graph_classifier(
                 node_labels = node_labels.to(device)
 
                 graph_logits, node_logits = model(graph)
-                graph_loss = graph_criterion(graph_logits, graph_labels)
-                node_loss = node_criterion(
-                    node_logits, node_labels, graph.batch_num_nodes
-                )
+                if use_graph_head:
+                    graph_loss = graph_criterion(graph_logits, graph_labels)
+                if use_node_head:
+                    node_loss = node_criterion(node_logits, node_labels, graph.batch_num_nodes)
 
                 validation_metric_logger.add_iteration_outputs(
-                    graph_loss=graph_loss.item(),
-                    node_loss=node_loss.item(),
-                    graph_logits=graph_logits.detach().cpu(),
-                    node_logits=node_logits.detach().cpu(),
+                    graph_loss=graph_loss.item() if use_graph_head else None,
+                    node_loss=node_loss.item() if use_node_head else None,
+                    graph_logits=graph_logits.detach().cpu() if graph_logits is not None else None,
+                    node_logits=node_logits.detach().cpu() if node_logits is not None else None,
                     graph_labels=graph_labels.cpu(),
                     node_labels=node_labels.cpu(),
                     node_associations=graph.batch_num_nodes,

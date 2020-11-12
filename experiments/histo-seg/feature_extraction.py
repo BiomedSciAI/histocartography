@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Optional, Tuple
 
+import cv2
 import numpy as np
 import torch
 import torchvision
@@ -60,7 +61,6 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
     ) -> None:
         """Extract handcrafted features from images"""
         super().__init__(**kwargs)
-        import cv2
 
     def _extract_features(
         self, input_image: np.ndarray, superpixels: np.ndarray

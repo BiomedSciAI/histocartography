@@ -96,3 +96,4 @@ train:
     nr_epochs: 2000
     num_workers: 6
     clip_gradient_norm: null
+    dataset: "eth"

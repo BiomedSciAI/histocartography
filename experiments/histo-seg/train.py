@@ -11,9 +11,7 @@ import yaml
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from eth import BACKGROUND_CLASS, NR_CLASSES, prepare_datasets
 from logging_helper import GraphClassificationLoggingHelper, log_parameters, log_sources
-from losses import GraphBCELoss, NodeStochasticCrossEntropy
 from models import WeakTissueClassifier
 from utils import dynamic_import_from, fix_seeds, start_logging
 
@@ -44,6 +42,7 @@ def get_loss(config, name, device):
 
 
 def train_graph_classifier(
+    dataset: str,
     model_config: Dict,
     data_config: Dict,
     metrics_config: Dict,
@@ -90,6 +89,9 @@ def train_graph_classifier(
         seed=seed,
         clip_gradient_norm=clip_gradient_norm,
     )
+    BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
+    NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
+    prepare_datasets = dynamic_import_from(dataset, "prepare_datasets")
     training_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,
         "train",

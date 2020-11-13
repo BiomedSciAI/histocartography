@@ -54,20 +54,20 @@ train:
       activation: "relu"
       agg_operator: "concat"
       input_dim: 514
-      hidden_dim: 64
+      hidden_dim: 32
       layer_type: "gin_layer"
       n_layers: 4
-      output_dim: 64
+      output_dim: 32
       neighbor_pooling_type: "mean"
       graph_norm: False
       with_rlp: False
       edge_dim: null
     graph_classifier_config:
       n_layers: 2
-      hidden_dim: 64
+      hidden_dim: 32
     node_classifier_config:
       n_layers: 2
-      hidden_dim: 32
+      hidden_dim: 16
   metrics:
     graph:
       - "GraphClassificationBalancedAccuracy"
@@ -93,10 +93,10 @@ train:
         class: "NodeStochasticCrossEntropy"
         params:
           background_label: 4
-          drop_probability: 0.0
+          drop_probability: 0.5
       node_weight: 0.5
     batch_size: 8
     nr_epochs: 2000
     num_workers: 6
-    clip_gradient_norm: null
+    clip_gradient_norm: 5.0
     dataset: "eth"

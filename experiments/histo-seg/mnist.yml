@@ -41,7 +41,7 @@ train:
     loss:
       graph:
         class: "GraphBCELoss"
-    batch_size: 64
+    batch_size: 48
     nr_epochs: 1000
     num_workers: 6
     clip_gradient_norm: 5.0

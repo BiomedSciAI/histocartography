@@ -114,12 +114,12 @@ def compute_normalizer(name, nr_superpixels, **kwargs):
         str(BASE_PATH / f"all_{name}_{nr_superpixels}.bin"),
         centroid_features="no",
     )
-    feature_dimension = dataset[0][0].ndata[GNN_NODE_FEAT_IN].shape[1]
-    mean_features = torch.empty([feature_dimension, len(dataset)])
+    all_features = list()
     for i in range(len(dataset)):
-        mean_features[:, i] = dataset[i][0].ndata[GNN_NODE_FEAT_IN].mean(axis=0)
-    normalizer = mean_features.mean(axis=1)
-    torch.save(normalizer, BASE_PATH / f"{name}_{nr_superpixels}_normalizer.pth")
+        all_features.append(dataset[i][0].ndata[GNN_NODE_FEAT_IN].mean(axis=0))
+    all_features = torch.cat(all_features)
+    torch.save(all_features.mean(axis=0), BASE_PATH / f"{name}_{nr_superpixels}_normalizer_mean.pth")
+    torch.save(all_features.std(axis=0), BASE_PATH / f"{name}_{nr_superpixels}_normalizer_std.pth")
 
 
 class MNISTDataset(Dataset):
@@ -173,16 +173,25 @@ class MNISTDataset(Dataset):
         return len(self.graph_labels)
 
 
-def prepare_datasets(centroid_features, nr_superpixels, normalizer=None):
+def prepare_datasets(centroid_features, nr_superpixels, normalize_features=False):
+    if normalize_features:
+        mean = torch.load(BASE_PATH / f"train_{nr_superpixels}_normalizer_mean.pth")
+        std = torch.load(BASE_PATH / f"train_{nr_superpixels}_normalizer_std.pth")
+
+    else:
+        mean = None
+        std = None
     train_dataset = MNISTDataset(
         str(BASE_PATH / f"all_train_{nr_superpixels}.bin"),
         centroid_features=centroid_features,
-        normalizer=normalizer if normalizer is None else BASE_PATH / normalizer,
+        mean=mean,
+        std=std,
     )
     valid_dataset = MNISTDataset(
         str(BASE_PATH / f"all_valid_{nr_superpixels}.bin"),
         centroid_features=centroid_features,
-        normalizer=normalizer if normalizer is None else BASE_PATH / normalizer,
+        mean=mean,
+        std=std,
     )
     return train_dataset, valid_dataset
 

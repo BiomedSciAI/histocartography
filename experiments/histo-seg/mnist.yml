@@ -6,7 +6,7 @@ train:
   data:
     nr_superpixels: 50
     centroid_features: "cat"
-    normalizer: "train_50_normalizer.pth"
+    normalize_features: true
   model:
     nr_classes: 10
     gnn_config:

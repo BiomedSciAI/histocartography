@@ -81,27 +81,25 @@ class GraphClassificationDataset(Dataset):
 
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):
-            if centroid_features == "no":
-                features = graph.ndata.pop(FEATURES).to(torch.float32)
-            elif centroid_features == "only":
+            if centroid_features == "only":
                 features = (graph.ndata[CENTROID] / torch.Tensor(
                     image_size
                 )).to(torch.float32)
                 graph.ndata.pop(FEATURES)
-            elif centroid_features == "cat":
-                features = torch.cat(
-                    [
-                        graph.ndata.pop(FEATURES),
-                        (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(torch.float32),
-                    ],
-                    dim=1,
-                )
             else:
-                raise NotImplementedError(f"centroid_features {centroid_features} not implemented")
-            if self.mean is not None and self.std is not None:
-                graph.ndata[GNN_NODE_FEAT_IN] = (features - self.mean) / self.std
-            else:
-                graph.ndata[GNN_NODE_FEAT_IN] = features
+                features = graph.ndata.pop(FEATURES).to(torch.float32)
+                if self.mean is not None and self.std is not None:
+                    features = (features - self.mean) / self.std
+    
+                if centroid_features == "cat":
+                    features = torch.cat(
+                        [
+                            features,
+                            (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(torch.float32),
+                        ],
+                        dim=1,
+                    )
+            graph.ndata[GNN_NODE_FEAT_IN] = features
 
     @staticmethod
     def _get_indices_in_bounding_box(

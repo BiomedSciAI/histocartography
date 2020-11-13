@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 import pandas as pd
+import torch
 from torch.utils.data.dataset import Dataset
 
 from dataset import GraphClassificationDataset
@@ -149,13 +150,14 @@ def generate_annotations_meta_df() -> None:
 
 
 def prepare_datasets(
-    graph_directory: Path,
+    graph_directory: str,
     training_slides: List[int],
     validation_slides: List[int],
     patch_size: int,
     use_patches_for_validation: bool,
     overfit_test: bool = False,
     centroid_features: str = "no",
+    normalize_features: bool = False,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -168,14 +170,32 @@ def prepare_datasets(
     Returns:
         Tuple[Dataset, Dataset]: Training set, validation set
     """
+    graph_directory = PREPROCESS_PATH / graph_directory
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
-        graph_directory=PREPROCESS_PATH / graph_directory,
+        graph_directory=graph_directory,
         add_image_sizes=True,
     )
     training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
     validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
+
+    if normalize_features:
+        precomputed_mean = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"mean_{graph_directory.name}.pth"
+        )
+        precomputed_std = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"std_{graph_directory.name}.pth"
+        )
+    else:
+        precomputed_mean = None
+        precomputed_std = None
 
     if overfit_test:
         training_metadata = training_metadata.sample(1)
@@ -187,6 +207,8 @@ def prepare_datasets(
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
         centroid_features=centroid_features,
+        mean=precomputed_mean,
+        std=precomputed_std,
     )
     validation_dataset = GraphClassificationDataset(
         validation_metadata,
@@ -194,6 +216,8 @@ def prepare_datasets(
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
         centroid_features=centroid_features,
+        mean=precomputed_mean,
+        std=precomputed_std,
     )
 
     return training_dataset, validation_dataset

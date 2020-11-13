@@ -20,6 +20,8 @@ class GraphClassificationDataset(Dataset):
         num_classes: int = 4,
         background_index: int = 4,
         centroid_features: str = "no",
+        mean: Optional[torch.Tensor] = None,
+        std: Optional[torch.Tensor] = None,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -27,6 +29,8 @@ class GraphClassificationDataset(Dataset):
             "only",
         ], f"centroid_features must be in [no, cat, only] but is {centroid_features}"
         self._check_metadata(metadata)
+        self.mean = mean
+        self.std = std
         self.names, self.graphs = self._load_graphs(metadata)
         self.image_sizes = self._load_image_sizes(metadata)
         self.patch_size = patch_size
@@ -78,20 +82,26 @@ class GraphClassificationDataset(Dataset):
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):
             if centroid_features == "no":
-                graph.ndata[GNN_NODE_FEAT_IN] = graph.ndata.pop(FEATURES).to(torch.float32)
+                features = graph.ndata.pop(FEATURES).to(torch.float32)
             elif centroid_features == "only":
-                graph.ndata[GNN_NODE_FEAT_IN] = (graph.ndata[CENTROID] / torch.Tensor(
+                features = (graph.ndata[CENTROID] / torch.Tensor(
                     image_size
                 )).to(torch.float32)
                 graph.ndata.pop(FEATURES)
             elif centroid_features == "cat":
-                graph.ndata[GNN_NODE_FEAT_IN] = torch.cat(
+                features = torch.cat(
                     [
                         graph.ndata.pop(FEATURES),
                         (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(torch.float32),
                     ],
                     dim=1,
                 )
+            else:
+                raise NotImplementedError(f"centroid_features {centroid_features} not implemented")
+            if self.mean is not None and self.std is not None:
+                graph.ndata[GNN_NODE_FEAT_IN] = (features - self.mean) / self.std
+            else:
+                graph.ndata[GNN_NODE_FEAT_IN] = features
 
     @staticmethod
     def _get_indices_in_bounding_box(

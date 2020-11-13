@@ -35,16 +35,30 @@ AVAILABLE_LAYER_TYPES = {
 
 GNN_MODULE = 'histocartography.ml.layers.{}'
 
+def min_nodes(graph, features):
+    from dgl.backend import pytorch
+    feat = pytorch.pad_packed_tensor(graph.ndata[features], graph.batch_num_nodes, float('inf'))
+    return pytorch.min(feat, 1)
 
 READOUT_TYPES = {
     'sum': dgl.sum_nodes,
     'mean': dgl.mean_nodes,
-    'max': dgl.max_nodes
+    'max': dgl.max_nodes,
+    'min': min_nodes
 }
+
+def reduce_min(x, dim):
+    return torch.min(x, dim=dim)[0]
+
+def reduce_max(x, dim):
+    return torch.max(x, dim=dim)[0]
+
 
 REDUCE_TYPES = {
     'sum': torch.sum,
-    'mean': torch.mean
+    'mean': torch.mean,
+    'max': reduce_max,
+    'min': reduce_min,
 }
 
 EPS = 1e-5

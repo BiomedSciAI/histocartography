@@ -85,7 +85,6 @@ def train_graph_classifier(
         epochs=nr_epochs,
         optimizer=optimizer,
         loss=loss,
-        metrics=metrics_config,
         seed=seed,
         clip_gradient_norm=clip_gradient_norm,
     )

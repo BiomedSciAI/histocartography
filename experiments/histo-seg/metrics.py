@@ -297,6 +297,21 @@ class GraphClassificationBalancedAccuracy(GraphClassificationMetric):
         return sklearn.metrics.balanced_accuracy_score(y_pred=y_pred, y_true=y_true)
 
 
+class GraphClassificationF1Score(GraphClassificationMetric):
+    def _compare(self, predictions, labels, **kwargs):
+        y_pred = np.ravel(predictions.numpy()) > 0.5
+        y_true = np.ravel(labels.numpy())
+        return sklearn.metrics.f1_score(y_pred=y_pred, y_true=y_true, average='macro')
+
+
+class GraphClassificationAUCROC(GraphClassificationMetric):
+    def _compare(self, predictions, labels, **kwargs):
+        y_pred = np.ravel(predictions.numpy())
+        y_true = np.ravel(labels.numpy())
+        return sklearn.metrics.roc_auc_score(y_score=y_pred, y_true=y_true, average='macro')
+   
+
+
 class GraphClassificationBenignAccuracy(GraphClassificationAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 0], labels[:, 0], **kwargs)

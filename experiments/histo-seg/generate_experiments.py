@@ -74,6 +74,7 @@ class Experiment:
         queue="prod.med",
         disable_multithreading=False,
         no_save=False,
+        base=None,
     ) -> None:
         self.name = name
         self.cores = cores
@@ -91,6 +92,12 @@ class Experiment:
         else:
             shutil.rmtree(self.target_directory)
             self.target_directory.mkdir()
+
+        if base is None:
+            global BASE
+            self.base = BASE
+        else:
+            self.base = base
 
     @staticmethod
     def _path_exists(config, path):
@@ -158,8 +165,7 @@ class Experiment:
         ] = (ParameterList(list(), [None]),),
         grid: Iterable[ParameterList] = (),
     ):
-        global BASE
-        with open(BASE) as file:
+        with open(self.base) as file:
             config: dict = yaml.load(file, Loader=yaml.FullLoader)
 
         for parameter in fixed:
@@ -319,8 +325,96 @@ if __name__ == "__main__":
 
     generate_performance_test(path=args.path, base=args.base)
     generate_upper_bounds(path=args.path, base=args.base)
-    preprocess_nr_superpixels(path=args.path, base=args.base)
 
+    # Preprocessing
+    preprocess_nr_superpixels(path=args.path, base=args.base)
+    Experiment(
+        name="preproessing_handcrafted",
+        cores=8,
+        gpus=0,
+        main_file="preprocess",
+        disable_multithreading=True,
+    ).generate(
+        fixed=[
+            Parameter(["preprocess", "params", "cores"], 8 * 7),
+            Parameter(
+                ["preprocess", "stages", "feature_extractor"],
+                {"class": "HandcraftedFeatureExtractor"},
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                [
+                    "preprocess",
+                    "stages",
+                    "superpixel_extractor",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [500, 1000, 2000],
+            )
+        ],
+    )
+    Experiment(
+        name="preproessing_resnet34",
+        cores=8,
+        gpus=0,
+        main_file="preprocess",
+        disable_multithreading=True,
+    ).generate(
+        fixed=[
+            Parameter(["preprocess", "params", "cores"], 8 * 7),
+            Parameter(
+                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                "resnet34",
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                [
+                    "preprocess",
+                    "stages",
+                    "superpixel_extractor",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [500, 1000, 2000],
+            )
+        ],
+    )
+    Experiment(
+        name="preproessing_lowres",
+        cores=6,
+        gpus=0,
+        main_file="preprocess",
+        disable_multithreading=True,
+    ).generate(
+        fixed=[
+            Parameter(["preprocess", "params", "cores"], 6 * 7),
+            Parameter(
+                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                "resnet34",
+            ),
+        ],
+        grid=[
+            ParameterList(
+                [
+                    "preprocess",
+                    "stages",
+                    "superpixel_extractor",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [500, 1000],
+            ),
+            ParameterList(
+                ["preprocess", "stages", "feature_extractor", "params", "size"],
+                [336, 448, 672],
+            ),
+        ],
+    )
+
+    # ETH
     Experiment(name="train_basic_search").generate(
         sequential=[
             ParameterList(
@@ -333,7 +427,6 @@ if __name__ == "__main__":
             ParameterList(["train", "data", "patch_size"], [1000, 2000, 3000]),
         ],
     )
-
     Experiment(name="node_stochasticity").generate(
         fixed=[
             Parameter(
@@ -453,12 +546,423 @@ if __name__ == "__main__":
         ],
         sequential=[
             [
-                ParameterList(
-                    ["train", "data", "centroid_features"], ["cat", "only", "no"]
-                ),
-                ParameterList(
-                    ["train", "model", "gnn_config", "input_dim"], [514, 2, 512]
-                ),
+                ParameterList(["train", "data", "centroid_features"], ["only"]),
+                ParameterList(["train", "model", "gnn_config", "input_dim"], [2]),
             ]
+        ],
+    )
+    Experiment(name="lr_gradient_norm").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "learning_rate", "fix": "add_centroid_features"},
+            ),
+            Parameter(["train", "params", "clip_gradient_norm"], 5.0),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"],
+                list(map(float, np.logspace(-2, -5, 10))),
+            ),
+        ],
+    )
+    Experiment(name="sanity_check").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"fix": "sanity_check"},
+            )
+        ],
+    )
+    Experiment(name="tiny_centroid_networks").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "tiny_centroid_networks"},
+            ),
+            Parameter(["train", "data", "centroid_features"], "only"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 2),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "drop_probability"], 0.5
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [2, 2, 2]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [16, 8, 4]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [16, 8, 4]
+                ),
+                ParameterList(
+                    ["train", "model", "graph_classifier_config", "hidden_dim"],
+                    [32, 16, 8],
+                ),
+            ],
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [16, 8, 4]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [16, 8, 4]
+                ),
+                ParameterList(
+                    ["train", "model", "graph_classifier_config", "hidden_dim"],
+                    [48, 24, 12],
+                ),
+            ],
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [4, 4, 4]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [16, 8, 4]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [16, 8, 4]
+                ),
+                ParameterList(
+                    ["train", "model", "graph_classifier_config", "hidden_dim"],
+                    [64, 32, 16],
+                ),
+            ],
+        ],
+    )
+    Experiment(name="small_networks").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "small_networks"},
+            ),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "drop_probability"], 0.5
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+            ],
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [4, 4, 4]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+            ],
+        ],
+    )
+    Experiment(name="baseline").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "baseline"},
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ]
+    )
+    Experiment(name="gnn_agg").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "aggregator"},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "gnn_config", "neighbor_pooling_type"],
+                ["sum", "min", "max"],
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ],
+    )
+    Experiment(name="normalize").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "normalize"},
+            )
+        ],
+        grid=[
+            ParameterList(["train", "data", "normalize_features"], [True]),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ],
+    )
+    Experiment(name="fold_sanity_check").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "fold_sanity_check"},
+            )
+        ],
+        sequential=[
+            ParameterList(["train", "data", "training_slides"], [
+                [76, 199, 204], [111, 76, 199]
+            ]),
+            ParameterList(["train", "data", "validation_slides"], [
+                [111], [204]
+            ])
+        ],
+    )
+    Experiment(name="handcrafted_features").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "handcrafted_features"},
+            ),
+            Parameter(
+                ["train", "data", "normalize_features"],
+                True,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "input_dim"],
+                59
+            )
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                ["outputs/hc_500px", "outputs/hc_1000px", "outputs/hc_2000px"]
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ]
+    )
+    Experiment(name="resnet34").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "resnet34"},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                ["outputs/resnet34_500px", "outputs/resnet34_1000px", "outputs/resnet34_2000px"]
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ]
+    )
+    Experiment(name="downsampled_150").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "downsampled_150"},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                ["outputs/resnet34_500px_1.5x", "outputs/resnet34_1000px_1.5x"]
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ]
+    )
+    Experiment(name="downsampled_200").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "downsampled_200"},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                ["outputs/resnet34_500px_2x", "outputs/resnet34_1000px_2x"]
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ]
+    )
+    Experiment(name="downsampled_300").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "downsampled_300"},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                ["outputs/resnet34_500px_3x", "outputs/resnet34_1000px_3x"]
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+            )
+        ]
+    )
+
+    # MNIST
+    Experiment(name="mnist_batch_sizes", base="mnist.yml").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "batch_size"},
+            ),
+            Parameter(
+                ["train", "params", "nr_epochs"],
+                500
+            )
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "batch_size"],
+                [8, 16, 32, 64, 128],
+            ),
+        ],
+    )
+    Experiment(name="mnist_learning_rates", base="mnist.yml").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "learning_rate"},
+            ),
+            Parameter(
+                ["train", "params", "nr_epochs"],
+                500
+            )
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"],
+                list(map(float, np.logspace(-3, -6, 10)))[5:],
+            ),
+        ],
+    )
+    Experiment(name="mnist_centroid_features", base="mnist.yml").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "centroid_features"},
+            )
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "data", "centroid_features"], ["no", "only"]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "input_dim"], [57, 2]
+                ),
+            ],
+        ],
+    ),
+    Experiment(name="mnist_no_normalizer", base="mnist.yml").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "no_normalizer"},
+            )
+        ],
+        sequential=[
+            ParameterList(["train", "data", "normalize_features"], [True, False]),
+        ],
+    ),
+    Experiment(name="mnist_gnn_config", base="mnist.yml").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "gnn_config"},
+            )
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "model", "graph_classifier_config", "n_layers"],
+                    [2, 2, 3, 3],
+                ),
+                ParameterList(
+                    ["train", "model", "graph_classifier_config", "hidden_dim"],
+                    [32, 48, 32, 48],
+                ),
+            ],
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [2, 2, 2]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+            ],
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+            ],
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [4, 4, 4]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+            ],
+        ],
+    )
+    Experiment(name="mnist_batch_sizes_cpu", base="mnist.yml").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "batch_size"},
+            ),
+            Parameter(
+                ["train", "params", "nr_epochs"],
+                500
+            )
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "batch_size"],
+                [8, 16, 32, 64, 128],
+            ),
+        ],
+    )
+    Experiment(name="mnist_agg", base="mnist.yml").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "experiment_tags"],
+                {"grid_search": "aggregator"},
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "gnn_config", "neighbor_pooling_type"],
+                ["mean", "sum", "min", "max"],
+            ),
         ],
     )

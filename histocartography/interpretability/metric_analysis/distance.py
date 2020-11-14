@@ -2,6 +2,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.distance import directed_hausdorff
+from scipy.stats import wasserstein_distance
 from sklearn import svm
 
 
@@ -11,9 +12,13 @@ class Distance:
                     'chamfer' : self.chamfer_distance,
                     'hausdorff' : self.hausdorff_distance,
                     'svm': self.svm_distance,
-                    'hist': self.histogram_distance}
+                    'hist': self.histogram_distance,
+                    'wassertein': self.wassertein_distance}
         self.distance = distance_[distance]
 
+    def wassertein_distance(self, x, y):
+        distance = wasserstein_distance(x, y)
+        return np.round(distance, 4)
 
     def pair_wise_distance(self, x, y, metric='euclidean'):
         '''

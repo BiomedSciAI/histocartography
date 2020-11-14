@@ -7,9 +7,11 @@ import random
 import math
 from scipy.stats import wasserstein_distance
 
+
 class Explainability:
-    def __init__(self, args, config, explainer, percentage, verbose=False, visualize=False):
+    def __init__(self, args, config, explainer, concept_name, percentage, verbose=False, visualize=False):
         self.args = args
+        self.args.concept = [concept_name]
         self.config = config
         self.explainer = explainer
         self.percentage = percentage
@@ -26,7 +28,6 @@ class Explainability:
         if self.explainer == 'Random':
             self.explainer_path = config.explainer_path + str(args.classification_mode) + '/GNNExplainer/'
             self.nuclei_selection_type = 'random'
-
 
     def get_node_info(self, exp):
         node_importance = exp.node_importance
@@ -182,8 +183,8 @@ class Explainability:
 
                 elif self.nuclei_selection_type == 'random':
                     random.seed(0)
-                    idx = list(range(len(self.node_importance[i][j])))
-                    # idx = random.sample(range(len(self.node_importance[i][j])), min(len(self.node_importance[i][j]), 200))
+                    # idx = list(range(len(self.node_importance[i][j])))
+                    idx = random.sample(range(len(self.node_importance[i][j])), min(len(self.node_importance[i][j]), self.percentage))
                 else:
                     raise ValueError('Unsupported nuclei selection strategy. Current options are: "thresh", "cumul", "absolute" and "random".')
 

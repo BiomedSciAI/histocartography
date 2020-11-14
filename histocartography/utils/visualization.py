@@ -104,6 +104,9 @@ class GraphVisualization:
             # @TODO: hack alert store the centroid and the edges
             self.centroid_cg = cent_cg
             self.edges_cg = edges_cg
+
+            if self.show_edges:
+                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
             
             # draw centroids
             if self.show_centroid:
@@ -118,9 +121,6 @@ class GraphVisualization:
             #     alpha = alpha.filter(ImageFilter.FIND_EDGES)
             #     mask.putalpha(alpha)
             #     canvas.paste(mask, (0, 0), mask)
-            
-            if self.show_edges:
-                self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
             
             if self.save:
                 check_for_dir(self.save_path)
@@ -139,7 +139,7 @@ class GraphVisualization:
                 outline = colors[bisect.bisect(buckets, node_importance[centroid_id]) -1]
             else:
                 raise NotImplementedError("To implement...")
-            draw_ellipse(centroid, draw_bd, fill_col=None, size=size, outline=outline)
+            draw_ellipse(centroid, draw_bd, fill_col=outline, outline=outline)
 
     def draw_superpx(self, mask, draw_bd, fill, node_importance=None):
 

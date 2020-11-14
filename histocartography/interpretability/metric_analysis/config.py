@@ -11,9 +11,9 @@ class Configuration:
 
         self.explainer_path = self.base_path + 'explainers/'
         self.img_path = self.base_path + 'Images_norm/'
-        self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_interpretable_/'
+        self.features_path = self.base_path + 'nuclei_info/nuclei_features/features_complete_/'
         self.instance_map_path = self.base_path + 'nuclei_info/nuclei_instance_map/'
-        self.info_path = self.base_path + 'nuclei_info/nuclei_prediction_gnn/'
+        self.info_path = self.base_path + 'nuclei_info/nuclei_classes/'
 
         create_directory(self.base_path + 'analysis/')
         self.analysis_save_path = self.base_path + 'analysis/' + str(args.classification_mode) + '/'
@@ -53,14 +53,13 @@ class Configuration:
 
         # Set percentage
         if args.p == -1:
-            # self.percentages = [5, 10, 25, 50]
-            self.percentages = [0.05, 0.1, 0.25, 0.5]
-            #self.percentages = [10]
+            self.percentages = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+            # self.percentages = [10, 20]
         else:
             self.percentages = np.array([args.p])
 
         if args.explainer == '-1':
-            self.explainers = ['GraphLRP', 'GraphGradCAM', 'GraphGradCAMpp', 'GNNExplainer', 'Random']
+            self.explainers = ['GraphGradCAM', 'GraphLRP', 'GraphGradCAMpp', 'GNNExplainer', 'Random']
             #self.explainers = ['GraphGradCAMpp']
         else:
             self.explainers = [args.explainer]
@@ -70,7 +69,8 @@ class Configuration:
         self.feature_names = ['mean_fg', 'mean_diff', 'var_fg', 'skew_fg', 'mean_entropy',
                               'glcm_dissimilarity', 'glcm_homogeneity', 'glcm_energy', 'glcm_ASM',
                               'eccentricity', 'area', 'majoraxis_length', 'minoraxis_length', 'perimeter', 'solidity', 'orientation',
-                              'roundness', 'ellipticity', 'crowdedness', 'mean_h', 'std_h', 'median_h'
+                              'roundness', 'ellipticity', 'crowdedness', 'mean_h', 'std_h', 'median_h', 'roughness', 'shape_factor',
+                              'std_crowdedness', 'glcm_entropy', 'glcm_variance'
                               ]
 
         # IMPORTANT CONCEPTS:

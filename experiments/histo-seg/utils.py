@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Optional, Tuple, Union
 
+import cv2
 import dgl
 import h5py
 import matplotlib as mpl
@@ -262,6 +263,7 @@ def compute_graph_overlay(
     path: Optional[str] = None,
     image: Optional[np.ndarray] = None,
     superpixels: Optional[np.ndarray] = None,
+    scale_factor: float = 1.0,
 ) -> Optional[Tuple[mpl.figure.Figure, mpl.axes.Axes]]:
     """Creates a plot of the graph, optionally with labels, overlayed with the image or even with the image and superpixels. Saves to name if not None.
 
@@ -277,7 +279,10 @@ def compute_graph_overlay(
 
     fig, ax = plt.subplots(figsize=(30, 30))
     if image is not None:
+        new_dim = (int(image.shape[0] * scale_factor), int(image.shape[0] * scale_factor))
+        image = cv2.resize(image, new_dim, interpolation=cv2.INTER_NEAREST)
         if superpixels is not None:
+            superpixels = cv2.resize(superpixels, new_dim, interpolation=cv2.INTER_NEAREST)
             image = mark_boundaries(image, superpixels, color=(0, 1, 1))
         ax.imshow(image, alpha=0.5)
 
@@ -299,7 +304,7 @@ def compute_graph_overlay(
                 color_map.append("darkred")
     else:
         color_map = "black"
-    pos = graph.ndata["centroid"].numpy().copy()
+    pos = (graph.ndata["centroid"].numpy().copy()) * scale_factor
     pos[:, [0, 1]] = pos[:, [1, 0]]
     nx.draw_networkx(
         nxgraph,
@@ -308,8 +313,8 @@ def compute_graph_overlay(
         arrows=False,
         with_labels=False,
         ax=ax,
-        node_size=40,
-        width=0.5,
+        node_size=40 * scale_factor,
+        width=0.5 * scale_factor,
         edge_color="black",
     )
     if path is None:

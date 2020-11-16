@@ -5,10 +5,11 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import pandas as pd
 import torch
+from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
 
 from dataset import GraphClassificationDataset
@@ -151,10 +152,11 @@ def generate_annotations_meta_df() -> None:
 
 def prepare_datasets(
     graph_directory: str,
-    training_slides: List[int],
-    validation_slides: List[int],
     patch_size: int,
     use_patches_for_validation: bool,
+    training_slides: Optional[List[int]] = None,
+    validation_slides: Optional[List[int]] = None,
+    train_fraction: Optional[float] = None,
     overfit_test: bool = False,
     centroid_features: str = "no",
     normalize_features: bool = False,
@@ -170,6 +172,8 @@ def prepare_datasets(
     Returns:
         Tuple[Dataset, Dataset]: Training set, validation set
     """
+    assert train_fraction is not None or (training_slides is not None and validation_slides is not None)
+
     graph_directory = PREPROCESS_PATH / graph_directory
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
@@ -177,8 +181,13 @@ def prepare_datasets(
         graph_directory=graph_directory,
         add_image_sizes=True,
     )
-    training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
-    validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
+    if train_fraction is not None:
+        train_indices, validation_indices = train_test_split(all_metadata.index.values, train_size=train_fraction)
+        training_metadata = all_metadata.loc[train_indices]
+        validation_metadata = all_metadata.loc[validation_indices]
+    else:
+        training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
+        validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
 
     if normalize_features:
         precomputed_mean = torch.load(

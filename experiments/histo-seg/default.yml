@@ -38,6 +38,7 @@ upper_bound:
 train:
   data:
     overfit_test: False
+    train_fraction: null
     training_slides:
       - 111
       - 199
@@ -100,3 +101,4 @@ train:
     num_workers: 6
     clip_gradient_norm: 5.0
     dataset: "eth"
+    seed: null

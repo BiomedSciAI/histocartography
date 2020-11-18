@@ -3,11 +3,11 @@ preprocess:
     stain_normalizer:
       class: "VahadaneStainNormalizer"
       params:
-        target: "ZT111_4_C_7_1"
+        target: "ZT76_39_B_2_1"
     superpixel_extractor:
       class: "SLICSuperpixelExtractor"
       params:
-        nr_superpixels: 2000
+        nr_superpixels: 500
         color_space: "rgb"
     feature_extractor:
       class: "DeepFeatureExtractor"
@@ -102,3 +102,4 @@ train:
     clip_gradient_norm: 5.0
     dataset: "eth"
     seed: null
+    validation_frequency: 1

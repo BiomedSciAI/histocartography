@@ -9,7 +9,7 @@ import mlflow
 import torch
 import yaml
 from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
+from tqdm.auto import trange
 
 from logging_helper import GraphClassificationLoggingHelper, log_parameters, log_sources
 from models import WeakTissueClassifier
@@ -54,6 +54,7 @@ def train_graph_classifier(
     config_path: str,
     experiment_name: str,
     test: bool,
+    validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
     experiment_tags: Optional[Dict[str, Any]] = None,
     seed: Optional[int] = None,
@@ -143,7 +144,9 @@ def train_graph_classifier(
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
         node_loss_weight=node_loss_weight if use_graph_head and use_node_head else None,
-        graph_loss_weight=graph_loss_weight if use_graph_head and use_node_head else None,
+        graph_loss_weight=graph_loss_weight
+        if use_graph_head and use_node_head
+        else None,
     )
     validation_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,
@@ -151,24 +154,21 @@ def train_graph_classifier(
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
         node_loss_weight=node_loss_weight if use_graph_head and use_node_head else None,
-        graph_loss_weight=graph_loss_weight if use_graph_head and use_node_head else None,
+        graph_loss_weight=graph_loss_weight
+        if use_graph_head and use_node_head
+        else None,
     )
 
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
     optimizer = optimizer_class(model.parameters(), **optimizer["params"])
 
-    for epoch in range(nr_epochs):
+    for epoch in trange(nr_epochs):
 
         # Train model
         time_before_training = datetime.datetime.now()
         model.train()
-        progress_bar = tqdm(
-            enumerate(training_loader),
-            desc=f"Train Epoch {epoch}",
-            total=len(training_loader),
-        )
-        for iteration, (graph, graph_labels, node_labels) in progress_bar:
+        for iteration, (graph, graph_labels, node_labels) in enumerate(training_loader):
             graph = graph.to(device)
             graph_labels = graph_labels.to(device)
             node_labels = node_labels.to(device)
@@ -178,7 +178,9 @@ def train_graph_classifier(
             if use_graph_head:
                 graph_loss = graph_criterion(graph_logits, graph_labels)
             if use_node_head:
-                node_loss = node_criterion(node_logits, node_labels, graph.batch_num_nodes)
+                node_loss = node_criterion(
+                    node_logits, node_labels, graph.batch_num_nodes
+                )
             if use_graph_head and use_node_head:
                 combined_loss = (
                     graph_loss_weight * graph_loss + node_loss_weight * node_loss
@@ -197,8 +199,12 @@ def train_graph_classifier(
             training_metric_logger.add_iteration_outputs(
                 graph_loss=graph_loss.item() if use_graph_head else None,
                 node_loss=node_loss.item() if use_node_head else None,
-                graph_logits=graph_logits.detach().cpu() if graph_logits is not None else None,
-                node_logits=node_logits.detach().cpu() if node_logits is not None else None,
+                graph_logits=graph_logits.detach().cpu()
+                if graph_logits is not None
+                else None,
+                node_logits=node_logits.detach().cpu()
+                if node_logits is not None
+                else None,
                 graph_labels=graph_labels.cpu(),
                 node_labels=node_labels.cpu(),
                 node_associations=graph.batch_num_nodes,
@@ -211,44 +217,48 @@ def train_graph_classifier(
             "train.seconds_per_epoch", training_epoch_duration, step=epoch
         )
 
-        # Validate model
-        time_before_validation = datetime.datetime.now()
-        model.eval()
-        progress_bar = tqdm(
-            enumerate(validation_loader),
-            desc=f"Valid Epoch {epoch}",
-            total=len(validation_loader),
-        )
-        with torch.no_grad():
-            for iteration, (graph, graph_labels, node_labels) in progress_bar:
-                graph = graph.to(device)
-                graph_labels = graph_labels.to(device)
-                node_labels = node_labels.to(device)
+        if epoch % validation_frequency == 0:
+            # Validate model
+            time_before_validation = datetime.datetime.now()
+            model.eval()
+            with torch.no_grad():
+                for iteration, (graph, graph_labels, node_labels) in enumerate(
+                    validation_loader
+                ):
+                    graph = graph.to(device)
+                    graph_labels = graph_labels.to(device)
+                    node_labels = node_labels.to(device)
 
-                graph_logits, node_logits = model(graph)
-                if use_graph_head:
-                    graph_loss = graph_criterion(graph_logits, graph_labels)
-                if use_node_head:
-                    node_loss = node_criterion(node_logits, node_labels, graph.batch_num_nodes)
+                    graph_logits, node_logits = model(graph)
+                    if use_graph_head:
+                        graph_loss = graph_criterion(graph_logits, graph_labels)
+                    if use_node_head:
+                        node_loss = node_criterion(
+                            node_logits, node_labels, graph.batch_num_nodes
+                        )
 
-                validation_metric_logger.add_iteration_outputs(
-                    graph_loss=graph_loss.item() if use_graph_head else None,
-                    node_loss=node_loss.item() if use_node_head else None,
-                    graph_logits=graph_logits.detach().cpu() if graph_logits is not None else None,
-                    node_logits=node_logits.detach().cpu() if node_logits is not None else None,
-                    graph_labels=graph_labels.cpu(),
-                    node_labels=node_labels.cpu(),
-                    node_associations=graph.batch_num_nodes,
-                )
-        validation_metric_logger.log_and_clear(
-            step=epoch, model=model if not test else None
-        )
-        validation_epoch_duration = (
-            datetime.datetime.now() - time_before_validation
-        ).total_seconds()
-        mlflow.log_metric(
-            "valid.seconds_per_epoch", validation_epoch_duration, step=epoch
-        )
+                    validation_metric_logger.add_iteration_outputs(
+                        graph_loss=graph_loss.item() if use_graph_head else None,
+                        node_loss=node_loss.item() if use_node_head else None,
+                        graph_logits=graph_logits.detach().cpu()
+                        if graph_logits is not None
+                        else None,
+                        node_logits=node_logits.detach().cpu()
+                        if node_logits is not None
+                        else None,
+                        graph_labels=graph_labels.cpu(),
+                        node_labels=node_labels.cpu(),
+                        node_associations=graph.batch_num_nodes,
+                    )
+            validation_metric_logger.log_and_clear(
+                step=epoch, model=model if not test else None
+            )
+            validation_epoch_duration = (
+                datetime.datetime.now() - time_before_validation
+            ).total_seconds()
+            mlflow.log_metric(
+                "valid.seconds_per_epoch", validation_epoch_duration, step=epoch
+            )
 
 
 if __name__ == "__main__":

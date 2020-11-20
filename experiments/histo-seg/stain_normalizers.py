@@ -372,7 +372,7 @@ class VahadaneStainNormalizer(StainNormalizer):
             np.array: Mask for the image
         """
         image_lab = rgb2lab(image)
-        lightness = image_lab[:, :, 0] / 255.0
+        lightness = image_lab[:, :, 0] / 100.0
         return lightness < threshold
 
     def _get_stain_matrix(self, input_image: np.ndarray) -> np.ndarray:
@@ -387,14 +387,16 @@ class VahadaneStainNormalizer(StainNormalizer):
         mask = self._notwhite_mask(input_image, threshold=self.thres).reshape((-1,))
         OD = self._RGB_to_OD(input_image).reshape((-1, 3))
         OD = OD[mask]
+
+        # solves for min_{D in C} (1/n) sum_{i=1}^n (1/2)||x_i-Dalpha_i||_2^2 + ... lambda1||alpha_i||_1 + lambda_2||alpha_i||_2^2
         dictionary = spams.trainDL(
             OD.T,
-            K=2,
-            lambda1=self.lambda_s,
+            K=2,                    # Find two stains
+            lambda1=self.lambda_s,  # Constraint for 1-norm of alphas
             mode=2,
-            modeD=0,
-            posAlpha=True,
-            posD=True,
+            modeD=0,                # {W in Real^{m x n}  s.t.  for all j,  ||d_j||_2^2 <= 1 }
+            posAlpha=True,          # Positive stains
+            posD=True,              # Positive staining matrix
             verbose=False,
             numThreads=1,
         ).T

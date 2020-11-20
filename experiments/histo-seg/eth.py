@@ -160,6 +160,7 @@ def prepare_datasets(
     overfit_test: bool = False,
     centroid_features: str = "no",
     normalize_features: bool = False,
+    downsample_segmentation_maps: int = 1,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -172,17 +173,22 @@ def prepare_datasets(
     Returns:
         Tuple[Dataset, Dataset]: Training set, validation set
     """
-    assert train_fraction is not None or (training_slides is not None and validation_slides is not None)
+    assert train_fraction is not None or (
+        training_slides is not None and validation_slides is not None
+    )
 
     graph_directory = PREPROCESS_PATH / graph_directory
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
+        superpixel_directory=graph_directory / ".." / "..",
         add_image_sizes=True,
     )
     if train_fraction is not None:
-        train_indices, validation_indices = train_test_split(all_metadata.index.values, train_size=train_fraction)
+        train_indices, validation_indices = train_test_split(
+            all_metadata.index.values, train_size=train_fraction
+        )
         training_metadata = all_metadata.loc[train_indices]
         validation_metadata = all_metadata.loc[validation_indices]
     else:
@@ -227,6 +233,8 @@ def prepare_datasets(
         centroid_features=centroid_features,
         mean=precomputed_mean,
         std=precomputed_std,
+        return_segmentation_info=True,
+        segmentation_downsample_ratio=downsample_segmentation_maps,
     )
 
     return training_dataset, validation_dataset

@@ -10,7 +10,7 @@ import torch
 class SegmentationMetric:
     """Base class for segmentation metrics"""
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         """Constructor of Metric"""
 
     @abstractmethod
@@ -39,8 +39,11 @@ class SegmentationMetric:
         Returns:
             torch.Tensor: Computed metric. Shape: (1 or B)
         """
+        if isinstance(ground_truth, np.ndarray):
+            ground_truth = torch.Tensor(ground_truth)
+        if isinstance(prediction, np.ndarray):
+            prediction = torch.Tensor(prediction)
         assert ground_truth.shape == prediction.shape
-        assert len(ground_truth.shape) == 2
         unbatched = False
         if len(ground_truth.shape) == 4:  # For shape BATCH x 1 x H x W
             assert ground_truth.shape[1] == 1
@@ -56,11 +59,15 @@ class SegmentationMetric:
             return metric[0]
         return metric
 
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        raise NotImplementedError
+
 
 class IoU(SegmentationMetric):
     """Compute the class IoU"""
 
-    def __init__(self, nr_classes: int = 5) -> None:
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -68,6 +75,8 @@ class IoU(SegmentationMetric):
         """
         self.nr_classes = nr_classes
         self.smooth = 1e-12
+        self.background_label = background_label
+        super().__init__(**kwargs)
 
     def _compute_metric(
         self,
@@ -98,6 +107,11 @@ class IoU(SegmentationMetric):
             class_union = (class_ground_truth | class_prediction).sum(axis=(1, 2))
             class_iou[:, class_label] = class_intersection / (class_union + self.smooth)
         return class_iou
+    
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        """Higher is better"""
+        return value >= comparison
 
 
 class MeanIoU(IoU):
@@ -118,7 +132,8 @@ class MeanIoU(IoU):
         class_iou = super()._compute_metric(ground_truth, prediction)
         mask = torch.isnan(class_iou)
         class_iou[mask] = 0
-        return torch.sum(class_iou, axis=1) / torch.sum(~mask, axis=1)
+        batch_mean_iou = torch.sum(class_iou, axis=1) / torch.sum(~mask, axis=1)
+        return batch_mean_iou.mean().item()
 
 
 class fIoU(IoU):
@@ -150,13 +165,14 @@ class fIoU(IoU):
         y = log_class_counts.sum() / log_class_counts
         y[log_class_counts == 0] = 0
         class_weights = y / y.sum()
-        return (class_weights * class_iou).sum(axis=1)
+        batch_fiou = (class_weights * class_iou).sum(axis=1)
+        return batch_fiou.mean().item()
 
 
 class F1Score(SegmentationMetric):
     """Compute the class F1 score"""
 
-    def __init__(self, nr_classes: int = 5) -> None:
+    def __init__(self, nr_classes: int = 5, **kwargs) -> None:
         """Create a F1 calculator for a certain number of classes
 
         Args:
@@ -164,6 +180,7 @@ class F1Score(SegmentationMetric):
         """
         self.nr_classes = nr_classes
         self.smooth = 1e-12
+        super().__init__(**kwargs)
 
     def _compute_metric(
         self,
@@ -205,6 +222,11 @@ class F1Score(SegmentationMetric):
 
         return class_f1
 
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        """Higher is better"""
+        return value >= comparison
+
 
 class MeanF1Score(F1Score):
     """Mean class F1 score"""
@@ -224,7 +246,8 @@ class MeanF1Score(F1Score):
         class_f1 = super()._compute_metric(ground_truth, prediction)
         mask = torch.isnan(class_f1)
         class_f1[mask] = 0
-        return torch.sum(class_f1, axis=1) / torch.sum(~mask, axis=1)
+        batch_f1 = torch.sum(class_f1, axis=1) / torch.sum(~mask, axis=1)
+        return batch_f1.mean().item()
 
 
 class ClassificationMetric:

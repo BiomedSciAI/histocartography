@@ -1,7 +1,9 @@
 """Dataloader for precomputed graphs in .bin format"""
 from typing import List, Optional, Tuple, Union
 
+import cv2
 import dgl
+import h5py
 import numpy as np
 import pandas as pd
 import torch
@@ -9,7 +11,8 @@ from dgl.data.utils import load_graphs
 from dgl.graph import DGLGraph
 from torch.utils.data import Dataset
 
-from constants import CENTROID, LABEL, GNN_NODE_FEAT_IN, FEATURES
+from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
+from utils import read_image
 
 
 class GraphClassificationDataset(Dataset):
@@ -22,6 +25,8 @@ class GraphClassificationDataset(Dataset):
         centroid_features: str = "no",
         mean: Optional[torch.Tensor] = None,
         std: Optional[torch.Tensor] = None,
+        return_segmentation_info: bool = False,
+        segmentation_downsample_ratio: int = 1,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -39,6 +44,35 @@ class GraphClassificationDataset(Dataset):
         self.name_to_index = dict(zip(self.names, range(len(self.names))))
         self.graph_labels = self._compute_graph_labels()
         self._select_graph_features(centroid_features)
+        self.metadata = metadata
+        self.return_segmentation_info = return_segmentation_info
+        self.downsample = segmentation_downsample_ratio
+        if return_segmentation_info:
+            self.superpixels = list()
+            self.annotations = list()
+            for i, row in self.metadata.iterrows():
+                annotation_path = row["annotation_path"]
+                superpixel_path = row["superpixel_path"]
+                annotation = read_image(annotation_path)
+                with h5py.File(superpixel_path, "r") as file:
+                    superpixel = file["default_key"][()]
+                if self.downsample != 1:
+                    new_size = (
+                        annotation.shape[0] // self.downsample,
+                        annotation.shape[1] // self.downsample,
+                    )
+                    annotation = cv2.resize(
+                        annotation,
+                        new_size,
+                        interpolation=cv2.INTER_NEAREST,
+                    )
+                    superpixel = cv2.resize(
+                        superpixel,
+                        new_size,
+                        interpolation=cv2.INTER_NEAREST,
+                    )
+                self.superpixels.append(superpixel)
+                self.annotations.append(annotation)
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -55,6 +89,11 @@ class GraphClassificationDataset(Dataset):
             assert (
                 row.graph_path.exists()
             ), f"Graph {name} referenced in metadata does not exist: {row.graph_path}"
+        if "superpixel_path" in metadata:
+            for name, row in metadata.iterrows():
+                assert (
+                    row.superpixel_path.exists()
+                ), f"Superpixel {name} referenced in metadata does not exist: {row.superpixel_path}"
 
     @staticmethod
     def _load_graphs(metadata: pd.DataFrame) -> Tuple[List[str], List[DGLGraph]]:
@@ -82,20 +121,22 @@ class GraphClassificationDataset(Dataset):
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):
             if centroid_features == "only":
-                features = (graph.ndata[CENTROID] / torch.Tensor(
-                    image_size
-                )).to(torch.float32)
+                features = (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(
+                    torch.float32
+                )
                 graph.ndata.pop(FEATURES)
             else:
                 features = graph.ndata.pop(FEATURES).to(torch.float32)
                 if self.mean is not None and self.std is not None:
                     features = (features - self.mean) / self.std
-    
+
                 if centroid_features == "cat":
                     features = torch.cat(
                         [
                             features,
-                            (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(torch.float32),
+                            (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(
+                                torch.float32
+                            ),
                         ],
                         dim=1,
                     )
@@ -231,6 +272,10 @@ class GraphClassificationDataset(Dataset):
             graph = self._generate_subgraph(graph, relevant_nodes)
             node_labels = node_labels[relevant_nodes]
 
+        if self.return_segmentation_info:
+            superpixel = self.superpixels[index]
+            annotation = self.annotations[index]
+            return graph, graph_label, node_labels, annotation, superpixel
         return graph, graph_label, node_labels
 
     def __len__(self) -> int:

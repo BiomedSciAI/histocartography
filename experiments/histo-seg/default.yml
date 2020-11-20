@@ -22,6 +22,7 @@ preprocess:
   params:
     cores: 64
     labels: True
+    only_superpixel: False
 upper_bound:
   stages:
     stain_normalizer:
@@ -50,6 +51,7 @@ train:
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
+    downsample_segmentation_maps: 16
   model:
     gnn_config:
       activation: "relu"
@@ -80,6 +82,10 @@ train:
       - "GraphClassificationGleason5Accuracy"
     node:
       - "NodeClassificationAccuracy"
+    segmentation:
+      - "MeanIoU"
+      - "fIoU"
+      - "MeanF1Score"
   params:
     experiment_name: "anv_wsss_train_classifier"
     experiment_tags: null
@@ -94,7 +100,7 @@ train:
         class: "NodeStochasticCrossEntropy"
         params:
           background_label: 4
-          drop_probability: 0.5
+          drop_probability: 0.0
       node_weight: 0.5
     batch_size: 8
     nr_epochs: 2000

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import dgl
 import mlflow
+import numpy as np
 import torch
 import yaml
 from torch.utils.data import DataLoader
@@ -32,6 +33,32 @@ def collate(
     """
     graphs, graph_labels, node_labels = map(list, zip(*samples))
     return dgl.batch(graphs), torch.stack(graph_labels), torch.cat(node_labels)
+
+
+def collate_valid(
+    samples: List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]
+) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
+    """Aggregate a batch by performing the following:
+       Create a graph with disconnected components using dgl.batch
+       Stack the graph labels one-hot encoded labels (to shape B x nr_classes)
+       Concatenate the node labels to a single vector (graph association can be read from graph.batch_num_nodes)
+
+    Args:
+        samples (List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]): List of unaggregated samples
+
+    Returns:
+        Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
+    """
+    graphs, graph_labels, node_labels, annotations, superpixels = map(
+        list, zip(*samples)
+    )
+    return (
+        dgl.batch(graphs),
+        torch.stack(graph_labels),
+        torch.cat(node_labels),
+        np.stack(annotations),
+        np.stack(superpixels),
+    )
 
 
 def get_loss(config, name, device):
@@ -105,7 +132,7 @@ def train_graph_classifier(
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=batch_size,
-        collate_fn=collate,
+        collate_fn=collate_valid,
         num_workers=num_workers,
     )
 
@@ -222,9 +249,13 @@ def train_graph_classifier(
             time_before_validation = datetime.datetime.now()
             model.eval()
             with torch.no_grad():
-                for iteration, (graph, graph_labels, node_labels) in enumerate(
-                    validation_loader
-                ):
+                for iteration, (
+                    graph,
+                    graph_labels,
+                    node_labels,
+                    annotations,
+                    superpixels,
+                ) in enumerate(validation_loader):
                     graph = graph.to(device)
                     graph_labels = graph_labels.to(device)
                     node_labels = node_labels.to(device)
@@ -236,6 +267,24 @@ def train_graph_classifier(
                         node_loss = node_criterion(
                             node_logits, node_labels, graph.batch_num_nodes
                         )
+
+                    # Compute simple unprocessed segmentaion map
+                    batch_node_predictions = (
+                        node_logits.argmax(axis=1).detach().cpu().numpy()
+                    )
+                    segmentation_maps = np.empty((annotations.shape), dtype=np.uint8)
+                    start = 0
+                    for i, end in enumerate(graph.batch_num_nodes):
+                        node_predictions = batch_node_predictions[start : start + end]
+
+                        all_maps = list()
+                        for label in range(NR_CLASSES):
+                            (spx_indices,) = np.where(node_predictions == label)
+                            map_l = np.isin(superpixels[i], spx_indices) * label
+                            all_maps.append(map_l)
+                        segmentation_maps[i] = np.stack(all_maps).sum(axis=0)
+
+                        start += end
 
                     validation_metric_logger.add_iteration_outputs(
                         graph_loss=graph_loss.item() if use_graph_head else None,
@@ -249,6 +298,8 @@ def train_graph_classifier(
                         graph_labels=graph_labels.cpu(),
                         node_labels=node_labels.cpu(),
                         node_associations=graph.batch_num_nodes,
+                        annotation=torch.Tensor(annotations),
+                        predicted_segmentation=torch.Tensor(segmentation_maps),
                     )
             validation_metric_logger.log_and_clear(
                 step=epoch, model=model if not test else None

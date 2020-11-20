@@ -34,6 +34,7 @@ def process_image(
     feature_extractor: Callable[[], FeatureExtractor],
     graph_builder: Callable[[], BaseGraphBuilder],
     save: bool,
+    only_superpixel: bool = False
 ) -> None:
     """Process an image given the row of the metadata dataframe
 
@@ -78,6 +79,9 @@ def process_image(
         )
     else:
         superpixels = superpixel_extractor.process(input_image=normalized_image)
+    
+    if only_superpixel:
+        return
 
     # Features
     if save:
@@ -114,6 +118,7 @@ def preprocessing(
     save: bool = True,
     cores: int = 1,
     labels: bool = False,
+    only_superpixel: bool = False,
     subsample: Optional[int] = None,
     **kwargs,
 ):
@@ -189,6 +194,7 @@ def preprocessing(
         feature_extractor=feature_extractor,
         graph_builder=graph_builder,
         save=save,
+        only_superpixel=only_superpixel,
     )
 
     # Handle test mode

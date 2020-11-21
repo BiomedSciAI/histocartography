@@ -14,8 +14,53 @@ from torch.utils.data import Dataset
 from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
 
+class BaseDataset(Dataset):
+    def __init__(self, metadata, patch_size, num_classes, background_index) -> None:
+        self._check_metadata(metadata)
+        self.metadata = metadata
+        self.image_sizes = self._load_image_sizes(metadata)
+        self.patch_size = patch_size
+        self.num_classes = num_classes
+        self.background_index = background_index
 
-class GraphClassificationDataset(Dataset):
+    @staticmethod
+    def _check_metadata(metadata: pd.DataFrame) -> None:
+        """Checks that the given metadata has a valid format and all referenced files exist
+
+        Args:
+            metadata (pd.DataFrame): Metadata dataframe
+        """
+        assert not metadata.isna().any().any(), f"Some entries in metadata are NaN"
+        assert "width" in metadata and "height" in metadata, f"Metadata lacks image sizes"
+        if "graph_path" in metadata:
+            for name, row in metadata.iterrows():
+                assert (
+                    row.graph_path.exists()
+                ), f"Graph {name} referenced in metadata does not exist: {row.graph_path}"
+        if "superpixel_path" in metadata:
+            for name, row in metadata.iterrows():
+                assert (
+                    row.superpixel_path.exists()
+                ), f"Superpixel {name} referenced in metadata does not exist: {row.superpixel_path}"
+        if "annotation_path" in metadata:
+            for name, row in metadata.iterrows():
+                assert (
+                    row.annotation_path.exists()
+                ), f"Annotation {name} referenced in metadata does not exist: {row.annotation_path}"
+        if "processed_image_path" in metadata:
+            for name, row in metadata.iterrows():
+                assert (
+                    row.processed_image_path.exists()
+                ), f"Processed Image {name} referenced in metadata does not exist: {row.processed_image_path}"
+
+    @staticmethod
+    def _load_image_sizes(metadata: pd.DataFrame) -> List[Tuple[int, int]]:
+        image_sizes = list()
+        for _, row in metadata.iterrows():
+            image_sizes.append((row.height, row.width))
+        return image_sizes
+
+class GraphClassificationDataset(BaseDataset):
     def __init__(
         self,
         metadata: pd.DataFrame,
@@ -33,18 +78,16 @@ class GraphClassificationDataset(Dataset):
             "cat",
             "only",
         ], f"centroid_features must be in [no, cat, only] but is {centroid_features}"
-        self._check_metadata(metadata)
+        assert (
+            "graph_path" in metadata
+        ), f"Metadata lacks graph path ({metadata.columns})"
+        super().__init__(metadata, patch_size, num_classes, background_index)
         self.mean = mean
         self.std = std
         self.names, self.graphs = self._load_graphs(metadata)
-        self.image_sizes = self._load_image_sizes(metadata)
-        self.patch_size = patch_size
-        self.num_classes = num_classes
-        self.background_index = background_index
         self.name_to_index = dict(zip(self.names, range(len(self.names))))
         self.graph_labels = self._compute_graph_labels()
         self._select_graph_features(centroid_features)
-        self.metadata = metadata
         self.return_segmentation_info = return_segmentation_info
         self.downsample = segmentation_downsample_ratio
         if return_segmentation_info:
@@ -75,27 +118,6 @@ class GraphClassificationDataset(Dataset):
                 self.annotations.append(annotation)
 
     @staticmethod
-    def _check_metadata(metadata: pd.DataFrame) -> None:
-        """Checks that the given metadata has a valid format and all referenced files exist
-
-        Args:
-            metadata (pd.DataFrame): Metadata dataframe
-        """
-        assert not metadata.isna().any().any(), f"Some entries in metadata are NaN"
-        assert (
-            "graph_path" in metadata
-        ), f"Metadata lacks graph path ({metadata.columns})"
-        for name, row in metadata.iterrows():
-            assert (
-                row.graph_path.exists()
-            ), f"Graph {name} referenced in metadata does not exist: {row.graph_path}"
-        if "superpixel_path" in metadata:
-            for name, row in metadata.iterrows():
-                assert (
-                    row.superpixel_path.exists()
-                ), f"Superpixel {name} referenced in metadata does not exist: {row.superpixel_path}"
-
-    @staticmethod
     def _load_graphs(metadata: pd.DataFrame) -> Tuple[List[str], List[DGLGraph]]:
         """Loads all graphs from disk into memory
 
@@ -110,13 +132,6 @@ class GraphClassificationDataset(Dataset):
             names.append(name)
             graphs.append(load_graphs(str(row["graph_path"]))[0][0])
         return names, graphs
-
-    @staticmethod
-    def _load_image_sizes(metadata: pd.DataFrame) -> List[Tuple[int, int]]:
-        image_sizes = list()
-        for _, row in metadata.iterrows():
-            image_sizes.append((row.height, row.width))
-        return image_sizes
 
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):

@@ -3,6 +3,7 @@ from typing import List
 import torch
 from torch import nn
 from torch.functional import F
+from utils import dynamic_import_from
 
 class GraphBCELoss(nn.Module):
     """Binary Cross Entropy loss over each label seperately, then averaged"""
@@ -79,3 +80,10 @@ class NodeStochasticCrossEntropy(nn.Module):
             logits = logits[to_keep_mask]
         targets = targets.to(torch.int64)
         return self.cross_entropy(logits, targets)
+
+
+def get_loss(config, name, device):
+    loss_config = config[name]
+    loss_class = dynamic_import_from("losses", loss_config["class"])
+    criterion = loss_class(**loss_config.get("params", {}))
+    return criterion.to(device)

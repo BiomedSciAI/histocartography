@@ -12,60 +12,11 @@ import yaml
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
+from dataset import collate, collate_valid
 from logging_helper import GraphClassificationLoggingHelper, log_parameters, log_sources
+from losses import get_loss
 from models import WeakTissueClassifier
 from utils import dynamic_import_from, fix_seeds, start_logging
-
-
-def collate(
-    samples: List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]
-) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
-    """Aggregate a batch by performing the following:
-       Create a graph with disconnected components using dgl.batch
-       Stack the graph labels one-hot encoded labels (to shape B x nr_classes)
-       Concatenate the node labels to a single vector (graph association can be read from graph.batch_num_nodes)
-
-    Args:
-        samples (List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]): List of unaggregated samples
-
-    Returns:
-        Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
-    """
-    graphs, graph_labels, node_labels = map(list, zip(*samples))
-    return dgl.batch(graphs), torch.stack(graph_labels), torch.cat(node_labels)
-
-
-def collate_valid(
-    samples: List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]
-) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
-    """Aggregate a batch by performing the following:
-       Create a graph with disconnected components using dgl.batch
-       Stack the graph labels one-hot encoded labels (to shape B x nr_classes)
-       Concatenate the node labels to a single vector (graph association can be read from graph.batch_num_nodes)
-
-    Args:
-        samples (List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]): List of unaggregated samples
-
-    Returns:
-        Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
-    """
-    graphs, graph_labels, node_labels, annotations, superpixels = map(
-        list, zip(*samples)
-    )
-    return (
-        dgl.batch(graphs),
-        torch.stack(graph_labels),
-        torch.cat(node_labels),
-        np.stack(annotations),
-        np.stack(superpixels),
-    )
-
-
-def get_loss(config, name, device):
-    loss_config = config[name]
-    loss_class = dynamic_import_from("losses", loss_config["class"])
-    criterion = loss_class(**loss_config.get("params", {}))
-    return criterion.to(device)
 
 
 def train_graph_classifier(

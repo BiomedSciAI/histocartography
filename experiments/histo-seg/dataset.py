@@ -14,6 +14,7 @@ from torch.utils.data import Dataset
 from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
 
+
 class BaseDataset(Dataset):
     def __init__(self, metadata, patch_size, num_classes, background_index) -> None:
         self._check_metadata(metadata)
@@ -31,7 +32,9 @@ class BaseDataset(Dataset):
             metadata (pd.DataFrame): Metadata dataframe
         """
         assert not metadata.isna().any().any(), f"Some entries in metadata are NaN"
-        assert "width" in metadata and "height" in metadata, f"Metadata lacks image sizes"
+        assert (
+            "width" in metadata and "height" in metadata
+        ), f"Metadata lacks image sizes"
         if "graph_path" in metadata:
             for name, row in metadata.iterrows():
                 assert (
@@ -59,6 +62,7 @@ class BaseDataset(Dataset):
         for _, row in metadata.iterrows():
             image_sizes.append((row.height, row.width))
         return image_sizes
+
 
 class GraphClassificationDataset(BaseDataset):
     def __init__(
@@ -300,3 +304,47 @@ class GraphClassificationDataset(BaseDataset):
             int: Length of the dataset
         """
         return len(self.graphs)
+
+
+def collate(
+    samples: List[Tuple[DGLGraph, torch.Tensor, torch.Tensor]]
+) -> Tuple[DGLGraph, torch.Tensor, torch.Tensor]:
+    """Aggregate a batch by performing the following:
+       Create a graph with disconnected components using dgl.batch
+       Stack the graph labels one-hot encoded labels (to shape B x nr_classes)
+       Concatenate the node labels to a single vector (graph association can be read from graph.batch_num_nodes)
+
+    Args:
+        samples (List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]): List of unaggregated samples
+
+    Returns:
+        Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
+    """
+    graphs, graph_labels, node_labels = map(list, zip(*samples))
+    return dgl.batch(graphs), torch.stack(graph_labels), torch.cat(node_labels)
+
+
+def collate_valid(
+    samples: List[Tuple[DGLGraph, torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]]
+) -> Tuple[DGLGraph, torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
+    """Aggregate a batch by performing the following:
+       Create a graph with disconnected components using dgl.batch
+       Stack the graph labels one-hot encoded labels (to shape B x nr_classes)
+       Concatenate the node labels to a single vector (graph association can be read from graph.batch_num_nodes)
+
+    Args:
+        samples (List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]): List of unaggregated samples
+
+    Returns:
+        Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
+    """
+    graphs, graph_labels, node_labels, annotations, superpixels = map(
+        list, zip(*samples)
+    )
+    return (
+        dgl.batch(graphs),
+        torch.stack(graph_labels),
+        torch.cat(node_labels),
+        np.stack(annotations),
+        np.stack(superpixels),
+    )

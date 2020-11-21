@@ -214,6 +214,7 @@ def merge_metadata(
     annotation_metadata: pd.DataFrame,
     graph_directory: Optional[Path] = None,
     superpixel_directory: Optional[Path] = None,
+    processed_image_directory: Optional[Path] = None,
     add_image_sizes: bool = False,
 ):
     # Prepare annotation paths
@@ -243,6 +244,17 @@ def merge_metadata(
         )
         superpixel_metadata = superpixel_metadata.set_index("name")
         image_metadata = image_metadata.join(superpixel_metadata)
+
+    if processed_image_directory is not None:
+        preprocessed_metadata = pd.DataFrame(
+            [
+                (path.name.split(".")[0], path)
+                for path in processed_image_directory.iterdir()
+            ],
+            columns=["name", "processed_image_path"],
+        )
+        preprocessed_metadata = preprocessed_metadata.set_index("name")
+        image_metadata = image_metadata.join(preprocessed_metadata)
 
     # Add image sizes
     if add_image_sizes:

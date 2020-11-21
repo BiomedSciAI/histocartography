@@ -118,10 +118,10 @@ def train_graph_classifier(
     )
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
-    prepare_datasets = dynamic_import_from(dataset, "prepare_datasets")
+    prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
 
     # Data loaders
-    training_dataset, validation_dataset = prepare_datasets(**data_config)
+    training_dataset, validation_dataset = prepare_graph_datasets(**data_config)
     training_loader = DataLoader(
         training_dataset,
         batch_size=batch_size,

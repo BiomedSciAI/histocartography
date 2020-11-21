@@ -150,7 +150,7 @@ def generate_annotations_meta_df() -> None:
     df.to_pickle(ANNOTATIONS_DF)
 
 
-def prepare_datasets(
+def prepare_graph_datasets(
     graph_directory: str,
     patch_size: int,
     use_patches_for_validation: bool,

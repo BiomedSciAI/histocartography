@@ -173,7 +173,7 @@ class MNISTDataset(Dataset):
         return len(self.graph_labels)
 
 
-def prepare_datasets(centroid_features, nr_superpixels, normalize_features=False):
+def prepare_graph_datasets(centroid_features, nr_superpixels, normalize_features=False):
     if normalize_features:
         mean = torch.load(BASE_PATH / f"train_{nr_superpixels}_normalizer_mean.pth")
         std = torch.load(BASE_PATH / f"train_{nr_superpixels}_normalizer_std.pth")

@@ -1,22 +1,18 @@
-import argparse
 import datetime
 import logging
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
-import dgl
 import mlflow
 import numpy as np
 import torch
-import yaml
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
 from dataset import collate, collate_valid
-from logging_helper import GraphClassificationLoggingHelper, log_parameters, log_sources
+from logging_helper import GraphClassificationLoggingHelper, prepare_experiment
 from losses import get_loss
 from models import WeakTissueClassifier
-from utils import dynamic_import_from, fix_seeds, start_logging
+from utils import dynamic_import_from, get_config
 
 
 def train_graph_classifier(
@@ -29,13 +25,10 @@ def train_graph_classifier(
     num_workers: int,
     optimizer: Dict,
     loss: Dict,
-    config_path: str,
-    experiment_name: str,
     test: bool,
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
-    experiment_tags: Optional[Dict[str, Any]] = None,
-    seed: Optional[int] = None,
+    **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
 
@@ -50,23 +43,6 @@ def train_graph_classifier(
     if test:
         data_config["overfit_test"] = True
 
-    # Reproducibility
-    seed = fix_seeds(seed)
-    mlflow.set_experiment(experiment_name)
-    if experiment_tags is not None:
-        mlflow.set_tags(experiment_tags)
-    mlflow.log_artifact(config_path, "config")
-    log_sources()
-    log_parameters(
-        data=data_config,
-        model=model_config,
-        batch_size=batch_size,
-        epochs=nr_epochs,
-        optimizer=optimizer,
-        loss=loss,
-        seed=seed,
-        clip_gradient_norm=clip_gradient_norm,
-    )
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
@@ -264,37 +240,18 @@ def train_graph_classifier(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="default.yml")
-    parser.add_argument("--level", type=str, default="WARNING")
-    parser.add_argument("--test", action="store_const", const=True, default=False)
-    args = parser.parse_args()
-
-    start_logging(args.level)
-    assert Path(args.config).exists(), f"Config path does not exist: {args.config}"
-    with open(args.config) as config_file:
-        config = yaml.load(config_file, Loader=yaml.FullLoader)
-    assert "train" in config, f"Config does not have an entry train ({config.keys()})"
-    config = config["train"]
-
+    config, config_path, test = get_config(
+        name="train",
+        default="default.yml",
+        required=("model", "data", "metrics", "params"),
+    )
     logging.info("Start training")
-    assert (
-        "model" in config
-    ), f"model not defined in config {args.config}: {config.keys()}"
-    assert (
-        "data" in config
-    ), f"data not defined in config {args.config}: {config.keys()}"
-    assert (
-        "metrics" in config
-    ), f"metrics not defined in config {args.config}: {config.keys()}"
-    assert (
-        "params" in config
-    ), f"params not defined in config {args.config}: {config.keys()}"
+    prepare_experiment(config_path=config_path, **config)
     train_graph_classifier(
         model_config=config["model"],
         data_config=config["data"],
         metrics_config=config["metrics"],
-        config_path=args.config,
-        test=args.test,
+        config_path=config_path,
+        test=test,
         **config["params"],
     )

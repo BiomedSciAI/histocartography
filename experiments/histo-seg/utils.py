@@ -1,4 +1,5 @@
 """This module handles helper general functions"""
+import argparse
 import gc
 import importlib
 import logging
@@ -18,6 +19,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import torch
+import yaml
 from PIL import Image
 from skimage.segmentation import mark_boundaries
 
@@ -291,10 +293,15 @@ def compute_graph_overlay(
 
     fig, ax = plt.subplots(figsize=(30, 30))
     if image is not None:
-        new_dim = (int(image.shape[0] * scale_factor), int(image.shape[0] * scale_factor))
+        new_dim = (
+            int(image.shape[0] * scale_factor),
+            int(image.shape[0] * scale_factor),
+        )
         image = cv2.resize(image, new_dim, interpolation=cv2.INTER_NEAREST)
         if superpixels is not None:
-            superpixels = cv2.resize(superpixels, new_dim, interpolation=cv2.INTER_NEAREST)
+            superpixels = cv2.resize(
+                superpixels, new_dim, interpolation=cv2.INTER_NEAREST
+            )
             image = mark_boundaries(image, superpixels, color=(0, 1, 1))
         ax.imshow(image, alpha=0.5)
 
@@ -359,3 +366,25 @@ def fix_seeds(seed: Optional[int] = None) -> int:
     torch.manual_seed(seed)
     dgl.random.seed(seed)
     return seed
+
+
+def get_config(name="train", default="default.yml", required=[]):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default=default)
+    parser.add_argument("--level", type=str, default="WARNING")
+    parser.add_argument("--test", action="store_const", const=True, default=False)
+    args = parser.parse_args()
+
+    start_logging(args.level)
+    assert Path(args.config).exists(), f"Config path does not exist: {args.config}"
+    with open(args.config) as config_file:
+        config = yaml.load(config_file, Loader=yaml.FullLoader)
+    assert name in config, f"Config does not have an entry {name} ({config.keys()})"
+    config = config[name]
+
+    for key in required:
+        assert (
+            key in config
+        ), f"{key} not defined in config {args.config}: {config.keys()}"
+
+    return config, args.config, args.test

@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -9,7 +10,7 @@ import numpy as np
 import torch
 from matplotlib.colors import ListedColormap
 
-from utils import dynamic_import_from
+from utils import dynamic_import_from, fix_seeds
 
 with os.popen("hostname") as subprocess:
     hostname = subprocess.read()
@@ -50,6 +51,28 @@ def log_sources():
     for file in Path(".").iterdir():
         if file.name.endswith(".py"):
             mlflow.log_artifact(str(file), "sources")
+
+
+def prepare_experiment(
+    model: dict, data: dict, params: dict, config_path: str, **kwargs
+):
+    logging.info(f"Unmatched arguments for MLflow logging: {kwargs}")
+
+    seed = params.pop("seed", default=None)
+    seed = fix_seeds(seed)
+
+    # Basic MLflow setup
+    mlflow.set_experiment(params.pop("experiment_name"))
+    experiment_tags = params.pop("experiment_tags", default=None)
+    if experiment_tags is not None:
+        mlflow.set_tags(experiment_tags)
+
+    # Artifacts
+    mlflow.log_artifact(config_path, "config")
+    log_sources()
+
+    # Log everything relevant
+    log_parameters(data, model, seed=seed, **params)
 
 
 class LoggingHelper:

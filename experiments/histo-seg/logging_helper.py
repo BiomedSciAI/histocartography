@@ -17,7 +17,10 @@ with os.popen("hostname") as subprocess:
 if hostname.startswith("zhcc"):
     SCRATCH_PATH = Path("/dataL/anv/")
     if not SCRATCH_PATH.exists():
-        SCRATCH_PATH.mkdir()
+        try:
+            SCRATCH_PATH.mkdir()
+        except FileExistsError:
+            pass
 else:
     SCRATCH_PATH = Path(".")
 
@@ -58,12 +61,12 @@ def prepare_experiment(
 ):
     logging.info(f"Unmatched arguments for MLflow logging: {kwargs}")
 
-    seed = params.pop("seed", default=None)
+    seed = params.pop("seed", None)
     seed = fix_seeds(seed)
 
     # Basic MLflow setup
     mlflow.set_experiment(params.pop("experiment_name"))
-    experiment_tags = params.pop("experiment_tags", default=None)
+    experiment_tags = params.pop("experiment_tags", None)
     if experiment_tags is not None:
         mlflow.set_tags(experiment_tags)
 

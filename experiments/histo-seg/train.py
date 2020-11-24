@@ -39,6 +39,7 @@ def train_graph_classifier(
         nr_epochs (int): Number of epochs to train
         optimizer (Dict): Configuration of the optimizer
     """
+    logging.info(f"Unmatched arguments for training: {kwargs}")
 
     if test:
         data_config["overfit_test"] = True

@@ -1,16 +1,18 @@
-import logging
 from typing import Dict, Tuple
 
 import dgl
 import torch
+import torchvision
 from histocartography.ml.layers.multi_layer_gnn import MultiLayerGNN
-from torch import mode, nn
+from torch import nn
 
 from constants import GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT
+from utils import dynamic_import_from
 
 
 class ClassifierHead(nn.Module):
     """A basic classifier head"""
+
     def __init__(
         self,
         input_dim: int,
@@ -71,10 +73,14 @@ class WeakTissueClassifier(nn.Module):
         elif gnn_config["agg_operator"] in ["concat"]:
             self.latent_dim = gnn_config["output_dim"] * gnn_config["n_layers"]
         else:
-            raise NotImplementedError(f"Only supported agg operators are [none, lstm, concat]")
+            raise NotImplementedError(
+                f"Only supported agg operators are [none, lstm, concat]"
+            )
         if graph_classifier_config is not None:
             self.graph_classifier = ClassifierHead(
-                input_dim=self.latent_dim, output_dim=nr_classes, **graph_classifier_config
+                input_dim=self.latent_dim,
+                output_dim=nr_classes,
+                **graph_classifier_config,
             )
         else:
             self.graph_classifier = None
@@ -108,10 +114,43 @@ class WeakTissueClassifier(nn.Module):
             graph_logit = None
         if self.node_classifiers is not None:
             node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
-            node_logit = torch.empty((in_features.shape[0], self.nr_classes), device=graph_embedding.device)
+            node_logit = torch.empty(
+                (in_features.shape[0], self.nr_classes), device=graph_embedding.device
+            )
             for i, node_classifier in enumerate(self.node_classifiers):
                 classifier_output = node_classifier(node_embedding).squeeze(1)
                 node_logit[:, i] = classifier_output
         else:
             node_logit = None
         return graph_logit, node_logit
+
+
+class PatchTissueClassifier(nn.Module):
+    def __init__(self, **kwargs) -> None:
+        super().__init__()
+        self.model = self._select_model(**kwargs)
+
+    @staticmethod
+    def _select_model(
+        architecture: str, num_classes: int, **kwargs
+    ) -> Tuple[nn.Module, int]:
+        """Returns the model and number of features for a given name
+
+        Args:
+            architecture (str): Name of architecture. Can be [resnet{18,34,50,101,152}, vgg{16,19}]
+
+        Returns:
+            Tuple[nn.Module, int]: The model and the number of features
+        """
+        model_class = dynamic_import_from("torchvision.models", architecture)
+        model = model_class(**kwargs)
+        if isinstance(model, torchvision.models.resnet.ResNet):
+            feature_dim = model.fc.in_features
+            model.fc = nn.Linear(feature_dim, num_classes)
+        else:
+            feature_dim = model.classifier[-1].in_features
+            model.classifier[-1] = nn.Linear(feature_dim, num_classes)
+        return model
+
+    def forward(self, x):
+        return self.model(x)

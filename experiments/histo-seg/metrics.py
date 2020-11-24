@@ -107,7 +107,7 @@ class IoU(SegmentationMetric):
             class_union = (class_ground_truth | class_prediction).sum(axis=(1, 2))
             class_iou[:, class_label] = class_intersection / (class_union + self.smooth)
         return class_iou
-    
+
     @staticmethod
     def is_better(value: Any, comparison: Any) -> bool:
         """Higher is better"""
@@ -282,7 +282,7 @@ class ClassificationMetric:
         return value >= comparison
 
 
-class GraphClassificationMetric(ClassificationMetric):
+class MultiLabelClassificationMetric(ClassificationMetric):
     def __init__(self, **kwargs) -> None:
         logging.info(f"Unmatched keyword arguments for metric: {kwargs}")
 
@@ -306,51 +306,52 @@ class GraphClassificationMetric(ClassificationMetric):
         return self._compare(predictions, graph_labels, **kwargs)
 
 
-class GraphClassificationAccuracy(GraphClassificationMetric):
+class MultiLabelAccuracy(MultiLabelClassificationMetric):
     def _compare(self, predictions, labels, **kwargs):
         y_pred = np.ravel(predictions.numpy()) > 0.5
         y_true = np.ravel(labels.numpy())
         return sklearn.metrics.accuracy_score(y_pred=y_pred, y_true=y_true)
 
 
-class GraphClassificationBalancedAccuracy(GraphClassificationMetric):
+class MultiLabelBalancedAccuracy(MultiLabelClassificationMetric):
     def _compare(self, predictions, labels, **kwargs):
         y_pred = np.ravel(predictions.numpy()) > 0.5
         y_true = np.ravel(labels.numpy())
         return sklearn.metrics.balanced_accuracy_score(y_pred=y_pred, y_true=y_true)
 
 
-class GraphClassificationF1Score(GraphClassificationMetric):
+class MultiLabelF1Score(MultiLabelClassificationMetric):
     def _compare(self, predictions, labels, **kwargs):
         y_pred = np.ravel(predictions.numpy()) > 0.5
         y_true = np.ravel(labels.numpy())
-        return sklearn.metrics.f1_score(y_pred=y_pred, y_true=y_true, average='macro')
+        return sklearn.metrics.f1_score(y_pred=y_pred, y_true=y_true, average="macro")
 
 
-class GraphClassificationAUCROC(GraphClassificationMetric):
+class MultiLabelAUCROC(MultiLabelClassificationMetric):
     def _compare(self, predictions, labels, **kwargs):
         y_pred = np.ravel(predictions.numpy())
         y_true = np.ravel(labels.numpy())
-        return sklearn.metrics.roc_auc_score(y_score=y_pred, y_true=y_true, average='macro')
-   
+        return sklearn.metrics.roc_auc_score(
+            y_score=y_pred, y_true=y_true, average="macro"
+        )
 
 
-class GraphClassificationBenignAccuracy(GraphClassificationAccuracy):
+class MultiLabelBenignAccuracy(MultiLabelBalancedAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 0], labels[:, 0], **kwargs)
 
 
-class GraphClassificationGleason3Accuracy(GraphClassificationAccuracy):
+class MultiLabelGleason3Accuracy(MultiLabelBalancedAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 1], labels[:, 1], **kwargs)
 
 
-class GraphClassificationGleason4Accuracy(GraphClassificationAccuracy):
+class MultiLabelGleason4Accuracy(MultiLabelBalancedAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 2], labels[:, 2], **kwargs)
 
 
-class GraphClassificationGleason5Accuracy(GraphClassificationAccuracy):
+class MultiLabelGleason5Accuracy(MultiLabelBalancedAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 3], labels[:, 3], **kwargs)
 
@@ -374,7 +375,11 @@ class NodeClassificationMetric(ClassificationMetric):
 
 class NodeClassificationAccuracy(NodeClassificationMetric):
     def _compare(
-        self, predictions: torch.Tensor, labels: torch.Tensor, node_associations: List[int], **kwargs
+        self,
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+        node_associations: List[int],
+        **kwargs,
     ) -> float:
         accuracies = np.empty(len(node_associations))
         start = 0
@@ -384,6 +389,19 @@ class NodeClassificationAccuracy(NodeClassificationMetric):
             )
             y_true = labels[start : start + node_association].numpy()
             mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.accuracy_score(y_pred=y_pred[mask], y_true=y_true[mask])
+            accuracies[i] = sklearn.metrics.accuracy_score(
+                y_pred=y_pred[mask], y_true=y_true[mask]
+            )
             start += node_association
-        return np.mean(accuracies[accuracies==accuracies])
+        return np.mean(accuracies[accuracies == accuracies])
+
+
+# Legacy compatibility (remove in the future)
+GraphClassificationAccuracy = MultiLabelAccuracy
+GraphClassificationBalancedAccuracy = MultiLabelBalancedAccuracy
+GraphClassificationF1Score = MultiLabelF1Score
+GraphClassificationAUCROC = MultiLabelAUCROC
+GraphClassificationBenignAccuracy = MultiLabelBenignAccuracy
+GraphClassificationGleason3Accuracy = MultiLabelGleason3Accuracy
+GraphClassificationGleason4Accuracy = MultiLabelGleason4Accuracy
+GraphClassificationGleason5Accuracy = MultiLabelGleason5Accuracy

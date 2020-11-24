@@ -5,8 +5,10 @@ from torch import nn
 from torch.functional import F
 from utils import dynamic_import_from
 
-class GraphBCELoss(nn.Module):
+
+class MultiLabelBCELoss(nn.Module):
     """Binary Cross Entropy loss over each label seperately, then averaged"""
+
     def __init__(self) -> None:
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss()
@@ -26,8 +28,9 @@ class GraphBCELoss(nn.Module):
 
 class GraphSoftMacroF1Loss(nn.Module):
     """Soft variant of the macro F1 score as a loss function
-       According to https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
+    According to https://gist.github.com/SuperShinyEyes/dcc68a08ff8b615442e3bc6a9b55a354
     """
+
     def __init__(self) -> None:
         super().__init__()
         self.epsilon = 1e-7
@@ -42,9 +45,9 @@ class GraphSoftMacroF1Loss(nn.Module):
         Returns:
             torch.Tensor: Graph loss
         """
-        
+
         targets = targets.to(torch.float32) / targets.sum(dim=1)
-        logits = F.softmax(logits, dim=1).to(torch.float32) 
+        logits = F.softmax(logits, dim=1).to(torch.float32)
         soft_tp = torch.sum(logits * targets, dim=0)
         soft_fp = torch.sum(logits * (1 - targets), dim=0)
         soft_fn = torch.sum((1 - logits) * targets, dim=0)
@@ -57,7 +60,9 @@ class GraphSoftMacroF1Loss(nn.Module):
 class NodeStochasticCrossEntropy(nn.Module):
     def __init__(self, drop_probability=0.0, background_label=4) -> None:
         super().__init__()
-        assert 0.0 <= drop_probability <= 1.0, f"drop_probability must be valid proability but is {drop_probability}"
+        assert (
+            0.0 <= drop_probability <= 1.0
+        ), f"drop_probability must be valid proability but is {drop_probability}"
         self.drop_probability = drop_probability
         self.cross_entropy = nn.CrossEntropyLoss(ignore_index=background_label)
 
@@ -82,8 +87,13 @@ class NodeStochasticCrossEntropy(nn.Module):
         return self.cross_entropy(logits, targets)
 
 
-def get_loss(config, name, device):
-    loss_config = config[name]
-    loss_class = dynamic_import_from("losses", loss_config["class"])
-    criterion = loss_class(**loss_config.get("params", {}))
-    return criterion.to(device)
+def get_loss(config, name=None, device=None):
+    if name is not None:
+        config = config[name]
+    loss_class = dynamic_import_from("losses", config["class"])
+    criterion = loss_class(**config.get("params", {}))
+    return criterion.to(device) if device is not None else criterion
+
+
+# Legacy compatibility (remove in the future)
+GraphBCELoss = MultiLabelBCELoss

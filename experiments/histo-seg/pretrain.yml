@@ -1,0 +1,60 @@
+train:
+  data:
+    overfit_test: False
+    training_slides:
+      - 111
+      - 199
+      - 204
+    validation_slides:
+      - 76
+    patch_size: 317
+    stride: 112
+    downsample_factor: 3
+    image_path: "VahadaneStainNormalizer(lambda_c=0.01,lambda_s=0.1,target=ZT111_4_C_7_1,thres=0.8)"
+    normalizer:
+      type: train
+      mean:
+        - 0.86489
+        - 0.63272
+        - 0.85928
+      std:
+        - 0.020820
+        - 0.026320
+        - 0.017309
+    augmentation:
+      rotation:
+        degrees: 180
+        crop: 224
+      flip:
+      color_jitter:
+        saturation: 0.5
+        contract: 0.3
+        brightness: 0.3
+        hue: 0.1
+  model:
+    architecture: "resnet18"
+    pretrained: True
+  metrics:
+    - MultiLabelBalancedAccuracy
+    - MultiLabelF1Score
+    - MultiLabelAUCROC
+    - MultiLabelBenignAccuracy
+    - MultiLabelGleason3Accuracy
+    - MultiLabelGleason4Accuracy
+    - MultiLabelGleason5Accuracy
+  params:
+    experiment_name: "anv_wsss_pretrain"
+    experiment_tags: null
+    optimizer:
+      class: "Adam"
+      params:
+        lr: 0.001
+    loss:
+      class: "MultiLabelBCELoss"
+    batch_size: 8
+    nr_epochs: 1000
+    num_workers: 0
+    clip_gradient_norm: 5.0
+    dataset: "eth"
+    seed: null
+    validation_frequency: 1

@@ -12,7 +12,7 @@ import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
 
-from dataset import GraphClassificationDataset
+from dataset import GraphClassificationDataset, PatchClassificationDataset
 from utils import merge_metadata
 
 with os.popen("hostname") as subprocess:
@@ -237,6 +237,54 @@ def prepare_graph_datasets(
         segmentation_downsample_ratio=downsample_segmentation_maps,
     )
 
+    return training_dataset, validation_dataset
+
+
+def prepare_patch_datasets(
+    image_path: str,
+    training_slides: List[int],
+    validation_slides: List[int],
+    overfit_test: bool = False,
+    normalizer: Optional[dict] = None,
+    **kwargs,
+) -> Tuple[Dataset, Dataset]:
+
+    all_metadata = merge_metadata(
+        pd.read_pickle(IMAGES_DF),
+        pd.read_pickle(ANNOTATIONS_DF),
+        processed_image_directory=PREPROCESS_PATH / image_path,
+        add_image_sizes=True,
+    )
+    training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
+    validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
+
+    if overfit_test:
+        training_metadata = training_metadata.sample(1)
+        validation_metadata = validation_metadata.sample(1)
+
+    if normalizer is not None:
+        mean = torch.Tensor(normalizer["mean"])
+        std = torch.Tensor(normalizer["std"])
+    else:
+        mean = torch.Tensor([0, 0, 0])
+        std = torch.Tensor([1, 1, 1])
+
+    training_dataset = PatchClassificationDataset(
+        metadata=training_metadata,
+        num_classes=NR_CLASSES,
+        background_index=BACKGROUND_CLASS,
+        mean=mean,
+        std=std,
+        **kwargs,
+    )
+    validation_dataset = PatchClassificationDataset(
+        metadata=validation_metadata,
+        num_classes=NR_CLASSES,
+        background_index=BACKGROUND_CLASS,
+        mean=mean,
+        std=std,
+        **kwargs,
+    )
     return training_dataset, validation_dataset
 
 

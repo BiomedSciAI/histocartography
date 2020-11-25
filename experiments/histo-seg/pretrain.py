@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
 
-from logging_helper import LoggingHelper, prepare_experiment
+from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
 from losses import get_loss
 from models import PatchTissueClassifier
 from utils import dynamic_import_from, get_config
@@ -39,9 +39,6 @@ def train_patch_classifier(
     """
     logging.info(f"Unmatched arguments for pretraining: {kwargs}")
 
-    if test:
-        data_config["overfit_test"] = True
-
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     prepare_patch_datasets = dynamic_import_from(dataset, "prepare_patch_datasets")
@@ -63,9 +60,9 @@ def train_patch_classifier(
     # Compute device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
-        mlflow.log_param("device", torch.cuda.get_device_name(0))
+        robust_mlflow(mlflow.log_param, "device", torch.cuda.get_device_name(0))
     else:
-        mlflow.log_param("device", "CPU")
+        robust_mlflow(mlflow.log_param, "device", "CPU")
 
     # Model
     model = PatchTissueClassifier(num_classes=NR_CLASSES, **model_config)
@@ -73,7 +70,7 @@ def train_patch_classifier(
     nr_trainable_total_params = sum(
         p.numel() for p in model.parameters() if p.requires_grad
     )
-    mlflow.log_param("nr_parameters", nr_trainable_total_params)
+    robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
 
     # Loss function
     criterion = get_loss(loss, device=device)
@@ -126,8 +123,11 @@ def train_patch_classifier(
         training_epoch_duration = (
             datetime.datetime.now() - time_before_training
         ).total_seconds()
-        mlflow.log_metric(
-            "train.seconds_per_epoch", training_epoch_duration, step=epoch
+        robust_mlflow(
+            mlflow.log_metric,
+            "train.seconds_per_epoch",
+            training_epoch_duration,
+            step=epoch,
         )
 
         if epoch % validation_frequency == 0:
@@ -156,8 +156,11 @@ def train_patch_classifier(
             validation_epoch_duration = (
                 datetime.datetime.now() - time_before_validation
             ).total_seconds()
-            mlflow.log_metric(
-                "valid.seconds_per_epoch", validation_epoch_duration, step=epoch
+            robust_mlflow(
+                mlflow.log_metric,
+                "valid.seconds_per_epoch",
+                validation_epoch_duration,
+                step=epoch,
             )
 
 
@@ -168,6 +171,9 @@ if __name__ == "__main__":
         required=("model", "data", "metrics", "params"),
     )
     logging.info("Start pre-training")
+    if test:
+        config["data"]["overfit_test"] = True
+        config["params"]["num_workers"] = 0
     prepare_experiment(config_path=config_path, **config)
     train_patch_classifier(
         model_config=config["model"],

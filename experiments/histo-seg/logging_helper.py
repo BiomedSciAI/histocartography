@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 import shutil
 from pathlib import Path
 from typing import DefaultDict
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import torch
+from http.client import RemoteDisconnected
 from matplotlib.colors import ListedColormap
 
 from utils import dynamic_import_from, fix_seeds
@@ -45,15 +47,27 @@ def flatten(d, parent_key="", sep="."):
 
 
 def log_parameters(data, model, **kwargs):
-    mlflow.log_params(flatten(data, "data"))
-    mlflow.log_params(flatten(model, "model"))
-    mlflow.log_params(flatten(kwargs))
+    robust_mlflow(mlflow.log_params, flatten(data, "data"))
+    robust_mlflow(mlflow.log_params, flatten(model, "model"))
+    robust_mlflow(mlflow.log_params, flatten(kwargs))
 
 
 def log_sources():
     for file in Path(".").iterdir():
         if file.name.endswith(".py"):
-            mlflow.log_artifact(str(file), "sources")
+            robust_mlflow(mlflow.log_artifact, str(file), "sources")
+
+
+def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):
+    while max_tries > 1:
+        try:
+            return f(*args, **kwargs)
+        except RemoteDisconnected:
+            print(f"MLFLOW remote disconnected. Trying again in {delay}s")
+            time.sleep(delay)
+            max_tries -= 1
+            delay *= backoff
+    return f(*args, **kwargs)
 
 
 def prepare_experiment(
@@ -71,7 +85,7 @@ def prepare_experiment(
         mlflow.set_tags(experiment_tags)
 
     # Artifacts
-    mlflow.log_artifact(config_path, "config")
+    robust_mlflow(mlflow.log_artifact, config_path, "config")
     log_sources()
 
     # Log everything relevant
@@ -112,7 +126,7 @@ class LoggingHelper:
             self.extra_info[name].extend(value)
 
     def _log(self, name, value, step):
-        mlflow.log_metric(f"{self.prefix}.{name}", value, step)
+        robust_mlflow(mlflow.log_metric, f"{self.prefix}.{name}", value, step)
 
     def _log_metrics(self, step):
         if len(self.logits) == 0 or len(self.labels) == 0:
@@ -138,7 +152,9 @@ class LoggingHelper:
                 self._log("best_loss", current_loss, step)
                 self.best_loss = current_loss
                 if model is not None:
-                    mlflow.pytorch.log_model(model, f"best.{self.prefix}.loss")
+                    robust_mlflow(
+                        mlflow.pytorch.log_model, model, f"best.{self.prefix}.loss"
+                    )
         if len(self.logits) > 0:
             current_values = self._log_metrics(step)
             all_information = zip(
@@ -150,7 +166,11 @@ class LoggingHelper:
                 if metric.is_better(current_value, best_value):
                     self._log(f"best.{name}", current_value, step)
                     if model is not None:
-                        mlflow.pytorch.log_model(model, f"best.{self.prefix}.{name}")
+                        robust_mlflow(
+                            mlflow.pytorch.log_model,
+                            model,
+                            f"best.{self.prefix}.{name}",
+                        )
                     self.best_metric_values[i] = current_value
         self._reset_epoch_stats()
 
@@ -224,7 +244,7 @@ class GraphClassificationLoggingHelper:
             annotations = self.segmentation_logger.labels[random_batch]
             segmentation_maps = self.segmentation_logger.logits[random_batch]
             leading_zeros = (annotations.shape[0] // 10) + 1
-            run_id = mlflow.active_run().info.run_id
+            run_id = robust_mlflow(mlflow.active_run).info.run_id
             tmp_path = SCRATCH_PATH / run_id
             if not tmp_path.exists():
                 tmp_path.mkdir()
@@ -237,8 +257,10 @@ class GraphClassificationLoggingHelper:
                     / f"valid_segmap_epoch_{str(step).zfill(6)}_{str(i).zfill(leading_zeros)}.png"
                 )
                 fig.savefig(str(name))
-                mlflow.log_artifact(
-                    str(name), artifact_path="validation_segmentation_maps"
+                robust_mlflow(
+                    mlflow.log_artifact,
+                    str(name),
+                    artifact_path="validation_segmentation_maps",
                 )
                 plt.close(fig=fig)
                 plt.clf()

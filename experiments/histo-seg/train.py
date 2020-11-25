@@ -9,7 +9,11 @@ from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
 from dataset import collate, collate_valid
-from logging_helper import GraphClassificationLoggingHelper, prepare_experiment
+from logging_helper import (
+    GraphClassificationLoggingHelper,
+    prepare_experiment,
+    robust_mlflow,
+)
 from losses import get_loss
 from models import WeakTissueClassifier
 from utils import dynamic_import_from, get_config
@@ -43,6 +47,7 @@ def train_graph_classifier(
 
     if test:
         data_config["overfit_test"] = True
+        num_workers = 0
 
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
@@ -67,9 +72,9 @@ def train_graph_classifier(
     # Compute device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
-        mlflow.log_param("device", torch.cuda.get_device_name(0))
+        robust_mlflow(mlflow.log_param, "device", torch.cuda.get_device_name(0))
     else:
-        mlflow.log_param("device", "CPU")
+        robust_mlflow(mlflow.log_param, "device", "CPU")
 
     # Model
     model = WeakTissueClassifier(**model_config)
@@ -79,7 +84,7 @@ def train_graph_classifier(
     nr_trainable_total_params = sum(
         p.numel() for p in model.parameters() if p.requires_grad
     )
-    mlflow.log_param("nr_parameters", nr_trainable_total_params)
+    robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
 
     # Loss function
     if use_graph_head:
@@ -168,8 +173,11 @@ def train_graph_classifier(
         training_epoch_duration = (
             datetime.datetime.now() - time_before_training
         ).total_seconds()
-        mlflow.log_metric(
-            "train.seconds_per_epoch", training_epoch_duration, step=epoch
+        robust_mlflow(
+            mlflow.log_metric,
+            "train.seconds_per_epoch",
+            training_epoch_duration,
+            step=epoch,
         )
 
         if epoch % validation_frequency == 0:
@@ -235,8 +243,11 @@ def train_graph_classifier(
             validation_epoch_duration = (
                 datetime.datetime.now() - time_before_validation
             ).total_seconds()
-            mlflow.log_metric(
-                "valid.seconds_per_epoch", validation_epoch_duration, step=epoch
+            robust_mlflow(
+                mlflow.log_metric,
+                "valid.seconds_per_epoch",
+                validation_epoch_duration,
+                step=epoch,
             )
 
 

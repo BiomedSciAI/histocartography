@@ -132,7 +132,6 @@ class StainNormalizer(PipelineStep):
         with h5py.File(self.save_path, "w") as output_file:
             self._save_values(output_file)
 
-
     @abstractmethod
     def _normalize_image(self, input_image: np.ndarray) -> np.ndarray:
         """Perform the normalization of an image with precomputed values

@@ -18,7 +18,6 @@ from torchvision.datasets import MNIST
 from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
-from eth import NR_CLASSES
 from feature_extraction import HandcraftedFeatureExtractor
 from graph_builders import RAGGraphBuilder
 from superpixel import SLICSuperpixelExtractor

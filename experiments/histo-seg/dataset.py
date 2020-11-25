@@ -22,7 +22,6 @@ from torchvision.transforms import (
     ToTensor,
 )
 from tqdm.auto import tqdm
-from typing_extensions import final
 
 from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image

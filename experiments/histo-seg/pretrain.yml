@@ -7,6 +7,7 @@ train:
       - 204
     validation_slides:
       - 76
+    train_fraction: null
     patch_size: 317
     stride: 112
     downsample_factor: 3
@@ -21,19 +22,20 @@ train:
         - 0.020820
         - 0.026320
         - 0.017309
-    augmentation:
+    augmentations:
       rotation:
         degrees: 180
         crop: 224
       flip:
       color_jitter:
         saturation: 0.5
-        contract: 0.3
+        contrast: 0.3
         brightness: 0.3
         hue: 0.1
   model:
-    architecture: "resnet18"
-    pretrained: True
+    architecture: "mobilenet_v2"
+    pretrained: False
+    dropout: 0.0
   metrics:
     - MultiLabelBalancedAccuracy
     - MultiLabelF1Score
@@ -48,12 +50,12 @@ train:
     optimizer:
       class: "Adam"
       params:
-        lr: 0.001
+        lr: 4.0e-5
     loss:
       class: "MultiLabelBCELoss"
-    batch_size: 8
-    nr_epochs: 1000
-    num_workers: 0
+    batch_size: 32
+    nr_epochs: 500
+    num_workers: 6
     clip_gradient_norm: 5.0
     dataset: "eth"
     seed: null

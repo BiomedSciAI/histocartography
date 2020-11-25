@@ -242,8 +242,9 @@ def prepare_graph_datasets(
 
 def prepare_patch_datasets(
     image_path: str,
-    training_slides: List[int],
-    validation_slides: List[int],
+    training_slides: Optional[List[int]] = None,
+    validation_slides: Optional[List[int]] = None,
+    train_fraction: Optional[float] = None,
     overfit_test: bool = False,
     normalizer: Optional[dict] = None,
     **kwargs,
@@ -255,8 +256,16 @@ def prepare_patch_datasets(
         processed_image_directory=PREPROCESS_PATH / image_path,
         add_image_sizes=True,
     )
-    training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
-    validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
+    
+    if train_fraction is not None:
+        train_indices, validation_indices = train_test_split(
+            all_metadata.index.values, train_size=train_fraction
+        )
+        training_metadata = all_metadata.loc[train_indices]
+        validation_metadata = all_metadata.loc[validation_indices]
+    else:
+        training_metadata = all_metadata[all_metadata.slide.isin(training_slides)]
+        validation_metadata = all_metadata[all_metadata.slide.isin(validation_slides)]
 
     if overfit_test:
         training_metadata = training_metadata.sample(1)

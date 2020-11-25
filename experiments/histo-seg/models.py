@@ -132,7 +132,7 @@ class PatchTissueClassifier(nn.Module):
 
     @staticmethod
     def _select_model(
-        architecture: str, num_classes: int, **kwargs
+        architecture: str, num_classes: int, dropout: int, **kwargs
     ) -> Tuple[nn.Module, int]:
         """Returns the model and number of features for a given name
 
@@ -149,7 +149,10 @@ class PatchTissueClassifier(nn.Module):
             model.fc = nn.Linear(feature_dim, num_classes)
         else:
             feature_dim = model.classifier[-1].in_features
-            model.classifier[-1] = nn.Linear(feature_dim, num_classes)
+            model.classifier[-1] = nn.Sequential(
+                nn.Dropout(p=dropout),
+                nn.Linear(feature_dim, num_classes)
+            )
         return model
 
     def forward(self, x):

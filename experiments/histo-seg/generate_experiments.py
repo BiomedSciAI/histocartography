@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import reduce
 from itertools import product
 from pathlib import Path
-from typing import Any, Iterable, List, Union
+from typing import Any, Iterable, List, Sequence, Union
 
 import numpy as np
 import yaml
@@ -197,6 +197,132 @@ class Experiment:
                     job_id += 1
 
 
+class PretrainingExperiment(Experiment):
+    def __init__(self, name, queue="prod.med") -> None:
+        super().__init__(
+            "pretraining_" + name,
+            cores=2,
+            core_multiplier=6,
+            gpus=1,
+            subsample=None,
+            main_file="pretrain",
+            queue=queue,
+            disable_multithreading=False,
+            no_save=False,
+            base="pretrain.yml",
+        )
+        self.name = name
+
+    def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
+        super().generate(
+            [
+                Parameter(
+                    ["train", "params", "experiment_tags"],
+                    {"grid_search": self.name},
+                ),
+                Parameter(
+                    ["train", "params", "num_workers"],
+                    16,
+                ),
+            ]
+            + fixed,
+            **kwargs,
+        )
+
+
+class MNISTExperiment(Experiment):
+    def __init__(self, name, queue="prod.med") -> None:
+        super().__init__(
+            "mnist_" + name,
+            cores=1,
+            core_multiplier=6,
+            gpus=1,
+            subsample=None,
+            main_file="train",
+            queue=queue,
+            disable_multithreading=False,
+            no_save=False,
+            base="mnist.yml",
+        )
+        self.name = name
+
+    def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
+        super().generate(
+            [
+                Parameter(
+                    ["train", "params", "experiment_tags"],
+                    {"grid_search": self.name},
+                ),
+                Parameter(
+                    ["train", "params", "num_workers"],
+                    8,
+                ),
+            ]
+            + fixed,
+            **kwargs,
+        )
+
+
+class PreprocessingExperiment(Experiment):
+    def __init__(self, name, cores=4, queue="prod.med") -> None:
+        super().__init__(
+            "preprocessing_" + name,
+            cores=cores,
+            core_multiplier=7,
+            gpus=0,
+            subsample=None,
+            main_file="preprocess",
+            queue=queue,
+            disable_multithreading=True,
+            no_save=False,
+            base="default.yml",
+        )
+        self.name = name
+        self.cores = cores
+
+    def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
+        super().generate(
+            [
+                Parameter(["preprocess", "params", "cores"], self.cores * 7),
+            ]
+            + fixed,
+            **kwargs,
+        )
+
+
+class GraphClassifierExperiment(Experiment):
+    def __init__(self, name, queue="prod.med") -> None:
+        super().__init__(
+            "graph_" + name,
+            cores=1,
+            core_multiplier=6,
+            gpus=1,
+            subsample=None,
+            main_file="train",
+            queue=queue,
+            disable_multithreading=False,
+            no_save=False,
+            base="default.yml",
+        )
+        self.name = name
+
+    def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
+        super().generate(
+            [
+                Parameter(
+                    ["train", "params", "experiment_tags"],
+                    {"grid_search": self.name},
+                ),
+                Parameter(
+                    ["train", "params", "num_workers"],
+                    8,
+                ),
+            ]
+            + fixed,
+            **kwargs,
+        )
+
+
 def generate_performance_test(path: str, base: str):
     with open(base) as file:
         config: dict = yaml.load(file, Loader=yaml.FullLoader)
@@ -275,43 +401,6 @@ def generate_upper_bounds(path: str, base: str):
         job_id += 1
 
 
-def preprocess_nr_superpixels(path: str, base: str):
-    with open(base) as file:
-        config: dict = yaml.load(file, Loader=yaml.FullLoader)
-
-    job_name = "preprocessing_superpixels"
-    job_id = 0
-    cores = 5
-    for nr_superpixels in [100, 250, 500, 1000, 2000, 4000, 8000]:
-        # Generate config
-        new_config = config.copy()
-        new_config["preprocess"]["params"]["cores"] = cores * 6
-        new_config["preprocess"]["stages"]["superpixel_extractor"]["params"] = {
-            "nr_superpixels": nr_superpixels,
-        }
-
-        # Generate lsf file
-        lsf_content = get_lsf(
-            config_name=f"job{job_id}",
-            queue="prod.med",
-            cores=cores,
-            log_name=f"{job_name}{job_id}",
-            main_file_name="preprocess",
-            disable_multithreading=True,
-        )
-
-        # Write files
-        target_directory = Path(path) / job_name
-        if not target_directory.exists():
-            target_directory.mkdir()
-        with open(target_directory / f"job{job_id}.lsf", "w") as file:
-            file.write(lsf_content)
-        with open(target_directory / f"job{job_id}.yml", "w") as file:
-            yaml.dump(new_config, file)
-
-        job_id += 1
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -327,16 +416,22 @@ if __name__ == "__main__":
     generate_upper_bounds(path=args.path, base=args.base)
 
     # Preprocessing
-    preprocess_nr_superpixels(path=args.path, base=args.base)
-    Experiment(
-        name="preproessing_handcrafted",
-        cores=8,
-        gpus=0,
-        main_file="preprocess",
-        disable_multithreading=True,
-    ).generate(
+    PreprocessingExperiment(name="superpixels").generate(
+        sequential=[
+            ParameterList(
+                [
+                    "preprocess",
+                    "stages",
+                    "superpixel_extractor",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [100, 250, 500, 1000, 2000, 4000, 8000],
+            )
+        ],
+    )
+    PreprocessingExperiment(name="handcrafted",).generate(
         fixed=[
-            Parameter(["preprocess", "params", "cores"], 8 * 7),
             Parameter(
                 ["preprocess", "stages", "feature_extractor"],
                 {"class": "HandcraftedFeatureExtractor"},
@@ -355,15 +450,8 @@ if __name__ == "__main__":
             )
         ],
     )
-    Experiment(
-        name="preproessing_resnet34",
-        cores=8,
-        gpus=0,
-        main_file="preprocess",
-        disable_multithreading=True,
-    ).generate(
+    PreprocessingExperiment(name="resnet34",).generate(
         fixed=[
-            Parameter(["preprocess", "params", "cores"], 8 * 7),
             Parameter(
                 ["preprocess", "stages", "feature_extractor", "params", "architecture"],
                 "resnet34",
@@ -382,15 +470,8 @@ if __name__ == "__main__":
             )
         ],
     )
-    Experiment(
-        name="preproessing_lowres",
-        cores=6,
-        gpus=0,
-        main_file="preprocess",
-        disable_multithreading=True,
-    ).generate(
+    PreprocessingExperiment(name="lowres",).generate(
         fixed=[
-            Parameter(["preprocess", "params", "cores"], 6 * 7),
             Parameter(
                 ["preprocess", "stages", "feature_extractor", "params", "architecture"],
                 "resnet34",
@@ -413,27 +494,73 @@ if __name__ == "__main__":
             ),
         ],
     )
-
-    # ETH
-    Experiment(name="train_basic_search").generate(
-        sequential=[
+    PreprocessingExperiment(name="v1_few_superpixels",).generate(
+        fixed=[
+            Parameter(["preprocess", "params", "only_superpixel"], False),
+        ],
+        grid=[
             ParameterList(
-                ["train", "params", "optimizer", "params", "lr"],
-                [0.0125, 0.0025, 0.0005, 0.0001, 0.00002],
+                [
+                    "preprocess",
+                    "stages",
+                    "superpixel_extractor",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [100, 200, 300, 400, 600, 800],
             ),
             ParameterList(
-                ["train", "model", "gnn_config", "n_layers"], [2, 3, 4, 5, 6, 7, 8]
+                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["resnet18", "resnet34", "resnet50"],
             ),
-            ParameterList(["train", "data", "patch_size"], [1000, 2000, 3000]),
         ],
     )
-    Experiment(name="node_stochasticity").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "node_stochasticity", "fix": "add_centroid_features"},
-            )
+    PreprocessingExperiment(name="v1",).generate(
+        grid=[
+            ParameterList(
+                [
+                    "preprocess",
+                    "stages",
+                    "superpixel_extractor",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [500, 1000],
+            ),
+            ParameterList(
+                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["resnet18", "resnet34", "resnet50"],
+            ),
         ],
+    )
+    PreprocessingExperiment(name="v0_few_superpixels",).generate(
+        fixed=[
+            Parameter(["preprocess", "params", "only_superpixel"], False),
+            Parameter(
+                ["preprocess", "stages", "stain_normalizer", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+        ],
+        grid=[
+            ParameterList(
+                [
+                    "preprocess",
+                    "stages",
+                    "superpixel_extractor",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [100, 200, 300, 400, 600, 800],
+            ),
+            ParameterList(
+                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["resnet18", "resnet34", "resnet50"],
+            ),
+        ],
+    )
+
+    # ETH
+    GraphClassifierExperiment(name="node_stochasticity").generate(
         sequential=[
             ParameterList(
                 ["train", "params", "loss", "node", "params", "drop_probability"],
@@ -441,13 +568,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="node_loss_weight").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "node_loss_weight", "fix": "add_centroid_features"},
-            )
-        ],
+    GraphClassifierExperiment(name="node_loss_weight").generate(
         sequential=[
             ParameterList(
                 ["train", "params", "loss", "node_weight"],
@@ -455,13 +576,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="batch_sizes").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "batch_size", "fix": "add_centroid_features"},
-            )
-        ],
+    GraphClassifierExperiment(name="batch_sizes").generate(
         sequential=[
             ParameterList(
                 ["train", "params", "batch_size"],
@@ -469,13 +584,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="learning_rates").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "learning_rate", "fix": "add_centroid_features"},
-            )
-        ],
+    GraphClassifierExperiment(name="learning_rates").generate(
         sequential=[
             ParameterList(
                 ["train", "params", "optimizer", "params", "lr"],
@@ -483,13 +592,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="nr_superpixels").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "nr_superpixels", "fix": "add_centroid_features"},
-            )
-        ],
+    GraphClassifierExperiment(name="nr_superpixels").generate(
         sequential=[
             ParameterList(
                 ["train", "data", "graph_directory"],
@@ -504,13 +607,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="crop_augmentation").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "patch_size", "fix": "add_centroid_features"},
-            )
-        ],
+    GraphClassifierExperiment(name="crop_augmentation").generate(
         sequential=[
             ParameterList(
                 ["train", "data", "patch_size"],
@@ -518,16 +615,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="gnn_parameters").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {
-                    "grid_search": "various_gnn_parameters",
-                    "fix": "add_centroid_features",
-                },
-            )
-        ],
+    GraphClassifierExperiment(name="gnn_parameters").generate(
         grid=[
             ParameterList(
                 ["train", "model", "gnn_config", "agg_operator"],
@@ -537,13 +625,7 @@ if __name__ == "__main__":
             ParameterList(["train", "model", "gnn_config", "hidden_dim"], [32, 64]),
         ],
     )
-    Experiment(name="centroid_features").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "centroid_features", "fix": "add_centroid_features"},
-            )
-        ],
+    GraphClassifierExperiment(name="centroid_features").generate(
         sequential=[
             [
                 ParameterList(["train", "data", "centroid_features"], ["only"]),
@@ -551,12 +633,8 @@ if __name__ == "__main__":
             ]
         ],
     )
-    Experiment(name="lr_gradient_norm").generate(
+    GraphClassifierExperiment(name="lr_gradient_norm").generate(
         fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "learning_rate", "fix": "add_centroid_features"},
-            ),
             Parameter(["train", "params", "clip_gradient_norm"], 5.0),
         ],
         sequential=[
@@ -566,20 +644,8 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="sanity_check").generate(
+    GraphClassifierExperiment(name="tiny_centroid_networks").generate(
         fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"fix": "sanity_check"},
-            )
-        ],
-    )
-    Experiment(name="tiny_centroid_networks").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "tiny_centroid_networks"},
-            ),
             Parameter(["train", "data", "centroid_features"], "only"),
             Parameter(["train", "model", "gnn_config", "input_dim"], 2),
             Parameter(
@@ -628,12 +694,8 @@ if __name__ == "__main__":
             ],
         ],
     )
-    Experiment(name="small_networks").generate(
+    GraphClassifierExperiment(name="small_networks").generate(
         fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "small_networks"},
-            ),
             Parameter(
                 ["train", "params", "loss", "node", "params", "drop_probability"], 0.5
             ),
@@ -659,27 +721,15 @@ if __name__ == "__main__":
             ],
         ],
     )
-    Experiment(name="baseline").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "baseline"},
-            ),
-        ],
+    GraphClassifierExperiment(name="baseline").generate(
         sequential=[
             ParameterList(
                 ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
+                [None, {"n_layers": 2, "hidden_dim": 16}],
             )
-        ]
-    )
-    Experiment(name="gnn_agg").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "aggregator"},
-            ),
         ],
+    )
+    GraphClassifierExperiment(name="gnn_agg").generate(
         grid=[
             ParameterList(
                 ["train", "model", "gnn_config", "neighbor_pooling_type"],
@@ -687,151 +737,384 @@ if __name__ == "__main__":
             ),
             ParameterList(
                 ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
-            )
+                [None, {"n_layers": 2, "hidden_dim": 16}],
+            ),
         ],
     )
-    Experiment(name="normalize").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "normalize"},
-            )
-        ],
+    GraphClassifierExperiment(name="normalize").generate(
         grid=[
             ParameterList(["train", "data", "normalize_features"], [True]),
             ParameterList(
                 ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
-            )
-        ],
-    )
-    Experiment(name="fold_sanity_check").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "fold_sanity_check"},
-            )
-        ],
-        sequential=[
-            ParameterList(["train", "data", "training_slides"], [
-                [76, 199, 204], [111, 76, 199]
-            ]),
-            ParameterList(["train", "data", "validation_slides"], [
-                [111], [204]
-            ])
-        ],
-    )
-    Experiment(name="handcrafted_features").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "handcrafted_features"},
+                [None, {"n_layers": 2, "hidden_dim": 16}],
             ),
+        ],
+    )
+    GraphClassifierExperiment(name="fold_sanity_check").generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "data", "training_slides"],
+                    [[76, 199, 204], [111, 76, 199], [111, 76, 204], [111, 199, 204]],
+                ),
+                ParameterList(
+                    ["train", "data", "validation_slides"], [[111], [204], [199], [76]]
+                ),
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="handcrafted_features").generate(
+        fixed=[
             Parameter(
                 ["train", "data", "normalize_features"],
                 True,
             ),
-            Parameter(
-                ["train", "model", "gnn_config", "input_dim"],
-                59
-            )
+            Parameter(["train", "model", "gnn_config", "input_dim"], 59),
         ],
         grid=[
             ParameterList(
                 ["train", "data", "graph_directory"],
-                ["outputs/hc_500px", "outputs/hc_1000px", "outputs/hc_2000px"]
+                ["outputs/hc_500px", "outputs/hc_1000px", "outputs/hc_2000px"],
             ),
             ParameterList(
                 ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
-            )
-        ]
+                [None, {"n_layers": 2, "hidden_dim": 16}],
+            ),
+        ],
     )
-    Experiment(name="resnet34").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "resnet34"},
-            ),
-        ],
+    GraphClassifierExperiment(name="resnet34").generate(
         grid=[
             ParameterList(
                 ["train", "data", "graph_directory"],
-                ["outputs/resnet34_500px", "outputs/resnet34_1000px", "outputs/resnet34_2000px"]
+                [
+                    "outputs/resnet34_500px",
+                    "outputs/resnet34_1000px",
+                    "outputs/resnet34_2000px",
+                ],
             ),
             ParameterList(
                 ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
-            )
-        ]
+                [None, {"n_layers": 2, "hidden_dim": 16}],
+            ),
+        ],
     )
-    Experiment(name="downsampled_150").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "downsampled_150"},
-            ),
-        ],
+    GraphClassifierExperiment(name="downsampled_1.5x").generate(
         grid=[
             ParameterList(
                 ["train", "data", "graph_directory"],
-                ["outputs/resnet34_500px_1.5x", "outputs/resnet34_1000px_1.5x"]
+                ["outputs/resnet34_500px_1.5x", "outputs/resnet34_1000px_1.5x"],
             ),
             ParameterList(
                 ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
-            )
-        ]
+                [None, {"n_layers": 2, "hidden_dim": 16}],
+            ),
+        ],
     )
-    Experiment(name="downsampled_200").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "downsampled_200"},
-            ),
-        ],
+    GraphClassifierExperiment(name="downsampled_2x").generate(
         grid=[
             ParameterList(
                 ["train", "data", "graph_directory"],
-                ["outputs/resnet34_500px_2x", "outputs/resnet34_1000px_2x"]
+                ["outputs/resnet34_500px_2x", "outputs/resnet34_1000px_2x"],
             ),
             ParameterList(
                 ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
-            )
-        ]
+                [None, {"n_layers": 2, "hidden_dim": 16}],
+            ),
+        ],
     )
-    Experiment(name="downsampled_300").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "downsampled_300"},
+    GraphClassifierExperiment(name="downsampled_3x").generate(
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                ["outputs/resnet34_500px_3x", "outputs/resnet34_1000px_3x"],
             ),
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers": 2, "hidden_dim": 16}],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="mixed_slides").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 4000),
+            ParameterList(["train", "model", "node_classifier_config"], None),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "data", "train_fraction"], 3 * [0.3]),
+                ParameterList(["train", "params", "seed"], [0, 1, 2]),
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="mixed_slides_node_only").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 4000),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "data", "train_fraction"], 3 * [0.3]),
+                ParameterList(["train", "params", "seed"], [0, 1, 2]),
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="v1_mixed_slides_500px").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 4000),
+            ParameterList(["train", "model", "node_classifier_config"], None),
+            Parameter(["train", "data", "graph_directory"], "outputs/v1_500px"),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "data", "train_fraction"], 3 * [0.3]),
+                ParameterList(["train", "params", "seed"], [0, 1, 2]),
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="v1_mixed_slides_node_only_500px").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 4000),
+            Parameter(["train", "data", "graph_directory"], "outputs/v1_500px"),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "data", "train_fraction"], 3 * [0.3]),
+                ParameterList(["train", "params", "seed"], [0, 1, 2]),
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="v0_mixed_slides_500px").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 4000),
+            Parameter(["train", "data", "graph_directory"], "outputs/v0_500px"),
+            Parameter(["train", "data", "train_fraction"], 0.3),
+            ParameterList(["train", "params", "seed"], 0),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "node_classifier_config"],
+                [None, {"n_layers": 2, "hidden_dim": 16}],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v1_node_classifier_500px").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "data", "graph_directory"], "outputs/v1_500px_resnet18"
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "loss", "node", "params", "drop_probability"],
+                [0.8, 0.6, 0.4, 0.2, 0.0],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v1_node_classifier_1000px").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "data", "graph_directory"], "outputs/v1_1000px_resnet18"
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "loss", "node", "params", "drop_probability"],
+                [0.8, 0.6, 0.4, 0.2, 0.0],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v1_node_classifier_2000px").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "data", "graph_directory"], "outputs/v1_2000px_resnet34"
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "loss", "node", "params", "drop_probability"],
+                [0.8, 0.6, 0.4, 0.2, 0.0],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v1_node_small_network_1000px").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "data", "graph_directory"], "outputs/v1_1000px_resnet18"
+            ),
+            Parameter(["train", "params", "validation_frequency"], 20),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(["train", "model", "gnn_config", "hidden_dim"], [16, 8]),
+                ParameterList(["train", "model", "gnn_config", "output_dim"], [16, 8]),
+            ],
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [4, 4, 4]),
+                ParameterList(["train", "model", "gnn_config", "hidden_dim"], [16, 8]),
+                ParameterList(["train", "model", "gnn_config", "output_dim"], [16, 8]),
+            ],
+            [
+                ParameterList(
+                    ["train", "model", "node_classifier_config", "hidden_dim"],
+                    [16, 8, 8],
+                ),
+                ParameterList(
+                    ["train", "model", "node_classifier_config", "n_layers"], [2, 2, 3]
+                ),
+            ],
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "gnn_config", "neighbor_pooling_type"],
+                ["sum", "min", "max", "mean"],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v1_few_spx_small_nw_resnet18").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "validation_frequency"], 20),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "node_classifier_config", "hidden_dim"],
+                    [16, 8, 4],
+                ),
+            ]
         ],
         grid=[
             ParameterList(
                 ["train", "data", "graph_directory"],
-                ["outputs/resnet34_500px_3x", "outputs/resnet34_1000px_3x"]
+                [
+                    f"outputs/v1_{s}px_resnet{n}"
+                    for n in [18]
+                    for s in [100, 200, 300, 400, 600, 800]
+                ],
             ),
+        ],
+    )
+    GraphClassifierExperiment(name="v1_few_spx_small_nw_resnet34").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "validation_frequency"], 20),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "node_classifier_config", "hidden_dim"],
+                    [16, 8, 4],
+                ),
+            ]
+        ],
+        grid=[
             ParameterList(
-                ["train", "model", "node_classifier_config"],
-                [None, {"n_layers" : 2, "hidden_dim" : 16}]
-            )
-        ]
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v1_{s}px_resnet{n}"
+                    for n in [34]
+                    for s in [100, 200, 300, 400, 600, 800]
+                ],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v1_few_spx_small_nw_resnet50").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "validation_frequency"], 20),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "node_classifier_config", "hidden_dim"],
+                    [16, 8, 4],
+                ),
+            ]
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v1_{s}px_resnet{n}"
+                    for n in [50]
+                    for s in [100, 200, 300, 400, 600, 800]
+                ],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v0_check2_2000px").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config", "hidden_dim"], 64),
+            Parameter(["train", "params", "validation_frequency"], 20),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 4),
+            Parameter(["train", "model", "gnn_config", "hidden_dim"], 64),
+            Parameter(["train", "model", "gnn_config", "output_dim"], 64),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "params", "loss", "node_weight"], 1.0),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "params", "seed"], [None, 1802989081]),
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="v0_few_spx_small_nw").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "validation_frequency"], 20),
+        ],
+        sequential=[
+            [
+                ParameterList(["train", "model", "gnn_config", "n_layers"], [3, 3, 3]),
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"], [32, 16, 8]
+                ),
+                ParameterList(
+                    ["train", "model", "node_classifier_config", "hidden_dim"],
+                    [16, 8, 4],
+                ),
+            ]
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [f"outputs/v0_{s}px" for s in [250, 500, 1000]],
+            ),
+        ],
     )
 
     # MNIST
-    Experiment(name="mnist_batch_sizes", base="mnist.yml").generate(
+    MNISTExperiment(name="batch_sizes").generate(
         fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "batch_size"},
-            ),
-            Parameter(
-                ["train", "params", "nr_epochs"],
-                500
-            )
+            Parameter(["train", "params", "nr_epochs"], 500),
         ],
         sequential=[
             ParameterList(
@@ -840,16 +1123,9 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="mnist_learning_rates", base="mnist.yml").generate(
+    MNISTExperiment(name="learning_rates").generate(
         fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "learning_rate"},
-            ),
-            Parameter(
-                ["train", "params", "nr_epochs"],
-                500
-            )
+            Parameter(["train", "params", "nr_epochs"], 500),
         ],
         sequential=[
             ParameterList(
@@ -858,42 +1134,20 @@ if __name__ == "__main__":
             ),
         ],
     )
-    Experiment(name="mnist_centroid_features", base="mnist.yml").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "centroid_features"},
-            )
-        ],
+    MNISTExperiment(name="centroid_features").generate(
         sequential=[
             [
-                ParameterList(
-                    ["train", "data", "centroid_features"], ["no", "only"]
-                ),
-                ParameterList(
-                    ["train", "model", "gnn_config", "input_dim"], [57, 2]
-                ),
+                ParameterList(["train", "data", "centroid_features"], ["no", "only"]),
+                ParameterList(["train", "model", "gnn_config", "input_dim"], [57, 2]),
             ],
         ],
     ),
-    Experiment(name="mnist_no_normalizer", base="mnist.yml").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "no_normalizer"},
-            )
-        ],
+    MNISTExperiment(name="no_normalizer").generate(
         sequential=[
             ParameterList(["train", "data", "normalize_features"], [True, False]),
         ],
     ),
-    Experiment(name="mnist_gnn_config", base="mnist.yml").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "gnn_config"},
-            )
-        ],
+    MNISTExperiment(name="gnn_config").generate(
         sequential=[
             [
                 ParameterList(
@@ -934,35 +1188,373 @@ if __name__ == "__main__":
             ],
         ],
     )
-    Experiment(name="mnist_batch_sizes_cpu", base="mnist.yml").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "batch_size"},
-            ),
-            Parameter(
-                ["train", "params", "nr_epochs"],
-                500
-            )
-        ],
-        sequential=[
-            ParameterList(
-                ["train", "params", "batch_size"],
-                [8, 16, 32, 64, 128],
-            ),
-        ],
-    )
-    Experiment(name="mnist_agg", base="mnist.yml").generate(
-        fixed=[
-            Parameter(
-                ["train", "params", "experiment_tags"],
-                {"grid_search": "aggregator"},
-            ),
-        ],
+    MNISTExperiment(name="aggregation").generate(
         sequential=[
             ParameterList(
                 ["train", "model", "gnn_config", "neighbor_pooling_type"],
                 ["mean", "sum", "min", "max"],
+            ),
+        ],
+    )
+
+    # Pretraining
+    PretrainingExperiment(name="learning_rates").generate(
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"],
+                list(map(float, np.logspace(-2, -5, 10))),
+            ),
+        ]
+    )
+    PretrainingExperiment(name="batch_sizes").generate(
+        sequential=[
+            ParameterList(
+                ["train", "params", "batch_size"],
+                [1, 2, 4, 8, 16, 32, 64],
+            ),
+        ]
+    )
+    PretrainingExperiment(name="basic_architectures").generate(
+        grid=[
+            ParameterList(
+                ["train", "model", "architecture"],
+                ["resnet18", "resnet34"],
+            ),
+            ParameterList(
+                ["train", "model", "pretrained"],
+                [True, False],
+            ),
+        ]
+    )
+    PretrainingExperiment(name="fine_tune_augmentations").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
+            Parameter(["train", "data", "train_fraction"], 0.8),
+            Parameter(["train", "data", "training_slides"], None),
+            Parameter(["train", "data", "validation_slides"], None),
+            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
+            Parameter(["train", "model", "dropout"], 0.2),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "augmentations"],
+                [
+                    {k: v for d in l for k, v in d.items()}
+                    for l in list(
+                        product(
+                            [
+                                {"rotation": {"degrees": 180, "crop": 224}},
+                                {},
+                            ],
+                            [{"flip": None}, {}],
+                            [
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.3,
+                                        "brightness": 0.3,
+                                        "hue": 0.1,
+                                    }
+                                },
+                                {"color_jitter": {"contrast": 0.3, "brightness": 0.3}},
+                                {"color_jitter": {"saturation": 0.5, "hue": 0.1}},
+                                {},
+                            ],
+                        )
+                    )
+                ],
+            ),
+            ParameterList(
+                ["train", "data", "normalizer"],
+                [
+                    None,
+                    {
+                        "type": "train",
+                        "mean": [0.86489, 0.63272, 0.85928],
+                        "std": [0.020820, 0.026320, 0.017309],
+                    },
+                ],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="scratch_augmentations").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.001,
+            ),
+            Parameter(
+                ["train", "model", "pretrained"],
+                False,
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "augmentations"],
+                [
+                    {k: v for d in l for k, v in d.items()}
+                    for l in list(
+                        product(
+                            [
+                                {"rotation": {"degrees": 180, "crop": 224}},
+                                {},
+                            ],
+                            [{"flip": None}, {}],
+                            [
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.3,
+                                        "brightness": 0.3,
+                                        "hue": 0.1,
+                                    }
+                                },
+                                {"color_jitter": {"contrast": 0.3, "brightness": 0.3}},
+                                {"color_jitter": {"saturation": 0.5, "hue": 0.1}},
+                                {},
+                            ],
+                        )
+                    )
+                ],
+            ),
+            ParameterList(
+                ["train", "data", "normalizer"],
+                [
+                    None,
+                    {
+                        "type": "train",
+                        "mean": [0.86489, 0.63272, 0.85928],
+                        "std": [0.020820, 0.026320, 0.017309],
+                    },
+                ],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="fine_tune_architectures").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "architecture"],
+                [
+                    "mobilenet_v2",
+                    "resnet18",
+                    "mnasnet0_5",
+                    "wide_resnet50_2",
+                    "resnet34",
+                    "resnet50",
+                    "resnext50_32x4d",
+                ],
+            )
+        ],
+    )
+    PretrainingExperiment(name="scratch_architectures").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.001,
+            ),
+            Parameter(
+                ["train", "model", "pretrained"],
+                False,
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "architecture"],
+                [
+                    "mobilenet_v2",
+                    "resnet18",
+                    "mnasnet0_5",
+                    "wide_resnet50_2",
+                    "resnet34",
+                    "resnet50",
+                    "resnext50_32x4d",
+                ],
+            )
+        ],
+    )
+    PretrainingExperiment(name="fine_tune_mixed_architectures").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+            Parameter(["train", "data", "train_fraction"], 0.8),
+            Parameter(["train", "data", "training_slides"], None),
+            Parameter(["train", "data", "validation_slides"], None),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "architecture"],
+                [
+                    "mobilenet_v2",
+                    "resnet18",
+                    "mnasnet0_5",
+                    "wide_resnet50_2",
+                    "resnet34",
+                    "resnet50",
+                    "resnext50_32x4d",
+                ],
+            )
+        ],
+    )
+    PretrainingExperiment(name="scratch_mixed_architectures").generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.001,
+            ),
+            Parameter(
+                ["train", "model", "pretrained"],
+                False,
+            ),
+            Parameter(["train", "data", "train_fraction"], 0.8),
+            Parameter(["train", "data", "training_slides"], None),
+            Parameter(["train", "data", "validation_slides"], None),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "architecture"],
+                [
+                    "mobilenet_v2",
+                    "resnet18",
+                    "mnasnet0_5",
+                    "wide_resnet50_2",
+                    "resnet34",
+                    "resnet50",
+                    "resnext50_32x4d",
+                ],
+            )
+        ],
+    )
+    PretrainingExperiment(name="basic_scratch_mobile").generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "pretrained"],
+                False,
+            ),
+            Parameter(["train", "data", "train_fraction"], 0.75),
+            Parameter(["train", "data", "training_slides"], None),
+            Parameter(["train", "data", "validation_slides"], None),
+            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"],
+                [0.001, 0.0001, 0.00001],
+            ),
+            ParameterList(["train", "model", "width_mult"], [0.5, 1.0]),
+            ParameterList(["train", "model", "dropout"], [0.0, 0.2, 0.3]),
+        ],
+    )
+    PretrainingExperiment(name="dropout_test").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+            Parameter(["train", "data", "train_fraction"], 0.8),
+            Parameter(["train", "data", "training_slides"], None),
+            Parameter(["train", "data", "validation_slides"], None),
+            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "dropout"], [0.0, 0.15, 0.3, 0.45, 0.6, 0.75]
+            ),
+        ],
+    )
+    PretrainingExperiment(name="overfitting_sanity_check").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
+            Parameter(["train", "data", "train_fraction"], 0.8),
+            Parameter(["train", "data", "training_slides"], None),
+            Parameter(["train", "data", "validation_slides"], None),
+            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "augmentations"],
+                [
+                    {k: v for d in l for k, v in d.items()}
+                    for l in list(
+                        product(
+                            [
+                                {
+                                    "rotation": {"degrees": 180, "crop": 224},
+                                    "flip": None,
+                                },
+                                {},
+                            ],
+                            [
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.6,
+                                        "contrast": 0.5,
+                                        "brightness": 0.5,
+                                        "hue": 0.5,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.4,
+                                        "brightness": 0.4,
+                                        "hue": 0.3,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.3,
+                                        "brightness": 0.3,
+                                        "hue": 0.1,
+                                    }
+                                },
+                                {},
+                            ],
+                        )
+                    )
+                ],
+            ),
+            ParameterList(
+                ["train", "data", "normalizer"],
+                [
+                    None,
+                    {
+                        "type": "train",
+                        "mean": [0.86489, 0.63272, 0.85928],
+                        "std": [0.020820, 0.026320, 0.017309],
+                    },
+                ],
             ),
         ],
     )

@@ -278,12 +278,15 @@ def prepare_patch_datasets(
         mean = torch.Tensor([0, 0, 0])
         std = torch.Tensor([1, 1, 1])
 
+    augmentations = kwargs.pop("augmentations")
+
     training_dataset = PatchClassificationDataset(
         metadata=training_metadata,
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
         mean=mean,
         std=std,
+        augmentations=augmentations,
         **kwargs,
     )
     validation_dataset = PatchClassificationDataset(

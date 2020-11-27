@@ -1226,61 +1226,6 @@ if __name__ == "__main__":
             ),
         ]
     )
-    PretrainingExperiment(name="fine_tune_augmentations").generate(
-        fixed=[
-            Parameter(["train", "params", "optimizer", "class"], "SGD"),
-            Parameter(
-                ["train", "params", "optimizer", "params"],
-                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
-            ),
-            Parameter(["train", "data", "train_fraction"], 0.8),
-            Parameter(["train", "data", "training_slides"], None),
-            Parameter(["train", "data", "validation_slides"], None),
-            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
-            Parameter(["train", "model", "dropout"], 0.2),
-        ],
-        grid=[
-            ParameterList(
-                ["train", "data", "augmentations"],
-                [
-                    {k: v for d in l for k, v in d.items()}
-                    for l in list(
-                        product(
-                            [
-                                {"rotation": {"degrees": 180, "crop": 224}},
-                                {},
-                            ],
-                            [{"flip": None}, {}],
-                            [
-                                {
-                                    "color_jitter": {
-                                        "saturation": 0.5,
-                                        "contrast": 0.3,
-                                        "brightness": 0.3,
-                                        "hue": 0.1,
-                                    }
-                                },
-                                {"color_jitter": {"contrast": 0.3, "brightness": 0.3}},
-                                {"color_jitter": {"saturation": 0.5, "hue": 0.1}},
-                                {},
-                            ],
-                        )
-                    )
-                ],
-            ),
-            ParameterList(
-                ["train", "data", "normalizer"],
-                [
-                    None,
-                    {
-                        "type": "train",
-                        "mean": [0.86489, 0.63272, 0.85928],
-                        "std": [0.020820, 0.026320, 0.017309],
-                    },
-                ],
-            ),
-        ],
-    )
     PretrainingExperiment(name="scratch_augmentations").generate(
         fixed=[
             Parameter(
@@ -1488,7 +1433,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="overfitting_sanity_check").generate(
+    PretrainingExperiment(name="fine_tune_augmentations").generate(
         fixed=[
             Parameter(["train", "params", "optimizer", "class"], "SGD"),
             Parameter(
@@ -1498,6 +1443,73 @@ if __name__ == "__main__":
             Parameter(["train", "data", "train_fraction"], 0.8),
             Parameter(["train", "data", "training_slides"], None),
             Parameter(["train", "data", "validation_slides"], None),
+            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "augmentations"],
+                [
+                    {k: v for d in l for k, v in d.items()}
+                    for l in list(
+                        product(
+                            [
+                                {
+                                    "rotation": {"degrees": 180, "crop": 224},
+                                    "flip": None,
+                                },
+                                {},
+                            ],
+                            [
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.6,
+                                        "contrast": 0.5,
+                                        "brightness": 0.5,
+                                        "hue": 0.5,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.4,
+                                        "brightness": 0.4,
+                                        "hue": 0.3,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.3,
+                                        "brightness": 0.3,
+                                        "hue": 0.1,
+                                    }
+                                },
+                                {},
+                            ],
+                        )
+                    )
+                ],
+            ),
+            ParameterList(
+                ["train", "data", "normalizer"],
+                [
+                    None,
+                    {
+                        "type": "train",
+                        "mean": [0.86489, 0.63272, 0.85928],
+                        "std": [0.020820, 0.026320, 0.017309],
+                    },
+                ],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="seperate_fine_tune_augmentations").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
             Parameter(["train", "model", "architecture"], "mobilenet_v2"),
         ],
         grid=[

@@ -1,4 +1,5 @@
 """Dataloader for precomputed graphs in .bin format"""
+import math
 from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
@@ -10,17 +11,10 @@ import torch
 from dgl.data.utils import load_graphs
 from dgl.graph import DGLGraph
 from torch.utils.data import Dataset
-from torchvision.transforms import (
-    CenterCrop,
-    ColorJitter,
-    Compose,
-    Normalize,
-    RandomHorizontalFlip,
-    RandomRotation,
-    RandomVerticalFlip,
-    ToPILImage,
-    ToTensor,
-)
+from torchvision.transforms import (CenterCrop, ColorJitter, Compose,
+                                    Normalize, RandomHorizontalFlip,
+                                    RandomRotation, RandomVerticalFlip,
+                                    ToPILImage, ToTensor)
 from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
@@ -359,8 +353,8 @@ class PatchClassificationDataset(BaseDataset):
             annotation = read_image(annotation_path)
             if self.downsample_factor != 1:
                 new_size = (
-                    image.shape[0] // self.downsample_factor,
-                    image.shape[1] // self.downsample_factor,
+                    math.floor(image.shape[0] / self.downsample_factor),
+                    math.floor(image.shape[1] / self.downsample_factor),
                 )
                 image = cv2.resize(image, new_size)
                 annotation = cv2.resize(annotation, new_size)

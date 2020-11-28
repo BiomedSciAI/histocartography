@@ -132,7 +132,7 @@ class PatchTissueClassifier(nn.Module):
 
     @staticmethod
     def _select_model(
-        architecture: str, num_classes: int, dropout: int, **kwargs
+        architecture: str, num_classes: int, dropout: int, freeze: int = 0, **kwargs
     ) -> Tuple[nn.Module, int]:
         """Returns the model and number of features for a given name
 
@@ -153,6 +153,8 @@ class PatchTissueClassifier(nn.Module):
                 nn.Dropout(p=dropout),
                 nn.Linear(feature_dim, num_classes)
             )
+            for param in model.model.features[:freeze].parameters():
+                param.requires_grad = False
         return model
 
     def forward(self, x):

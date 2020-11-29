@@ -153,7 +153,7 @@ class PatchTissueClassifier(nn.Module):
                 nn.Dropout(p=dropout),
                 nn.Linear(feature_dim, num_classes)
             )
-            for param in model.model.features[:freeze].parameters():
+            for param in model.features[:freeze].parameters():
                 param.requires_grad = False
         return model
 

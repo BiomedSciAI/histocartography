@@ -13,7 +13,7 @@ import pandas as pd
 import yaml
 from tqdm.auto import tqdm
 
-from eth import ANNOTATIONS_DF, DATASET_PATH, IMAGES_DF, PREPROCESS_PATH
+from eth import ANNOTATIONS_DF, IMAGES_DF, PREPROCESS_PATH
 
 from histocartography.preprocessing.feature_extraction import FeatureExtractor
 from histocartography.preprocessing.graph_builders import BaseGraphBuilder
@@ -21,7 +21,6 @@ from histocartography.preprocessing.stain_normalizers import StainNormalizer
 from histocartography.preprocessing.superpixel import SuperpixelExtractor
 from utils import (
     dynamic_import_from,
-    get_next_version_number,
     merge_metadata,
     read_image,
     start_logging,

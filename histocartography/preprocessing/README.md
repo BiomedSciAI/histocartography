@@ -44,20 +44,35 @@ stages:
 
 An example of such a config can be found in `config.yml`.
 
-### Running
-To run the pipeline, use the following Python code:
+### Running single datapoints
+To run the pipeline for a single datapoint, use the following Python code:
 ```python
 import yaml
 from histocartography.preprocessing.utils import PipelineRunner
 with open('PATH_TO_CONFIG', 'r') as file:
     config = yaml.load(file)
 pipeline = PipelineRunner(output_path="PATH_TO_OUTPUT", **config)
+pipeline.precompute()
 output = pipeline.run(name="IDENTIFIER", input1=INPUT1, input2=INPUT2)
 ```
 
 Make sure to use the same keyword arguments in the call of run as you defined in the config. Here we speficied the inputs to be input1 and input2, so we provide them at run time.
 
 The outputs that are computed at a dictionary with keys as defined in the config and the values that were computed in the pipeline.
+
+### Running a whole batch of datapoints
+Typically the preprocessing needs to be applied to a whole colletion of inputs. Due to the lack of dependencies between datapoints, this can be done in a multiprocessed fashion. To run the pipeline like this, use the following Python code:
+```python
+import yaml
+from histocartography.preprocessing.utils import BatchPipelineRunner
+with open('PATH_TO_CONFIG', 'r') as file:
+    config = yaml.load(file)
+pipeline = BatchPipelineRunner(output_path="PATH_TO_OUTPUT", **config)
+df = BUILD_DF()
+output = pipeline.run(metadata=df, cores=4)
+```
+
+Note: the `BUILD_DF` function should build a `pandas.DataFrame` that has the following structure: the index corresponds to the unique datapoint identifier (e.g. a filename). Each column has the name as specified in the config under inputs, and values that correspond to the elements to be passed to the pipeline step with those inputs. Typically the dataframe consists of paths that are then passed to an io pipeline step that loads the resources.
 
 ## Preprocessing structure
 To generate this structure use this command: `tree -v --charset utf-8 -I '*.egg-info|__pycache__'`

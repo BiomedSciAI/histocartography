@@ -63,11 +63,24 @@ class BaseGraphBuilder(PipelineStep):
 
     def process_and_save(
         self,
+        output_name: str,
         structure: np.ndarray,
         features: torch.Tensor,
-        output_name: str,
         annotation: Optional[np.ndarray] = None,
     ) -> dgl.DGLGraph:
+        """Process and save in provided directory
+
+        Args:
+            output_name (str): Name of output file
+            structure (np.ndarray): Structure, dependeing on the graph can be superpixel
+                                    connectivity or centroids
+            features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)
+            annotation (Optional[np.ndarray], optional): Optional node level to include.
+                                                         Defaults to None.
+
+        Returns:
+            dgl.DGLGraph: [description]
+        """
         assert (
             self.base_path is not None
         ), "Can only save intermediate output if base_path was not None during construction"

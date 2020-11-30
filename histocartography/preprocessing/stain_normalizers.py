@@ -160,7 +160,7 @@ class StainNormalizer(PipelineStep):
         normalized_image = self._normalize_image(standardized_image)
         return normalized_image
 
-    def process_and_save(self, output_name: str, **kwargs) -> np.ndarray:
+    def process_and_save(self, output_name: str, *args, **kwargs) -> np.ndarray:
         """Process and save in the provided path as a png image
 
         Args:
@@ -183,7 +183,7 @@ class StainNormalizer(PipelineStep):
                 logging.critical("Could not open %s", output_path)
                 raise error
         else:
-            output = self.process(**kwargs)
+            output = self.process(*args, **kwargs)
             with Image.fromarray(output) as output_image:
                 output_image.save(output_path)
         return output
@@ -396,7 +396,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         optical_density = self._RGB_to_OD(input_image).reshape((-1, 3))
         optical_density = optical_density[mask]
 
-        # solves for min_{D in C} (1/n) sum_{i=1}^n (1/2)||x_i-Dalpha_i||_2^2 + ... 
+        # solves for min_{D in C} (1/n) sum_{i=1}^n (1/2)||x_i-Dalpha_i||_2^2 + ...
         # + lambda1||alpha_i||_1 + lambda_2||alpha_i||_2^2
         dictionary = spams.trainDL(
             optical_density.T,

@@ -46,7 +46,7 @@ class PipelineStep(ABC):
     def process(self, **kwargs: Any) -> Any:
         """Process an input"""
 
-    def process_and_save(self, output_name: str, **kwargs: Any) -> Any:
+    def process_and_save(self, output_name: str, *args, **kwargs: Any) -> Any:
         """Process and save in the provided path as as .h5 file
 
         Args:
@@ -63,7 +63,7 @@ class PipelineStep(ABC):
             with h5py.File(output_path, "r") as input_file:
                 output = input_file[self.output_key][()]
         else:
-            output = self.process(**kwargs)
+            output = self.process(*args, **kwargs)
             with h5py.File(output_path, "w") as output_file:
                 output_file.create_dataset(
                     self.output_key, data=output, compression="gzip", compression_opts=9
@@ -99,4 +99,3 @@ def dynamic_import_from(source_file: str, class_name: str) -> Any:
     """
     module = importlib.import_module(source_file)
     return getattr(module, class_name)
-

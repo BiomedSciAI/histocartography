@@ -1,10 +1,13 @@
 """Preprocessing utilities"""
+import importlib
 import logging
 from abc import ABC, abstractmethod
+from copy import deepcopy
+from functools import partial
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Iterable, Optional, Union
+
 import h5py
-import importlib
 import numpy as np
 
 
@@ -69,6 +72,76 @@ class PipelineStep(ABC):
                     self.output_key, data=output, compression="gzip", compression_opts=9
                 )
         return output
+
+
+class PipelineRunner:
+    def __init__(
+        self,
+        output_path: str,
+        inputs: Iterable[str] = [],
+        outputs: Iterable[str] = [],
+        stages: Iterable[dict] = [],
+        save: bool = True,
+    ):
+        """Create a pipeline runner for a given configuration
+
+        Args:
+            output_path (str): Path to output the intermediate files
+            inputs (Iterable[str], optional): Inputs to the pipeline. Defaults to [].
+            outputs (Iterable[str], optional): Outputs of the pipeline. Defaults to [].
+            stages (Iterable[dict], optional): Stages to complete. Defaults to [].
+            save (bool, optional): Whether to save the results. Defaults to True.
+        """
+        self.inputs = inputs
+        self.outputs = outputs
+        self.save = save
+        self.stages = list()
+        self.stage_configs = list()
+        path = output_path if save else None
+        for stage in stages:
+            name, config = list(stage.items())[0]
+            print(name, config)
+            stage_class = dynamic_import_from(
+                f"histocartography.preprocessing.{name}", config.pop("class")
+            )
+            pipeline_stage = partial(
+                stage_class,
+                base_path=path,
+                **config.pop("params", {}),
+            )
+            self.stages.append(pipeline_stage())
+            self.stage_configs.append(config)
+            path = pipeline_stage().mkdir() if save else None
+
+    def run(self, name: Optional[str], **inputs):
+        # Validate inputs
+        assert (
+            not self.save or name is not None
+        ), "Either specify save=False or provide a name"
+        for input_name in self.inputs:
+            assert input_name in inputs, f"{input_name} not found in keyword arguments"
+
+        # Compute pipelines steps
+        variables = deepcopy(inputs)
+        for stage, config in zip(self.stages, self.stage_configs):
+            step_input = [variables[k] for k in config["inputs"]]
+            step_output = stage.process_and_save(name, *step_input)
+            if not isinstance(step_output, tuple):
+                step_output = tuple([step_output])
+            assert len(step_output) == len(config["outputs"]), (
+                f"Number of outputs in config mismatches actual number of outputs in {stage.__class__.__name__}"
+                f"Got {len(step_output)} outputs of type {list(map(type, step_output))},"
+                f"but expected {len(config['outputs'])} outputs"
+            )
+            for key, value in zip(config["outputs"], step_output):
+                variables[key] = value
+
+        # Handle output
+        for output_name in self.outputs:
+            assert (
+                output_name in variables
+            ), f"{output_name} should be returned, but was never computed"
+        return {k: variables[k] for k in self.outputs}
 
 
 def fast_histogram(input_array: np.ndarray, nr_values: int) -> np.ndarray:

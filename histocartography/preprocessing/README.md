@@ -1,44 +1,63 @@
 # Preprocessing Pipeline
 
 ## How to Use
-To use the preprocessing pipeline, you need to define a main script that connects the modules. For example a pipeline could be:
+To use the preprocessing pipeline, you need to define a pipeline that connects the modules. For example a pipeline could be:
 - Stain Normalization
 - Superpixel Extraction
 - Feature Extraction
 - Graph Building
-An example of such a pipeline can be found in `experiments/histo-seg/preprocess.py`.
 
-Parameters for the steps are passed as keyword arguments read from a configuration `.yml` file needs to be defined. For example it can look as follows:
+First a configuration needs to be defined, then the pipeline can be run directly.
+
+### Configuration
+These steps must be defined in a configuration `.yml` file with the following structure:
 
 ```yaml
-preprocess:
-  stages:
-    stain_normalizer:
-      class: # (str) Class to use for stain normalization.
-             # Must be descendant of StainNormalizer and defined in stain_normalizers.py
+inputs:
+- input1
+- input2
+- ...
+outputs:
+- output1
+- output2
+- ...
+stages:
+  - module1:
+      class: class_name1 # (str) class to import from histocartography.preprocessing.module1
+      inputs:
+      - input1
+      outputs:
+      - output1
       params:
-        # Keyword arguments of the StainNormalizer
-    superpixel_extractor:
-      class: # (str) Class to use for superpixel extraction.
-             # Must be descendant of SuperpixelExtractor and defined in superpixel.py
+        # Keyword arguments to histocartography.preprocessing.module1.class_name1.__init__
+  - module2:
+      class: class_name2 # (str) class to import from histocartography.preprocessing.module2
+      inputs:
+      - input2
+      - output1
+      outputs:
+      - output1
       params:
-        # Keyword arguments of the SuperpixelExtractor
-    feature_extractor:
-      class: # (str) Class to use for feature extraction.
-             # Must be descendant of FeatureExtractor and defined in feature_extraction.py
-      params:
-        # Keyword arguments of the FeatureExtractor
-    graph_builder:
-      class: # (str) Class to use for graph building.
-             # Must be descendant of BaseGraphBuilder and defined in graph_builders.py
-      params:
-        # Keyword arguments of the class BaseGraphBuilder:
-  params:
-    # Here go all the parameters of the preprocessing runner itself.
-    # Most notable the number of cores to use to parallelize the preprocessing
+        # Keyword arguments to histocartography.preprocessing.module2.class_name2.__init__
+  - ...
 ```
 
-An example of such a config can be found in `experiments/histo-seg/default.yml`. 
+An example of such a config can be found in `config.yml`.
+
+### Running
+To run the pipeline, use the following Python code:
+```python
+import yaml
+from histocartography.preprocessing.utils import PipelineRunner
+with open('PATH_TO_CONFIG', 'r') as file:
+    config = yaml.load(file)
+pipeline = PipelineRunner(output_path="PATH_TO_OUTPUT", **config)
+output = pipeline.run(name="IDENTIFIER", input1=INPUT1, input2=INPUT2)
+```
+
+Make sure to use the same keyword arguments in the call of run as you defined in the config. Here we speficied the inputs to be input1 and input2, so we provide them at run time.
+
+The outputs that are computed at a dictionary with keys as defined in the config and the values that were computed in the pipeline.
 
 ## Preprocessing structure
 To generate this structure use this command: `tree -v --charset utf-8 -I '*.egg-info|__pycache__'`

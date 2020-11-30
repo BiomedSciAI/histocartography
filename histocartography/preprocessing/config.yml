@@ -1,0 +1,45 @@
+inputs:
+- image
+- annotation
+outputs:
+- graph
+- superpixels
+stages:
+  - stain_normalizers:
+      class: "VahadaneStainNormalizer"
+      inputs:
+      - image
+      outputs:
+      - normalized_image
+      params:
+        target: "ZT76_39_B_2_1"
+  - superpixel:
+      class: "SLICSuperpixelExtractor"
+      inputs:
+      - normalized_image
+      outputs:
+      - superpixels
+      params:
+        nr_superpixels: 10
+        color_space: "rgb"
+  - feature_extraction:
+      class: "DeepFeatureExtractor"
+      inputs:
+      - normalized_image
+      - superpixels
+      outputs:
+      - features
+      params:
+        architecture: "resnet18"
+        mask: False
+        size: 224
+  - graph_builders:
+      class: "RAGGraphBuilder"
+      inputs:
+      - superpixels
+      - features
+      - annotation
+      outputs:
+      - graph
+      params:
+        nr_classes: 5

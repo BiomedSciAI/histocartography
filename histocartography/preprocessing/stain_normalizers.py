@@ -1,3 +1,5 @@
+"""This module handles everything related to stain normalization"""
+
 from abc import abstractmethod
 import logging
 
@@ -7,7 +9,7 @@ import numpy as np
 import spams
 from PIL import Image
 
-from utils import PipelineStep
+from .utils import PipelineStep
 
 
 class StainNormalizer(PipelineStep):
@@ -17,7 +19,8 @@ class StainNormalizer(PipelineStep):
         """Create a stain normalizer with appropriate penaltz for optimizing getting stains
 
         Args:
-            lambda_c (float, optional): lambda parameter for getting the concentration. Defaults to 0.01.
+            lambda_c (float, optional): lambda parameter for getting the concentration.
+                                        Defaults to 0.01.
         """
         self.lambda_c = lambda_c
         super().__init__(**kwargs)
@@ -78,10 +81,10 @@ class StainNormalizer(PipelineStep):
         Returns:
             np.array: Extracted stains of all pixels (vectorized image)
         """
-        OD = self._RGB_to_OD(input_image).reshape((-1, 3))
+        optical_density = self._RGB_to_OD(input_image).reshape((-1, 3))
         return (
             spams.lasso(
-                OD.T,
+                optical_density.T,
                 D=stain_matrix.T,
                 mode=2,
                 lambda1=self.lambda_c,
@@ -120,7 +123,7 @@ class StainNormalizer(PipelineStep):
         """Loads the precomputed values of a previous fit"""
         assert (
             self.base_path is not None
-        ), f"Can only save intermediate output if base_path was not None when constructing the object"
+        ), "Can only save intermediate output if base_path was not None during construction"
         with h5py.File(self.save_path, "r") as input_file:
             self._load_values(input_file)
 
@@ -128,7 +131,7 @@ class StainNormalizer(PipelineStep):
         """Saves the precomputed values"""
         assert (
             self.base_path is not None
-        ), "Can only save intermediate output if base_path was not None when constructing the object"
+        ), "Can only save intermediate output if base_path was not None during construction"
         with h5py.File(self.save_path, "w") as output_file:
             self._save_values(output_file)
 
@@ -165,18 +168,20 @@ class StainNormalizer(PipelineStep):
         """
         assert (
             self.base_path is not None
-        ), f"Can only save intermediate output if base_path was not None when constructing the object"
+        ), "Can only save intermediate output if base_path was not None during construction"
         output_path = self.output_dir / f"{output_name}.png"
         if output_path.exists():
             logging.info(
-                f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
+                "%s: Output of %s already exists, using it instead of recomputing",
+                self.__class__.__name__,
+                output_name,
             )
             try:
                 with Image.open(output_path) as input_file:
                     output = np.array(input_file)
-            except OSError as e:
-                logging.critical(f"Could not open {output_path}")
-                raise OSError(e)
+            except OSError as error:
+                logging.critical("Could not open %s", output_path)
+                raise error
         else:
             output = self.process(**kwargs)
             with Image.fromarray(output) as output_image:
@@ -328,8 +333,10 @@ class VahadaneStainNormalizer(StainNormalizer):
 
         Args:
             target (str): Name of the target image
-            threshold (float, optional): Threshold for the non-white mask in lab color space. Defaults to 0.8.
-            lambda_s (float, optional): Optimization parameter for the stain extraction. Defaults to 0.1.
+            threshold (float, optional): Threshold for the non-white mask in lab color space.
+                                         Defaults to 0.8.
+            lambda_s (float, optional): Optimization parameter for the stain extraction.
+                                        Defaults to 0.1.
         """
         self.target = target
         self.thres = threshold
@@ -337,6 +344,7 @@ class VahadaneStainNormalizer(StainNormalizer):
         super().__init__(**kwargs)
         # Hidden fields
         self.stain_matrix_key = "stain_matrix"
+        self.stain_matrix_target = None
 
     def _load_values(self, file: h5py.File) -> None:
         """Loads the values computed when fitted
@@ -361,7 +369,8 @@ class VahadaneStainNormalizer(StainNormalizer):
 
     @staticmethod
     def _notwhite_mask(image: np.ndarray, threshold: float) -> np.ndarray:
-        """Computed a mask where the image has values over the percentage threshold in LAB color space
+        """Computed a mask where the image has values over the percentage threshold
+           in LAB color space
 
         Args:
             image (np.array): Image to compute the mask for
@@ -384,18 +393,19 @@ class VahadaneStainNormalizer(StainNormalizer):
             np.array: Extracted stains
         """
         mask = self._notwhite_mask(input_image, threshold=self.thres).reshape((-1,))
-        OD = self._RGB_to_OD(input_image).reshape((-1, 3))
-        OD = OD[mask]
+        optical_density = self._RGB_to_OD(input_image).reshape((-1, 3))
+        optical_density = optical_density[mask]
 
-        # solves for min_{D in C} (1/n) sum_{i=1}^n (1/2)||x_i-Dalpha_i||_2^2 + ... lambda1||alpha_i||_1 + lambda_2||alpha_i||_2^2
+        # solves for min_{D in C} (1/n) sum_{i=1}^n (1/2)||x_i-Dalpha_i||_2^2 + ... 
+        # + lambda1||alpha_i||_1 + lambda_2||alpha_i||_2^2
         dictionary = spams.trainDL(
-            OD.T,
-            K=2,                    # Find two stains
+            optical_density.T,
+            K=2,  # Find two stains
             lambda1=self.lambda_s,  # Constraint for 1-norm of alphas
             mode=2,
-            modeD=0,                # {W in Real^{m x n}  s.t.  for all j,  ||d_j||_2^2 <= 1 }
-            posAlpha=True,          # Positive stains
-            posD=True,              # Positive staining matrix
+            modeD=0,  # {W in Real^{m x n}  s.t.  for all j,  ||d_j||_2^2 <= 1 }
+            posAlpha=True,  # Positive stains
+            posD=True,  # Positive staining matrix
             verbose=False,
             numThreads=1,
         ).T

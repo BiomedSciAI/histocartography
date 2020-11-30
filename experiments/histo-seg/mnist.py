@@ -18,9 +18,9 @@ from torchvision.datasets import MNIST
 from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
-from feature_extraction import HandcraftedFeatureExtractor
-from graph_builders import RAGGraphBuilder
-from superpixel import SLICSuperpixelExtractor
+from histocartography.preprocessing.feature_extraction import HandcraftedFeatureExtractor
+from histocartography.preprocessing.graph_builders import RAGGraphBuilder
+from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor
 from utils import start_logging
 
 with os.popen("hostname") as subprocess:

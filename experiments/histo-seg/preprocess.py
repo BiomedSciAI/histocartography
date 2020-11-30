@@ -14,10 +14,11 @@ import yaml
 from tqdm.auto import tqdm
 
 from eth import ANNOTATIONS_DF, DATASET_PATH, IMAGES_DF, PREPROCESS_PATH
-from feature_extraction import FeatureExtractor
-from graph_builders import BaseGraphBuilder
-from stain_normalizers import StainNormalizer
-from superpixel import SuperpixelExtractor
+
+from histocartography.preprocessing.feature_extraction import FeatureExtractor
+from histocartography.preprocessing.graph_builders import BaseGraphBuilder
+from histocartography.preprocessing.stain_normalizers import StainNormalizer
+from histocartography.preprocessing.superpixel import SuperpixelExtractor
 from utils import (
     dynamic_import_from,
     get_next_version_number,
@@ -34,7 +35,7 @@ def process_image(
     feature_extractor: Callable[[], FeatureExtractor],
     graph_builder: Callable[[], BaseGraphBuilder],
     save: bool,
-    only_superpixel: bool = False
+    only_superpixel: bool = False,
 ) -> None:
     """Process an image given the row of the metadata dataframe
 
@@ -79,18 +80,18 @@ def process_image(
         )
     else:
         superpixels = superpixel_extractor.process(input_image=normalized_image)
-    
+
     if only_superpixel:
         return
 
     # Features
     if save:
         features = feature_extractor.process_and_save(
-            input_image=normalized_image, superpixels=superpixels, output_name=name
+            input_image=normalized_image, instance_map=superpixels, output_name=name
         )
     else:
         features = feature_extractor.process(
-            input_image=normalized_image, superpixels=superpixels
+            input_image=normalized_image, instance_map=superpixels
         )
 
     # Optional annotation loading
@@ -140,7 +141,7 @@ def preprocessing(
     # -------------------------------------------------------------------------- STAIN NORMALIZATION
     normalizer_config = config["stain_normalizer"]
     normalizer_class = dynamic_import_from(
-        "stain_normalizers", normalizer_config["class"]
+        "histocartography.preprocessing.stain_normalizers", normalizer_config["class"]
     )
     normalizer = partial(
         normalizer_class,
@@ -162,7 +163,9 @@ def preprocessing(
 
     # -------------------------------------------------------------------------- SUPERPIXEL EXTRACTION
     superpixel_config = config["superpixel_extractor"]
-    superpixel_class = dynamic_import_from("superpixel", superpixel_config["class"])
+    superpixel_class = dynamic_import_from(
+        "histocartography.preprocessing.superpixel", superpixel_config["class"]
+    )
     superpixel_extractor = partial(
         superpixel_class,
         base_path=superpixel_path,
@@ -172,7 +175,9 @@ def preprocessing(
 
     # -------------------------------------------------------------------------- FEATURE EXTRACTION
     feature_config = config["feature_extractor"]
-    feature_class = dynamic_import_from("feature_extraction", feature_config["class"])
+    feature_class = dynamic_import_from(
+        "histocartography.preprocessing.feature_extraction", feature_config["class"]
+    )
     feature_extractor = partial(
         feature_class, base_path=feature_path, **feature_config.get("params", {})
     )
@@ -180,7 +185,9 @@ def preprocessing(
 
     # -------------------------------------------------------------------------- GRAPH CONSTRUCTION
     graph_config = config["graph_builder"]
-    graph_class = dynamic_import_from("graph_builders", graph_config["class"])
+    graph_class = dynamic_import_from(
+        "histocartography.preprocessing.graph_builders", graph_config["class"]
+    )
     graph_builder = partial(
         graph_class, base_path=graph_path, **graph_config.get("params", {})
     )

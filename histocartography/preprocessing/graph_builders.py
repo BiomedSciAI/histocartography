@@ -12,8 +12,8 @@ import torch
 from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 
-from constants import CENTROID, GNN_EDGE_FEAT, GNN_NODE_FEAT_IN, LABEL, FEATURES
-from utils import PipelineStep, fast_histogram
+from .constants import CENTROID, LABEL, FEATURES
+from .utils import PipelineStep, fast_histogram
 
 
 class BaseGraphBuilder(PipelineStep):
@@ -34,14 +34,15 @@ class BaseGraphBuilder(PipelineStep):
         """Generates a graph with a given structure and features
 
         Args:
-            structure (np.array): Structure, depending on the graph can be superpixel connectivity, or centroids
+            structure (np.array): Structure, depending on the graph can be superpixel
+                                  connectivity, or centroids
             features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)
-            annotation (Union[None, np.array], optional): Optional node level to include. Defaults to None.
+            annotation (Union[None, np.array], optional): Optional node level to include.
+                                                          Defaults to None.
 
         Returns:
             dgl.DGLGraph: The constructed graph
         """
-
         # add nodes
         num_nodes = features.shape[0]
         graph = dgl.DGLGraph()
@@ -69,7 +70,7 @@ class BaseGraphBuilder(PipelineStep):
     ) -> dgl.DGLGraph:
         assert (
             self.base_path is not None
-        ), f"Can only save intermediate output if base_path was not None when constructing the object"
+        ), "Can only save intermediate output if base_path was not None during construction"
         output_path = self.output_dir / f"{output_name}.bin"
         if output_path.exists():
             logging.info(
@@ -96,8 +97,8 @@ class BaseGraphBuilder(PipelineStep):
         graph.ndata[FEATURES] = features
 
     @staticmethod
-    def _set_node_centroids(superpixels: np.ndarray, graph: dgl.DGLGraph) -> None:
-        regions = regionprops(superpixels)
+    def _set_node_centroids(instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
+        regions = regionprops(instance_map)
         centroids = np.empty((len(regions), 2))
         for i, region in enumerate(regions):
             center_x, center_y = region.centroid
@@ -108,17 +109,17 @@ class BaseGraphBuilder(PipelineStep):
         graph.ndata[CENTROID] = centroids
 
     def _set_node_labels(
-        self, superpixels: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
+        self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
     ) -> None:
         assert (
             self.nr_classes < 256
-        ), f"Cannot handle that many classes with 8 byte representation"
-        region_labels = pd.unique(np.ravel(superpixels))
+        ), "Cannot handle that many classes with 8 byte representation"
+        region_labels = pd.unique(np.ravel(instance_map))
         labels = torch.empty(len(region_labels), dtype=torch.uint8)
         for region_label in region_labels:
             assignment = np.argmax(
                 fast_histogram(
-                    annotation[superpixels == region_label], nr_values=self.nr_classes
+                    annotation[instance_map == region_label], nr_values=self.nr_classes
                 )
             )
             labels[region_label - 1] = int(assignment)
@@ -157,21 +158,21 @@ class RAGGraphBuilder(BaseGraphBuilder):
         self.kernel_size = kernel_size
         super().__init__(**kwargs)
 
-    def _build_topology(self, instances: np.ndarray, graph: dgl.DGLGraph) -> None:
-        """Create the graph topology from the connectivty of the provided superpixels
+    def _build_topology(self, instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
+        """Create the graph topology from the connectivty of the provided instance_map
 
         Args:
             instances (np.array): Superpixels
             graph (dgl.DGLGraph): Graph to add the edges to
         """
-        instance_ids = np.sort(pd.unique(np.ravel(instances))).astype(int)
+        instance_ids = np.sort(pd.unique(np.ravel(instance_map))).astype(int)
         kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
         adjacency = np.zeros(shape=(len(instance_ids), len(instance_ids)))
         for instance_id in instance_ids:
-            mask = (instances == instance_id).astype(np.uint8)
+            mask = (instance_map == instance_id).astype(np.uint8)
             dilation = cv2.dilate(mask, kernel, iterations=1)
             boundary = dilation - mask
-            idx = pd.unique(instances[boundary.astype(bool)])
+            idx = pd.unique(instance_map[boundary.astype(bool)])
             instance_id -= 1  # because instance_map id starts from 1
             idx -= 1  # because instance_map id starts from 1
             adjacency[instance_id, idx] = 1

@@ -16,13 +16,12 @@ import yaml
 from tqdm.auto import tqdm
 
 from eth import ANNOTATIONS_DF, DATASET_PATH, IMAGES_DF, PREPROCESS_PATH
-from feature_extraction import FeatureExtractor
-from graph_builders import BaseGraphBuilder
-from superpixel import SuperpixelExtractor
-from stain_normalizers import StainNormalizer
+from histocartography.preprocessing.feature_extraction import FeatureExtractor
+from histocartography.preprocessing.graph_builders import BaseGraphBuilder
+from histocartography.preprocessing.superpixel import SuperpixelExtractor
+from histocartography.preprocessing.stain_normalizers import StainNormalizer
 from utils import (
     dynamic_import_from,
-    get_next_version_number,
     read_image,
     start_logging,
     fast_histogram,
@@ -102,7 +101,7 @@ def best_possible_masks(
     # -------------------------------------------------------------------------- STAIN NORMALIZATION
     normalizer_config = config["stain_normalizer"]
     normalizer_class = dynamic_import_from(
-        "stain_normalizers", normalizer_config["class"]
+        "histocartography.preprocessing.stain_normalizers", normalizer_config["class"]
     )
     normalizer = partial(
         normalizer_class,
@@ -121,7 +120,9 @@ def best_possible_masks(
 
     # -------------------------------------------------------------------------- SUPERPIXEL EXTRACTION
     superpixel_config = config["superpixel_extractor"]
-    superpixel_class = dynamic_import_from("superpixel", superpixel_config["class"])
+    superpixel_class = dynamic_import_from(
+        "histocartography.preprocessing.superpixel", superpixel_config["class"]
+    )
     superpixel_extractor = partial(
         superpixel_class,
         base_path=superpixel_path,

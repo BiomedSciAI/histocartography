@@ -1,3 +1,5 @@
+"""Extract features from images for a given structure"""
+
 from abc import abstractmethod
 from typing import Optional, Tuple
 
@@ -15,37 +17,36 @@ from skimage.morphology import disk
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from tqdm.auto import tqdm
 
-from utils import PipelineStep
+from .utils import PipelineStep, dynamic_import_from
 
 
 class FeatureExtractor(PipelineStep):
-    def __init__(self, **kwargs) -> None:
-        """Abstract class that extracts features from superpixels"""
-        super().__init__(**kwargs)
+    """Base class for feature extraction"""
 
-    def process(self, input_image: np.ndarray, superpixels: np.ndarray) -> torch.Tensor:
-        """Extract features from the input_image for the defined superpixels
+    def process(
+        self, input_image: np.ndarray, instance_map: np.ndarray
+    ) -> torch.Tensor:
+        """Extract features from the input_image for the defined instance_map
 
         Args:
             input_image (np.array): Original RGB image
-            superpixels (np.array): Extracted superpixels
+            instance_map (np.array): Extracted instance_map
 
         Returns:
             torch.Tensor: Extracted features
         """
-        return self._extract_features(input_image, superpixels)
+        return self._extract_features(input_image, instance_map)
 
     @abstractmethod
     def _extract_features(
-        self, input_image: np.ndarray, superpixels: np.ndarray
+        self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
-        """Extract features from the input_image for the defined superpixels
+        """Extract features from the input_image for the defined structure
 
         Args:
             input_image (np.array): Original RGB image
-            superpixels (np.array): Extracted superpixels
+            structure (np.array): Structure to extract features
 
         Returns:
             torch.Tensor: Extracted features
@@ -53,23 +54,37 @@ class FeatureExtractor(PipelineStep):
 
 
 class HandcraftedFeatureExtractor(FeatureExtractor):
-    """Helper class to extract handcrafted features from superpixels"""
+    """Helper class to extract handcrafted features from instance maps"""
 
-    def __init__(
-        self,
-        **kwargs,
-    ) -> None:
-        """Extract handcrafted features from images"""
-        super().__init__(**kwargs)
+    @staticmethod
+    def _color_features_per_channel(img_rgb_ch, img_rgb_sq_ch, mask_idx, mask_size):
+        codes = img_rgb_ch[mask_idx[0], mask_idx[1]].ravel()
+        hist, _ = np.histogram(codes, bins=np.arange(0, 257, 32))  # 8 bins
+        feats_ = list(hist / mask_size)
+        color_mean = np.mean(codes)
+        color_std = np.std(codes)
+        color_median = np.median(codes)
+        color_skewness = skew(codes)
+
+        codes = img_rgb_sq_ch[mask_idx[0], mask_idx[1]].ravel()
+        color_energy = np.mean(codes)
+
+        feats_.append(color_mean)
+        feats_.append(color_std)
+        feats_.append(color_median)
+        feats_.append(color_skewness)
+        feats_.append(color_energy)
+        return feats_
 
     def _extract_features(
-        self, input_image: np.ndarray, superpixels: np.ndarray
+        self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
-        """Extract handcrafted features from the input_image in the defined superpixel regions
+        """Extract handcrafted features from the input_image in the defined instance_map regions
 
         Args:
             input_image (np.array): Original RGB Image
-            superpixels (np.array): Extracted superpixels
+            instance_map (np.array): Extracted instance_map. Different regions have different int values,
+                                     the background is defined to have value 0 and is ignored.
 
         Returns:
             torch.Tensor: Extracted features
@@ -79,20 +94,18 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         img_gray = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
         img_square = np.square(input_image)
 
-        # -------------------------------------------------------------------------- Entropy per channel
         img_entropy = Entropy(img_gray, disk(3))
 
         # For each super-pixel
-        regions = regionprops(superpixels)
+        regions = regionprops(instance_map)
 
         for _, region in enumerate(regions):
-            sp_mask = np.array(superpixels == region["label"], np.uint8)
+            sp_mask = np.array(instance_map == region["label"], np.uint8)
             sp_rgb = cv2.bitwise_and(input_image, input_image, mask=sp_mask)
             sp_gray = img_gray * sp_mask
             mask_size = np.sum(sp_mask)
             mask_idx = np.where(sp_mask != 0)
 
-            # -------------------------------------------------------------------------- CONTOUR-BASED SHAPE FEATURES
             # Compute using mask [12 features]
             area = region["area"]
             convex_area = region["convex_area"]
@@ -121,36 +134,19 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 solidity,
             ]
 
-            # -------------------------------------------------------------------------- COLOR FEATURES
             # (rgb color space) [13 x 3 features]
-            def color_features_per_channel(img_rgb_ch, img_rgb_sq_ch):
-                codes = img_rgb_ch[mask_idx[0], mask_idx[1]].ravel()
-                hist, _ = np.histogram(codes, bins=np.arange(0, 257, 32))  # 8 bins
-                feats_ = list(hist / mask_size)
-                color_mean = np.mean(codes)
-                color_std = np.std(codes)
-                color_median = np.median(codes)
-                color_skewness = skew(codes)
-
-                codes = img_rgb_sq_ch[mask_idx[0], mask_idx[1]].ravel()
-                color_energy = np.mean(codes)
-
-                feats_.append(color_mean)
-                feats_.append(color_std)
-                feats_.append(color_median)
-                feats_.append(color_skewness)
-                feats_.append(color_energy)
-                return feats_
-
-            # enddef
-
-            feats_r = color_features_per_channel(sp_rgb[:, :, 0], img_square[:, :, 0])
-            feats_g = color_features_per_channel(sp_rgb[:, :, 1], img_square[:, :, 1])
-            feats_b = color_features_per_channel(sp_rgb[:, :, 2], img_square[:, :, 2])
+            feats_r = self._color_features_per_channel(
+                sp_rgb[:, :, 0], img_square[:, :, 0], mask_idx, mask_size
+            )
+            feats_g = self._color_features_per_channel(
+                sp_rgb[:, :, 1], img_square[:, :, 1], mask_idx, mask_size
+            )
+            feats_b = self._color_features_per_channel(
+                sp_rgb[:, :, 2], img_square[:, :, 2], mask_idx, mask_size
+            )
             feats_color = [feats_r, feats_g, feats_b]
             feats_color = [item for sublist in feats_color for item in sublist]
 
-            # -------------------------------------------------------------------------- TEXTURE FEATURES
             # Entropy (gray color space) [1 feature]
             entropy = cv2.mean(img_entropy, mask=sp_mask)[0]
 
@@ -179,39 +175,39 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 glcm_ASM,
             ]
 
-            # -------------------------------------------------------------------------- STACKING ALL FEATURES
             sp_feats = feats_shape + feats_color + feats_texture
 
             features = np.hstack(sp_feats)
             node_feat.append(features)
-        # endfor
 
         node_feat = np.vstack(node_feat)
         return torch.Tensor(node_feat)
 
 
-class SuperpixelPatchDataset(Dataset):
-    """Helper class to use a give image and extracted superpixels as a dataset"""
+class InstanceMapPatchDataset(Dataset):
+    """Helper class to use a give image and extracted instance maps as a dataset"""
 
     def __init__(
         self,
         image: np.ndarray,
-        superpixels: np.ndarray,
+        instance_map: np.ndarray,
         size: int,
         fill_value: Optional[int],
     ) -> None:
-        """Create a dataset for a given image and extracted superpixel with desired patches of (size, size, 3).
-            If fill_value is not None, it fills up pixels outside the superpixel with this value (all channels)
+        """Create a dataset for a given image and extracted instance maps with desired patches
+           of (size, size, 3). If fill_value is not None, it fills up pixels outside the
+           instance maps with this value (all channels)
 
         Args:
             image (np.ndarray): RGB input image
-            superpixels (np.ndarray): Extracted superpixels
+            instance maps (np.ndarray): Extracted instance maps
             size (int): Desired size of patches
-            fill_value (Optional[None]): Value to fill outside the superpixels (None means do not fill)
+            fill_value (Optional[None]): Value to fill outside the instance maps
+                                         (None means do not fill)
         """
         self.image = image
-        self.superpixel = superpixels
-        self.properties = regionprops(superpixels)
+        self.instance_map = instance_map
+        self.properties = regionprops(instance_map)
         self.dataset_transform = transforms.Compose(
             [
                 transforms.Resize(224),
@@ -222,11 +218,11 @@ class SuperpixelPatchDataset(Dataset):
         self.patch_size = (size, size, 3)
         self.fill_value = fill_value
 
-    def _get_superpixel_patch(self, region_property: _RegionProperties) -> np.ndarray:
+    def _get_instance_patch(self, region_property: _RegionProperties) -> np.ndarray:
         """Returns the image patch with the correct padding for a given region property
 
         Args:
-            region_property (_RegionProperties): Region property of the superpixel
+            region_property (_RegionProperties): Region property of the instance maps
 
         Returns:
             np.ndarray: Representative image patch
@@ -249,7 +245,7 @@ class SuperpixelPatchDataset(Dataset):
             x_length = max_x - min_x
             y_length = max_y - min_y
 
-        # Handle no mask scenario and too large superpixels
+        # Handle no mask scenario and too large instance maps
         if self.fill_value is None or x_length > self.patch_size[0]:
             min_x = center_x - (self.patch_size[0] // 2)
             max_x = center_x + (self.patch_size[0] // 2)
@@ -274,7 +270,7 @@ class SuperpixelPatchDataset(Dataset):
             ((self.patch_size[1] - y_length) // 2),
         )
         image_region = self.image[min_x:max_x, min_y:max_y]
-        mask_region = (self.superpixel != region_property.label)[
+        mask_region = (self.instance_map != region_property.label)[
             min_x:max_x, min_y:max_y
         ]
         if self.fill_value is not None:
@@ -286,17 +282,17 @@ class SuperpixelPatchDataset(Dataset):
         return output_image
 
     def __getitem__(self, index: int) -> Tuple[int, torch.Tensor]:
-        """Loads an image for a given superpixel index
+        """Loads an image for a given instance maps index
 
         Args:
             index (int): Superpixel index
 
         Returns:
-            Tuple[int, torch.Tensor]: superpixel_index, image as tensor
+            Tuple[int, torch.Tensor]: instance_index, image as tensor
         """
-        input_image = self._get_superpixel_patch(self.properties[index])
+        input_image = self._get_instance_patch(self.properties[index])
         transformed_image = self.dataset_transform(Image.fromarray(input_image))
-        return self.properties[index].label - 1, transformed_image  # It needs -1 since skimage starts at 1 for some reason
+        return index, transformed_image
 
     def __len__(self) -> int:
         """Returns the length of the dataset
@@ -314,7 +310,7 @@ class PatchFeatureExtractor:
         """Create a patch feature extracter of a given architecture and put it on GPU if available
 
         Args:
-            architecture (str): String of architecture. Can be [resnet{18,34,50,101,152}, vgg{16,19}]
+            architecture (str): String of architecture. According to torchvision.models syntax
         """
         self.model, self.num_features = self._select_model(architecture)
         self.model.eval()
@@ -329,39 +325,20 @@ class PatchFeatureExtractor:
         """Returns the model and number of features for a given name
 
         Args:
-            architecture (str): Name of architecture. Can be [resnet{18,34,50,101,152}, vgg{16,19}]
+            architecture (str): Name of architecture. According to torchvision.models syntax
 
         Returns:
             Tuple[nn.Module, int]: The model and the number of features
         """
-        if "resnet" in architecture:
-            if "18" in architecture:
-                model = torchvision.models.resnet18(pretrained=True)
-            elif "34" in architecture:
-                model = torchvision.models.resnet34(pretrained=True)
-            elif "50" in architecture:
-                model = torchvision.models.resnet50(pretrained=True)
-            elif "101" in architecture:
-                model = torchvision.models.resnet101(pretrained=True)
-            elif "152" in architecture:
-                model = torchvision.models.resnet152(pretrained=True)
-            else:
-                raise NotImplementedError("ERROR: Select from Resnet: 34, 50, 101, 152")
-            num_features = list(model.children())[-1].in_features
-            model = torch.nn.Sequential(*(list(model.children())[:-1]))
-        elif "vgg" in architecture:
-            if "16" in architecture:
-                model = torchvision.models.vgg16_bn(pretrained=True)
-            elif "19" in architecture:
-                model = torchvision.models.vgg19_bn(pretrained=True)
-            else:
-                raise NotImplementedError("ERROR: Select from VGG: 16, 19")
-            classifier = list(model.classifier.children())[:1]
-            num_features = list(model.classifier.children())[-1].in_features
-            model.classifier = nn.Sequential(*classifier)
+        model_class = dynamic_import_from("torchvision.models", architecture)
+        model = model_class()
+        if isinstance(model, torchvision.models.resnet.ResNet):
+            feature_dim = model.fc.in_features
+            model.fc = nn.Sequential()
         else:
-            raise NotImplementedError("ERROR: Select from resnet, vgg")
-        return model, num_features
+            feature_dim = model.classifier[-1].in_features
+            model.classifier[-1] = nn.Sequential()
+        return model, feature_dim
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """Computes the embedding of a normalized image input
@@ -379,7 +356,7 @@ class PatchFeatureExtractor:
 
 
 class DeepFeatureExtractor(FeatureExtractor):
-    """Helper class to extract deep features from superpixels"""
+    """Helper class to extract deep features from instance maps"""
 
     def __init__(
         self,
@@ -393,8 +370,8 @@ class DeepFeatureExtractor(FeatureExtractor):
         """Create a deep feature extractor
 
         Args:
-            architecture (str): Name of the architecture to use. Can be [resnet{18,34,50,101,152}, vgg{16,19}]
-            mask (bool, optional): Whether to mask out the parts outside the superpixel. Defaults to True.
+            architecture (str): Name of the architecture to use. According to torchvision.models syntax
+            mask (bool, optional): Whether to mask out the parts outside the instance maps. Defaults to True.
             size (int, optional): Desired size of patches. Defaults to 224.
         """
         self.architecture = architecture
@@ -413,19 +390,19 @@ class DeepFeatureExtractor(FeatureExtractor):
         self.device = torch.device("cuda:0" if cuda else "cpu")
 
     def _extract_features(
-        self, input_image: np.ndarray, superpixels: np.ndarray
+        self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
-        """Extract features for a given RGB image and its extracted superpixels
+        """Extract features for a given RGB image and its extracted instance_map
 
         Args:
             input_image (np.ndarray): RGB input image
-            superpixels (np.ndarray): Extracted superpixels
+            instance_map (np.ndarray): Extracted instance_map
 
         Returns:
             torch.Tensor: Extracted features
         """
-        image_dataset = SuperpixelPatchDataset(
-            input_image, superpixels, self.size, self.fill_value
+        image_dataset = InstanceMapPatchDataset(
+            input_image, instance_map, self.size, self.fill_value
         )
         image_loader = DataLoader(
             image_dataset,

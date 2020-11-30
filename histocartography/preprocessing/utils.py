@@ -1,14 +1,20 @@
 """Preprocessing utilities"""
 import importlib
 import logging
+import multiprocessing
+import os
+import sys
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import h5py
 import numpy as np
+import pandas as pd
+from PIL import Image
+from tqdm.auto import tqdm
 
 
 class PipelineStep(ABC):
@@ -44,6 +50,10 @@ class PipelineStep(ABC):
         if not self.output_dir.exists():
             self.output_dir.mkdir()
         return self.output_dir
+
+    def precompute(self) -> None:
+        """Precompute all necessary information for this step"""
+        pass
 
     @abstractmethod
     def process(self, **kwargs: Any) -> Any:
@@ -100,7 +110,6 @@ class PipelineRunner:
         path = output_path if save else None
         for stage in stages:
             name, config = list(stage.items())[0]
-            print(name, config)
             stage_class = dynamic_import_from(
                 f"histocartography.preprocessing.{name}", config.pop("class")
             )
@@ -113,7 +122,21 @@ class PipelineRunner:
             self.stage_configs.append(config)
             path = pipeline_stage().mkdir() if save else None
 
-    def run(self, name: Optional[str], **inputs):
+    def precompute(self) -> None:
+        """Precompute all necessary information for all stages"""
+        for stage in self.stages:
+            stage.precompute()
+
+    def run(self, name: Optional[str], **inputs: Any) -> Dict[str, Any]:
+        """Run the preprocessing pipeline for a given name and input parameters and return the specified outputs
+
+        Args:
+            name (Optional[str]): Optional name to use for saving
+
+        Returns:
+            Dict[str, Any]: Specified outputs
+        """
+
         # Validate inputs
         assert (
             not self.save or name is not None
@@ -125,7 +148,10 @@ class PipelineRunner:
         variables = deepcopy(inputs)
         for stage, config in zip(self.stages, self.stage_configs):
             step_input = [variables[k] for k in config["inputs"]]
-            step_output = stage.process_and_save(name, *step_input)
+            if self.save:
+                step_output = stage.process_and_save(name, *step_input)
+            else:
+                step_output = stage.process(*step_input)
             if not isinstance(step_output, tuple):
                 step_output = tuple([step_output])
             assert len(step_output) == len(config["outputs"]), (
@@ -142,6 +168,80 @@ class PipelineRunner:
                 output_name in variables
             ), f"{output_name} should be returned, but was never computed"
         return {k: variables[k] for k in self.outputs}
+
+
+class BatchPipelineRunner:
+    def __init__(
+        self, pipeline_config: Dict[str, Any], output_path: str, save: bool = True
+    ) -> None:
+        """Run Helper that runs the pipeline for multiple inputs in a multiprocessed fashion.
+
+        Args:
+            pipeline_config (Dict[str, Any]): Configuration of the pipeline
+            output_path (str): Path to save the outputs to
+            save (bool, optional): Whether to save the outputs. Defaults to True.
+        """
+        self.pipeline_config = pipeline_config
+        self.output_path = output_path
+        self.save = save
+
+    def _build_pipeline_runner(self) -> PipelineRunner:
+        """Builds and returns a PipelineRunner with the correct configuration
+
+        Returns:
+            PipelineRunner: Runner object
+        """
+        config = deepcopy(self.pipeline_config)
+        return PipelineRunner(output_path=self.output_path, save=self.save, **config)
+
+    def _worker_task(self, data: Tuple[Any, pd.core.series.Series]) -> None:
+        """Runs the task of a single worker
+
+        Args:
+            data (Tuple[Any, pd.core.series.Series]): The index and row of the dataframe,
+                                                      as returned from df.iterrows()
+        """
+        # Disable multiprocessing
+        os.environ["OPENBLAS_NUM_THREADS"] = "1"
+        os.environ["MKL_NUM_THREADS"] = "1"
+        os.environ["OMP_NUM_THREADS"] = "1"
+
+        name, row = data
+        pipeline = self._build_pipeline_runner()
+        pipeline.run(name=name, **row)
+
+    def _precompute(self):
+        """Precompute all necessary information for all stages"""
+        self._build_pipeline_runner().precompute()
+
+    def run(self, metadata: pd.DataFrame, cores: int = 1) -> None:
+        """Runs the pipeline for the provided metadata dataframe and a specified
+           number of cores for multiprocessing.
+
+        Args:
+            metadata (pd.DataFrame): Dataframe with the columns as defined in the config inputs
+            cores (int, optional): Number of cores to use for multiprocessing. Defaults to 1.
+        """
+        self._precompute()
+        if cores == 1:
+            pipeline = self._build_pipeline_runner()
+            for name, row in tqdm(
+                metadata.iterrows(), total=len(metadata), file=sys.stdout
+            ):
+                pipeline.run(name=name, **row)
+        else:
+            worker_pool = multiprocessing.Pool(cores)
+            for _ in tqdm(
+                worker_pool.imap_unordered(
+                    self._worker_task,
+                    metadata.iterrows(),
+                ),
+                total=len(metadata),
+                file=sys.stdout,
+            ):
+                pass
+            worker_pool.close()
+            worker_pool.join()
 
 
 def fast_histogram(input_array: np.ndarray, nr_values: int) -> np.ndarray:
@@ -172,3 +272,22 @@ def dynamic_import_from(source_file: str, class_name: str) -> Any:
     """
     module = importlib.import_module(source_file)
     return getattr(module, class_name)
+
+
+def load_image(image_path: Path) -> np.ndarray:
+    """Loads an image from a given path and returns it as a numpy array
+
+    Args:
+        image_path (Path): Path of the image
+
+    Returns:
+        np.ndarray: Array representation of the image
+    """
+    assert image_path.exists()
+    try:
+        with Image.open(image_path) as img:
+            image = np.array(img)
+    except OSError as e:
+        logging.critical("Could not open %s", image_path)
+        raise OSError(e)
+    return image

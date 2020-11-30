@@ -1,30 +1,48 @@
 """This module handles everything related to stain normalization"""
 
-from abc import abstractmethod
 import logging
+from abc import abstractmethod
+from pathlib import Path
+from typing import Optional
 
-from skimage.color import rgb2lab
 import h5py
 import numpy as np
 import spams
 from PIL import Image
+from skimage.color import rgb2lab
 
-from .utils import PipelineStep
+from utils import PipelineStep, load_image
 
 
 class StainNormalizer(PipelineStep):
     """Base class for creating fancy stain normalizers"""
 
-    def __init__(self, lambda_c: float = 0.01, **kwargs) -> None:
+    def __init__(
+        self,
+        target: str,
+        lambda_c: float = 0.01,
+        precomputed_normalizer: Optional[str] = None,
+        target_path: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         """Create a stain normalizer with appropriate penaltz for optimizing getting stains
 
         Args:
+            target (str): Name of the target image for identification
             lambda_c (float, optional): lambda parameter for getting the concentration.
                                         Defaults to 0.01.
         """
         self.lambda_c = lambda_c
+        self.target = target
         super().__init__(**kwargs)
-        self.save_path = self.output_dir / "normalizer.h5"
+        self.target_path = target_path
+        if self.base_path is not None:
+            self.save_path = self.output_dir / "normalizer.h5"
+        else:
+            assert (
+                precomputed_normalizer is not None
+            ), "Must either save or provide a precomputed normalizer"
+            self.save_path = Path(precomputed_normalizer)
 
     @staticmethod
     def _standardize_brightness(input_image: np.ndarray) -> np.ndarray:
@@ -121,17 +139,11 @@ class StainNormalizer(PipelineStep):
 
     def _load_precomputed(self) -> None:
         """Loads the precomputed values of a previous fit"""
-        assert (
-            self.base_path is not None
-        ), "Can only save intermediate output if base_path was not None during construction"
         with h5py.File(self.save_path, "r") as input_file:
             self._load_values(input_file)
 
     def _save_precomputed(self):
         """Saves the precomputed values"""
-        assert (
-            self.base_path is not None
-        ), "Can only save intermediate output if base_path was not None during construction"
         with h5py.File(self.save_path, "w") as output_file:
             self._save_values(output_file)
 
@@ -188,6 +200,17 @@ class StainNormalizer(PipelineStep):
                 output_image.save(output_path)
         return output
 
+    def precompute(self) -> None:
+        """Precompute all necessary information"""
+        print("START PRECOMPUTING")
+        if not self.save_path.exists():
+            print("RECOMPUTE NORMALIZER")
+            print(Path(self.target_path).absolute())
+            target_image = load_image(Path(self.target_path))
+            self.fit(target_image)
+        else:
+            print("NORMALIZER ALREADY COMPUTED")
+
 
 class MacenkoStainNormalizer(StainNormalizer):
     """
@@ -198,18 +221,19 @@ class MacenkoStainNormalizer(StainNormalizer):
     """
 
     def __init__(
-        self, target: str, alpha: float = 1.0, beta: float = 0.15, **kwargs
+        self,
+        alpha: float = 1.0,
+        beta: float = 0.15,
+        **kwargs,
     ) -> None:
         """Apply the stain normalization with a given target and parameters
 
         Args:
-            target (str): Name of the target image for identification
             alpha (float, optional): Alpha parameter. Defaults to 1.0.
             beta (float, optional): Beta parameter. Defaults to 0.15.
         """
         self.alpha = alpha
         self.beta = beta
-        self.target = target
         super().__init__(**kwargs)
         # Hidden fields
         self.stain_matrix_key = "stain_matrix"
@@ -326,19 +350,15 @@ class VahadaneStainNormalizer(StainNormalizer):
     vol. 35, no. 8, pp. 1962–1971, Aug. 2016.
     """
 
-    def __init__(
-        self, target: str, threshold: float = 0.8, lambda_s: float = 0.1, **kwargs
-    ) -> None:
+    def __init__(self, threshold: float = 0.8, lambda_s: float = 0.1, **kwargs) -> None:
         """Create a Vahadame normalizer for a given target image
 
         Args:
-            target (str): Name of the target image
             threshold (float, optional): Threshold for the non-white mask in lab color space.
                                          Defaults to 0.8.
             lambda_s (float, optional): Optimization parameter for the stain extraction.
                                         Defaults to 0.1.
         """
-        self.target = target
         self.thres = threshold
         self.lambda_s = lambda_s
         super().__init__(**kwargs)

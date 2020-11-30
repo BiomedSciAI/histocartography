@@ -1,10 +1,16 @@
 inputs:
-- image
-- annotation
+- image_path
+- annotation_path
 outputs:
 - graph
 - superpixels
 stages:
+  - io:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
   - stain_normalizers:
       class: "VahadaneStainNormalizer"
       inputs:
@@ -13,6 +19,8 @@ stages:
       - normalized_image
       params:
         target: "ZT76_39_B_2_1"
+        precomputed_normalizer: '../../../../ETH/preprocess/VahadaneStainNormalizer(lambda_c=0.01,lambda_s=0.1,target=ZT76_39_B_2_1,thres=0.8)/normalizer.h5'
+        target_path: "../../../../ETH/TMA_Images/ZT76_39_B_2_1.jpg"
   - superpixel:
       class: "SLICSuperpixelExtractor"
       inputs:
@@ -33,6 +41,12 @@ stages:
         architecture: "resnet18"
         mask: False
         size: 224
+  - io:
+      class: "ImageLoader"
+      inputs:
+      - "annotation_path"
+      outputs:
+      - "annotation"
   - graph_builders:
       class: "RAGGraphBuilder"
       inputs:

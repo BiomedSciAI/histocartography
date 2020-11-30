@@ -22,7 +22,6 @@ preprocess:
   params:
     cores: 64
     labels: True
-    only_superpixel: False
 upper_bound:
   stages:
     stain_normalizer:

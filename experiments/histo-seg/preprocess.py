@@ -31,11 +31,10 @@ from utils import (
 def process_image(
     data: Tuple[str, pd.core.series.Series],
     normalizer: Callable[[], StainNormalizer],
-    superpixel_extractor: Callable[[], SuperpixelExtractor],
-    feature_extractor: Callable[[], FeatureExtractor],
-    graph_builder: Callable[[], BaseGraphBuilder],
+    superpixel_extractor: Optional[Callable[[], SuperpixelExtractor]],
+    feature_extractor: Optional[Callable[[], FeatureExtractor]],
+    graph_builder: Optional[Callable[[], BaseGraphBuilder]],
     save: bool,
-    only_superpixel: bool = False,
 ) -> None:
     """Process an image given the row of the metadata dataframe
 
@@ -57,15 +56,11 @@ def process_image(
     os.environ["MKL_NUM_THREADS"] = "1"
     os.environ["OMP_NUM_THREADS"] = "1"
 
-    normalizer = normalizer()
-    superpixel_extractor = superpixel_extractor()
-    feature_extractor = feature_extractor()
-    graph_builder = graph_builder()
-
     # Read input data
     name, row = data
     image = read_image(row.path)
 
+    normalizer = normalizer()
     if save:
         normalized_image = normalizer.process_and_save(
             input_image=image, output_name=name
@@ -74,44 +69,59 @@ def process_image(
         normalized_image = normalizer.process(input_image=image)
 
     # Superpixels
-    if save:
-        superpixels = superpixel_extractor.process_and_save(
-            input_image=normalized_image, output_name=name
-        )
-    else:
-        superpixels = superpixel_extractor.process(input_image=normalized_image)
+    if superpixel_extractor is not None:
+        superpixel_extractor = superpixel_extractor()
+        if save:
+            superpixels = superpixel_extractor.process_and_save(
+                input_image=normalized_image, output_name=name
+            )
+        else:
+            superpixels = superpixel_extractor.process(input_image=normalized_image)
 
-    if only_superpixel:
-        return
+        # Features
+        if feature_extractor is not None:
+            feature_extractor = feature_extractor()
+            if save:
+                features = feature_extractor.process_and_save(
+                    input_image=normalized_image, instance_map=superpixels, output_name=name
+                )
+            else:
+                features = feature_extractor.process(
+                    input_image=normalized_image, instance_map=superpixels
+                )
 
-    # Features
-    if save:
-        features = feature_extractor.process_and_save(
-            input_image=normalized_image, instance_map=superpixels, output_name=name
-        )
-    else:
-        features = feature_extractor.process(
-            input_image=normalized_image, instance_map=superpixels
-        )
+            if graph_builder is not None:
+                graph_builder = graph_builder()
 
-    # Optional annotation loading
-    annotation = None
-    if "annotation_path" in row:
-        annotation = read_image(row.annotation_path)
+                # Optional annotation loading
+                if "annotation_path" in row:
+                    annotation = read_image(row.annotation_path)
+                else:
+                    annotation = None
 
-    # Graph building
-    if save:
-        graph_builder.process_and_save(
-            structure=superpixels,
-            features=features,
-            annotation=annotation,
-            output_name=name,
-        )
-    else:
-        graph_builder.process(
-            structure=superpixels, features=features, annotation=annotation
-        )
+                if save:
+                    graph_builder.process_and_save(
+                        structure=superpixels,
+                        features=features,
+                        annotation=annotation,
+                        output_name=name,
+                    )
+                else:
+                    graph_builder.process(
+                        structure=superpixels, features=features, annotation=annotation
+                    )
 
+
+def get_pipeline_step(stage, config, path):
+    stage_class = dynamic_import_from(
+        f"histocartography.preprocessing.{stage}", config["class"]
+    )
+    pipeline_stage = partial(
+        stage_class,
+        base_path=path,
+        **config.get("params", {}),
+    )
+    return pipeline_stage
 
 def preprocessing(
     config: dict,
@@ -119,7 +129,6 @@ def preprocessing(
     save: bool = True,
     cores: int = 1,
     labels: bool = False,
-    only_superpixel: bool = False,
     subsample: Optional[int] = None,
     **kwargs,
 ):
@@ -138,61 +147,33 @@ def preprocessing(
     if save and not PREPROCESS_PATH.exists():
         PREPROCESS_PATH.mkdir()
 
-    # -------------------------------------------------------------------------- STAIN NORMALIZATION
-    normalizer_config = config["stain_normalizer"]
-    normalizer_class = dynamic_import_from(
-        "histocartography.preprocessing.stain_normalizers", normalizer_config["class"]
-    )
-    normalizer = partial(
-        normalizer_class,
-        base_path=PREPROCESS_PATH,
-        **normalizer_config.get("params", {}),
-    )
-    if save:
-        tmp_normalizer = normalizer()
-        superpixel_path = tmp_normalizer.mkdir()
-        if not tmp_normalizer.save_path.exists():
-            target = normalizer_config["params"]["target"]
-            logging.info(f"Fitting {normalizer_class.__name__} to {target}")
-            target_path = images_metadata.loc[target].path
-            target_image = read_image(target_path)
-            tmp_normalizer.fit(target_image)
-            logging.info(f"Fitting completed")
-    else:
-        superpixel_path = None
+    normalizer = get_pipeline_step("stain_normalizers", config["stain_normalizer"], PREPROCESS_PATH)
+    tmp_normalizer = normalizer()
+    superpixel_path = tmp_normalizer.mkdir() if save else None
+    if not tmp_normalizer.save_path.exists():
+        target = config["stain_normalizer"]["params"]["target"]
+        logging.info(f"Fitting normalizer to {target}")
+        target_path = images_metadata.loc[target].path
+        target_image = read_image(target_path)
+        tmp_normalizer.fit(target_image)
+        logging.info(f"Fitting completed")
 
-    # -------------------------------------------------------------------------- SUPERPIXEL EXTRACTION
+    graph_builder = None
+    feature_extractor = None
+    superpixel_extractor = None
+
     superpixel_config = config["superpixel_extractor"]
-    superpixel_class = dynamic_import_from(
-        "histocartography.preprocessing.superpixel", superpixel_config["class"]
-    )
-    superpixel_extractor = partial(
-        superpixel_class,
-        base_path=superpixel_path,
-        **superpixel_config.get("params", {}),
-    )
-    feature_path = superpixel_extractor().mkdir() if save else None
-
-    # -------------------------------------------------------------------------- FEATURE EXTRACTION
-    feature_config = config["feature_extractor"]
-    feature_class = dynamic_import_from(
-        "histocartography.preprocessing.feature_extraction", feature_config["class"]
-    )
-    feature_extractor = partial(
-        feature_class, base_path=feature_path, **feature_config.get("params", {})
-    )
-    graph_path = feature_extractor().mkdir() if save else None
-
-    # -------------------------------------------------------------------------- GRAPH CONSTRUCTION
-    graph_config = config["graph_builder"]
-    graph_class = dynamic_import_from(
-        "histocartography.preprocessing.graph_builders", graph_config["class"]
-    )
-    graph_builder = partial(
-        graph_class, base_path=graph_path, **graph_config.get("params", {})
-    )
-    final_path = graph_builder().mkdir() if save else None
-    # --------------------------------------------------------------------------
+    if superpixel_config is not None:
+        superpixel_extractor = get_pipeline_step("superpixel", superpixel_config, superpixel_path)
+        feature_path = superpixel_extractor().mkdir() if save else None
+        feature_config = config["feature_extractor"]
+        if feature_config is not None:
+            feature_extractor = get_pipeline_step("feature_extraction", feature_config, feature_path)
+            graph_path = feature_extractor().mkdir() if save else None
+            graph_config = config["graph_builder"]
+            if graph_config is not None:
+                graph_builder = get_pipeline_step("graph_builders", graph_config, graph_path)
+                graph_builder().mkdir() if save else None
 
     worker_task = partial(
         process_image,
@@ -201,7 +182,6 @@ def preprocessing(
         feature_extractor=feature_extractor,
         graph_builder=graph_builder,
         save=save,
-        only_superpixel=only_superpixel,
     )
 
     # Handle test mode
@@ -237,41 +217,6 @@ def preprocessing(
             pass
         worker_pool.close()
         worker_pool.join()
-
-    # Create dataset version file
-    if save:
-        next_version = get_next_version_number(DATASET_PATH)
-        dataset_file_path = DATASET_PATH / f"v{next_version}.pickle"
-        dataset_information = list()
-        for file in final_path.iterdir():
-            name = file.name.split(".")[0]
-            assert name in images_metadata.index
-            row = images_metadata.loc[name]
-            dataset_information.append(
-                (
-                    name,
-                    row.path,
-                    file,
-                    feature_path.name,
-                    graph_path.name,
-                    final_path.name,
-                    next_version,
-                )
-            )
-        dataset_dataframe = pd.DataFrame(
-            dataset_information,
-            columns=[
-                "name",
-                "image_path",
-                "graph_path",
-                "superpixel_extractor",
-                "feature_extractor",
-                "graph_builder",
-                "version",
-            ],
-        )
-        dataset_dataframe = dataset_dataframe.set_index("name")
-        dataset_dataframe.to_pickle(dataset_file_path)
 
 
 if __name__ == "__main__":

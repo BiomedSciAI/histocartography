@@ -11,10 +11,12 @@ import pandas as pd
 import torch
 from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
+from sklearn.neighbors import kneighbors_graph
 
 from .constants import CENTROID, FEATURES, LABEL
 from .pipeline import PipelineStep
 from .utils import fast_histogram
+from ..utils.vector import compute_l2_distance
 
 
 class BaseGraphBuilder(PipelineStep):
@@ -202,4 +204,54 @@ class RAGGraphBuilder(BaseGraphBuilder):
             adjacency[instance_id, idx] = 1
 
         edge_list = np.nonzero(adjacency)
+        graph.add_edges(list(edge_list[0]), list(edge_list[1]))
+
+
+class KNNGraphBuilder(BaseGraphBuilder):
+    """
+    k-Nearest Neighbors Graph class for graph building.
+    """
+
+    def __init__(self, k: int = 5, thresh: int = None, **kwargs) -> None:
+        """Create a graph builder that uses the (thresholded) kNN algorithm to define the graph topology. 
+
+        Args:
+            k (int, optional): Number of neighbors. Defaults to 5.
+            thresh (int, optional): Maximum allowed distance between 2 nodes. Defaults to None (no thresholding).
+        """
+        logging.debug("*** kNN Graph Builder ***")
+        self.k = k
+        self.thresh = thresh
+        super().__init__(**kwargs)
+
+    def _build_topology(self, centroids: np.ndarray, graph: dgl.DGLGraph) -> None:
+        """
+        Build topology using (thresholded) kNN
+
+        Args:
+            centroids (np.array): Centroid locations
+            graph (dgl.DGLGraph): Graph to add the edges to 
+        """
+
+        # build kNN adjacency 
+        adj = kneighbors_graph(
+            centroids,
+            self.k,
+            mode='distance',
+            include_self=False,
+            metric='euclidean'
+        )
+
+        # filter edges that are too far (ie larger than thresh)
+        edge_list = np.nonzero(adj)
+        edge_list = [[s, d] for (s, d) in zip(edge_list[0], edge_list[1])]
+        if self.thresh is not None:
+            edge_list = list(
+                filter(
+                    lambda x: compute_l2_distance(centroids[x[0]], centroids[x[1]]) < self.thresh, edge_list
+                )
+            )
+
+        # append edges
+        edge_list = ([s for (s, _) in edge_list], [d for (_, d) in edge_list])
         graph.add_edges(list(edge_list[0]), list(edge_list[1]))

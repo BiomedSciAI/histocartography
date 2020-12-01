@@ -111,16 +111,14 @@ class BaseGraphBuilder(PipelineStep):
         graph.ndata[FEATURES] = features
 
     @staticmethod
-    def _set_node_centroids(instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
-        regions = regionprops(instance_map)
-        centroids = np.empty((len(regions), 2))
-        for i, region in enumerate(regions):
-            center_x, center_y = region.centroid
-            center_x = int(round(center_x))
-            center_y = int(round(center_y))
-            centroids[i, 0] = center_x
-            centroids[i, 1] = center_y
-        graph.ndata[CENTROID] = centroids
+    @abstractmethod
+    def _set_node_centroids(structure: np.ndarray, graph: dgl.DGLGraph) -> None:
+        """Set the centroids of the graphs
+
+        Args:
+            structure (np.ndarray): Structure of the graph
+            graph (dgl.DGLGraph): Graph to add the centroids to
+        """
 
     def _set_node_labels(
         self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
@@ -172,11 +170,23 @@ class RAGGraphBuilder(BaseGraphBuilder):
         self.kernel_size = kernel_size
         super().__init__(**kwargs)
 
+    @staticmethod
+    def _set_node_centroids(instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
+        regions = regionprops(instance_map)
+        centroids = np.empty((len(regions), 2))
+        for i, region in enumerate(regions):
+            center_x, center_y = region.centroid
+            center_x = int(round(center_x))
+            center_y = int(round(center_y))
+            centroids[i, 0] = center_x
+            centroids[i, 1] = center_y
+        graph.ndata[CENTROID] = centroids
+
     def _build_topology(self, instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
         """Create the graph topology from the connectivty of the provided instance_map
 
         Args:
-            instances (np.array): Superpixels
+            instance_map (np.array): Instance map
             graph (dgl.DGLGraph): Graph to add the edges to
         """
         instance_ids = np.sort(pd.unique(np.ravel(instance_map))).astype(int)

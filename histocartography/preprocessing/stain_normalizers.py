@@ -203,14 +203,9 @@ class StainNormalizer(PipelineStep):
 
     def precompute(self) -> None:
         """Precompute all necessary information"""
-        print("START PRECOMPUTING")
         if not self.save_path.exists():
-            print("RECOMPUTE NORMALIZER")
-            print(Path(self.target_path).absolute())
             target_image = load_image(Path(self.target_path))
             self.fit(target_image)
-        else:
-            print("NORMALIZER ALREADY COMPUTED")
 
 
 class MacenkoStainNormalizer(StainNormalizer):

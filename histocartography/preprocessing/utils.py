@@ -1,8 +1,6 @@
 """Preprocessing utilities"""
-import importlib
 import logging
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from PIL import Image

@@ -1,0 +1,60 @@
+pipeline:
+  inputs:
+  - path
+  - annotation_path
+  stages:
+    - io:
+        class: ImageLoader
+        inputs:
+        - path
+        outputs:
+        - image
+    - stain_normalizers:
+        class: VahadaneStainNormalizer
+        inputs:
+        - image
+        outputs:
+        - normalized_image
+        params:
+          target: ZT76_39_B_2_1
+    - superpixel:
+        class: SLICSuperpixelExtractor
+        inputs:
+        - normalized_image
+        outputs:
+        - superpixels
+        params:
+          nr_superpixels: 500
+          color_space: rgb
+    - feature_extraction:
+        class: DeepFeatureExtractor
+        inputs:
+        - normalized_image
+        - superpixels
+        outputs:
+        - features
+        params:
+          architecture: resnet18
+          mask: False
+          size: 224
+    - io:
+        class: ImageLoader
+        inputs:
+        - annotation_path
+        outputs:
+        - annotation
+    - graph_builders:
+        class: RAGGraphBuilder
+        inputs:
+        - superpixels
+        - features
+        - annotation
+        outputs:
+        - graph
+        params:
+          nr_classes: 5
+params:
+  dataset: eth
+  save: True
+  cores: 64
+  labels: True

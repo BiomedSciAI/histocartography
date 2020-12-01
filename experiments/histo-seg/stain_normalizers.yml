@@ -1,0 +1,24 @@
+pipeline:
+  inputs:
+  - path
+  - annotation_path
+  stages:
+    - io:
+        class: ImageLoader
+        inputs:
+        - path
+        outputs:
+        - image
+    - stain_normalizers:
+        class: VahadaneStainNormalizer
+        inputs:
+        - image
+        outputs:
+        - normalized_image
+        params:
+          target: ZT76_39_B_2_1
+params:
+  dataset: eth
+  save: True
+  cores: 64
+  labels: True

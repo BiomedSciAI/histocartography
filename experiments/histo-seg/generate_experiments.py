@@ -1,4 +1,5 @@
 import argparse
+from argparse import ArgumentDefaultsHelpFormatter
 import copy
 import logging
 import shutil
@@ -6,7 +7,7 @@ from dataclasses import dataclass
 from functools import reduce
 from itertools import product
 from pathlib import Path
-from typing import Any, Iterable, List, Sequence, Union
+from typing import Any, Iterable, List, Union
 
 import numpy as np
 import yaml
@@ -110,13 +111,20 @@ class Experiment:
         return True
 
     @staticmethod
+    def get(obj, key):
+        if isinstance(key, int):
+            return obj[key]
+        else:
+            return obj.get(key)
+
+    @staticmethod
     def _update_config(config, path, value):
         if len(path) > 0:
             if not Experiment._path_exists(config, path):
                 logging.warning(
                     f"Config path {path} does not exist. This might be an error"
                 )
-            reduce(dict.get, path[:-1], config).update({path[-1]: value})
+            reduce(Experiment.get, path[:-1], config).update({path[-1]: value})
 
     @staticmethod
     def unpack(parameters: Iterable[ParameterList]):
@@ -198,10 +206,10 @@ class Experiment:
 
 
 class PretrainingExperiment(Experiment):
-    def __init__(self, name, queue="prod.med") -> None:
+    def __init__(self, name, queue="prod.med", cores=2) -> None:
         super().__init__(
             "pretraining_" + name,
-            cores=2,
+            cores=cores,
             core_multiplier=6,
             gpus=1,
             subsample=None,
@@ -212,6 +220,7 @@ class PretrainingExperiment(Experiment):
             base="pretrain.yml",
         )
         self.name = name
+        self.cores = cores
 
     def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
         super().generate(
@@ -222,7 +231,7 @@ class PretrainingExperiment(Experiment):
                 ),
                 Parameter(
                     ["train", "params", "num_workers"],
-                    16,
+                    self.cores * 8,
                 ),
             ]
             + fixed,
@@ -264,7 +273,7 @@ class MNISTExperiment(Experiment):
 
 
 class PreprocessingExperiment(Experiment):
-    def __init__(self, name, cores=4, queue="prod.med") -> None:
+    def __init__(self, name, cores=4, queue="prod.med", base="preprocess.yml") -> None:
         super().__init__(
             "preprocessing_" + name,
             cores=cores,
@@ -275,18 +284,54 @@ class PreprocessingExperiment(Experiment):
             queue=queue,
             disable_multithreading=True,
             no_save=False,
-            base="default.yml",
+            base=base,
         )
         self.name = name
         self.cores = cores
+        with open(self.base) as file:
+            config: dict = yaml.load(file, Loader=yaml.FullLoader)
+        self.translator = dict(
+            map(
+                self._expand,
+                enumerate(config["pipeline"]["stages"]),
+            )
+        )
 
-    def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
+    def _translate_all(self, arguments):
+        for argument in arguments:
+            if isinstance(argument, Iterable):
+                for subarg in argument:
+                    self._translate(subarg)
+            else:
+                self._translate(argument)
+
+    def _translate(self, el):
+        if len(el.path) > 0 and el.path[0] in self.translator:
+            el.path = self.translator[el.path[0]] + el.path[1:]
+
+    @staticmethod
+    def _expand(x):
+        intermediate_key = list(x[1].keys())[0]
+        return intermediate_key, ["pipeline", "stages", x[0], intermediate_key]
+
+    def generate(
+        self,
+        fixed: Iterable[ParameterList] = list(),
+        sequential: Union[
+            Iterable[ParameterList], Iterable[Iterable[ParameterList]]
+        ] = (ParameterList(list(), [None]),),
+        grid: Iterable[ParameterList] = (),
+    ):
+        self._translate_all(fixed)
+        self._translate_all(sequential)
+        self._translate_all(grid)
         super().generate(
-            [
-                Parameter(["preprocess", "params", "cores"], self.cores * 7),
+            fixed=[
+                Parameter(["params", "cores"], self.cores * 7),
             ]
             + fixed,
-            **kwargs,
+            sequential=sequential,
+            grid=grid,
         )
 
 
@@ -416,13 +461,11 @@ if __name__ == "__main__":
     generate_upper_bounds(path=args.path, base=args.base)
 
     # Preprocessing
-    PreprocessingExperiment(name="superpixels").generate(
+    PreprocessingExperiment(name="superpixels", base="superpixel.yml").generate(
         sequential=[
             ParameterList(
                 [
-                    "preprocess",
-                    "stages",
-                    "superpixel_extractor",
+                    "superpixel",
                     "params",
                     "nr_superpixels",
                 ],
@@ -430,19 +473,17 @@ if __name__ == "__main__":
             )
         ],
     )
-    PreprocessingExperiment(name="handcrafted",).generate(
+    PreprocessingExperiment(name="handcrafted").generate(
         fixed=[
             Parameter(
-                ["preprocess", "stages", "feature_extractor"],
+                ["feature_extraction"],
                 {"class": "HandcraftedFeatureExtractor"},
             ),
         ],
         sequential=[
             ParameterList(
                 [
-                    "preprocess",
-                    "stages",
-                    "superpixel_extractor",
+                    "superpixel",
                     "params",
                     "nr_superpixels",
                 ],
@@ -453,16 +494,14 @@ if __name__ == "__main__":
     PreprocessingExperiment(name="resnet34",).generate(
         fixed=[
             Parameter(
-                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["feature_extraction", "params", "architecture"],
                 "resnet34",
             ),
         ],
         sequential=[
             ParameterList(
                 [
-                    "preprocess",
-                    "stages",
-                    "superpixel_extractor",
+                    "superpixel",
                     "params",
                     "nr_superpixels",
                 ],
@@ -473,44 +512,37 @@ if __name__ == "__main__":
     PreprocessingExperiment(name="lowres",).generate(
         fixed=[
             Parameter(
-                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["feature_extraction", "params", "architecture"],
                 "resnet34",
             ),
         ],
         grid=[
             ParameterList(
                 [
-                    "preprocess",
-                    "stages",
-                    "superpixel_extractor",
+                    "superpixel",
                     "params",
                     "nr_superpixels",
                 ],
                 [500, 1000],
             ),
             ParameterList(
-                ["preprocess", "stages", "feature_extractor", "params", "size"],
+                ["feature_extraction", "params", "size"],
                 [336, 448, 672],
             ),
         ],
     )
     PreprocessingExperiment(name="v1_few_superpixels",).generate(
-        fixed=[
-            Parameter(["preprocess", "params", "only_superpixel"], False),
-        ],
         grid=[
             ParameterList(
                 [
-                    "preprocess",
-                    "stages",
-                    "superpixel_extractor",
+                    "superpixel",
                     "params",
                     "nr_superpixels",
                 ],
                 [100, 200, 300, 400, 600, 800],
             ),
             ParameterList(
-                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["feature_extraction", "params", "architecture"],
                 ["resnet18", "resnet34", "resnet50"],
             ),
         ],
@@ -519,44 +551,55 @@ if __name__ == "__main__":
         grid=[
             ParameterList(
                 [
-                    "preprocess",
-                    "stages",
-                    "superpixel_extractor",
+                    "superpixel",
                     "params",
                     "nr_superpixels",
                 ],
                 [500, 1000],
             ),
             ParameterList(
-                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["feature_extraction", "params", "architecture"],
                 ["resnet18", "resnet34", "resnet50"],
             ),
         ],
     )
     PreprocessingExperiment(name="v0_few_superpixels",).generate(
         fixed=[
-            Parameter(["preprocess", "params", "only_superpixel"], False),
             Parameter(
-                ["preprocess", "stages", "stain_normalizer", "params", "target"],
+                ["stain_normalizers", "params", "target"],
                 "ZT111_4_C_7_1",
             ),
         ],
         grid=[
             ParameterList(
                 [
-                    "preprocess",
-                    "stages",
-                    "superpixel_extractor",
+                    "superpixel",
                     "params",
                     "nr_superpixels",
                 ],
                 [100, 200, 300, 400, 600, 800],
             ),
             ParameterList(
-                ["preprocess", "stages", "feature_extractor", "params", "architecture"],
+                ["feature_extraction", "params", "architecture"],
                 ["resnet18", "resnet34", "resnet50"],
             ),
         ],
+    )
+    PreprocessingExperiment(
+        name="normalizer_targets", base="stain_normalizers.yml", queue="prod.short"
+    ).generate(
+        sequential=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                [
+                    "ZT111_4_A_1_12",
+                    "ZT111_4_A_7_2",
+                    "ZT111_4_C_1_12",
+                    "ZT199_1_A_2_1",
+                    "ZT76_39_B_2_5",
+                ],
+            )
+        ]
     )
 
     # ETH
@@ -1202,7 +1245,7 @@ if __name__ == "__main__":
         sequential=[
             ParameterList(
                 ["train", "params", "optimizer", "params", "lr"],
-                list(map(float, np.logspace(-2, -5, 10))),
+                list(map(float, np.logspace(-4, -6, 10))),
             ),
         ]
     )
@@ -1210,7 +1253,7 @@ if __name__ == "__main__":
         sequential=[
             ParameterList(
                 ["train", "params", "batch_size"],
-                [1, 2, 4, 8, 16, 32, 64],
+                [48, 64, 96, 128, 192],
             ),
         ]
     )
@@ -1433,7 +1476,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="fine_tune_augmentations").generate(
+    PretrainingExperiment(name="no_spatial_fine_tune_augmentations").generate(
         fixed=[
             Parameter(["train", "params", "optimizer", "class"], "SGD"),
             Parameter(
@@ -1457,6 +1500,72 @@ if __name__ == "__main__":
                                     "rotation": {"degrees": 180, "crop": 224},
                                     "flip": None,
                                 },
+                            ],
+                            [
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.6,
+                                        "contrast": 0.5,
+                                        "brightness": 0.5,
+                                        "hue": 0.5,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.4,
+                                        "brightness": 0.4,
+                                        "hue": 0.3,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.3,
+                                        "brightness": 0.3,
+                                        "hue": 0.1,
+                                    }
+                                },
+                                {},
+                            ],
+                        )
+                    )
+                ],
+            ),
+            ParameterList(
+                ["train", "data", "normalizer"],
+                [
+                    None,
+                    {
+                        "type": "train",
+                        "mean": [0.86489, 0.63272, 0.85928],
+                        "std": [0.020820, 0.026320, 0.017309],
+                    },
+                ],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="spatial_fine_tune_augmentations").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
+            Parameter(["train", "data", "train_fraction"], 0.8),
+            Parameter(["train", "data", "training_slides"], None),
+            Parameter(["train", "data", "validation_slides"], None),
+            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
+            Parameter(["train", "data", "patch_size"], 224),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "augmentations"],
+                [
+                    {k: v for d in l for k, v in d.items()}
+                    for l in list(
+                        product(
+                            [
                                 {},
                             ],
                             [
@@ -1503,7 +1612,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="seperate_fine_tune_augmentations").generate(
+    PretrainingExperiment(name="separate_no_spatial_fine_tune_augmentations").generate(
         fixed=[
             Parameter(["train", "params", "optimizer", "class"], "SGD"),
             Parameter(
@@ -1524,6 +1633,69 @@ if __name__ == "__main__":
                                     "rotation": {"degrees": 180, "crop": 224},
                                     "flip": None,
                                 },
+                            ],
+                            [
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.6,
+                                        "contrast": 0.5,
+                                        "brightness": 0.5,
+                                        "hue": 0.5,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.4,
+                                        "brightness": 0.4,
+                                        "hue": 0.3,
+                                    }
+                                },
+                                {
+                                    "color_jitter": {
+                                        "saturation": 0.5,
+                                        "contrast": 0.3,
+                                        "brightness": 0.3,
+                                        "hue": 0.1,
+                                    }
+                                },
+                                {},
+                            ],
+                        )
+                    )
+                ],
+            ),
+            ParameterList(
+                ["train", "data", "normalizer"],
+                [
+                    None,
+                    {
+                        "type": "train",
+                        "mean": [0.86489, 0.63272, 0.85928],
+                        "std": [0.020820, 0.026320, 0.017309],
+                    },
+                ],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="separate_spatial_fine_tune_augmentations").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "class"], "SGD"),
+            Parameter(
+                ["train", "params", "optimizer", "params"],
+                {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+            ),
+            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
+            Parameter(["train", "data", "patch_size"], 224),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "augmentations"],
+                [
+                    {k: v for d in l for k, v in d.items()}
+                    for l in list(
+                        product(
+                            [
                                 {},
                             ],
                             [
@@ -1568,5 +1740,53 @@ if __name__ == "__main__":
                     },
                 ],
             ),
+        ],
+    )
+    PretrainingExperiment(name="additional_dropout").generate(
+        grid=[
+            ParameterList(
+                ["train", "model", "dropout"],
+                [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="optimizer").generate(
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer"],
+                [
+                    {"class": "Adam", "params": {"lr": 0.0001}},
+                    {"class": "AdamW", "params": {"lr": 0.0001}},
+                    {
+                        "class": "SGD",
+                        "params": {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+                    },
+                ],
+            )
+        ]
+    )
+    PretrainingExperiment(name="downsampling_factor").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 2000),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "data", "downsample_factor"], [2.5, 3.5, 4, 4.5, 5]
+                )
+            ]
+        ],
+    )
+    PretrainingExperiment(name="mobile_freezing").generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "freeze"], [19, 18, 17, 16, 15, 14, 13, 12, 8, 4, 0]
+            )
         ],
     )

@@ -24,20 +24,6 @@ def fast_histogram(input_array: np.ndarray, nr_values: int) -> np.ndarray:
     return output_array
 
 
-def dynamic_import_from(source_file: str, class_name: str) -> Any:
-    """Do a from source_file import class_name dynamically
-
-    Args:
-        source_file (str): Where to import from
-        class_name (str): What to import
-
-    Returns:
-        Any: The class to be imported
-    """
-    module = importlib.import_module(source_file)
-    return getattr(module, class_name)
-
-
 def load_image(image_path: Path) -> np.ndarray:
     """Loads an image from a given path and returns it as a numpy array
 

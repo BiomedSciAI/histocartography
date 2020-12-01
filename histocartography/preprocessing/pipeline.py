@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import h5py
 import pandas as pd
+from histocartography.utils import dynamic_import_from
 from tqdm.auto import tqdm
 
 

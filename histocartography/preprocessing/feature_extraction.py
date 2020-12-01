@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import torch
 import torchvision
+from histocartography.utils import dynamic_import_from
 from PIL import Image
 from scipy.stats import skew
 from skimage.feature import greycomatrix, greycoprops
@@ -19,7 +20,6 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
 from .pipeline import PipelineStep
-from .utils import dynamic_import_from
 
 
 class FeatureExtractor(PipelineStep):

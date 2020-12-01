@@ -9,7 +9,7 @@ import numpy as np
 from skimage.color.colorconv import rgb2hed
 from skimage.segmentation import slic
 
-from .utils import PipelineStep
+from .pipeline import PipelineStep
 
 
 class SuperpixelExtractor(PipelineStep):

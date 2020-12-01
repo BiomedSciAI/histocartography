@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import Any
 
-from utils import PipelineStep, load_image
+from .pipeline import PipelineStep
+from .utils import load_image
 
 
 class FileLoader(PipelineStep):

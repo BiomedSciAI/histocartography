@@ -11,7 +11,8 @@ import spams
 from PIL import Image
 from skimage.color import rgb2lab
 
-from utils import PipelineStep, load_image
+from .pipeline import PipelineStep
+from .utils import load_image
 
 
 class StainNormalizer(PipelineStep):

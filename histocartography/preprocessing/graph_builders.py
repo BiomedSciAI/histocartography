@@ -12,8 +12,9 @@ import torch
 from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 
-from .constants import CENTROID, LABEL, FEATURES
-from .utils import PipelineStep, fast_histogram
+from .constants import CENTROID, FEATURES, LABEL
+from .pipeline import PipelineStep
+from .utils import fast_histogram
 
 
 class BaseGraphBuilder(PipelineStep):

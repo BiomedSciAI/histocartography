@@ -48,7 +48,7 @@ An example of such a config can be found in `config.yml`.
 To run the pipeline for a single datapoint, use the following Python code:
 ```python
 import yaml
-from histocartography.preprocessing.utils import PipelineRunner
+from histocartography.preprocessing.pipeline import PipelineRunner
 with open('PATH_TO_CONFIG', 'r') as file:
     config = yaml.load(file)
 pipeline = PipelineRunner(output_path="PATH_TO_OUTPUT", **config)
@@ -64,7 +64,7 @@ The outputs that are computed at a dictionary with keys as defined in the config
 Typically the preprocessing needs to be applied to a whole colletion of inputs. Due to the lack of dependencies between datapoints, this can be done in a multiprocessed fashion. To run the pipeline like this, use the following Python code:
 ```python
 import yaml
-from histocartography.preprocessing.utils import BatchPipelineRunner
+from histocartography.preprocessing.pipeline import BatchPipelineRunner
 with open('PATH_TO_CONFIG', 'r') as file:
     config = yaml.load(file)
 pipeline = BatchPipelineRunner(output_path="PATH_TO_OUTPUT", **config)

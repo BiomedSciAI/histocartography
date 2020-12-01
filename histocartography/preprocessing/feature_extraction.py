@@ -18,7 +18,8 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from .utils import PipelineStep, dynamic_import_from
+from .pipeline import PipelineStep
+from .utils import dynamic_import_from
 
 
 class FeatureExtractor(PipelineStep):

@@ -87,7 +87,13 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                                      the background is defined to have value 0 and is ignored.
 
         Returns:
-            torch.Tensor: Extracted features
+            torch.Tensor: Extracted shape, color and texture features:
+                          Shape:   area, convex_area, eccentricity, equivalent_diameter, euler_number, extent, filled_area,
+                                   major_axis_length, minor_axis_length, orientation, perimiter, solidity;
+                          Color:   Per channel (RGB) histogram with 8 bins:
+                                   mean, std, median, skewness, energy;
+                          Texture: entropy, glcm_contrast, glcm_dissililarity, glcm_homogeneity, glcm_energy, glcm_ASM
+                                   (glcm = grey-level co-occurance matrix);
         """
         node_feat = []
 
@@ -285,7 +291,7 @@ class InstanceMapPatchDataset(Dataset):
         """Loads an image for a given instance maps index
 
         Args:
-            index (int): Superpixel index
+            index (int): Instance index
 
         Returns:
             Tuple[int, torch.Tensor]: instance_index, image as tensor
@@ -340,7 +346,7 @@ class PatchFeatureExtractor:
             model.classifier[-1] = nn.Sequential()
         return model, feature_dim
 
-    def __call__(self, image: torch.Tensor) -> torch.Tensor:
+    def __call__(self, patch: torch.Tensor) -> torch.Tensor:
         """Computes the embedding of a normalized image input
 
         Args:
@@ -350,7 +356,7 @@ class PatchFeatureExtractor:
             torch.Tensor: Embedding of image
         """
         with torch.no_grad():
-            embeddings = self.model(image).squeeze()
+            embeddings = self.model(patch).squeeze()
             embeddings = embeddings.cpu().detach()
             return embeddings
 

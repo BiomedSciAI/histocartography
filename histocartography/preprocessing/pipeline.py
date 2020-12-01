@@ -86,8 +86,8 @@ class PipelineRunner:
     def __init__(
         self,
         output_path: str,
-        inputs: Iterable[str] = [],
-        outputs: Iterable[str] = [],
+        inputs: Iterable[str] = None,
+        outputs: Iterable[str] = None,
         stages: Iterable[dict] = [],
         save: bool = True,
     ):
@@ -100,8 +100,8 @@ class PipelineRunner:
             stages (Iterable[dict], optional): Stages to complete. Defaults to [].
             save (bool, optional): Whether to save the results. Defaults to True.
         """
-        self.inputs = inputs
-        self.outputs = outputs
+        self.inputs = [] if inputs is None else inputs
+        self.outputs = [] if outputs is None else outputs
         self.save = save
         self.stages = list()
         self.stage_configs = list()
@@ -173,6 +173,7 @@ class BatchPipelineRunner:
         self, pipeline_config: Dict[str, Any], output_path: str, save: bool = True
     ) -> None:
         """Run Helper that runs the pipeline for multiple inputs in a multiprocessed fashion.
+           Does not support returning any output
 
         Args:
             pipeline_config (Dict[str, Any]): Configuration of the pipeline
@@ -215,6 +216,7 @@ class BatchPipelineRunner:
     def run(self, metadata: pd.DataFrame, cores: int = 1) -> None:
         """Runs the pipeline for the provided metadata dataframe and a specified
            number of cores for multiprocessing.
+           Does not support saving of outputs
 
         Args:
             metadata (pd.DataFrame): Dataframe with the columns as defined in the config inputs

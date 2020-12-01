@@ -25,7 +25,7 @@ class StainNormalizer(PipelineStep):
         target_path: Optional[str] = None,
         **kwargs,
     ) -> None:
-        """Create a stain normalizer with appropriate penaltz for optimizing getting stains
+        """Create a stain normalizer
 
         Args:
             target (str): Name of the target image for identification

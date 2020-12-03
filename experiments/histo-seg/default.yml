@@ -1,0 +1,110 @@
+preprocess:
+  stages:
+    stain_normalizer:
+      class: "VahadaneStainNormalizer"
+      params:
+        target: "ZT76_39_B_2_1"
+    superpixel_extractor:
+      class: "SLICSuperpixelExtractor"
+      params:
+        nr_superpixels: 500
+        color_space: "rgb"
+    feature_extractor:
+      class: "DeepFeatureExtractor"
+      params:
+        architecture: "resnet18"
+        mask: False
+        size: 224
+    graph_builder:
+      class: "RAGGraphBuilder"
+      params:
+        nr_classes: 5
+  params:
+    cores: 64
+    labels: True
+upper_bound:
+  stages:
+    stain_normalizer:
+      class: "VahadaneStainNormalizer"
+      params:
+        target: "ZT111_4_C_7_1"
+    superpixel_extractor:
+      class: "SLICSuperpixelExtractor"
+      params:
+        nr_superpixels: 2000
+        color_space: "rgb"
+  params:
+    cores: 16
+train:
+  data:
+    overfit_test: False
+    train_fraction: null
+    training_slides:
+      - 111
+      - 199
+      - 204
+    validation_slides:
+      - 76
+    patch_size: 2500
+    graph_directory:  "outputs/v0_2000px"
+    centroid_features: "cat"
+    use_patches_for_validation: false
+    normalize_features: false
+    downsample_segmentation_maps: 16
+  model:
+    gnn_config:
+      activation: "relu"
+      agg_operator: "concat"
+      input_dim: 514
+      hidden_dim: 32
+      layer_type: "gin_layer"
+      n_layers: 4
+      output_dim: 32
+      neighbor_pooling_type: "mean"
+      graph_norm: False
+      with_rlp: False
+      edge_dim: null
+    graph_classifier_config:
+      n_layers: 2
+      hidden_dim: 32
+    node_classifier_config:
+      n_layers: 2
+      hidden_dim: 16
+  metrics:
+    graph:
+      - "GraphClassificationBalancedAccuracy"
+      - "GraphClassificationF1Score"
+      - "GraphClassificationAUCROC"
+      - "GraphClassificationBenignAccuracy"
+      - "GraphClassificationGleason3Accuracy"
+      - "GraphClassificationGleason4Accuracy"
+      - "GraphClassificationGleason5Accuracy"
+    node:
+      - "NodeClassificationAccuracy"
+    segmentation:
+      - "MeanIoU"
+      - "fIoU"
+      - "MeanF1Score"
+  params:
+    experiment_name: "anv_wsss_train_classifier"
+    experiment_tags: null
+    optimizer:
+      class: "Adam"
+      params:
+        lr: 2.0e-5
+    loss:
+      graph:
+        class: "GraphBCELoss"
+      node:
+        class: "NodeStochasticCrossEntropy"
+        params:
+          background_label: 4
+          drop_probability: 0.0
+      node_weight: 0.5
+    batch_size: 8
+    nr_epochs: 2000
+    num_workers: 6
+    clip_gradient_norm: 5.0
+    dataset: "eth"
+    seed: null
+    validation_frequency: 1

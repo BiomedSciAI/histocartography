@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#BSUB -q prod.short
+#BSUB -n 1
+#BSUB -R rusage[ngpus_excl_p=1]
+
+module purge
+module load Miniconda3
+source activate histocartography
+
+#BSUB -J "/dataT/anv/logs/test"
+#BSUB -o "/dataT/anv/logs/test"
+#BSUB -e "/dataT/anv/logs/test.stderr"
+
+export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
+
+python train.py --config default.yml --test

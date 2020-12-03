@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#BSUB -q prod.short
+#BSUB -n 1
+
+module purge
+module load Miniconda3
+source activate histocartography
+
+#BSUB -J "/dataT/anv/logs/downsampling_perf_test"
+#BSUB -o "/dataT/anv/logs/downsampling_perf_test"
+#BSUB -e "/dataT/anv/logs/downsampling_perf_test.stderr"
+
+export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
+
+python downsampling_benchmark.py

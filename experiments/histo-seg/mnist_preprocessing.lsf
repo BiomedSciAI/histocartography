@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#BSUB -q prod.short
+#BSUB -n 8
+
+module purge
+module load Miniconda3
+source activate histocartography
+
+#BSUB -J "/dataT/anv/logs/mnist"
+#BSUB -o "/dataT/anv/logs/mnist"
+#BSUB -e "/dataT/anv/logs/mnist.stderr"
+
+export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
+
+OMP_NUM_THREADS=1 python mnist.py

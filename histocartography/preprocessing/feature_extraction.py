@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import torch
 import torchvision
+from tqdm import tqdm
 from histocartography.utils import dynamic_import_from
 from PIL import Image
 from scipy.stats import skew
@@ -422,7 +423,7 @@ class DeepFeatureExtractor(FeatureExtractor):
             dtype=torch.float32,
             device=self.device,
         )
-        for i, image_batch in image_loader:
+        for i, image_batch in tqdm(image_loader, desc='Instance-level feature extraction'):
             image_batch = image_batch.to(self.device)
             embeddings = self.patch_feature_extractor(image_batch)
             features[i, :] = embeddings

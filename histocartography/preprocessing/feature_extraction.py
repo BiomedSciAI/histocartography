@@ -359,7 +359,7 @@ class PatchFeatureExtractor:
         """
         with torch.no_grad():
             embeddings = self.model(patch).squeeze()
-            embeddings = embeddings.cpu().detach()
+            # embeddings = embeddings.cpu().detach()
             return embeddings
 
 

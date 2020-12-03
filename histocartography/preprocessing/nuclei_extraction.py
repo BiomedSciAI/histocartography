@@ -124,7 +124,7 @@ class NucleiExtractor(PipelineStep):
                     pred_map[bottom:top, left:right, :] = out[i, :, :, :]
 
         # crop to original image size
-        pred_map = pred_map.detach().numpy()
+        pred_map = pred_map.cpu().detach().numpy()
         pred_map = pred_map[:image_dataset.im_h,:image_dataset.im_w, :]
 
         # post process instance map and labels 

@@ -30,7 +30,7 @@ class CellGraphBuildingTestCase(unittest.TestCase):
             config = yaml.load(file)
         pipeline = PipelineRunner(output_path='output', save=False, **config)
         pipeline.precompute()
-        output = pipeline.run(name="CG_TEST", image_path='data/1937_benign_4.png')
+        output = pipeline.run(name="CG_TEST", image_path='../data/1937_benign_4.png')
 
         # 5. print graph properties
         cell_graph = output['graph']
@@ -45,7 +45,7 @@ class CellGraphBuildingTestCase(unittest.TestCase):
         """
 
         # 1. load an image
-        image = np.array(load_image('data/1937_benign_4.png'))
+        image = np.array(load_image('../data/1937_benign_4.png'))
 
         # 2. nuclei detection 
         nuclei_detector = NucleiExtractor(

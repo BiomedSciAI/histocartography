@@ -18,7 +18,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
         """Test nuclei extraction with MLflow model."""
 
         # 1. load an image
-        image = np.array(load_image('data/1937_benign_4.png'))
+        image = np.array(load_image('../data/1937_benign_4.png'))
 
         # 2. create a nuclei extractor 
         extractor = NucleiExtractor(
@@ -36,7 +36,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
     def test_nuclei_extractor_with_local(self):
         """Test nuclei extraction with local model."""
 
-        image = np.array(load_image('data/1937_benign_4.png'))
+        image = np.array(load_image('../data/1937_benign_4.png'))
         extractor = NucleiExtractor(
             model_path='checkpoints/hovernet_pannuke.pth'
         )

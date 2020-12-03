@@ -12,8 +12,11 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from mlflow.pytorch import load_model
+from skimage.measure import regionprops
+from tqdm import tqdm
 
-from .utils import PipelineStep, dynamic_import_from
+from ..utils import dynamic_import_from
+from .pipeline import PipelineStep
 from ..ml.models.hovernet import HoverNet
 from ..utils.image import extract_patches_from_image
 from ..utils.hover import process_instance
@@ -73,20 +76,20 @@ class NucleiExtractor(PipelineStep):
             input_image (np.array): Original RGB image
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: instance_map, nuclei_labels 
+            Tuple[np.ndarray, np.ndarray, np.ndarray]: instance_map, , instance_labels, instance_centroids  
         """
         return self._extract_nuclei(input_image)
 
     def _extract_nuclei(
         self, input_image: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Extract features from the input_image for the defined structure
 
         Args:
             input_image (np.array): Original RGB image
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: instance_map, nuclei_labels 
+            Tuple[np.ndarray, np.ndarray]: instance_map, instance_labels, instance_centroids 
         """
 
         image_dataset = ImageToPatchDataset(input_image, self.size)
@@ -109,7 +112,7 @@ class NucleiExtractor(PipelineStep):
             device=self.device,
         )
 
-        for coords, image_batch in image_loader:
+        for coords, image_batch in tqdm(image_loader, desc='Patch-level nuclei detection'):
             image_batch = image_batch.to(self.device)
             with torch.no_grad():
                 out = self.model(image_batch).cpu()
@@ -129,8 +132,18 @@ class NucleiExtractor(PipelineStep):
             pred_map,
             nr_types=self.nr_classes
         )
-                
-        return instance_map, instance_labels
+
+        # extract the centroid location in the instance map
+        regions = regionprops(instance_map)
+        instance_centroids = np.empty((len(regions), 2))
+        for i, region in enumerate(regions):
+            center_x, center_y = region.centroid
+            center_x = int(round(center_x))
+            center_y = int(round(center_y))
+            instance_centroids[i, 0] = center_x
+            instance_centroids[i, 1] = center_y
+        
+        return instance_map, instance_labels, instance_centroids
 
 
 class ImageToPatchDataset(Dataset):

@@ -122,22 +122,17 @@ class BaseGraphBuilder(PipelineStep):
             graph (dgl.DGLGraph): Graph to add the centroids to
         """
 
+    @abstractmethod
     def _set_node_labels(
-        self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
+        self, structure: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
     ) -> None:
-        assert (
-            self.nr_classes < 256
-        ), "Cannot handle that many classes with 8 byte representation"
-        region_labels = pd.unique(np.ravel(instance_map))
-        labels = torch.empty(len(region_labels), dtype=torch.uint8)
-        for region_label in region_labels:
-            assignment = np.argmax(
-                fast_histogram(
-                    annotation[instance_map == region_label], nr_values=self.nr_classes
-                )
-            )
-            labels[region_label - 1] = int(assignment)
-        graph.ndata[LABEL] = labels
+        """Set the node labels of the graphs
+
+        Args:
+            structure (np.ndarray): Structure of the graph, eg instance maps, centroids
+            annotation (np.ndarray): Annotations, eg node labels 
+            graph (dgl.DGLGraph): Graph to add the centroids to
+        """
 
     @abstractmethod
     def _build_topology(self, instances: np.ndarray, graph: dgl.DGLGraph) -> None:
@@ -184,6 +179,23 @@ class RAGGraphBuilder(BaseGraphBuilder):
             centroids[i, 1] = center_y
         graph.ndata[CENTROID] = centroids
 
+    def _set_node_labels(
+        self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
+    ) -> None:
+        assert (
+            self.nr_classes < 256
+        ), "Cannot handle that many classes with 8 byte representation"
+        region_labels = pd.unique(np.ravel(instance_map))
+        labels = torch.empty(len(region_labels), dtype=torch.uint8)
+        for region_label in region_labels:
+            assignment = np.argmax(
+                fast_histogram(
+                    annotation[instance_map == region_label], nr_values=self.nr_classes
+                )
+            )
+            labels[region_label - 1] = int(assignment)
+        graph.ndata[LABEL] = labels
+
     def _build_topology(self, instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
         """Create the graph topology from the connectivty of the provided instance_map
 
@@ -223,6 +235,15 @@ class KNNGraphBuilder(BaseGraphBuilder):
         self.k = k
         self.thresh = thresh
         super().__init__(**kwargs)
+
+    @staticmethod
+    def _set_node_centroids(centroids: np.ndarray, graph: dgl.DGLGraph) -> None:
+        graph.ndata[CENTROID] = torch.FloatTensor(centroids)
+
+    def _set_node_labels(
+        self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
+    ) -> None:
+        graph.ndata[LABEL] = torch.FloatTensor(annotation.astype(float))
 
     def _build_topology(self, centroids: np.ndarray, graph: dgl.DGLGraph) -> None:
         """

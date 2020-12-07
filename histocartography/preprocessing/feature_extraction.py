@@ -319,33 +319,96 @@ class PatchFeatureExtractor:
         Args:
             architecture (str): String of architecture. According to torchvision.models syntax
         """
-        self.model, self.num_features = self._select_model(architecture)
-        self.model.eval()
-
-        # Handle GPU
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
-        self.model = self.model.to(self.device)
+
+        if architecture.startswith('s3://mlflow'):
+            model = self._get_mlflow_model(url=architecture)
+        elif architecture.endswith('.pth'):
+            model = self._get_local_model(path=architecture)
+        else:
+            model = self._get_torchvision_model(architecture).to(self.device)
+
+        self.num_features = self._get_num_features(model)
+        self.model = self._remove_classifier(model)
+        self.model.eval()
 
     @staticmethod
-    def _select_model(architecture: str) -> Tuple[nn.Module, int]:
-        """Returns the model and number of features for a given name
+    def _get_num_features(model: nn.Module) -> int:
+        """Get the number of features of a given model
 
         Args:
-            architecture (str): Name of architecture. According to torchvision.models syntax
+            model (nn.Module): A PyTorch model
 
         Returns:
-            Tuple[nn.Module, int]: The model and the number of features
+            int: The number of features it has
+        """
+        if hasattr(model, "model"):
+            model = model.model
+        if isinstance(model, torchvision.models.resnet.ResNet):
+            return model.fc.in_features
+        else:
+            classifier = model.classifier[-1]
+            if isinstance(classifier, nn.Sequential):
+                classifier = classifier[-1]
+            return classifier.in_features
+
+    def _get_local_model(self, path: str) -> nn.Module:
+        """Load a model from a local path
+
+        Args:
+            path (str): Path to the model
+
+        Returns:
+            nn.Module: A PyTorch model
+        """
+        model = torch.load(path, map_location=self.device)
+        return model
+
+    def _get_mlflow_model(self, url: str) -> nn.Module:
+        """Load a MLflow model from a given URL
+
+        Args:
+            url (str): Model url
+
+        Returns:
+            nn.Module: A PyTorch model
+        """
+        import mlflow
+        model = mlflow.pytorch.load_model(url, map_location=self.device)
+        return model
+
+    @staticmethod
+    def _get_torchvision_model(architecture: str) -> nn.Module:
+        """Returns a torchvision model from a given architecture string
+
+        Args:
+            architecture (str): Torchvision model description 
+
+        Returns:
+            nn.Module: A pretrained pytorch model
         """
         model_class = dynamic_import_from("torchvision.models", architecture)
-        model = model_class()
+        model = model_class(pretrained=True)
+        return model
+
+    @staticmethod
+    def _remove_classifier(model: nn.Module) -> nn.Module:
+        """Returns the model without the classifier to get embeddings
+
+        Args:
+            model (nn.Module): Classifiation model
+
+        Returns:
+            nn.Module: Embedding model
+        """
+        if hasattr(model, "model"):
+            model = model.model
         if isinstance(model, torchvision.models.resnet.ResNet):
-            feature_dim = model.fc.in_features
             model.fc = nn.Sequential()
         else:
-            feature_dim = model.classifier[-1].in_features
             model.classifier[-1] = nn.Sequential()
-        return model, feature_dim
+        return model
 
     def __call__(self, patch: torch.Tensor) -> torch.Tensor:
         """Computes the embedding of a normalized image input
@@ -381,11 +444,11 @@ class DeepFeatureExtractor(FeatureExtractor):
             mask (bool, optional): Whether to mask out the parts outside the instance maps. Defaults to True.
             size (int, optional): Desired size of patches. Defaults to 224.
         """
-        self.architecture = architecture
+        self.architecture = self._preprocess_architecture(architecture)
         self.mask = mask
         self.size = size
         super().__init__(**kwargs)
-        self.patch_feature_extractor = PatchFeatureExtractor(self.architecture)
+        self.patch_feature_extractor = PatchFeatureExtractor(architecture)
         self.fill_value = 255 if self.mask else None
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -395,6 +458,24 @@ class DeepFeatureExtractor(FeatureExtractor):
         # Handle GPU
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
+
+    @staticmethod
+    def _preprocess_architecture(architecture: str) -> str:
+        """Preprocess the architecture string to avoid characters that are not allowed as paths
+
+        Args:
+            architecture (str): Unprocessed architecture name
+
+        Returns:
+            str: Architecture name to use for the save path
+        """
+        if architecture.startswith('s3://mlflow'):
+            _, experiment_id, run_id, _, metric = architecture[5:].split('/')
+            return f"MLflow({experiment_id},{run_id},{metric})"
+        elif architecture.endswith('.pth'):
+            return f"Local({architecture.replace('/', '_')})"
+        else:
+            return architecture
 
     def _extract_features(
         self, input_image: np.ndarray, instance_map: np.ndarray

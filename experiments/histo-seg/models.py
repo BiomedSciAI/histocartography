@@ -149,7 +149,7 @@ class PatchTissueClassifier(nn.Module):
             model.fc = nn.Linear(feature_dim, num_classes)
         else:
             feature_dim = model.classifier[-1].in_features
-            model.classifier[-1] = nn.Sequential(
+            model.classifier = nn.Sequential(
                 nn.Dropout(p=dropout),
                 nn.Linear(feature_dim, num_classes)
             )

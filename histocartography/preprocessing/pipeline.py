@@ -57,6 +57,26 @@ class PipelineStep(ABC):
     def process(self, **kwargs: Any) -> Any:
         """Process an input"""
 
+    def _get_outputs(self, input_file):
+        outputs = list()
+        nr_outputs = len(input_file.keys())
+
+        # Legacy, remove at some point
+        if nr_outputs == 1 and self.output_key in input_file.keys():
+            return tuple([input_file[self.output_key][()]])
+
+        for i in range(nr_outputs):
+            outputs.append(input_file[f"{self.output_key}_{i}"][()])
+        return tuple(outputs)
+
+    def _set_outputs(self, output_file, outputs):
+        if not isinstance(outputs, tuple):
+            outputs = tuple([outputs])
+        for i, output in enumerate(outputs):
+            output_file.create_dataset(
+                f"{self.output_key}_{i}", data=output, compression="gzip", compression_opts=9
+            )
+
     def process_and_save(self, output_name: str, *args, **kwargs: Any) -> Any:
         """Process and save in the provided path as as .h5 file
 
@@ -72,13 +92,11 @@ class PipelineStep(ABC):
                 f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )
             with h5py.File(output_path, "r") as input_file:
-                output = input_file[self.output_key][()]
+                output = self._get_outputs(input_file=input_file)
         else:
             output = self.process(*args, **kwargs)
             with h5py.File(output_path, "w") as output_file:
-                output_file.create_dataset(
-                    self.output_key, data=output, compression="gzip", compression_opts=9
-                )
+                self._set_outputs(output_file=output_file, outputs=output)
         return output
 
 

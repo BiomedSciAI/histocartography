@@ -31,13 +31,15 @@ def pad_image(image, im_h, im_w):
 def extract_patches_from_image(image, im_h, im_w):
     x, last_h, last_w, nr_step_h, nr_step_w = pad_image(image, im_h, im_w)
     sub_patches = []
+    coords = []
     # generating subpatches from original
     for row in range(0, last_h, STEP_SIZE[0]):
         for col in range (0, last_w, STEP_SIZE[1]):
             win = x[row:row+WIN_SIZE[0], 
                     col:col+WIN_SIZE[1]]
             sub_patches.append(win)
-    return sub_patches, nr_step_h, nr_step_w
+            coords.append([col, row, col+STEP_SIZE[0], row+STEP_SIZE[1]])  # left, bottom, right, top
+    return sub_patches, coords
 
 
 def load_images(data_path):

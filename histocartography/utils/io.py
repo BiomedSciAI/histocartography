@@ -16,6 +16,11 @@ from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
 from histocartography.dataloader.constants import get_number_of_classes
 
 
+def is_mlflow_url(candidate):
+    if candidate.find('s3://mlflow/') != -1:
+        return True
+    return False
+
 def buffer_plot_and_get(fig):
     buf = io.BytesIO()
     fig.savefig(buf, dpi=200)

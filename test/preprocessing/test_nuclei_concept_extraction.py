@@ -21,9 +21,6 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
         # 1. load image
         image = np.array(load_image('../data/1937_benign_4.png'))
 
-        # @TODO: debug purposes 
-        nuclei_concept_extractor = NucleiConceptExtractor(concept_names='area,perimeter')
-
         # 2. detect nuclei
         extractor = NucleiExtractor(
             model_path='checkpoints/hovernet_pannuke.pth'
@@ -31,6 +28,7 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
         instance_map, instance_labels, instance_centroids = extractor.process(image)
 
         # 3. extract nuclei concepts 
+        nuclei_concept_extractor = NucleiConceptExtractor(concept_names='area,perimeter')
         concepts = nuclei_concept_extractor.process(image, instance_map)
 
         print('Nuclei concepts:', concepts.shape)

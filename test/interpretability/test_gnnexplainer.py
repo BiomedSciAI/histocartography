@@ -32,15 +32,13 @@ class GraphGNNExplainer(unittest.TestCase):
         )
         importance_score, logits = explainer.process(cell_graph)
 
-        # 5. print graph properties
+        # 3. print graph properties
         print('Number of nodes:', cell_graph.number_of_nodes())
         print('Number of edges:', cell_graph.number_of_edges())
         print('Node features:', cell_graph.ndata['feat'].shape)
         print('Node centroids:', cell_graph.ndata['centroid'].shape)
         print('Importance scores:', importance_score.shape)
         print('Logits:', logits.shape)
-
-        print('Importance score:', importance_score)
 
     def tearDown(self):
         """Tear down the tests."""

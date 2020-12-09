@@ -1,77 +1,47 @@
-import torch
-from copy import deepcopy
+"""Base explainer."""
+
+from abc import abstractmethod
+import numpy as np 
 import dgl 
-import networkx as nx 
+import torch 
+from typing import Tuple
+from mlflow.pytorch import load_model
 
-from histocartography.utils.io import get_device
-from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
+from ..preprocessing.pipeline import PipelineStep
+from ..utils.io import is_mlflow_url
 
 
-class BaseExplainer:
-    def __init__(
-            self,
-            model,
-            config, 
-            cuda=False,
-            verbose=False
-    ):
+class BaseExplainer(PipelineStep):
+    """Base pipelines step"""
+
+    def __init__(self, model_path, **kwargs) -> None:
+        """Abstract class that define the base explainer. 
+
+        Args:
+            model_path (model_path): Model path to pre-trained model. Required. 
+                                     The path can be local or an MLflow URL. 
         """
-        Base Explainer constructor 
-        :param model: (nn.Module) a pre-trained model to run the forward pass 
-        :param config: (dict) method-specific parameters 
-        :param cuda: (bool) if cuda is enable 
-        :param verbose: (bool) if verbose is enable
+        super().__init__(**kwargs)
+        self.model_path = model_path 
+
+        # look for GPU
+        self.cuda = torch.cuda.is_available()
+        self.device = torch.device("cuda:0" if self.cuda else "cpu")
+
+        # load model 
+        if is_mlflow_url(model_path):
+            self.model = load_model(model_path,  map_location=torch.device('cpu'))
+        else:
+            self.model = torch.load(model_path)
+        self.model.eval()
+        self.model = self.model.to(self.device)
+        self.model.zero_grad()
+
+    @abstractmethod
+    def process(self, graph: dgl.DGLGraph, label: int = None) -> Tuple[np.ndarray, np.ndarray]:
+        """Explain a graph
+        
+        Args:
+            graph (dgl.DGLGraph): Input graph to explain
+            label (int): Label attached to the graph. Default to None. 
         """
-        self.model = model
-        self.config = config
-        self.cuda = cuda
-        self.device = get_device(self.cuda)
-        self.verbose = verbose
-        self.store_instance_map = load_superpx_graph(self.config['model_params']['model_type'])
-
-    def explain(self, data, label):
-        """
-        Explain a graph instance
-        :param data: (?) graph/image/tuple
-        :param label: (int) label for the input data 
-        """
-        raise NotImplementedError('Implementation in sub classes.')
-
-    def _build_pruned_graph(self, graph, keep_percentage):
-
-        # a. extract the indices of the nodes to keep 
-        node_importance = graph.ndata['node_importance']
-        total_node_importance = torch.sum(node_importance)
-        keep_node_importance = (total_node_importance * keep_percentage).cpu().item()
-        sorted_node_importance, indices_node_importance = torch.sort(node_importance, descending=True)
-        node_idx_to_keep = []
-        culumative_node_importance = 0
-        for node_imp, idx in zip(sorted_node_importance, indices_node_importance):
-            culumative_node_importance += node_imp
-            if culumative_node_importance <= keep_node_importance + 10e-3:
-                node_idx_to_keep.append(idx.item())
-            else:
-                break
-        node_idx_to_keep = sorted(node_idx_to_keep)
-
-        # b. convert to networkx 
-        networkx_graph = dgl.to_networkx(graph)
-
-        # c. remove nodes 
-        networkx_graph.remove_nodes_from([x for x in list(range(graph.number_of_nodes())) if x not in node_idx_to_keep])
-        mapping = {val: idx for idx, val in enumerate(node_idx_to_keep)}
-        networkx_graph = nx.relabel_nodes(networkx_graph, mapping)
-
-        # d. convert back to DGL
-        pruned_graph = dgl.DGLGraph()
-        pruned_graph.add_nodes(len(node_idx_to_keep))
-        pruned_from = [edge[0] for edge in networkx_graph.edges()]
-        pruned_to = [edge[1] for edge in networkx_graph.edges()]
-        pruned_graph.add_edges(pruned_from, pruned_to)
-        pruned_graph.ndata['feat'] = graph.ndata['feat'][node_idx_to_keep, :].clone()
-        pruned_graph.ndata['centroid'] = graph.ndata['centroid'][node_idx_to_keep, :].clone()
-        pruned_graph.ndata['node_importance'] = graph.ndata['node_importance'][node_idx_to_keep].clone()
-        pruned_graph.ndata['nuclei_label'] = graph.ndata['nuclei_label'][node_idx_to_keep].clone()
-        pruned_graph.ndata['node_idx_to_keep'] = torch.FloatTensor(node_idx_to_keep).to(self.device)
-
-        return pruned_graph

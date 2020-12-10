@@ -1,7 +1,7 @@
 """Extract features from images for a given structure"""
 
 from abc import abstractmethod
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 import cv2
 import numpy as np
@@ -201,6 +201,8 @@ class InstanceMapPatchDataset(Dataset):
         instance_map: np.ndarray,
         size: int,
         fill_value: Optional[int],
+        mean: Optional[List[float]] = None,
+        std: Optional[List[float]] = None,
     ) -> None:
         """Create a dataset for a given image and extracted instance maps with desired patches
            of (size, size, 3). If fill_value is not None, it fills up pixels outside the
@@ -216,13 +218,13 @@ class InstanceMapPatchDataset(Dataset):
         self.image = image
         self.instance_map = instance_map
         self.properties = regionprops(instance_map)
-        self.dataset_transform = transforms.Compose(
-            [
-                transforms.Resize(224),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            ]
-        )
+        basic_transforms = [
+            transforms.Resize(224),
+            transforms.ToTensor(),
+        ]
+        if mean is not None and std is not None:
+            basic_transforms.append(transforms.Normalize(mean, std))
+        self.dataset_transform = transforms.Compose(basic_transforms)
         self.patch_size = (size, size, 3)
         self.fill_value = fill_value
 
@@ -323,9 +325,9 @@ class PatchFeatureExtractor:
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
 
-        if architecture.startswith('s3://mlflow'):
+        if architecture.startswith("s3://mlflow"):
             model = self._get_mlflow_model(url=architecture)
-        elif architecture.endswith('.pth'):
+        elif architecture.endswith(".pth"):
             model = self._get_local_model(path=architecture)
         else:
             model = self._get_torchvision_model(architecture).to(self.device)
@@ -376,6 +378,7 @@ class PatchFeatureExtractor:
             nn.Module: A PyTorch model
         """
         import mlflow
+
         model = mlflow.pytorch.load_model(url, map_location=self.device)
         return model
 
@@ -384,7 +387,7 @@ class PatchFeatureExtractor:
         """Returns a torchvision model from a given architecture string
 
         Args:
-            architecture (str): Torchvision model description 
+            architecture (str): Torchvision model description
 
         Returns:
             nn.Module: A pretrained pytorch model
@@ -434,6 +437,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         architecture: str,
         mask: bool = False,
         size: int = 224,
+        normalizer: Optional[dict] = None,
         batch_size: int = 32,
         num_workers: int = 0,
         **kwargs,
@@ -448,10 +452,21 @@ class DeepFeatureExtractor(FeatureExtractor):
         self.architecture = self._preprocess_architecture(architecture)
         self.mask = mask
         self.size = size
+        if normalizer is not None:
+            self.normalizer = normalizer.get("type", "unknown")
+        else:
+            self.normalizer = None
         super().__init__(**kwargs)
+        if normalizer is not None:
+            self.normalizer_mean = normalizer.get("mean", [0, 0, 0])
+            self.normalizer_std = normalizer.get("std", [1, 1, 1])
+        else:
+            self.normalizer_mean = None
+            self.normalizer_std = None
         self.patch_feature_extractor = PatchFeatureExtractor(architecture)
         self.fill_value = 255 if self.mask else None
         self.batch_size = batch_size
+        self.architecture_unprocessed = architecture
         self.num_workers = num_workers
         if self.num_workers in [0, 1]:
             torch.set_num_threads(1)
@@ -470,10 +485,10 @@ class DeepFeatureExtractor(FeatureExtractor):
         Returns:
             str: Architecture name to use for the save path
         """
-        if architecture.startswith('s3://mlflow'):
-            _, experiment_id, run_id, _, metric = architecture[5:].split('/')
+        if architecture.startswith("s3://mlflow"):
+            _, experiment_id, run_id, _, metric = architecture[5:].split("/")
             return f"MLflow({experiment_id},{run_id},{metric})"
-        elif architecture.endswith('.pth'):
+        elif architecture.endswith(".pth"):
             return f"Local({architecture.replace('/', '_')})"
         else:
             return architecture
@@ -491,7 +506,12 @@ class DeepFeatureExtractor(FeatureExtractor):
             torch.Tensor: Extracted features
         """
         image_dataset = InstanceMapPatchDataset(
-            input_image, instance_map, self.size, self.fill_value
+            input_image,
+            instance_map,
+            self.size,
+            self.fill_value,
+            self.normalizer_mean,
+            self.normalizer_std,
         )
         image_loader = DataLoader(
             image_dataset,

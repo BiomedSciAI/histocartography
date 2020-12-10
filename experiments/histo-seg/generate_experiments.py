@@ -1,5 +1,4 @@
 import argparse
-from argparse import ArgumentDefaultsHelpFormatter
 import copy
 import logging
 import shutil
@@ -34,6 +33,7 @@ def get_lsf(
         f"#BSUB -q {queue}\n"
         f"#BSUB -n {cores}\n"
         f"{f'#BSUB -R rusage[ngpus_excl_p={gpus}]' if gpus != 0 else ''}\n"
+        f'#BSUB -R "span[hosts=1]"\n'
         f"module purge\n"
         f"module load Miniconda3\n"
         f"source activate histocartography\n\n"
@@ -206,7 +206,7 @@ class Experiment:
 
 
 class PretrainingExperiment(Experiment):
-    def __init__(self, name, queue="prod.med", cores=2) -> None:
+    def __init__(self, name, queue="prod.med", cores=3) -> None:
         super().__init__(
             "pretraining_" + name,
             cores=cores,
@@ -273,12 +273,14 @@ class MNISTExperiment(Experiment):
 
 
 class PreprocessingExperiment(Experiment):
-    def __init__(self, name, cores=4, queue="prod.med", base="preprocess.yml") -> None:
+    def __init__(
+        self, name, cores=4, queue="prod.med", base="preprocess.yml", gpus=0
+    ) -> None:
         super().__init__(
             "preprocessing_" + name,
             cores=cores,
             core_multiplier=7,
-            gpus=0,
+            gpus=gpus,
             subsample=None,
             main_file="preprocess",
             queue=queue,
@@ -288,6 +290,7 @@ class PreprocessingExperiment(Experiment):
         )
         self.name = name
         self.cores = cores
+        self.gpus = gpus
         with open(self.base) as file:
             config: dict = yaml.load(file, Loader=yaml.FullLoader)
         self.translator = dict(
@@ -327,7 +330,7 @@ class PreprocessingExperiment(Experiment):
         self._translate_all(grid)
         super().generate(
             fixed=[
-                Parameter(["params", "cores"], self.cores * 7),
+                Parameter(["params", "cores"], self.cores * 7 if self.gpus == 0 else 1),
             ]
             + fixed,
             sequential=sequential,
@@ -600,6 +603,109 @@ if __name__ == "__main__":
                 ],
             )
         ]
+    )
+    PreprocessingExperiment(name="new_superpixels", base="superpixel.yml").generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_A_1_12",
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                [
+                    "superpixel",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+            ),
+        ],
+    )
+    PreprocessingExperiment(name="mobilenet", queue="prod.long").generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_A_1_12",
+            ),
+            Parameter(["feature_extraction", "params", "architecture"], "mobilenet_v2"),
+            Parameter(["feature_extraction", "params", "size"], 672)
+        ],
+        grid=[
+            ParameterList(
+                [
+                    "superpixel",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+            ),
+        ],
+    )
+    PreprocessingExperiment(name="pretrained", queue="prod.long").generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_A_1_12",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "architecture"],
+                "models/485e5ed454714988b70b07ba3231e34d_best_valid_MultiLabelBalancedAccuracy.pth",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+        ],
+        grid=[
+            ParameterList(
+                [
+                    "superpixel",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+            ),
+        ],
+    )
+    PreprocessingExperiment(name="pretrained_additional", queue="prod.long").generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_A_1_12",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+        ],
+        grid=[
+            ParameterList(
+                ["feature_extraction", "params", "architecture"],
+                [
+                    "models/d4372ddba84b497fac70a0c5bfc95139_best_valid_MultiLabelBalancedAccuracy.pth",
+                    "models/fe014f5eeb9d445a9940fae9422dca73_best_valid_MultiLabelAUCROC.pth",
+                ],
+            ),
+            ParameterList(
+                [
+                    "superpixel",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+            ),
+        ],
     )
 
     # ETH
@@ -1152,6 +1258,18 @@ if __name__ == "__main__":
                 [f"outputs/v0_{s}px" for s in [250, 500, 1000]],
             ),
         ],
+    )
+    GraphClassifierExperiment(name="v2_mobilenet").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "validation_frequency"], 20),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [f"outputs/v2_{x}_mobilenet_v2" for x in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]]
+            )
+        ]
     )
 
     # MNIST
@@ -1789,4 +1907,81 @@ if __name__ == "__main__":
                 ["train", "model", "freeze"], [19, 18, 17, 16, 15, 14, 13, 12, 8, 4, 0]
             )
         ],
+    )
+    PretrainingExperiment(name="freeze_and_dropout").generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+            Parameter(["train", "model", "freeze"], 17),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "dropout"],
+                [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="freeze_less_and_dropout").generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+            Parameter(["train", "model", "freeze"], 14),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "dropout"],
+                [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="downsample_freeze_dropout").generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+            Parameter(["train", "model", "freeze"], 14),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+            Parameter(["train", "data", "downsample_factor"], 4.5),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "dropout"],
+                [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="resnet18_freeze_dropout").generate(
+        fixed=[
+            Parameter(["train", "model", "architecture"], "resnet18"),
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+            Parameter(
+                ["train", "model", "dropout"],
+                0.5,
+            ),
+        ],
+        sequential=[ParameterList(["train", "model", "freeze"], [0, 5, 6, 7, 8])],
+    )
+    PretrainingExperiment(name="resnet34_freeze_dropout").generate(
+        fixed=[
+            Parameter(["train", "model", "architecture"], "resnet34"),
+            Parameter(
+                ["train", "model", "pretrained"],
+                True,
+            ),
+            Parameter(
+                ["train", "model", "dropout"],
+                0.5,
+            ),
+        ],
+        sequential=[ParameterList(["train", "model", "freeze"], [0, 5, 6, 7, 8])],
     )

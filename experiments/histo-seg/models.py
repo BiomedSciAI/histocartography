@@ -147,6 +147,9 @@ class PatchTissueClassifier(nn.Module):
         if isinstance(model, torchvision.models.resnet.ResNet):
             feature_dim = model.fc.in_features
             model.fc = nn.Linear(feature_dim, num_classes)
+            for layer in list(model.children())[:freeze]:
+                for param in layer.parameters():
+                    param.requires_grad = False
         else:
             feature_dim = model.classifier[-1].in_features
             model.classifier = nn.Sequential(

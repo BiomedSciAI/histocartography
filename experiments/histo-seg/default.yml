@@ -45,8 +45,8 @@ train:
       - 204
     validation_slides:
       - 76
-    patch_size: 2500
-    graph_directory:  "outputs/v0_2000px"
+    patch_size: null
+    graph_directory:  "outputs/v2_500_mobilenet_v2"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
@@ -55,7 +55,7 @@ train:
     gnn_config:
       activation: "relu"
       agg_operator: "concat"
-      input_dim: 514
+      input_dim: 1282
       hidden_dim: 32
       layer_type: "gin_layer"
       n_layers: 4

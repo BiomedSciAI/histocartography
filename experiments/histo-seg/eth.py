@@ -216,9 +216,14 @@ def prepare_graph_datasets(
         training_metadata = training_metadata.sample(1)
         validation_metadata = validation_metadata.sample(1)
 
+    if patch_size is None:
+        patch_size_augmentation = None
+    else:
+        patch_size_augmentation = (patch_size, patch_size)
+
     training_dataset = GraphClassificationDataset(
         training_metadata,
-        patch_size=(patch_size, patch_size),
+        patch_size=patch_size_augmentation,
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
         centroid_features=centroid_features,
@@ -227,7 +232,7 @@ def prepare_graph_datasets(
     )
     validation_dataset = GraphClassificationDataset(
         validation_metadata,
-        patch_size=(patch_size, patch_size) if use_patches_for_validation else None,
+        patch_size=patch_size_augmentation if use_patches_for_validation else None,
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
         centroid_features=centroid_features,

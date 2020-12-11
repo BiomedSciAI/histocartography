@@ -5,6 +5,7 @@ import cv2
 import torch 
 import yaml
 from copy import deepcopy
+import h5py
 from dgl.data.utils import load_graphs
 
 from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
@@ -23,7 +24,7 @@ class GraphGradCAMTestCase(unittest.TestCase):
         """
 
         # 1. load a cell graph
-        cell_graph, label_dict = load_graphs('../data/283_dcis_4.bin')
+        cell_graph, label_dict = load_graphs('../data/1937_benign_4_cg.bin')
         cell_graph = cell_graph[0]
 
         # 2. run the explainer
@@ -39,6 +40,11 @@ class GraphGradCAMTestCase(unittest.TestCase):
         print('Node centroids:', cell_graph.ndata['centroid'].shape)
         print('Importance scores:', importance_scores.shape)
         print('Logits:', logits.shape)
+
+        # 4. save as h5 file 
+        with h5py.File('1937_benign_4_importance.h5', 'w') as hf:
+            hf.create_dataset("importance",  data=importance_scores)
+
 
     def tearDown(self):
         """Tear down the tests."""

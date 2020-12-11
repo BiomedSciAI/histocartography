@@ -13,6 +13,7 @@ from PIL import ImageFilter
 from PIL import Image
 import bisect 
 from skimage.measure import regionprops
+from typing import Tuple
 
 from ..utils.io import show_image, save_image, complete_path, check_for_dir
 from ..utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle, rgb
@@ -67,12 +68,12 @@ class GraphVisualization(PipelineStep):
 
     def __init__(
         self,
-        show_centroid=True,
-        show_edges=False,
-        centroid_outline=(0, 0, 255),
-        centroid_fill=(0, 0, 255),
+        show_centroid: bool =True,
+        show_edges: bool =False,
+        centroid_outline: Tuple[int, int, int] =(0, 0, 255),
+        centroid_fill: Tuple[int, int, int] =(0, 0, 255),
         **kwargs
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.show_centroid = show_centroid
         self.show_edges = show_edges
@@ -85,7 +86,7 @@ class GraphVisualization(PipelineStep):
         graph: dgl.DGLGraph,
         node_importance: np.ndarray = None,
         instance_map: np.ndarray = None
-        ):
+        ) -> Image:
         """
         Visualize an image along with a graph. 
 

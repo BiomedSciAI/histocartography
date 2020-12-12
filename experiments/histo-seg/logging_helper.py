@@ -126,6 +126,8 @@ class LoggingHelper:
             self.extra_info[name].extend(value)
 
     def _log(self, name, value, step):
+        if isinstance(value, torch.Tensor):
+            value = value.detach().cpu().mean().item()
         robust_mlflow(mlflow.log_metric, f"{self.prefix}.{name}", value, step)
 
     def _log_metrics(self, step):
@@ -192,6 +194,7 @@ class GraphClassificationLoggingHelper:
             metrics_config.get("segmentation", {}), f"{prefix}.segmentation", **kwargs
         )
         self.cmap = ListedColormap(["green", "blue", "yellow", "red", "white"])
+        self.prefix = prefix
 
     def add_iteration_outputs(
         self,
@@ -254,13 +257,13 @@ class GraphClassificationLoggingHelper:
                 fig, _ = self.create_segmentation_maps(annotation, segmentation_map)
                 name = (
                     tmp_path
-                    / f"valid_segmap_epoch_{str(step).zfill(6)}_{str(i).zfill(leading_zeros)}.png"
+                    / f"{self.prefix}_segmap_epoch_{str(step).zfill(6)}_{str(i).zfill(leading_zeros)}.png"
                 )
                 fig.savefig(str(name))
                 robust_mlflow(
                     mlflow.log_artifact,
                     str(name),
-                    artifact_path="validation_segmentation_maps",
+                    artifact_path=f"{self.prefix}_segmentation_maps",
                 )
                 plt.close(fig=fig)
                 plt.clf()

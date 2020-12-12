@@ -28,7 +28,7 @@ class SegmentationMetric:
         """
 
     def __call__(
-        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+        self, prediction: torch.Tensor, ground_truth: torch.Tensor
     ) -> torch.Tensor:
         """From either a batched, unbatched or batched with additional empty dimension calculate the metric accordingly
 
@@ -54,7 +54,7 @@ class SegmentationMetric:
             prediction = prediction.unsqueeze(0)
             ground_truth = ground_truth.unsqueeze(0)
         # Now we have shape BATCH x H x W
-        metric = self._compute_metric(ground_truth, prediction)
+        metric = self._compute_metric(ground_truth=ground_truth, prediction=prediction)
         if unbatched:
             return metric[0]
         return metric
@@ -71,7 +71,7 @@ class IoU(SegmentationMetric):
         """Create a IoU calculator for a certain number of classes
 
         Args:
-            nr_classes (int, optional): Number of classes to use. Defaults to 5.
+            nr_classes (int, optional): Number of classes to use
         """
         self.nr_classes = nr_classes
         self.smooth = 1e-12
@@ -97,6 +97,9 @@ class IoU(SegmentationMetric):
         class_iou = torch.empty((ground_truth.shape[0], self.nr_classes))
         for class_label in range(self.nr_classes):
             class_ground_truth = ground_truth == class_label
+            if class_label == self.background_label:
+                class_iou[:, class_label] = nan
+                continue
             if not class_ground_truth.any():
                 class_iou[:, class_label] = nan
                 continue

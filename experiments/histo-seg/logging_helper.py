@@ -179,8 +179,9 @@ class LoggingHelper:
 
 class GraphClassificationLoggingHelper:
     def __init__(
-        self, metrics_config, prefix, node_loss_weight, graph_loss_weight, **kwargs
+        self, metrics_config, prefix, node_loss_weight, graph_loss_weight, background_label, **kwargs
     ) -> None:
+        kwargs["background_label"] = background_label
         self.graph_logger = LoggingHelper(
             metrics_config.get("graph", {}), f"{prefix}.graph", **kwargs
         )
@@ -195,6 +196,7 @@ class GraphClassificationLoggingHelper:
         )
         self.cmap = ListedColormap(["green", "blue", "yellow", "red", "white"])
         self.prefix = prefix
+        self.background_label = background_label
 
     def add_iteration_outputs(
         self,
@@ -221,6 +223,7 @@ class GraphClassificationLoggingHelper:
                 self.graph_loss_weight * graph_loss + self.node_loss_weight * node_loss
             )
         if annotation is not None and predicted_segmentation is not None:
+            predicted_segmentation[annotation == self.background_label] = self.background_label
             self.segmentation_logger.add_iteration_outputs(
                 logits=predicted_segmentation, labels=annotation
             )

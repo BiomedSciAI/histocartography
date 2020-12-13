@@ -11,10 +11,17 @@ import torch
 from dgl.data.utils import load_graphs
 from dgl.graph import DGLGraph
 from torch.utils.data import Dataset
-from torchvision.transforms import (CenterCrop, ColorJitter, Compose,
-                                    Normalize, RandomHorizontalFlip,
-                                    RandomRotation, RandomVerticalFlip,
-                                    ToPILImage, ToTensor)
+from torchvision.transforms import (
+    CenterCrop,
+    ColorJitter,
+    Compose,
+    Normalize,
+    RandomHorizontalFlip,
+    RandomRotation,
+    RandomVerticalFlip,
+    ToPILImage,
+    ToTensor,
+)
 from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL

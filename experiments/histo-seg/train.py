@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import mlflow
 import numpy as np
@@ -15,8 +15,133 @@ from logging_helper import (
     robust_mlflow,
 )
 from losses import get_loss
-from models import WeakTissueClassifier
+from models import (
+    SemiSuperPixelTissueClassifier,
+    SuperPixelTissueClassifier,
+    ImageTissueClassifier,
+)
 from utils import dynamic_import_from, get_config
+
+
+def get_model(
+    gnn_config: dict,
+    NR_CLASSES: int,
+    graph_classifier_config: Optional[dict] = None,
+    node_classifier_config: Optional[dict] = None,
+):
+    if graph_classifier_config is None:
+        assert (
+            node_classifier_config is not None
+        ), "Either graph classifier or node classifier must be used"
+        model = SuperPixelTissueClassifier(
+            gnn_config=gnn_config,
+            node_classifier_config=node_classifier_config,
+            nr_classes=NR_CLASSES,
+        )
+        mode = "strong_supervision"
+    elif node_classifier_config is None:
+        model = ImageTissueClassifier(
+            gnn_config=gnn_config,
+            graph_classifier_config=graph_classifier_config,
+            nr_classes=NR_CLASSES,
+        )
+        mode = "weak_supervision"
+    else:
+        model = SemiSuperPixelTissueClassifier(
+            gnn_config=gnn_config,
+            graph_classifier_config=graph_classifier_config,
+            node_classifier_config=node_classifier_config,
+            nr_classes=NR_CLASSES,
+        )
+        mode = "semi_strong_supervision"
+    return model, mode
+
+
+def get_logit_information(logits, mode):
+    if mode == "strong_supervision":
+        return {"node_logits": logits}
+    elif mode == "weak_supervision":
+        return {"graph_logits": logits}
+    elif mode == "semi_strong_supervision":
+        graph_logits, node_logits = logits
+        return {"node_logits": node_logits, "graph_logits": graph_logits}
+    else:
+        raise NotImplementedError(f"Logit mode {mode} not implemented")
+
+
+class CombinedCriterion(torch.nn.Module):
+    def __init__(self, loss: dict, mode: str, device) -> None:
+        super().__init__()
+        if mode in ["strong_supervision", "semi_strong_supervision"]:
+            self.node_criterion = get_loss(loss, "node", device)
+        if mode in ["weak_supervision", "semi_strong_supervision"]:
+            self.graph_criterion = get_loss(loss, "graph", device)
+        if mode == "semi_strong_supervision":
+            self.node_loss_weight = loss.get("node_weight", 0.5)
+            assert (
+                0.0 <= self.node_loss_weight <= 1.0
+            ), f"Node weight loss must be between 0 and 1, but is {self.node_loss_weight}"
+            self.graph_loss_weight = 1.0 - self.node_loss_weight
+        self.mode = mode
+
+    def forward(
+        self,
+        graph_logits: Optional[torch.Tensor] = None,
+        graph_labels: Optional[torch.Tensor] = None,
+        node_logits: Optional[torch.Tensor] = None,
+        node_labels: Optional[torch.Tensor] = None,
+        node_associations: Optional[List[int]] = None,
+    ):
+        if self.mode == "strong_supervision":
+            assert (
+                node_logits is not None and node_labels is not None
+            ), "Cannot use node criterion without input"
+            return self.node_criterion(
+                logits=node_logits,
+                targets=node_labels,
+                graph_associations=node_associations,
+            )
+        elif self.mode == "weak_supervision":
+            assert (
+                graph_logits is not None and graph_labels is not None
+            ), "Cannot use graph criterion without input"
+            return self.graph_criterion(logits=graph_logits, targets=graph_labels)
+        elif self.mode == "semi_strong_supervision":
+            assert (
+                node_logits is not None and node_labels is not None
+            ), "Cannot use combined criterion without node input"
+            assert (
+                graph_logits is not None and graph_labels is not None
+            ), "Cannot use combined criterion without graph input"
+            node_loss = self.node_criterion(
+                logits=node_logits,
+                targets=node_labels,
+                graph_associations=node_associations,
+            )
+            graph_loss = self.graph_criterion(logits=graph_logits, targets=graph_labels)
+            combined_loss = (
+                self.graph_loss_weight * graph_loss + self.node_loss_weight * node_loss
+            )
+            return combined_loss
+        else:
+            raise NotImplementedError(f"Criterion mode {self.mode} not implemented")
+
+
+def get_segmentation_map(node_logits, superpixels, node_associations, NR_CLASSES):
+    batch_node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
+    segmentation_maps = np.empty((superpixels.shape), dtype=np.uint8)
+    start = 0
+    for i, end in enumerate(node_associations):
+        node_predictions = batch_node_predictions[start : start + end]
+
+        all_maps = list()
+        for label in range(NR_CLASSES):
+            (spx_indices,) = np.where(node_predictions == label)
+            map_l = np.isin(superpixels[i], spx_indices) * label
+            all_maps.append(map_l)
+        segmentation_maps[i] = np.stack(all_maps).sum(axis=0)
+        start += end
+    return segmentation_maps
 
 
 def train_graph_classifier(
@@ -77,46 +202,28 @@ def train_graph_classifier(
         robust_mlflow(mlflow.log_param, "device", "CPU")
 
     # Model
-    model = WeakTissueClassifier(**model_config)
-    use_graph_head = model_config["graph_classifier_config"] is not None
-    use_node_head = model_config["node_classifier_config"] is not None
+    model, mode = get_model(NR_CLASSES=NR_CLASSES, **model_config)
     model = model.to(device)
     nr_trainable_total_params = sum(
         p.numel() for p in model.parameters() if p.requires_grad
     )
     robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
+    robust_mlflow(mlflow.log_param, "supervision", mode)
 
     # Loss function
-    if use_graph_head:
-        graph_criterion = get_loss(loss, "graph", device)
-    if use_node_head:
-        node_criterion = get_loss(loss, "node", device)
-    if use_graph_head and use_node_head:
-        node_loss_weight = loss.get("node_weight", 0.5)
-        assert (
-            0.0 <= node_loss_weight <= 1.0
-        ), f"Node weight loss must be between 0 and 1, but is {node_loss_weight}"
-        graph_loss_weight = 1.0 - node_loss_weight
+    criterion = CombinedCriterion(loss=loss, mode=mode, device=device)
 
     training_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,
         "train",
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
-        node_loss_weight=node_loss_weight if use_graph_head and use_node_head else None,
-        graph_loss_weight=graph_loss_weight
-        if use_graph_head and use_node_head
-        else None,
     )
     validation_metric_logger = GraphClassificationLoggingHelper(
         metrics_config,
         "valid",
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
-        node_loss_weight=node_loss_weight if use_graph_head and use_node_head else None,
-        graph_loss_weight=graph_loss_weight
-        if use_graph_head and use_node_head
-        else None,
     )
 
     # Optimizer
@@ -129,46 +236,35 @@ def train_graph_classifier(
         time_before_training = datetime.datetime.now()
         model.train()
         for iteration, (graph, graph_labels, node_labels) in enumerate(training_loader):
+            optimizer.zero_grad()
+
             graph = graph.to(device)
-            graph_labels = graph_labels.to(device)
-            node_labels = node_labels.to(device)
+            logits = model(graph)
 
-            graph_logits, node_logits = model(graph)
+            # Calculate loss
+            loss_information = get_logit_information(logits, mode)
+            loss_information.update(
+                {
+                    "graph_labels": graph_labels.to(device),
+                    "node_labels": node_labels.to(device),
+                    "node_associations": graph.batch_num_nodes,
+                }
+            )
+            loss = criterion(**loss_information)
+            loss.backward()
 
-            if use_graph_head:
-                graph_loss = graph_criterion(graph_logits, graph_labels)
-            if use_node_head:
-                node_loss = node_criterion(
-                    node_logits, node_labels, graph.batch_num_nodes
-                )
-            if use_graph_head and use_node_head:
-                combined_loss = (
-                    graph_loss_weight * graph_loss + node_loss_weight * node_loss
-                )
-                combined_loss.backward()
-            elif use_node_head:
-                node_loss.backward()
-            elif use_graph_head:
-                graph_loss.backward()
+            # Optimize
             if clip_gradient_norm is not None:
                 torch.nn.utils.clip_grad.clip_grad_norm_(
                     model.parameters(), clip_gradient_norm
                 )
             optimizer.step()
 
+            # Log to MLflow
             training_metric_logger.add_iteration_outputs(
-                graph_loss=graph_loss.item() if use_graph_head else None,
-                node_loss=node_loss.item() if use_node_head else None,
-                graph_logits=graph_logits.detach().cpu()
-                if graph_logits is not None
-                else None,
-                node_logits=node_logits.detach().cpu()
-                if node_logits is not None
-                else None,
-                graph_labels=graph_labels.cpu(),
-                node_labels=node_labels.cpu(),
-                node_associations=graph.batch_num_nodes,
+                loss=loss.item(), **loss_information
             )
+
         training_metric_logger.log_and_clear(step=epoch)
         training_epoch_duration = (
             datetime.datetime.now() - time_before_training
@@ -193,50 +289,38 @@ def train_graph_classifier(
                     superpixels,
                 ) in enumerate(validation_loader):
                     graph = graph.to(device)
-                    graph_labels = graph_labels.to(device)
-                    node_labels = node_labels.to(device)
+                    logits = model(graph)
 
-                    graph_logits, node_logits = model(graph)
-                    if use_graph_head:
-                        graph_loss = graph_criterion(graph_logits, graph_labels)
-                    if use_node_head:
-                        node_loss = node_criterion(
-                            node_logits, node_labels, graph.batch_num_nodes
-                        )
-
-                    # Compute simple unprocessed segmentaion map
-                    batch_node_predictions = (
-                        node_logits.argmax(axis=1).detach().cpu().numpy()
+                    # Calculate loss
+                    loss_information = get_logit_information(logits, mode)
+                    loss_information.update(
+                        {
+                            "graph_labels": graph_labels.to(device),
+                            "node_labels": node_labels.to(device),
+                            "node_associations": graph.batch_num_nodes,
+                        }
                     )
-                    segmentation_maps = np.empty((annotations.shape), dtype=np.uint8)
-                    start = 0
-                    for i, end in enumerate(graph.batch_num_nodes):
-                        node_predictions = batch_node_predictions[start : start + end]
+                    loss = criterion(**loss_information)
 
-                        all_maps = list()
-                        for label in range(NR_CLASSES):
-                            (spx_indices,) = np.where(node_predictions == label)
-                            map_l = np.isin(superpixels[i], spx_indices) * label
-                            all_maps.append(map_l)
-                        segmentation_maps[i] = np.stack(all_maps).sum(axis=0)
-
-                        start += end
+                    if mode in ["strong_supervision", "semi_strong_supervision"]:
+                        segmentation_maps = get_segmentation_map(
+                            node_logits=loss_information["node_logits"],
+                            node_associations=graph.batch_num_nodes,
+                            superpixels=superpixels,
+                            NR_CLASSES=NR_CLASSES,
+                        )
+                        annotations = torch.as_tensor(annotations)
+                        segmentation_maps = torch.as_tensor(segmentation_maps)
+                    else:
+                        segmentation_maps = None
 
                     validation_metric_logger.add_iteration_outputs(
-                        graph_loss=graph_loss.item() if use_graph_head else None,
-                        node_loss=node_loss.item() if use_node_head else None,
-                        graph_logits=graph_logits.detach().cpu()
-                        if graph_logits is not None
-                        else None,
-                        node_logits=node_logits.detach().cpu()
-                        if node_logits is not None
-                        else None,
-                        graph_labels=graph_labels.cpu(),
-                        node_labels=node_labels.cpu(),
-                        node_associations=graph.batch_num_nodes,
-                        annotation=torch.Tensor(annotations),
-                        predicted_segmentation=torch.Tensor(segmentation_maps),
+                        loss=loss.item(),
+                        annotation=annotations,
+                        predicted_segmentation=segmentation_maps,
+                        **loss_information,
                     )
+
             validation_metric_logger.log_and_clear(
                 step=epoch, model=model if not test else None
             )

@@ -50,7 +50,66 @@ class ClassifierHead(nn.Module):
         return self.model(x)
 
 
-class WeakTissueClassifier(nn.Module):
+class NodeClassifierHead(nn.Module):
+    def __init__(self, latent_dim: int, node_classifier_config: Dict, nr_classes: int = 4) -> None:
+        super().__init__()
+        node_classifiers = [
+            ClassifierHead(
+                input_dim=latent_dim, output_dim=1, **node_classifier_config
+            )
+            for _ in range(nr_classes)
+        ]
+        self.node_classifiers = nn.ModuleList(node_classifiers)
+    
+    def forward(self, node_embedding: torch.Tensor) -> torch.Tensor:
+        node_logit = torch.empty(
+            (node_embedding.shape[0], len(self.node_classifiers)), device=node_embedding.device
+        )
+        for i, node_classifier in enumerate(self.node_classifiers):
+            classifier_output = node_classifier(node_embedding).squeeze(1)
+            node_logit[:, i] = classifier_output
+        return node_logit
+
+
+class GraphClassifierHead(nn.Module):
+    def __init__(self, latent_dim: int, graph_classifier_config: Dict, nr_classes: int = 4) -> None:
+        super().__init__()
+        self.graph_classifier = ClassifierHead(
+            input_dim=latent_dim,
+            output_dim=nr_classes,
+            **graph_classifier_config,
+        )
+
+    def forward(self, graph_embedding: torch.Tensor) -> torch.Tensor:
+        return self.graph_classifier(graph_embedding)
+
+
+class SuperPixelTissueClassifier(nn.Module):
+    def __init__(self, gnn_config: Dict,
+        node_classifier_config: Dict,
+        nr_classes: int = 4,
+    ) -> None:
+        super().__init__()
+        self.gnn_model = MultiLayerGNN(gnn_config)
+        if gnn_config["agg_operator"] in ["none", "lstm"]:
+            latent_dim = gnn_config["output_dim"]
+        elif gnn_config["agg_operator"] in ["concat"]:
+            latent_dim = gnn_config["output_dim"] * gnn_config["n_layers"]
+        else:
+            raise NotImplementedError(
+                f"Only supported agg operators are [none, lstm, concat]"
+            )
+        self.node_classifier = NodeClassifierHead(latent_dim, node_classifier_config, nr_classes)
+
+    def forward(self, graph: dgl.DGLGraph) -> torch.Tensor:
+        in_features = graph.ndata[GNN_NODE_FEAT_IN]
+        self.gnn_model(graph, in_features)
+        node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
+        node_logit = self.node_classifier(node_embedding)
+        return node_logit
+
+
+class SemiSuperPixelTissueClassifier(nn.Module):
     """Classifier that uses both weak graph labels and some provided node labels"""
 
     def __init__(
@@ -69,32 +128,15 @@ class WeakTissueClassifier(nn.Module):
         super().__init__()
         self.gnn_model = MultiLayerGNN(gnn_config)
         if gnn_config["agg_operator"] in ["none", "lstm"]:
-            self.latent_dim = gnn_config["output_dim"]
+            latent_dim = gnn_config["output_dim"]
         elif gnn_config["agg_operator"] in ["concat"]:
-            self.latent_dim = gnn_config["output_dim"] * gnn_config["n_layers"]
+            latent_dim = gnn_config["output_dim"] * gnn_config["n_layers"]
         else:
             raise NotImplementedError(
                 f"Only supported agg operators are [none, lstm, concat]"
             )
-        if graph_classifier_config is not None:
-            self.graph_classifier = ClassifierHead(
-                input_dim=self.latent_dim,
-                output_dim=nr_classes,
-                **graph_classifier_config,
-            )
-        else:
-            self.graph_classifier = None
-        if node_classifier_config is not None:
-            node_classifiers = [
-                ClassifierHead(
-                    input_dim=self.latent_dim, output_dim=1, **node_classifier_config
-                )
-                for _ in range(nr_classes)
-            ]
-            self.node_classifiers = nn.ModuleList(node_classifiers)
-        else:
-            self.node_classifiers = None
-        self.nr_classes = nr_classes
+        self.graph_classifier = GraphClassifierHead(latent_dim, graph_classifier_config, nr_classes)
+        self.node_classifiers = NodeClassifierHead(latent_dim, node_classifier_config, nr_classes)
 
     def forward(self, graph: dgl.DGLGraph) -> Tuple[torch.Tensor, torch.Tensor]:
         """Perform a forward pass on the graph
@@ -106,23 +148,53 @@ class WeakTissueClassifier(nn.Module):
             Tuple[torch.Tensor, torch.Tensor]: Logits of the graph classifier, logits of the node classifiers
         """
         in_features = graph.ndata[GNN_NODE_FEAT_IN]
-
         graph_embedding = self.gnn_model(graph, in_features)
-        if self.graph_classifier is not None:
-            graph_logit = self.graph_classifier(graph_embedding)
-        else:
-            graph_logit = None
-        if self.node_classifiers is not None:
-            node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
-            node_logit = torch.empty(
-                (in_features.shape[0], self.nr_classes), device=graph_embedding.device
-            )
-            for i, node_classifier in enumerate(self.node_classifiers):
-                classifier_output = node_classifier(node_embedding).squeeze(1)
-                node_logit[:, i] = classifier_output
-        else:
-            node_logit = None
+        graph_logit = self.graph_classifier(graph_embedding)
+        node_embedding = graph.ndata[GNN_NODE_FEAT_OUT]
+        node_logit = self.node_classifiers(node_embedding)
         return graph_logit, node_logit
+
+
+class ImageTissueClassifier(nn.Module):
+    """Classifier that uses both weak graph labels and some provided node labels"""
+
+    def __init__(
+        self,
+        gnn_config: Dict,
+        graph_classifier_config: Dict,
+        nr_classes: int = 4,
+    ) -> None:
+        """Build a classifier to classify superpixel tissue graphs
+
+        Args:
+            config (Dict): Configuration of the models
+            nr_classes (int, optional): Number of classes to consider. Defaults to 4.
+        """
+        super().__init__()
+        self.gnn_model = MultiLayerGNN(gnn_config)
+        if gnn_config["agg_operator"] in ["none", "lstm"]:
+            latent_dim = gnn_config["output_dim"]
+        elif gnn_config["agg_operator"] in ["concat"]:
+            latent_dim = gnn_config["output_dim"] * gnn_config["n_layers"]
+        else:
+            raise NotImplementedError(
+                f"Only supported agg operators are [none, lstm, concat]"
+            )
+        self.graph_classifier = GraphClassifierHead(latent_dim, graph_classifier_config, nr_classes)
+
+    def forward(self, graph: dgl.DGLGraph) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Perform a forward pass on the graph
+
+        Args:
+            graph (dgl.DGLGraph): Input graph with node features in GNN_NODE_FEAT_IN
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: Logits of the graph classifier, logits of the node classifiers
+        """
+        in_features = graph.ndata[GNN_NODE_FEAT_IN]
+        graph_embedding = self.gnn_model(graph, in_features)
+        graph_logit = self.graph_classifier(graph_embedding)
+        return graph_logit
 
 
 class PatchTissueClassifier(nn.Module):

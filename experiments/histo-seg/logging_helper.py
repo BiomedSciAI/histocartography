@@ -1,7 +1,8 @@
 import logging
 import os
+import tempfile
 import time
-import shutil
+from http.client import RemoteDisconnected
 from pathlib import Path
 from typing import DefaultDict
 
@@ -9,7 +10,6 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import torch
-from http.client import RemoteDisconnected
 from matplotlib.colors import ListedColormap
 
 from utils import dynamic_import_from, fix_seeds
@@ -24,7 +24,7 @@ if hostname.startswith("zhcc"):
         except FileExistsError:
             pass
 else:
-    SCRATCH_PATH = Path(".")
+    SCRATCH_PATH = Path("/tmp")
 
 
 def flatten(d, parent_key="", sep="."):
@@ -115,12 +115,18 @@ class LoggingHelper:
         self.labels = list()
         self.extra_info = DefaultDict(list)
 
-    def add_iteration_outputs(self, losses=None, logits=None, labels=None, **kwargs):
-        if losses is not None:
-            self.losses.append(losses)
+    def add_iteration_outputs(self, loss=None, logits=None, labels=None, **kwargs):
+        if loss is not None:
+            if isinstance(loss, torch.Tensor):
+                loss = loss.item()
+            self.losses.append(loss)
         if logits is not None:
+            if isinstance(logits, torch.Tensor):
+                logits = logits.detach().cpu()
             self.logits.append(logits)
         if labels is not None:
+            if isinstance(labels, torch.Tensor):
+                labels = labels.detach().cpu()
             self.labels.append(labels)
         for name, value in kwargs.items():
             self.extra_info[name].extend(value)
@@ -179,7 +185,7 @@ class LoggingHelper:
 
 class GraphClassificationLoggingHelper:
     def __init__(
-        self, metrics_config, prefix, node_loss_weight, graph_loss_weight, background_label, **kwargs
+        self, metrics_config, prefix, background_label, leading_zeros=6, **kwargs
     ) -> None:
         kwargs["background_label"] = background_label
         self.graph_logger = LoggingHelper(
@@ -188,20 +194,18 @@ class GraphClassificationLoggingHelper:
         self.node_logger = LoggingHelper(
             metrics_config.get("node", {}), f"{prefix}.node", **kwargs
         )
-        self.node_loss_weight = node_loss_weight
-        self.graph_loss_weight = graph_loss_weight
-        self.combined_logger = LoggingHelper({}, f"{prefix}.combined")
+        self.combined_logger = LoggingHelper({}, f"{prefix}.loss")
         self.segmentation_logger = LoggingHelper(
             metrics_config.get("segmentation", {}), f"{prefix}.segmentation", **kwargs
         )
         self.cmap = ListedColormap(["green", "blue", "yellow", "red", "white"])
         self.prefix = prefix
         self.background_label = background_label
+        self.leading_zeros = leading_zeros
 
     def add_iteration_outputs(
         self,
-        graph_loss=None,
-        node_loss=None,
+        loss=None,
         graph_logits=None,
         node_logits=None,
         graph_labels=None,
@@ -210,20 +214,23 @@ class GraphClassificationLoggingHelper:
         annotation=None,
         predicted_segmentation=None,
     ):
-        if graph_loss is not None:
+        if graph_logits is not None and graph_labels is not None:
             self.graph_logger.add_iteration_outputs(
-                graph_loss, graph_logits, graph_labels
+                loss=None, logits=graph_logits, labels=graph_labels
             )
-        if node_loss is not None:
+        if node_logits is not None and node_labels is not None:
             self.node_logger.add_iteration_outputs(
-                node_loss, node_logits, node_labels, node_associations=node_associations
+                loss=None,
+                logits=node_logits,
+                labels=node_labels,
+                node_associations=node_associations,
             )
-        if graph_loss is not None and node_loss is not None:
-            self.combined_logger.add_iteration_outputs(
-                self.graph_loss_weight * graph_loss + self.node_loss_weight * node_loss
-            )
+        if loss is not None:
+            self.combined_logger.add_iteration_outputs(loss=loss)
         if annotation is not None and predicted_segmentation is not None:
-            predicted_segmentation[annotation == self.background_label] = self.background_label
+            predicted_segmentation[
+                annotation == self.background_label
+            ] = self.background_label
             self.segmentation_logger.add_iteration_outputs(
                 logits=predicted_segmentation, labels=annotation
             )
@@ -249,28 +256,28 @@ class GraphClassificationLoggingHelper:
             )
             annotations = self.segmentation_logger.labels[random_batch]
             segmentation_maps = self.segmentation_logger.logits[random_batch]
-            leading_zeros = (annotations.shape[0] // 10) + 1
+            batch_leading_zeros = (annotations.shape[0] // 10) + 1
             run_id = robust_mlflow(mlflow.active_run).info.run_id
-            tmp_path = SCRATCH_PATH / run_id
-            if not tmp_path.exists():
-                tmp_path.mkdir()
-            for i, (annotation, segmentation_map) in enumerate(
-                zip(annotations, segmentation_maps)
-            ):
-                fig, _ = self.create_segmentation_maps(annotation, segmentation_map)
-                name = (
-                    tmp_path
-                    / f"{self.prefix}_segmap_epoch_{str(step).zfill(6)}_{str(i).zfill(leading_zeros)}.png"
-                )
-                fig.savefig(str(name))
-                robust_mlflow(
-                    mlflow.log_artifact,
-                    str(name),
-                    artifact_path=f"{self.prefix}_segmentation_maps",
-                )
-                plt.close(fig=fig)
-                plt.clf()
-            shutil.rmtree(tmp_path)
+            with tempfile.TemporaryDirectory(
+                prefix=run_id, dir=str(SCRATCH_PATH)
+            ) as tmp_path:
+                for i, (annotation, segmentation_map) in enumerate(
+                    zip(annotations, segmentation_maps)
+                ):
+                    fig, _ = self.create_segmentation_maps(annotation, segmentation_map)
+                    name = Path(tmp_path) / "{}_segmap_epoch_{}_{}.png".format(
+                        self.prefix,
+                        str(step).zfill(self.leading_zeros),
+                        str(i).zfill(batch_leading_zeros),
+                    )
+                    fig.savefig(str(name), bbox_inches="tight")
+                    robust_mlflow(
+                        mlflow.log_artifact,
+                        str(name),
+                        artifact_path=f"{self.prefix}_segmentation_maps",
+                    )
+                    plt.close(fig=fig)
+                    plt.clf()
 
     def log_and_clear(self, step, model=None):
         self.graph_logger.log_and_clear(step, model)

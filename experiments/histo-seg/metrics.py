@@ -136,7 +136,7 @@ class MeanIoU(IoU):
         mask = torch.isnan(class_iou)
         class_iou[mask] = 0
         batch_mean_iou = torch.sum(class_iou, axis=1) / torch.sum(~mask, axis=1)
-        return batch_mean_iou
+        return batch_mean_iou.mean()
 
 
 class fIoU(IoU):
@@ -169,7 +169,7 @@ class fIoU(IoU):
         y[log_class_counts == 0] = 0
         class_weights = y / y.sum()
         batch_fiou = (class_weights * class_iou).sum(axis=1)
-        return batch_fiou
+        return batch_fiou.mean()
 
 
 class F1Score(SegmentationMetric):
@@ -250,7 +250,7 @@ class MeanF1Score(F1Score):
         mask = torch.isnan(class_f1)
         class_f1[mask] = 0
         batch_f1 = torch.sum(class_f1, axis=1) / torch.sum(~mask, axis=1)
-        return batch_f1
+        return batch_f1.mean()
 
 
 class ClassificationMetric:

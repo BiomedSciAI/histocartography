@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 from sklearn.preprocessing import minmax_scale
 from scipy.stats import wasserstein_distance
 from sklearn.metrics import auc
+import pandas as pd
 
 from ..preprocessing.pipeline import PipelineStep
 
@@ -35,7 +36,7 @@ class ExplainerMetric(PipelineStep):
         nuclei_importance_list: List[np.ndarray], 
         nuclei_concept_list: List[np.ndarray],
         tumor_label_list: List[int]
-        ) -> Any:
+    ) -> Any:
         """
         Derive metrics based on the explainer importance
         scores and nuclei-level concepts. 
@@ -53,7 +54,7 @@ class ExplainerMetric(PipelineStep):
         nuclei_importance_list = self.normalize_node_importance(nuclei_importance_list)
         nuclei_concept_list = self.normalize_node_concept(nuclei_concept_list)
 
-        # 3. extract all the histograms å
+        # 3. extract all the histograms
         all_histograms = self._compute_concept_histograms(nuclei_importance_list, nuclei_concept_list, tumor_label_list)
 
         # 4. compute the Wasserstein distance for all the class pairs
@@ -72,7 +73,7 @@ class ExplainerMetric(PipelineStep):
         self,
         all_histograms: Dict,
         n_concepts: int
-        ) -> np.ndarray:
+    ) -> np.ndarray:
         """
         Compute all the pair-wise histogram distances. 
 
@@ -99,7 +100,7 @@ class ExplainerMetric(PipelineStep):
         importance_list: List[np.ndarray], 
         concept_list: List[np.ndarray],
         label_list: List[int]
-        ) -> Dict[Dict[np.ndarray]]:
+    ) -> Dict:
         """
         Compute histograms for all the concepts. 
 
@@ -188,3 +189,98 @@ class ExplainerMetric(PipelineStep):
         bins = np.linspace(np.min(concept_values), np.max(concept_values), num=num_bins)
         hist, _ = np.histogram(concept_values, bins=bins, density=True)
         return hist
+
+
+class ExplainerMetricAnalyser:
+
+    def __init__(
+        self,
+        separability_scores: Dict,
+        concept_grouping: Dict,
+        risk: np.ndarray,
+        path_prior: np.ndarray
+    ) -> None:
+        """
+            ExplainerMetricAnalyser constructor. 
+
+        Args:
+            separability_score (Dict[Dict][float]): Separability score for all the class pairs
+                                                    (as key) and attributes (as key). 
+            concept_grouping (Dict): Defines how to merge the attributes into high-level concepts 
+            risk (np.ndarray): Risk associated to each class pair, eg class0 <--> class1: 2. 
+            path_prior (np.ndarray): Pathological prior defining concept importance for each 
+                                     class pair.
+        """
+
+        self.concept_grouping = concept_grouping
+        self.risk = risk
+        self.path_prior = path_prior
+        self.separability_scores = self._group_separability_scores(separability_scores)
+
+    def _group_separability_scores(self, sep_scores: Dict) -> Dict:
+        """
+        Group the individual attribute-wise separability scores according
+        to the grouping concept. 
+
+        Args:
+            sep_scores (Dict): Separability scores 
+        Returns:
+            grouped_sep_scores (Dict): Grouped separability scores 
+        """
+        grouped_sep_scores = {}
+        for class_pair_key, class_pair_val in sep_scores.items():
+            grouped_sep_scores[class_pair_key] = {}
+            start_idx = 0
+            for concept_key, concept_attrs in self.concept_grouping.items():
+                val = sum([class_pair_val[k] for k in range(start_idx, start_idx + len(concept_attrs))]) / len(concept_attrs)
+                grouped_sep_scores[class_pair_key][concept_key] = val
+                start_idx += len(concept_attrs)
+        return grouped_sep_scores
+
+    def compute_max_separability_score(self) -> Dict:
+        """
+        Compute maximum separability score for each class pair. Then the 
+        aggregate max sep score w/ and w/o risk. 
+
+        Returns:
+            max_sep_score (Dict): Maximum separability score. 
+        """
+        max_sep_score = {}
+        for class_pair_key, class_pair_val in self.separability_scores.items():
+            max_sep_score[class_pair_key] = max([val for _, val in class_pair_val.items()])
+        max_sep_score['agg_with_risk'] = sum(
+                np.array([val for _, val in max_sep_score.items()]) *
+                self.risk
+            ) / len(max_sep_score.keys())
+        max_sep_score['agg'] = sum([val for _, val in max_sep_score.items()]) / len(max_sep_score.keys())
+        return max_sep_score
+
+    def compute_average_separability_score(self) -> Dict:
+        """
+        Compute average separability score for each class pair. Then the 
+        aggregate avg sep score w/ and w/o risk. 
+
+        Returns:
+            avg_sep_score (Dict): Average separability score. 
+        """
+        avg_sep_score = {}
+        for class_pair_key, class_pair_val in self.separability_scores.items():
+            avg_sep_score[class_pair_key] = np.mean(np.array([val for _, val in class_pair_val.items()]))
+        avg_sep_score['agg_with_risk'] = sum(
+                np.array([val for _, val in avg_sep_score.items()]) *
+                self.risk
+            ) / len(avg_sep_score.keys())
+        avg_sep_score['agg'] = sum([val for _, val in avg_sep_score.items()]) / len(avg_sep_score.keys())
+        return avg_sep_score
+
+    def compute_correlation_separability_score(self) -> float:
+        """
+        Compute correlation separability score between the prior 
+        and the concept-wise separability scores.  
+
+        Returns:
+            corr_sep_score (Dict): Correlation separability score. 
+        """
+        sep_scores = pd.DataFrame.from_dict(self.separability_scores).to_numpy()
+        corr_sep_score = np.corrcoef(self.path_prior, sep_scores)[1, 0]
+        return corr_sep_score

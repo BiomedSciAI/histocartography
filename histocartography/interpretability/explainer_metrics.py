@@ -11,7 +11,7 @@ from ..preprocessing.pipeline import PipelineStep
 class ExplainerMetric(PipelineStep):
     def __init__(
         self,
-        keep_numbers: str = '5,10,15,20,25,30,35,40,45,50',
+        keep_nuclei: str = '5,10,15,20,25,30,35,40,45,50',
         tumor_classes: str = '0,1,2',
         **kwargs
     ) -> None:
@@ -19,12 +19,12 @@ class ExplainerMetric(PipelineStep):
         ExplainerMetric constructor. 
 
         Args:
-            keep_numbers (str): Number of nuclei to retain each time. Default to '5,10,15,20,25,30,35,40,45,50'. 
+            keep_nuclei (str): Number of nuclei to retain each time. Default to '5,10,15,20,25,30,35,40,45,50'. 
             tumor_classes (str): Default to '0,1,2'.
         """
         super().__init__(**kwargs)
-        self.keep_numbers = [int(x) for x in keep_numbers.split(',')]
-        self.n_keep_numbers = len(self.keep_numbers)
+        self.keep_nuclei_list = [int(x) for x in keep_nuclei.split(',')]
+        self.n_keep_nuclei = len(self.keep_nuclei_list)
         self.tumor_classes = [int(x) for x in tumor_classes.split(',')]
         self.n_tumors = len(self.tumor_classes)
         self.class_pairs = list(itertools.combinations(self.tumor_classes, 2))
@@ -64,11 +64,15 @@ class ExplainerMetric(PipelineStep):
         for class_pair_id in range(self.n_class_pairs):
             all_aucs[class_pair_id] = {}
             for concept_id in range(n_concepts):
-                all_aucs[class_pair_id][concept_id] = auc(self.keep_numbers, all_distances[:, class_pair_id, concept_id])
+                all_aucs[class_pair_id][concept_id] = auc(self.keep_nuclei_list, all_distances[:, class_pair_id, concept_id])
 
         return all_aucs
 
-    def _compute_hist_distances(self, all_histograms: Dict, n_concepts: int):
+    def _compute_hist_distances(
+        self,
+        all_histograms: Dict,
+        n_concepts: int
+        ) -> np.ndarray:
         """
         Compute all the pair-wise histogram distances. 
 
@@ -76,8 +80,8 @@ class ExplainerMetric(PipelineStep):
              all_histograms (Dict): all the histograms. 
              n_concepts (int): number of concepts. 
         """
-        all_distances = np.empty((self.n_keep_numbers, self.n_class_pairs, n_concepts))
-        for k_id , k in enumerate(self.keep_numbers):
+        all_distances = np.empty((self.n_keep_nuclei, self.n_class_pairs, n_concepts))
+        for k_id , k in enumerate(self.keep_nuclei_list):
             omega = 0
             for tx in range(self.n_tumors):
                 for ty in range(self.n_tumors):
@@ -95,7 +99,7 @@ class ExplainerMetric(PipelineStep):
         importance_list: List[np.ndarray], 
         concept_list: List[np.ndarray],
         label_list: List[int]
-        ) -> Dict:
+        ) -> Dict[Dict[np.ndarray]]:
         """
         Compute histograms for all the concepts. 
 
@@ -104,10 +108,13 @@ class ExplainerMetric(PipelineStep):
             concept_list (List[np.ndarray]): List of nuclei-level concepts. 
             label_list (List[int]): List of tumor-level labels.
         Returns:
-            all_histograms (Dict): Dict with all the histograms for each concept, tumor type, thresh k.
+            all_histograms (Dict[Dict[np.ndarray]]): Dict with all the histograms
+                                                     for each thresh k (as key),
+                                                     tumor type (as key) and 
+                                                     concepts (as np array).
         """
         all_histograms = {}
-        for k in self.keep_numbers:
+        for k in self.keep_nuclei_list:
             all_histograms[k] = {}
             for t in range(self.n_tumors):
 
@@ -126,7 +133,7 @@ class ExplainerMetric(PipelineStep):
         return all_histograms
 
     @staticmethod
-    def normalize_node_importance(node_importance: List[np.ndarray]):
+    def normalize_node_importance(node_importance: List[np.ndarray]) -> List[np.ndarray]:
         """
         Normalize node importance. Min-max normalization on each sample. 
 
@@ -139,7 +146,7 @@ class ExplainerMetric(PipelineStep):
         return node_importance
 
     @staticmethod
-    def normalize_node_concept(node_concepts: List[np.ndarray]):
+    def normalize_node_concept(node_concepts: List[np.ndarray]) -> List[np.ndarray]:
         """
         Normalize node concepts. Min-max normalization on each concept over
         all the samples. 
@@ -168,7 +175,7 @@ class ExplainerMetric(PipelineStep):
         return out
 
     @staticmethod
-    def build_hist(concept_values: np.ndarray, num_bins: int = 100):
+    def build_hist(concept_values: np.ndarray, num_bins: int = 100) -> np.ndarray:
         """
         Build a 1D histogram using the concept_values. 
 

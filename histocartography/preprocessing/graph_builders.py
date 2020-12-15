@@ -177,7 +177,7 @@ class RAGGraphBuilder(BaseGraphBuilder):
             center_y = int(round(center_y))
             centroids[i, 0] = center_x
             centroids[i, 1] = center_y
-        graph.ndata[CENTROID] = centroids
+        graph.ndata[CENTROID] = torch.FloatTensor(centroids)
 
     def _set_node_labels(
         self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph

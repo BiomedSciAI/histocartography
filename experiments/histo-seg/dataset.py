@@ -147,7 +147,10 @@ class GraphClassificationDataset(BaseDataset):
                 superpixel_path = row["superpixel_path"]
                 annotation = read_image(annotation_path)
                 with h5py.File(superpixel_path, "r") as file:
-                    superpixel = file["default_key"][()]
+                    if "default_key_0" in file:
+                        superpixel = file["default_key_0"][()]
+                    elif "default_key" in file:
+                        superpixel = file["default_key"][()]
                 if self.downsample != 1:
                     new_size = (
                         annotation.shape[0] // self.downsample,

@@ -51,19 +51,20 @@ class ClassifierHead(nn.Module):
 
 
 class NodeClassifierHead(nn.Module):
-    def __init__(self, latent_dim: int, node_classifier_config: Dict, nr_classes: int = 4) -> None:
+    def __init__(
+        self, latent_dim: int, node_classifier_config: Dict, nr_classes: int = 4
+    ) -> None:
         super().__init__()
         node_classifiers = [
-            ClassifierHead(
-                input_dim=latent_dim, output_dim=1, **node_classifier_config
-            )
+            ClassifierHead(input_dim=latent_dim, output_dim=1, **node_classifier_config)
             for _ in range(nr_classes)
         ]
         self.node_classifiers = nn.ModuleList(node_classifiers)
-    
+
     def forward(self, node_embedding: torch.Tensor) -> torch.Tensor:
         node_logit = torch.empty(
-            (node_embedding.shape[0], len(self.node_classifiers)), device=node_embedding.device
+            (node_embedding.shape[0], len(self.node_classifiers)),
+            device=node_embedding.device,
         )
         for i, node_classifier in enumerate(self.node_classifiers):
             classifier_output = node_classifier(node_embedding).squeeze(1)
@@ -72,7 +73,9 @@ class NodeClassifierHead(nn.Module):
 
 
 class GraphClassifierHead(nn.Module):
-    def __init__(self, latent_dim: int, graph_classifier_config: Dict, nr_classes: int = 4) -> None:
+    def __init__(
+        self, latent_dim: int, graph_classifier_config: Dict, nr_classes: int = 4
+    ) -> None:
         super().__init__()
         self.graph_classifier = ClassifierHead(
             input_dim=latent_dim,
@@ -85,7 +88,9 @@ class GraphClassifierHead(nn.Module):
 
 
 class SuperPixelTissueClassifier(nn.Module):
-    def __init__(self, gnn_config: Dict,
+    def __init__(
+        self,
+        gnn_config: Dict,
         node_classifier_config: Dict,
         nr_classes: int = 4,
     ) -> None:
@@ -99,7 +104,9 @@ class SuperPixelTissueClassifier(nn.Module):
             raise NotImplementedError(
                 f"Only supported agg operators are [none, lstm, concat]"
             )
-        self.node_classifier = NodeClassifierHead(latent_dim, node_classifier_config, nr_classes)
+        self.node_classifier = NodeClassifierHead(
+            latent_dim, node_classifier_config, nr_classes
+        )
 
     def forward(self, graph: dgl.DGLGraph) -> torch.Tensor:
         in_features = graph.ndata[GNN_NODE_FEAT_IN]
@@ -135,8 +142,12 @@ class SemiSuperPixelTissueClassifier(nn.Module):
             raise NotImplementedError(
                 f"Only supported agg operators are [none, lstm, concat]"
             )
-        self.graph_classifier = GraphClassifierHead(latent_dim, graph_classifier_config, nr_classes)
-        self.node_classifiers = NodeClassifierHead(latent_dim, node_classifier_config, nr_classes)
+        self.graph_classifier = GraphClassifierHead(
+            latent_dim, graph_classifier_config, nr_classes
+        )
+        self.node_classifiers = NodeClassifierHead(
+            latent_dim, node_classifier_config, nr_classes
+        )
 
     def forward(self, graph: dgl.DGLGraph) -> Tuple[torch.Tensor, torch.Tensor]:
         """Perform a forward pass on the graph
@@ -180,7 +191,9 @@ class ImageTissueClassifier(nn.Module):
             raise NotImplementedError(
                 f"Only supported agg operators are [none, lstm, concat]"
             )
-        self.graph_classifier = GraphClassifierHead(latent_dim, graph_classifier_config, nr_classes)
+        self.graph_classifier = GraphClassifierHead(
+            latent_dim, graph_classifier_config, nr_classes
+        )
 
     def forward(self, graph: dgl.DGLGraph) -> Tuple[torch.Tensor, torch.Tensor]:
         """Perform a forward pass on the graph
@@ -225,8 +238,7 @@ class PatchTissueClassifier(nn.Module):
         else:
             feature_dim = model.classifier[-1].in_features
             model.classifier = nn.Sequential(
-                nn.Dropout(p=dropout),
-                nn.Linear(feature_dim, num_classes)
+                nn.Dropout(p=dropout), nn.Linear(feature_dim, num_classes)
             )
             for param in model.features[:freeze].parameters():
                 param.requires_grad = False

@@ -12,6 +12,9 @@ from losses import get_loss
 from models import PatchTissueClassifier
 from utils import dynamic_import_from, get_config
 
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
 
 def train_patch_classifier(
     dataset: str,
@@ -50,11 +53,13 @@ def train_patch_classifier(
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
+        pin_memory=True,
     )
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
+        pin_memory=True,
     )
 
     # Compute device
@@ -90,7 +95,13 @@ def train_patch_classifier(
 
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
-    optimizer = optimizer_class(model.parameters(), **optimizer["params"])
+    optim = optimizer_class(model.parameters(), **optimizer["params"])
+    
+    # Learning rate scheduler
+    scheduler_config = optimizer.get('scheduler', None)
+    if scheduler_config is not None:
+        scheduler_class = dynamic_import_from("torch.optim.lr_scheduler", scheduler_config["class"])
+        scheduler = scheduler_class(optim, **scheduler_config.get("params", {}))
 
     for epoch in trange(nr_epochs):
 
@@ -103,6 +114,8 @@ def train_patch_classifier(
             patches = patches.to(device)
             labels = labels.to(device)
 
+            optim.zero_grad()
+
             logits = model(patches)
             loss = criterion(logits, labels)
 
@@ -111,13 +124,18 @@ def train_patch_classifier(
                 torch.nn.utils.clip_grad.clip_grad_norm_(
                     model.parameters(), clip_gradient_norm
                 )
-            optimizer.step()
+            
+            optim.step()
 
             training_metric_logger.add_iteration_outputs(
-                losses=loss.item(),
+                loss=loss.item(),
                 logits=logits.detach().cpu(),
                 labels=labels.cpu(),
             )
+            
+        if scheduler_config is not None:
+            robust_mlflow(mlflow.log_metric, 'current_lr', get_lr(optim), epoch)
+            scheduler.step()
 
         training_metric_logger.log_and_clear(epoch)
         training_epoch_duration = (
@@ -145,7 +163,7 @@ def train_patch_classifier(
                     loss = criterion(logits, labels)
 
                     validation_metric_logger.add_iteration_outputs(
-                        losses=loss.item(),
+                        loss=loss.item(),
                         logits=logits.detach().cpu(),
                         labels=labels.cpu(),
                     )

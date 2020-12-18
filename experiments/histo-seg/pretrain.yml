@@ -35,8 +35,8 @@ train:
   model:
     architecture: "mobilenet_v2"
     pretrained: True
-    dropout: 0.2
-    freeze: 0
+    dropout: 0.6
+    freeze: 17
   metrics:
     - MultiLabelBalancedAccuracy
     - MultiLabelF1Score
@@ -49,17 +49,16 @@ train:
     experiment_name: "anv_wsss_pretrain"
     experiment_tags: null
     optimizer:
-      class: "SGD"
+      class: "Adam"
       params:
         lr: 0.0001
-        momentum: 0.9
-        nesterov: True
+      scheduler: null
     loss:
       class: "MultiLabelBCELoss"
     batch_size: 32
-    nr_epochs: 500
+    nr_epochs: 2000
     num_workers: 24
-    clip_gradient_norm: 5.0
+    clip_gradient_norm: null
     dataset: "eth"
     seed: null
-    validation_frequency: 1
+    validation_frequency: 2

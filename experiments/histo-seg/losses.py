@@ -3,6 +3,7 @@ from typing import List
 import torch
 from torch import nn
 from torch.functional import F
+
 from utils import dynamic_import_from
 
 
@@ -93,6 +94,11 @@ def get_loss(config, name=None, device=None):
     loss_class = dynamic_import_from("losses", config["class"])
     criterion = loss_class(**config.get("params", {}))
     return criterion.to(device) if device is not None else criterion
+
+
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group["lr"]
 
 
 # Legacy compatibility (remove in the future)

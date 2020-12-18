@@ -8,13 +8,10 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
 
 from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
-from losses import get_loss
+from losses import get_loss, get_lr
 from models import PatchTissueClassifier
 from utils import dynamic_import_from, get_config
 
-def get_lr(optimizer):
-    for param_group in optimizer.param_groups:
-        return param_group['lr']
 
 def train_patch_classifier(
     dataset: str,
@@ -96,11 +93,13 @@ def train_patch_classifier(
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
     optim = optimizer_class(model.parameters(), **optimizer["params"])
-    
+
     # Learning rate scheduler
-    scheduler_config = optimizer.get('scheduler', None)
+    scheduler_config = optimizer.get("scheduler", None)
     if scheduler_config is not None:
-        scheduler_class = dynamic_import_from("torch.optim.lr_scheduler", scheduler_config["class"])
+        scheduler_class = dynamic_import_from(
+            "torch.optim.lr_scheduler", scheduler_config["class"]
+        )
         scheduler = scheduler_class(optim, **scheduler_config.get("params", {}))
 
     for epoch in trange(nr_epochs):
@@ -124,7 +123,7 @@ def train_patch_classifier(
                 torch.nn.utils.clip_grad.clip_grad_norm_(
                     model.parameters(), clip_gradient_norm
                 )
-            
+
             optim.step()
 
             training_metric_logger.add_iteration_outputs(
@@ -132,9 +131,9 @@ def train_patch_classifier(
                 logits=logits.detach().cpu(),
                 labels=labels.cpu(),
             )
-            
+
         if scheduler_config is not None:
-            robust_mlflow(mlflow.log_metric, 'current_lr', get_lr(optim), epoch)
+            robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
             scheduler.step()
 
         training_metric_logger.log_and_clear(epoch)

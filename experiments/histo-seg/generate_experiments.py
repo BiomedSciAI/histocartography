@@ -371,84 +371,6 @@ class GraphClassifierExperiment(Experiment):
         )
 
 
-def generate_performance_test(path: str, base: str):
-    with open(base) as file:
-        config: dict = yaml.load(file, Loader=yaml.FullLoader)
-
-    job_name = "scaling_test"
-    job_id = 0
-    subsample = 256
-    for cores in [1, 2, 4]:
-        for threads_per_core in [1, 2, 4, 8]:
-            # Generate config
-            new_config = config.copy()
-            new_config["preprocess"]["params"]["cores"] = cores * threads_per_core
-            new_config["preprocess"]["stages"]["superpixel_extractor"]["params"] = {
-                "nr_superpixels": 100,
-                "color_space": "rgb",
-                "downsampling_factor": 4,
-            }
-
-            # Generate lsf file
-            lsf_content = get_lsf(
-                config_name=f"job{job_id}",
-                queue="prod.short",
-                cores=cores,
-                log_name=f"{job_name}{job_id}",
-                nosave=True,
-                subsample=subsample,
-                disable_multithreading=True,
-            )
-
-            # Write files
-            target_directory = Path(path) / job_name
-            if not target_directory.exists():
-                target_directory.mkdir()
-            with open(target_directory / f"job{job_id}.lsf", "w") as file:
-                file.write(lsf_content)
-            with open(target_directory / f"job{job_id}.yml", "w") as file:
-                yaml.dump(new_config, file)
-
-            job_id += 1
-
-
-def generate_upper_bounds(path: str, base: str):
-    with open(base) as file:
-        config: dict = yaml.load(file, Loader=yaml.FullLoader)
-
-    job_name = "upper_bound_test"
-    job_id = 0
-    cores = 6
-    for nr_superpixels in [100, 250, 500, 1000, 2000, 4000, 8000]:
-        # Generate config
-        new_config = config.copy()
-        new_config["upper_bound"]["params"]["cores"] = cores * 6
-        new_config["upper_bound"]["stages"]["superpixel_extractor"]["params"] = {
-            "nr_superpixels": nr_superpixels,
-        }
-
-        # Generate lsf file
-        lsf_content = get_lsf(
-            config_name=f"job{job_id}",
-            queue="prod.med",
-            cores=cores,
-            log_name=f"{job_name}{job_id}",
-            main_file_name="upper_bound",
-            disable_multithreading=True,
-        )
-
-        # Write files
-        target_directory = Path(path) / job_name
-        if not target_directory.exists():
-            target_directory.mkdir()
-        with open(target_directory / f"job{job_id}.lsf", "w") as file:
-            file.write(lsf_content)
-        with open(target_directory / f"job{job_id}.yml", "w") as file:
-            yaml.dump(new_config, file)
-
-        job_id += 1
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -459,9 +381,6 @@ if __name__ == "__main__":
 
     PATH = args.path
     BASE = args.base
-
-    generate_performance_test(path=args.path, base=args.base)
-    generate_upper_bounds(path=args.path, base=args.base)
 
     # Preprocessing
     PreprocessingExperiment(name="superpixels", base="superpixel.yml").generate(
@@ -629,7 +548,7 @@ if __name__ == "__main__":
                 "ZT111_4_A_1_12",
             ),
             Parameter(["feature_extraction", "params", "architecture"], "mobilenet_v2"),
-            Parameter(["feature_extraction", "params", "size"], 672)
+            Parameter(["feature_extraction", "params", "size"], 672),
         ],
         grid=[
             ParameterList(
@@ -737,7 +656,7 @@ if __name__ == "__main__":
         sequential=[
             ParameterList(
                 ["train", "params", "optimizer", "params", "lr"],
-                list(map(float, np.logspace(-3, -6, 20))),
+                list(map(float, np.logspace(-2, -6, 15))),
             ),
         ],
     )
@@ -1259,17 +1178,105 @@ if __name__ == "__main__":
             ),
         ],
     )
+    GraphClassifierExperiment(name="v2_learning_rates_fixed_seed").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "seed"], 42),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"],
+                list(map(float, np.logspace(-2, -6, 10))),
+            ),
+        ],
+    )
     GraphClassifierExperiment(name="v2_mobilenet").generate(
         fixed=[
             Parameter(["train", "model", "graph_classifier_config"], None),
-            Parameter(["train", "params", "validation_frequency"], 20),
+            Parameter(["train", "params", "nr_epochs"], 5000),
         ],
         sequential=[
             ParameterList(
                 ["train", "data", "graph_directory"],
-                [f"outputs/v2_{x}_mobilenet_v2" for x in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]]
+                [
+                    f"outputs/v2_{x}_mobilenet_v2"
+                    for x in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+                ],
             )
-        ]
+        ],
+    )
+    GraphClassifierExperiment(name="v2_patch_size").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 5000),
+            Parameter(
+                ["train", "data", "graph_directory"], "outputs/v2_500_mobilenet_v2"
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "data", "patch_size"],
+                [1500, 2000, 2400, 2600, 2800, 3000, None],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v2_batch_size").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 5000),
+            Parameter(
+                ["train", "data", "graph_directory"], "outputs/v2_500_mobilenet_v2"
+            ),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "batch_size"],
+                [4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v2_pretrained").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 5000),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v2_{x}_Local(models_485e5ed454714988b70b07ba3231e34d_best_valid_MultiLabelBalancedAccuracy.pth)"
+                    for x in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v2_pretrained_additional_1").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v2_{x}_Local(models_d4372ddba84b497fac70a0c5bfc95139_best_valid_MultiLabelBalancedAccuracy.pth)"
+                    for x in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v2_pretrained_additional_2").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v2_{x}_Local(models_fe014f5eeb9d445a9940fae9422dca73_best_valid_MultiLabelAUCROC.pth)"
+                    for x in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+                ],
+            )
+        ],
     )
 
     # MNIST
@@ -1868,21 +1875,6 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="optimizer").generate(
-        sequential=[
-            ParameterList(
-                ["train", "params", "optimizer"],
-                [
-                    {"class": "Adam", "params": {"lr": 0.0001}},
-                    {"class": "AdamW", "params": {"lr": 0.0001}},
-                    {
-                        "class": "SGD",
-                        "params": {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
-                    },
-                ],
-            )
-        ]
-    )
     PretrainingExperiment(name="downsampling_factor").generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 2000),
@@ -1984,4 +1976,82 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[ParameterList(["train", "model", "freeze"], [0, 5, 6, 7, 8])],
+    )
+    PretrainingExperiment(name="baseline", queue="prod.long").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 2000),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "batch_size"],
+                [32],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="optimizer_long", queue="prod.long").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 2000),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "optimizer"],
+                [
+                    {"class": "Adam", "params": {"lr": 0.0001}},
+                    {"class": "AdamW", "params": {"lr": 0.0001}},
+                    {
+                        "class": "SGD",
+                        "params": {"lr": 0.0001, "momentum": 0.9, "nesterov": True},
+                    },
+                ],
+            )
+        ],
+    )
+    PretrainingExperiment(name="batch_sizes_long", queue="prod.long").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 2000),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "params", "batch_size"],
+                [8, 16, 64, 128],
+            ),
+        ],
+    )
+    PretrainingExperiment(name="step_lr").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "params", "optimizer", "scheduler"],
+                    [None]
+                    + [
+                        {
+                            "class": "StepLR",
+                            "params": {"step_size": step_size, "gamma": gamma},
+                        }
+                        for step_size in [50, 75, 100]
+                        for gamma in [0.5, 0.2, 0.1]
+                    ],
+                )
+            ]
+        ],
+    )
+    PretrainingExperiment(name="exponential_lr").generate(
+        fixed=[
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "params", "optimizer", "scheduler"],
+                    [None]
+                    + [
+                        {"class": "ExponentialLR", "params": {"gamma": gamma}}
+                        for gamma in [0.999, 0.99, 0.95]
+                    ],
+                )
+            ]
+        ],
     )

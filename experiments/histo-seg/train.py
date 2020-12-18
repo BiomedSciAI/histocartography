@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 import mlflow
 import numpy as np
@@ -9,17 +9,11 @@ from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
 from dataset import collate, collate_valid
-from logging_helper import (
-    GraphClassificationLoggingHelper,
-    prepare_experiment,
-    robust_mlflow,
-)
-from losses import get_loss
-from models import (
-    SemiSuperPixelTissueClassifier,
-    SuperPixelTissueClassifier,
-    ImageTissueClassifier,
-)
+from logging_helper import (GraphClassificationLoggingHelper,
+                            prepare_experiment, robust_mlflow)
+from losses import get_loss, get_lr
+from models import (ImageTissueClassifier, SemiSuperPixelTissueClassifier,
+                    SuperPixelTissueClassifier)
 from utils import dynamic_import_from, get_config
 
 
@@ -228,7 +222,15 @@ def train_graph_classifier(
 
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
-    optimizer = optimizer_class(model.parameters(), **optimizer["params"])
+    optim = optimizer_class(model.parameters(), **optimizer["params"])
+
+    # Learning rate scheduler
+    scheduler_config = optimizer.get("scheduler", None)
+    if scheduler_config is not None:
+        scheduler_class = dynamic_import_from(
+            "torch.optim.lr_scheduler", scheduler_config["class"]
+        )
+        scheduler = scheduler_class(optim, **scheduler_config.get("params", {}))
 
     for epoch in trange(nr_epochs):
 
@@ -236,7 +238,7 @@ def train_graph_classifier(
         time_before_training = datetime.datetime.now()
         model.train()
         for iteration, (graph, graph_labels, node_labels) in enumerate(training_loader):
-            optimizer.zero_grad()
+            optim.zero_grad()
 
             graph = graph.to(device)
             logits = model(graph)
@@ -258,12 +260,16 @@ def train_graph_classifier(
                 torch.nn.utils.clip_grad.clip_grad_norm_(
                     model.parameters(), clip_gradient_norm
                 )
-            optimizer.step()
+            optim.step()
 
             # Log to MLflow
             training_metric_logger.add_iteration_outputs(
                 loss=loss.item(), **loss_information
             )
+
+        if scheduler_config is not None:
+            robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
+            scheduler.step()
 
         training_metric_logger.log_and_clear(step=epoch)
         training_epoch_duration = (

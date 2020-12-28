@@ -29,11 +29,10 @@ from utils import read_image
 
 
 class BaseDataset(Dataset):
-    def __init__(self, metadata, patch_size, num_classes, background_index) -> None:
+    def __init__(self, metadata, num_classes, background_index) -> None:
         self._check_metadata(metadata)
         self.metadata = metadata
         self.image_sizes = self._load_image_sizes(metadata)
-        self.patch_size = patch_size
         self.num_classes = num_classes
         self.background_index = background_index
 
@@ -130,7 +129,8 @@ class GraphClassificationDataset(BaseDataset):
         assert (
             "graph_path" in metadata
         ), f"Metadata lacks graph path ({metadata.columns})"
-        super().__init__(metadata, patch_size, num_classes, background_index)
+        super().__init__(metadata, num_classes, background_index)
+        self.patch_size = patch_size
         self.mean = mean
         self.std = std
         self.names, self.graphs = self._load_graphs(metadata)
@@ -322,18 +322,16 @@ class GraphClassificationDataset(BaseDataset):
         return len(self.graphs)
 
 
-class PatchClassificationDataset(BaseDataset):
+class ImageDataset(BaseDataset):
     def __init__(
         self,
         metadata: pd.DataFrame,
-        patch_size: int,
-        stride: int,
         downsample_factor: int,
-        mean: torch.Tensor,
-        std: torch.Tensor,
-        augmentations: Optional[List[Dict]] = None,
         num_classes: int = 4,
         background_index: int = 4,
+        mean: Optional[torch.Tensor] = None,
+        std: Optional[torch.Tensor] = None,
+        return_names: bool = False,
     ) -> None:
         assert (
             "processed_image_path" in metadata
@@ -341,13 +339,33 @@ class PatchClassificationDataset(BaseDataset):
         assert (
             "annotation_path" in metadata
         ), f"Metadata lacks annotation path ({metadata.columns})"
-        super().__init__(metadata, patch_size, num_classes, background_index)
+        super().__init__(metadata, num_classes, background_index)
         self.downsample_factor = downsample_factor
-        self.stride = stride
         self.images, self.annotations = self._load_images()
-        self.patches = self._generate_patches()
-        self.labels = self._generate_labels()
-        self.augmentor = self._get_augmentor(augmentations, mean, std)
+        self.normalizer = Normalize(mean, std)
+        self.additional_annotation = "annotation2_path" in metadata
+        if self.additional_annotation:
+            self.annotations2 = self._load_annotation2()
+        self.return_names = return_names
+        if return_names:
+            self.names = np.array(metadata.index.tolist())
+
+    def _load_annotation2(self):
+        assert "annotation2_path" in self.metadata
+        annotation_paths = self.metadata["annotation2_path"].tolist()
+        annotations = list()
+        for annotation_path in annotation_paths:
+            annotation = read_image(annotation_path)
+            if self.downsample_factor != 1:
+                new_size = (
+                    math.floor(annotation.shape[0] / self.downsample_factor),
+                    math.floor(annotation.shape[1] / self.downsample_factor),
+                )
+                annotation = cv2.resize(annotation, new_size)
+            annotations.append(annotation)
+        return torch.from_numpy(
+            np.array(annotations)
+        )
 
     def _load_images(self):
         image_paths = self.metadata["processed_image_path"].tolist()
@@ -373,6 +391,55 @@ class PatchClassificationDataset(BaseDataset):
         return torch.from_numpy(np.array(images)), torch.from_numpy(
             np.array(annotations)
         )
+
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        image = self.images[index].permute(2, 0, 1).to(torch.float32) / 255
+        normalized_image = self.normalizer(image)
+        annotation = self.annotations[index]
+
+        return_elements = list()
+        if self.return_names:
+            return_elements.append(self.names[index])
+        return_elements.append(normalized_image)
+        return_elements.append(annotation)
+        if self.additional_annotation:
+            return_elements.append(self.annotations2[index])
+        return tuple(return_elements)
+
+    def __len__(self) -> int:
+        return len(self.images)
+
+
+class PatchClassificationDataset(ImageDataset):
+    def __init__(
+        self,
+        metadata: pd.DataFrame,
+        patch_size: int,
+        stride: int,
+        downsample_factor: int,
+        mean: torch.Tensor,
+        std: torch.Tensor,
+        augmentations: Optional[List[Dict]] = None,
+        num_classes: int = 4,
+        background_index: int = 4,
+    ) -> None:
+        assert (
+            "processed_image_path" in metadata
+        ), f"Metadata lacks processed image path ({metadata.columns})"
+        assert (
+            "annotation_path" in metadata
+        ), f"Metadata lacks annotation path ({metadata.columns})"
+        super().__init__(
+            metadata=metadata,
+            downsample_factor=downsample_factor,
+            num_classes=num_classes,
+            background_index=background_index,
+        )
+        self.patch_size = patch_size
+        self.stride = stride
+        self.patches = self._generate_patches()
+        self.labels = self._generate_labels()
+        self.augmentor = self._get_augmentor(augmentations, mean, std)
 
     def _generate_patches(self):
         patches = self.images.unfold(1, self.patch_size, self.stride).unfold(

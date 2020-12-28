@@ -19,6 +19,9 @@ class ClassifierHead(nn.Module):
         output_dim: int,
         n_layers: int = 2,
         hidden_dim: int = None,
+        activation: str = "ReLU",
+        input_dropout: float = 0.0,
+        layer_dropout: float = 0.0,
     ) -> None:
         """Create a basic classifier head
 
@@ -31,11 +34,22 @@ class ClassifierHead(nn.Module):
         super().__init__()
         if hidden_dim is None:
             hidden_dim = input_dim
-        modules = [nn.Linear(input_dim, hidden_dim), nn.ReLU()]
+        activation = dynamic_import_from("torch.nn", activation)
+        modules = []
+        if input_dropout > 0:
+            modules.append(nn.Dropout(input_dropout))
+        if n_layers > 1:
+            modules.append(nn.Linear(input_dim, hidden_dim))
+            modules.append(activation())
         for _ in range(n_layers - 2):
+            if layer_dropout > 0:
+                modules.append(nn.Dropout(layer_dropout))
             modules.append(nn.Linear(hidden_dim, hidden_dim))
-            modules.append(nn.ReLU())
-        modules.append(nn.Linear(hidden_dim, output_dim))
+            modules.append(activation())
+        if n_layers == 1:
+            modules.append(nn.Linear(input_dim, output_dim))
+        else:
+            modules.append(nn.Linear(hidden_dim, output_dim))
         self.model = nn.Sequential(*modules)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -52,24 +66,31 @@ class ClassifierHead(nn.Module):
 
 class NodeClassifierHead(nn.Module):
     def __init__(
-        self, latent_dim: int, node_classifier_config: Dict, nr_classes: int = 4
+        self, latent_dim: int, node_classifier_config: Dict, nr_classes: int = 4,
     ) -> None:
         super().__init__()
-        node_classifiers = [
-            ClassifierHead(input_dim=latent_dim, output_dim=1, **node_classifier_config)
-            for _ in range(nr_classes)
-        ]
-        self.node_classifiers = nn.ModuleList(node_classifiers)
+        self.seperate_heads = node_classifier_config.pop("seperate_heads", True)
+        if self.seperate_heads:
+            node_classifiers = [
+                ClassifierHead(input_dim=latent_dim, output_dim=1, **node_classifier_config)
+                for _ in range(nr_classes)
+            ]
+            self.node_classifiers = nn.ModuleList(node_classifiers)
+        else:
+            self.node_classifier = ClassifierHead(input_dim=latent_dim, output_dim=nr_classes, **node_classifier_config)
 
     def forward(self, node_embedding: torch.Tensor) -> torch.Tensor:
-        node_logit = torch.empty(
-            (node_embedding.shape[0], len(self.node_classifiers)),
-            device=node_embedding.device,
-        )
-        for i, node_classifier in enumerate(self.node_classifiers):
-            classifier_output = node_classifier(node_embedding).squeeze(1)
-            node_logit[:, i] = classifier_output
-        return node_logit
+        if self.seperate_heads:
+            node_logit = torch.empty(
+                (node_embedding.shape[0], len(self.node_classifiers)),
+                device=node_embedding.device,
+            )
+            for i, node_classifier in enumerate(self.node_classifiers):
+                classifier_output = node_classifier(node_embedding).squeeze(1)
+                node_logit[:, i] = classifier_output
+            return node_logit
+        else:
+            return self.node_classifier(node_embedding)
 
 
 class GraphClassifierHead(nn.Module):

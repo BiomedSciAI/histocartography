@@ -7,12 +7,14 @@ import shutil
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
+from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
 
-from dataset import GraphClassificationDataset, PatchClassificationDataset
+from dataset import GraphClassificationDataset, ImageDataset, PatchClassificationDataset
 from utils import merge_metadata
 
 with os.popen("hostname") as subprocess:
@@ -261,7 +263,7 @@ def prepare_patch_datasets(
         processed_image_directory=PREPROCESS_PATH / image_path,
         add_image_sizes=True,
     )
-    
+
     if train_fraction is not None:
         train_indices, validation_indices = train_test_split(
             all_metadata.index.values, train_size=train_fraction
@@ -303,6 +305,105 @@ def prepare_patch_datasets(
         **kwargs,
     )
     return training_dataset, validation_dataset
+
+
+def prepare_patch_testset(
+    image_path: str,
+    test: bool,
+    test_slides: Optional[List[int]] = TEST_SLIDES,
+    normalizer: Optional[dict] = None,
+    **kwargs,
+) -> Dataset:
+
+    annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+    pathologist2_metadata = annotation_metadata[
+        (annotation_metadata.use == "test") & (annotation_metadata.pathologist == 2)
+    ]
+    pathologist2_metadata = pathologist2_metadata.set_index("name")
+    pathologist2_metadata = pathologist2_metadata.rename(
+        columns={"path": "annotation2_path"}
+    )
+
+    all_metadata = merge_metadata(
+        pd.read_pickle(IMAGES_DF),
+        annotation_metadata,
+        processed_image_directory=PREPROCESS_PATH / image_path,
+        add_image_sizes=True,
+    )
+    test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
+    test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
+
+    if test:
+        test_metadata = test_metadata.sample(1)
+
+    if normalizer is not None:
+        mean = torch.Tensor(normalizer["mean"])
+        std = torch.Tensor(normalizer["std"])
+    else:
+        mean = torch.Tensor([0, 0, 0])
+        std = torch.Tensor([1, 1, 1])
+
+    return ImageDataset(
+        metadata=test_metadata,
+        num_classes=NR_CLASSES,
+        return_names=True,
+        background_index=BACKGROUND_CLASS,
+        mean=mean,
+        std=std,
+        **kwargs,
+    )
+
+
+def show_class_acivation(per_class_output):
+    fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(8, 8))
+    for i, ax in enumerate(axes.flat):
+        im = ax.imshow(per_class_output[i], vmin=0, vmax=1, cmap="viridis")
+        ax.set_axis_off()
+        ax.set_title(MASK_VALUE_TO_TEXT[i])
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+    return fig
+
+
+def show_segmentation_masks(output, annotation=None, annotation2=None):
+    height = 4
+    width = 5
+    ncols = 1
+    if annotation is not None:
+        width += 5
+        ncols += 1
+        if annotation2 is not None:
+            width += 5
+            ncols += 1
+    fig, ax = plt.subplots(nrows=1, ncols=ncols, figsize=(width, height))
+    cmap = ListedColormap(MASK_VALUE_TO_COLOR.values())
+
+    mask_ax = ax if annotation is None else ax[0]
+    im = mask_ax.imshow(output, cmap=cmap, vmin=-0.5, vmax=4.5, interpolation="nearest")
+    mask_ax.axis("off")
+    if annotation is not None:
+        ax[1].imshow(
+            annotation, cmap=cmap, vmin=-0.5, vmax=4.5, interpolation="nearest"
+        )
+        ax[1].axis("off")
+        ax[0].set_title("Prediction")
+        if annotation2 is not None:
+            ax[2].imshow(
+                annotation2, cmap=cmap, vmin=-0.5, vmax=4.5, interpolation="nearest"
+            )
+            ax[2].axis("off")
+            ax[1].set_title("Ground Truth 1")
+            ax[2].set_title("Ground Truth 2")
+        else:
+            ax[1].set_title("Ground Truth")
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.016 if annotation2 is None else 0.01, 0.7])
+    cbar = fig.colorbar(im, ticks=[0, 1, 2, 3, 4], cax=cbar_ax)
+    cbar.ax.set_yticklabels(MASK_VALUE_TO_TEXT.values())
+    return fig
 
 
 if __name__ == "__main__":

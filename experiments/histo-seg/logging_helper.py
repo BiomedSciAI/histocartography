@@ -38,10 +38,6 @@ def flatten(d, parent_key="", sep="."):
             if k == "class":
                 new_key = parent_key
 
-            # Handle lists (with no order)
-            if isinstance(v, list):
-                v = sorted(v)
-
             items.append((new_key, v))
     return dict(items)
 

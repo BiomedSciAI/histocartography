@@ -1,5 +1,5 @@
 import torch
-from torch.nn import ReLU, Tanh, Sigmoid, ELU, LeakyReLU
+from torch.nn import ReLU, Tanh, Sigmoid, ELU, LeakyReLU, PReLU
 import dgl
 import numpy as np
 
@@ -9,6 +9,7 @@ ACTIVATIONS = {
     'tanh': Tanh(),
     'sigmoid': Sigmoid(),
     'elu': ELU(),
+    'PReLU': PReLU(),
     'leaky_relu': LeakyReLU()
 }
 

@@ -1,27 +1,3 @@
-preprocess:
-  stages:
-    stain_normalizer:
-      class: "VahadaneStainNormalizer"
-      params:
-        target: "ZT76_39_B_2_1"
-    superpixel_extractor:
-      class: "SLICSuperpixelExtractor"
-      params:
-        nr_superpixels: 500
-        color_space: "rgb"
-    feature_extractor:
-      class: "DeepFeatureExtractor"
-      params:
-        architecture: "resnet18"
-        mask: False
-        size: 224
-    graph_builder:
-      class: "RAGGraphBuilder"
-      params:
-        nr_classes: 5
-  params:
-    cores: 64
-    labels: True
 upper_bound:
   stages:
     stain_normalizer:
@@ -53,7 +29,7 @@ train:
     downsample_segmentation_maps: 16
   model:
     gnn_config:
-      activation: "relu"
+      activation: "PReLU"
       agg_operator: "concat"
       input_dim: 1282
       hidden_dim: 32
@@ -64,12 +40,16 @@ train:
       graph_norm: False
       with_rlp: False
       edge_dim: null
+      dropout: 0.0
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 32
     node_classifier_config:
-      n_layers: 2
-      hidden_dim: 16
+      n_layers: 1
+      hidden_dim: 32
+      activation: "PReLU"
+      input_dropout: 0.0
+      seperate_heads: True
   metrics:
     graph:
       - "GraphClassificationBalancedAccuracy"
@@ -81,6 +61,8 @@ train:
       - "GraphClassificationGleason5Accuracy"
     node:
       - "NodeClassificationAccuracy"
+      - "NodeClassificationBalancedAccuracy"
+      - "NodeClassificationF1Score"
     segmentation:
       - "MeanIoU"
       - "fIoU"
@@ -91,7 +73,7 @@ train:
     optimizer:
       class: "Adam"
       params:
-        lr: 2.0e-5
+        lr: 0.00003
     loss:
       graph:
         class: "GraphBCELoss"
@@ -103,8 +85,8 @@ train:
       node_weight: 0.5
     batch_size: 8
     nr_epochs: 2000
-    num_workers: 6
+    num_workers: 8
     clip_gradient_norm: 5.0
     dataset: "eth"
     seed: null
-    validation_frequency: 1
+    validation_frequency: 5

@@ -62,3 +62,28 @@ train:
     dataset: "eth"
     seed: null
     validation_frequency: 2
+test:
+  data:
+    normalizer:
+      type: train
+      mean:
+        - 0.86489
+        - 0.63272
+        - 0.85928
+      std:
+        - 0.020820
+        - 0.026320
+        - 0.017309
+  model:
+    architecture: 's3://mlflow/633/02906fe539444b13a76d39d4a0dfbb6f/artifacts/best.valid.MultiLabelBalancedAccuracy'
+  params:
+    experiment_name: "anv_wsss_test_cnn"
+    experiment_tags: null
+    dataset: eth
+    batch_size: 32
+    patch_size: 224
+    num_workers: 8
+    overlap: 200
+    operation: argmax
+    local_save_path: '/dataT/anv/cnn_test_masks'
+    mlflow_save_path: 'cnn_test_masks'

@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import torch
+from tqdm.auto import tqdm
 from matplotlib.colors import ListedColormap
 
 from utils import dynamic_import_from, fix_seeds
@@ -52,6 +53,22 @@ def log_sources():
     for file in Path(".").iterdir():
         if file.name.endswith(".py"):
             robust_mlflow(mlflow.log_artifact, str(file), "sources")
+
+
+def log_segmentation_results(results, step):
+    for k, v in tqdm(results.items(), desc="Log metrics"):
+        values = torch.Tensor(v)
+        if len(values.shape) == 1:
+            robust_mlflow(mlflow.log_metric, k, values.mean().item(), step)
+        else:
+            mask = torch.isnan(values)
+            values[mask] = 0
+            means = torch.sum(values, axis=0) / torch.sum(~mask, axis=0)
+            for j, mean in enumerate(means):
+                robust_mlflow(
+                    mlflow.log_metric, f"{k}_class_{j}", mean.item(), step
+                )
+
 
 
 def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):

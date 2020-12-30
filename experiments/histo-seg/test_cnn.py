@@ -1,17 +1,17 @@
-from utils import dynamic_import_from
-from typing import Dict, NewType
-import logging
-import torch
-import mlflow
-from pathlib import Path
-from tqdm.auto import tqdm
 import datetime
+import logging
 from collections import defaultdict
+from pathlib import Path
+from typing import Dict, NewType
 
-from utils import get_config
-from logging_helper import prepare_experiment, robust_mlflow
+import mlflow
+import torch
+from tqdm.auto import tqdm
+
 from inference import PatchBasedInference
-from metrics import IoU, MeanIoU, fIoU, F1Score, MeanF1Score
+from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
+from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU
+from utils import dynamic_import_from, get_config
 
 
 def get_model(architecture):
@@ -126,18 +126,7 @@ def test_cnn(
                 )
 
         if i > 0 and i % 10 == 0:
-            for k, v in tqdm(results.items(), desc="Log metrics"):
-                values = torch.Tensor(v)
-                if len(values.shape) == 1:
-                    robust_mlflow(mlflow.log_metric, k, values.mean().item(), i)
-                else:
-                    mask = torch.isnan(values)
-                    values[mask] = 0
-                    means = torch.sum(values, axis=0) / torch.sum(~mask, axis=0)
-                    for j, mean in enumerate(means):
-                        robust_mlflow(
-                            mlflow.log_metric, f"{k}_class_{j}", mean.item(), i
-                        )
+            log_segmentation_results(results, step=i)
 
         # Save figure
         if operation == "per_class":
@@ -167,6 +156,7 @@ def test_cnn(
             duration,
             step=i,
         )
+    log_segmentation_results(results, step=len(test_dataset))
 
 
 if __name__ == "__main__":

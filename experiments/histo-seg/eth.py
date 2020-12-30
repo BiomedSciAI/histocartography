@@ -247,6 +247,69 @@ def prepare_graph_datasets(
     return training_dataset, validation_dataset
 
 
+def prepare_graph_testset(
+    graph_directory: str,
+    test: bool = False,
+    centroid_features: str = "no",
+    normalize_features: bool = False,
+    test_slides: Optional[List[int]] = TEST_SLIDES,
+    **kwargs,
+):
+    graph_directory = PREPROCESS_PATH / graph_directory
+
+    annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+    pathologist2_metadata = annotation_metadata[
+        (annotation_metadata.use == "test") & (annotation_metadata.pathologist == 2)
+    ]
+    pathologist2_metadata = pathologist2_metadata.set_index("name")
+    pathologist2_metadata = pathologist2_metadata.rename(
+        columns={"path": "annotation2_path"}
+    )
+    all_metadata = merge_metadata(
+        pd.read_pickle(IMAGES_DF),
+        pd.read_pickle(ANNOTATIONS_DF),
+        graph_directory=graph_directory,
+        superpixel_directory=graph_directory / ".." / "..",
+        add_image_sizes=True,
+    )
+    test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
+    test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
+
+    if normalize_features:
+        precomputed_mean = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"mean_{graph_directory.name}.pth"
+        )
+        precomputed_std = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"std_{graph_directory.name}.pth"
+        )
+    else:
+        precomputed_mean = None
+        precomputed_std = None
+
+    if test:
+        test_metadata = test_metadata.sample(1)
+
+    test_dataset = GraphClassificationDataset(
+        test_metadata,
+        patch_size=None,
+        num_classes=NR_CLASSES,
+        background_index=BACKGROUND_CLASS,
+        centroid_features=centroid_features,
+        mean=precomputed_mean,
+        std=precomputed_std,
+        return_segmentation_info=True,
+        return_names=True,
+        **kwargs,
+    )
+    return test_dataset
+
+
 def prepare_patch_datasets(
     image_path: str,
     training_slides: Optional[List[int]] = None,

@@ -11,7 +11,7 @@ from typing import Any, Iterable, List, Union
 import numpy as np
 import yaml
 
-BASE = "default.yml"
+BASE = Path('config') / "default.yml"
 PATH = "."
 
 
@@ -217,7 +217,7 @@ class PretrainingExperiment(Experiment):
             queue=queue,
             disable_multithreading=False,
             no_save=False,
-            base="pretrain.yml",
+            base="config/pretrain.yml",
         )
         self.name = name
         self.cores = cores
@@ -251,7 +251,7 @@ class MNISTExperiment(Experiment):
             queue=queue,
             disable_multithreading=False,
             no_save=False,
-            base="mnist.yml",
+            base="config/mnist.yml",
         )
         self.name = name
 
@@ -274,7 +274,7 @@ class MNISTExperiment(Experiment):
 
 class PreprocessingExperiment(Experiment):
     def __init__(
-        self, name, cores=4, queue="prod.med", base="preprocess.yml", gpus=0
+        self, name, cores=4, queue="prod.med", base="config/preprocess.yml", gpus=0
     ) -> None:
         super().__init__(
             "preprocessing_" + name,
@@ -350,7 +350,7 @@ class GraphClassifierExperiment(Experiment):
             queue=queue,
             disable_multithreading=False,
             no_save=False,
-            base="default.yml",
+            base="config/default.yml",
         )
         self.name = name
 
@@ -383,7 +383,7 @@ class CNNTestingExperiment(Experiment):
             queue=queue,
             disable_multithreading=False,
             no_save=False,
-            base="pretrain.yml",
+            base="config/pretrain.yml",
         )
         self.name = name
         self.cores = cores
@@ -414,10 +414,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     PATH = args.path
-    BASE = args.base
+    BASE = Path('config') / args.base
 
     # Preprocessing
-    PreprocessingExperiment(name="superpixels", base="superpixel.yml").generate(
+    PreprocessingExperiment(name="superpixels", base="config/superpixel.yml").generate(
         sequential=[
             ParameterList(
                 [
@@ -542,7 +542,7 @@ if __name__ == "__main__":
         ],
     )
     PreprocessingExperiment(
-        name="normalizer_targets", base="stain_normalizers.yml", queue="prod.short"
+        name="normalizer_targets", base="config/stain_normalizers.yml", queue="prod.short"
     ).generate(
         sequential=[
             Parameter(
@@ -557,7 +557,7 @@ if __name__ == "__main__":
             )
         ]
     )
-    PreprocessingExperiment(name="new_superpixels", base="superpixel.yml").generate(
+    PreprocessingExperiment(name="new_superpixels", base="config/superpixel.yml").generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -661,7 +661,7 @@ if __name__ == "__main__":
         ],
     )
     PreprocessingExperiment(
-        name="preprare_new_pretraining", queue="prod.long", base="superpixel.yml"
+        name="preprare_new_pretraining", queue="prod.long", base="config/superpixel.yml"
     ).generate(
         fixed=[
             Parameter(

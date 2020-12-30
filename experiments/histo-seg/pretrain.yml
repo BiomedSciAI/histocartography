@@ -85,5 +85,5 @@ test:
     num_workers: 8
     overlap: 200
     operation: argmax
-    local_save_path: '/dataT/anv/cnn_test_masks'
+    local_save_path: '/dataT/anv/Data/ETH/cnn_test_masks'
     mlflow_save_path: 'cnn_test_masks'

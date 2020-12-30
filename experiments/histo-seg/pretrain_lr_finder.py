@@ -99,8 +99,8 @@ def find_learning_rate(
     lr_finder.range_test(
         training_loader,
         val_loader=validation_loader,
-        start_lr=1e-7,
-        end_lr=1,
+        start_lr=1e-6,
+        end_lr=1e-3,
         num_iter=1000,
         step_mode="linear",
         diverge_th=30,

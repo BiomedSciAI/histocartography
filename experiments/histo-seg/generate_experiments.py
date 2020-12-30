@@ -371,6 +371,40 @@ class GraphClassifierExperiment(Experiment):
         )
 
 
+class CNNTestingExperiment(Experiment):
+    def __init__(self, name, queue="prod.short", cores=1) -> None:
+        super().__init__(
+            "test_cnn_" + name,
+            cores=cores,
+            core_multiplier=6,
+            gpus=1,
+            subsample=None,
+            main_file="test_cnn",
+            queue=queue,
+            disable_multithreading=False,
+            no_save=False,
+            base="pretrain.yml",
+        )
+        self.name = name
+        self.cores = cores
+
+    def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
+        super().generate(
+            [
+                Parameter(
+                    ["train", "params", "experiment_tags"],
+                    {"experiment_name": self.name},
+                ),
+                Parameter(
+                    ["test", "params", "num_workers"],
+                    self.cores * 8,
+                ),
+            ]
+            + fixed,
+            **kwargs,
+        )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -623,6 +657,89 @@ if __name__ == "__main__":
                     "nr_superpixels",
                 ],
                 [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+            ),
+        ],
+    )
+    PreprocessingExperiment(
+        name="preprare_new_pretraining", queue="prod.long", base="superpixel.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+        ],
+        grid=[
+            ParameterList(
+                [
+                    "superpixel",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [300, 600, 900, 1200],
+            ),
+        ],
+    )
+    PreprocessingExperiment(name="new_pretraining", queue="prod.long").generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+        ],
+        grid=[
+            ParameterList(
+                ["feature_extraction", "params", "architecture"],
+                [
+                    "models/19a9b40d174f40c4b217ddf84eb63e3b_best_valid_MultiLabelBalancedAccuracy.pth",
+                    "models/02906fe539444b13a76d39d4a0dfbb6f_best_valid_MultiLabelBalancedAccuracy.pth",
+                    "models/c62233eed1574d2ca2d9b8ee51b83ffc_best_valid_MultiLabelBalancedAccuracy.pth",
+                ],
+            ),
+            ParameterList(
+                [
+                    "superpixel",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [300, 600, 900, 1200],
+            ),
+        ],
+    )
+    PreprocessingExperiment(name="new_baseline", queue="prod.long").generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+            Parameter(["feature_extraction", "params", "architecture"], "mobilenet_v2"),
+        ],
+        grid=[
+            ParameterList(
+                [
+                    "superpixel",
+                    "params",
+                    "nr_superpixels",
+                ],
+                [300, 600, 900, 1200],
             ),
         ],
     )
@@ -1274,6 +1391,274 @@ if __name__ == "__main__":
                 [
                     f"outputs/v2_{x}_Local(models_fe014f5eeb9d445a9940fae9422dca73_best_valid_MultiLabelAUCROC.pth)"
                     for x in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v2_shared_head").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "node_classifier_config", "seperate_heads"],
+                [True, False],
+            ),
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    "outputs/v2_500_Local(models_485e5ed454714988b70b07ba3231e34d_best_valid_MultiLabelBalancedAccuracy.pth)",
+                    "outputs/v2_500_mobilenet_v2",
+                ],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v2_anti_overfitting").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "node_classifier_config", "input_dropout"],
+                [0.5, 0.2, 0.7, 0.0],
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                [1, 2, 3],
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config", "hidden_dim"], [16, 32, 64]
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v2_anti_overfitting_pretrained").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v2_500_Local(models_485e5ed454714988b70b07ba3231e34d_best_valid_MultiLabelBalancedAccuracy.pth)",
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "node_classifier_config", "input_dropout"],
+                [0.5, 0.2, 0.7, 0.0],
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                [1, 2, 3],
+            ),
+            ParameterList(
+                ["train", "model", "node_classifier_config", "hidden_dim"], [16, 32, 64]
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v2_gnn_reg").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "gnn_config", "dropout"],
+                [0.5, 0.2, 0.7, 0.0],
+            ),
+            ParameterList(
+                ["train", "model", "gnn_config", "n_layers"],
+                [2, 4, 6],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v2_gnn_reg_pretrained").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v2_500_Local(models_485e5ed454714988b70b07ba3231e34d_best_valid_MultiLabelBalancedAccuracy.pth)",
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "model", "gnn_config", "dropout"],
+                [0.5, 0.2, 0.7, 0.0],
+            ),
+            ParameterList(
+                ["train", "model", "gnn_config", "n_layers"],
+                [2, 4, 6],
+            ),
+        ],
+    )
+    GraphClassifierExperiment(name="v3_baseline").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+        ]
+    )
+    GraphClassifierExperiment(name="v3_gnn_deep").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v3_{x}_{y}"
+                    for x in [300, 600, 900, 1200]
+                    for y in [
+                        "02906fe539444b13a76d39d4a0dfbb6f",
+                        "19a9b40d174f40c4b217ddf84eb63e3b",
+                        "c62233eed1574d2ca2d9b8ee51b83ffc",
+                    ]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v3_gnn_wide").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                4,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                64,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                64,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 64),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v3_{x}_{y}"
+                    for x in [300, 600, 900, 1200]
+                    for y in [
+                        "02906fe539444b13a76d39d4a0dfbb6f",
+                        "19a9b40d174f40c4b217ddf84eb63e3b",
+                        "c62233eed1574d2ca2d9b8ee51b83ffc",
+                    ]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v3_gnn_small").generate(
+        fixed=[
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                2,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                16,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                16,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 16),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v3_{x}_{y}"
+                    for x in [300, 600, 900, 1200]
+                    for y in [
+                        "02906fe539444b13a76d39d4a0dfbb6f",
+                        "19a9b40d174f40c4b217ddf84eb63e3b",
+                        "c62233eed1574d2ca2d9b8ee51b83ffc",
+                    ]
                 ],
             )
         ],
@@ -2053,5 +2438,39 @@ if __name__ == "__main__":
                     ],
                 )
             ]
+        ],
+    )
+
+    CNNTestingExperiment(name="exponential_lr_decay").generate(
+        fixed=[
+            Parameter(
+                ["test", "model", "architecture"],
+                "s3://mlflow/633/02906fe539444b13a76d39d4a0dfbb6f/artifacts/best.valid.MultiLabelBalancedAccuracy",
+            )
+        ],
+        sequential=[
+            ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])
+        ],
+    )
+    CNNTestingExperiment(name="step_lr_decay").generate(
+        fixed=[
+            Parameter(
+                ["test", "model", "architecture"],
+                "s3://mlflow/633/c62233eed1574d2ca2d9b8ee51b83ffc/artifacts/best.valid.MultiLabelBalancedAccuracy",
+            )
+        ],
+        sequential=[
+            ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])
+        ],
+    )
+    CNNTestingExperiment(name="batch_size_and_sgd").generate(
+        fixed=[
+            Parameter(
+                ["test", "model", "architecture"],
+                "s3://mlflow/633/19a9b40d174f40c4b217ddf84eb63e3b/artifacts/best.valid.MultiLabelBalancedAccuracy",
+            )
+        ],
+        sequential=[
+            ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])
         ],
     )

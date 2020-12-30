@@ -1,6 +1,5 @@
 import sys
 
-
 # Fake it till you make it: fake SimpleITK dependency to avoid installing ITK on the cluster.
 class SimpleITK(object):
     def __getattr__(self, name):
@@ -13,9 +12,32 @@ import torch
 import torchio as tio
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+import numpy as np
 
 
-class PatchBasedInference:
+def get_segmentation_map(node_logits, superpixels, NR_CLASSES):
+    node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
+    segmentation_map = np.empty((superpixels.shape), dtype=np.uint8)
+    all_maps = list()
+    for label in range(NR_CLASSES):
+        (spx_indices,) = np.where(node_predictions == label)
+        map_l = np.isin(superpixels, spx_indices) * label
+        all_maps.append(map_l)
+    segmentation_map = np.stack(all_maps).sum(axis=0)
+    return segmentation_map
+
+
+class BaseInference:
+    def __init__(self, model, device=None) -> None:
+        super().__init__()
+        self.model = model.eval()
+        if device is not None:
+            self.device = device
+        else:
+            self.device = next(model.parameters()).device
+
+
+class PatchBasedInference(BaseInference):
     def __init__(
         self,
         model,
@@ -26,18 +48,12 @@ class PatchBasedInference:
         num_workers,
         device=None,
     ) -> None:
-        super().__init__()
+        super().__init__(model=model, device=device)
         assert len(patch_size) == 2
         assert len(overlap) == 2
         self.patch_size = patch_size
         self.batch_size = batch_size
         self.overlap = overlap
-        self.model = model.eval()
-        if device is not None:
-            self.device = device
-        else:
-            self.device = next(model.parameters()).device
-        self.nr_classes = nr_classes
         self.num_workers = num_workers
 
     def _predict(self, subject: tio.Subject, operation: str):
@@ -112,3 +128,25 @@ class PatchBasedInference:
         input_tio_image = tio.Image(tensor=image.unsqueeze(0), type=tio.INTENSITY)
         subject = tio.Subject(image=input_tio_image)
         return self._predict(subject, operation)
+
+
+class GraphNodeBasedInference(BaseInference):
+    def __init__(self, model, device, NR_CLASSES) -> None:
+        super().__init__(model, device=device)
+        self.NR_CLASSES = NR_CLASSES
+
+    def predict(self, graph, superpixels, operation="argmax"):
+        assert operation == "argmax"
+
+        graph = graph.to(self.device)
+        node_logits = self.model(graph)
+        if isinstance(node_logits, tuple):
+            node_logits = node_logits[1]
+
+        segmentation_maps = get_segmentation_map(
+            node_logits=node_logits,
+            superpixels=superpixels,
+            NR_CLASSES=self.NR_CLASSES,
+        )
+        segmentation_maps = torch.as_tensor(segmentation_maps)
+        return segmentation_maps

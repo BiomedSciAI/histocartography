@@ -9,7 +9,7 @@ import torch
 from tqdm.auto import tqdm
 
 from inference import GraphNodeBasedInference
-from logging_helper import prepare_experiment, robust_mlflow
+from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
 from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU
 from utils import dynamic_import_from, get_config
 
@@ -45,7 +45,9 @@ def fill_missing_information(model_config, data_config):
                 run_id, "params.data.centroid_features"
             ]
         if "normalize_features" not in data_config:
-            data_config["normalize_features"] = df.loc[run_id, "params.data.normalize_features"] == "True"
+            data_config["normalize_features"] = (
+                df.loc[run_id, "params.data.normalize_features"] == "True"
+            )
 
 
 def test_gnn(
@@ -124,18 +126,7 @@ def test_gnn(
                 )
 
         if i > 0 and i % 10 == 0:
-            for k, v in tqdm(results.items(), desc="Log metrics"):
-                values = torch.Tensor(v)
-                if len(values.shape) == 1:
-                    robust_mlflow(mlflow.log_metric, k, values.mean().item(), i)
-                else:
-                    mask = torch.isnan(values)
-                    values[mask] = 0
-                    means = torch.sum(values, axis=0) / torch.sum(~mask, axis=0)
-                    for j, mean in enumerate(means):
-                        robust_mlflow(
-                            mlflow.log_metric, f"{k}_class_{j}", mean.item(), i
-                        )
+            log_segmentation_results(results, step=i)
 
         # Save figure
         if operation == "per_class":
@@ -165,6 +156,7 @@ def test_gnn(
             duration,
             step=i,
         )
+    log_segmentation_results(results, step=len(test_dataset))
 
 
 if __name__ == "__main__":

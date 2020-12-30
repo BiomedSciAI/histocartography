@@ -29,12 +29,17 @@ from utils import read_image
 
 
 class BaseDataset(Dataset):
-    def __init__(self, metadata, num_classes, background_index) -> None:
+    def __init__(
+        self, metadata, num_classes, background_index, return_names: bool = False
+    ) -> None:
         self._check_metadata(metadata)
         self.metadata = metadata
         self.image_sizes = self._load_image_sizes(metadata)
         self.num_classes = num_classes
         self.background_index = background_index
+        self.return_names = return_names
+        if return_names:
+            self.names = np.array(metadata.index.tolist())
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -120,6 +125,7 @@ class GraphClassificationDataset(BaseDataset):
         std: Optional[torch.Tensor] = None,
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
+        return_names: bool = False,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -129,7 +135,7 @@ class GraphClassificationDataset(BaseDataset):
         assert (
             "graph_path" in metadata
         ), f"Metadata lacks graph path ({metadata.columns})"
-        super().__init__(metadata, num_classes, background_index)
+        super().__init__(metadata, num_classes, background_index, return_names)
         self.patch_size = patch_size
         self.mean = mean
         self.std = std
@@ -138,19 +144,29 @@ class GraphClassificationDataset(BaseDataset):
         self.graph_labels = self._compute_graph_labels()
         self._select_graph_features(centroid_features)
         self.return_segmentation_info = return_segmentation_info
+        self.USE_ANNOTATION2 = "annotation2_path" in metadata
         self.downsample = segmentation_downsample_ratio
         if return_segmentation_info:
             self.superpixels = list()
             self.annotations = list()
+            if self.USE_ANNOTATION2:
+                self.annotations2 = list()
             for i, row in self.metadata.iterrows():
                 annotation_path = row["annotation_path"]
                 superpixel_path = row["superpixel_path"]
+                if self.USE_ANNOTATION2:
+                    annotation2_path = row["annotation2_path"]
+                    annotation2 = read_image(annotation2_path)
                 annotation = read_image(annotation_path)
                 with h5py.File(superpixel_path, "r") as file:
                     if "default_key_0" in file:
                         superpixel = file["default_key_0"][()]
                     elif "default_key" in file:
                         superpixel = file["default_key"][()]
+                    else:
+                        raise NotImplementedError(
+                            f"Superpixels not found in keys. Available are: {file.keys()}"
+                        )
                 if self.downsample != 1:
                     new_size = (
                         annotation.shape[0] // self.downsample,
@@ -166,8 +182,16 @@ class GraphClassificationDataset(BaseDataset):
                         new_size,
                         interpolation=cv2.INTER_NEAREST,
                     )
+                    if self.USE_ANNOTATION2:
+                        annotation2 = cv2.resize(
+                            annotation2,
+                            new_size,
+                            interpolation=cv2.INTER_NEAREST,
+                        )
                 self.superpixels.append(superpixel)
                 self.annotations.append(annotation)
+                if self.USE_ANNOTATION2:
+                    self.annotations2.append(annotation2)
 
     @staticmethod
     def _load_graphs(metadata: pd.DataFrame) -> Tuple[List[str], List[DGLGraph]]:
@@ -307,11 +331,18 @@ class GraphClassificationDataset(BaseDataset):
             graph = self._generate_subgraph(graph, relevant_nodes)
             node_labels = node_labels[relevant_nodes]
 
+        return_elements = list()
+        if self.return_names:
+            return_elements.append(self.names[index])
+        return_elements.append(graph)
+        return_elements.append(graph_label)
+        return_elements.append(node_labels)
         if self.return_segmentation_info:
-            superpixel = self.superpixels[index]
-            annotation = self.annotations[index]
-            return graph, graph_label, node_labels, annotation, superpixel
-        return graph, graph_label, node_labels
+            return_elements.append(self.superpixels[index])
+            return_elements.append(self.annotations[index])
+            if self.USE_ANNOTATION2:
+                return_elements.append(self.annotations2[index])
+        return tuple(return_elements)
 
     def __len__(self) -> int:
         """Number of graphs in the dataset
@@ -331,7 +362,7 @@ class ImageDataset(BaseDataset):
         background_index: int = 4,
         mean: Optional[torch.Tensor] = None,
         std: Optional[torch.Tensor] = None,
-        return_names: bool = False,
+        **kwargs,
     ) -> None:
         assert (
             "processed_image_path" in metadata
@@ -339,16 +370,13 @@ class ImageDataset(BaseDataset):
         assert (
             "annotation_path" in metadata
         ), f"Metadata lacks annotation path ({metadata.columns})"
-        super().__init__(metadata, num_classes, background_index)
+        super().__init__(metadata, num_classes, background_index, **kwargs)
         self.downsample_factor = downsample_factor
         self.images, self.annotations = self._load_images()
         self.normalizer = Normalize(mean, std)
         self.additional_annotation = "annotation2_path" in metadata
         if self.additional_annotation:
             self.annotations2 = self._load_annotation2()
-        self.return_names = return_names
-        if return_names:
-            self.names = np.array(metadata.index.tolist())
 
     def _load_annotation2(self):
         assert "annotation2_path" in self.metadata
@@ -363,9 +391,7 @@ class ImageDataset(BaseDataset):
                 )
                 annotation = cv2.resize(annotation, new_size)
             annotations.append(annotation)
-        return torch.from_numpy(
-            np.array(annotations)
-        )
+        return torch.from_numpy(np.array(annotations))
 
     def _load_images(self):
         image_paths = self.metadata["processed_image_path"].tolist()
@@ -422,6 +448,7 @@ class PatchClassificationDataset(ImageDataset):
         augmentations: Optional[List[Dict]] = None,
         num_classes: int = 4,
         background_index: int = 4,
+        **kwargs,
     ) -> None:
         assert (
             "processed_image_path" in metadata
@@ -434,6 +461,7 @@ class PatchClassificationDataset(ImageDataset):
             downsample_factor=downsample_factor,
             num_classes=num_classes,
             background_index=background_index,
+            **kwargs,
         )
         self.patch_size = patch_size
         self.stride = stride

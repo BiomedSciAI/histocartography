@@ -309,6 +309,23 @@ def get_config(name="train", default="default.yml", required=[]):
     return config, args.config, args.test
 
 
+def get_segmentation_map(node_logits, superpixels, node_associations, NR_CLASSES):
+    batch_node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
+    segmentation_maps = np.empty((superpixels.shape), dtype=np.uint8)
+    start = 0
+    for i, end in enumerate(node_associations):
+        node_predictions = batch_node_predictions[start : start + end]
+
+        all_maps = list()
+        for label in range(NR_CLASSES):
+            (spx_indices,) = np.where(node_predictions == label)
+            map_l = np.isin(superpixels[i], spx_indices) * label
+            all_maps.append(map_l)
+        segmentation_maps[i] = np.stack(all_maps).sum(axis=0)
+        start += end
+    return segmentation_maps
+
+
 class SuperpixelVisualizer:
     """Helper class that handles visualizing superpixels in a notebook"""
 

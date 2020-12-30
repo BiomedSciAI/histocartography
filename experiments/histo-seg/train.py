@@ -9,12 +9,18 @@ from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
 from dataset import collate, collate_valid
-from logging_helper import (GraphClassificationLoggingHelper,
-                            prepare_experiment, robust_mlflow)
+from logging_helper import (
+    GraphClassificationLoggingHelper,
+    prepare_experiment,
+    robust_mlflow,
+)
 from losses import get_loss, get_lr
-from models import (ImageTissueClassifier, SemiSuperPixelTissueClassifier,
-                    SuperPixelTissueClassifier)
-from utils import dynamic_import_from, get_config
+from models import (
+    ImageTissueClassifier,
+    SemiSuperPixelTissueClassifier,
+    SuperPixelTissueClassifier,
+)
+from utils import dynamic_import_from, get_config, get_segmentation_map
 
 
 def get_model(
@@ -119,23 +125,6 @@ class CombinedCriterion(torch.nn.Module):
             return combined_loss
         else:
             raise NotImplementedError(f"Criterion mode {self.mode} not implemented")
-
-
-def get_segmentation_map(node_logits, superpixels, node_associations, NR_CLASSES):
-    batch_node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
-    segmentation_maps = np.empty((superpixels.shape), dtype=np.uint8)
-    start = 0
-    for i, end in enumerate(node_associations):
-        node_predictions = batch_node_predictions[start : start + end]
-
-        all_maps = list()
-        for label in range(NR_CLASSES):
-            (spx_indices,) = np.where(node_predictions == label)
-            map_l = np.isin(superpixels[i], spx_indices) * label
-            all_maps.append(map_l)
-        segmentation_maps[i] = np.stack(all_maps).sum(axis=0)
-        start += end
-    return segmentation_maps
 
 
 def train_graph_classifier(
@@ -291,8 +280,8 @@ def train_graph_classifier(
                     graph,
                     graph_labels,
                     node_labels,
-                    annotations,
                     superpixels,
+                    annotations,
                 ) in enumerate(validation_loader):
                     graph = graph.to(device)
                     logits = model(graph)

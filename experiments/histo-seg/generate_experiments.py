@@ -11,7 +11,7 @@ from typing import Any, Iterable, List, Union
 import numpy as np
 import yaml
 
-BASE = Path('config') / "default.yml"
+BASE = Path("config") / "default.yml"
 PATH = "."
 
 
@@ -392,13 +392,43 @@ class CNNTestingExperiment(Experiment):
         super().generate(
             [
                 Parameter(
-                    ["train", "params", "experiment_tags"],
+                    ["test", "params", "experiment_tags"],
                     {"experiment_name": self.name},
                 ),
                 Parameter(
                     ["test", "params", "num_workers"],
                     self.cores * 8,
                 ),
+            ]
+            + fixed,
+            **kwargs,
+        )
+
+
+class GNNTestingExperiment(Experiment):
+    def __init__(self, name, queue="prod.short", cores=1) -> None:
+        super().__init__(
+            "test_gnn_" + name,
+            cores=cores,
+            core_multiplier=6,
+            gpus=1,
+            subsample=None,
+            main_file="test",
+            queue=queue,
+            disable_multithreading=False,
+            no_save=False,
+            base="config/default.yml",
+        )
+        self.name = name
+        self.cores = cores
+
+    def generate(self, fixed: Iterable[ParameterList] = list(), **kwargs):
+        super().generate(
+            [
+                Parameter(
+                    ["test", "params", "experiment_tags"],
+                    {"experiment_name": self.name},
+                )
             ]
             + fixed,
             **kwargs,
@@ -414,7 +444,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     PATH = args.path
-    BASE = Path('config') / args.base
+    BASE = Path("config") / args.base
 
     # Preprocessing
     PreprocessingExperiment(name="superpixels", base="config/superpixel.yml").generate(
@@ -542,7 +572,9 @@ if __name__ == "__main__":
         ],
     )
     PreprocessingExperiment(
-        name="normalizer_targets", base="config/stain_normalizers.yml", queue="prod.short"
+        name="normalizer_targets",
+        base="config/stain_normalizers.yml",
+        queue="prod.short",
     ).generate(
         sequential=[
             Parameter(
@@ -557,7 +589,9 @@ if __name__ == "__main__":
             )
         ]
     )
-    PreprocessingExperiment(name="new_superpixels", base="config/superpixel.yml").generate(
+    PreprocessingExperiment(
+        name="new_superpixels", base="config/superpixel.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -2448,9 +2482,7 @@ if __name__ == "__main__":
                 "s3://mlflow/633/02906fe539444b13a76d39d4a0dfbb6f/artifacts/best.valid.MultiLabelBalancedAccuracy",
             )
         ],
-        sequential=[
-            ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])
-        ],
+        sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
     )
     CNNTestingExperiment(name="step_lr_decay").generate(
         fixed=[
@@ -2459,9 +2491,7 @@ if __name__ == "__main__":
                 "s3://mlflow/633/c62233eed1574d2ca2d9b8ee51b83ffc/artifacts/best.valid.MultiLabelBalancedAccuracy",
             )
         ],
-        sequential=[
-            ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])
-        ],
+        sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
     )
     CNNTestingExperiment(name="batch_size_and_sgd").generate(
         fixed=[
@@ -2470,7 +2500,22 @@ if __name__ == "__main__":
                 "s3://mlflow/633/19a9b40d174f40c4b217ddf84eb63e3b/artifacts/best.valid.MultiLabelBalancedAccuracy",
             )
         ],
+        sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
+    )
+
+    GNNTestingExperiment(name="gnn_deep").generate(
         sequential=[
-            ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])
-        ],
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
+                    for run in [
+                        "08d570cf39eb435281679a3754c21dce",
+                        "3cb5cf60d3e0479a929c4a6ce9aee24b",
+                        "b8df33ef727c43bfb3212b1905d1ed48",
+                        "38a6507ca9014b99bf0b43978ea248cf",
+                    ]
+                ],
+            )
+        ]
     )

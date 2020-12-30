@@ -398,6 +398,52 @@ class NodeClassificationAccuracy(NodeClassificationMetric):
             start += node_association
         return np.mean(accuracies[accuracies == accuracies])
 
+    
+class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
+    def _compare(
+        self,
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+        node_associations: List[int],
+        **kwargs,
+    ) -> float:
+        accuracies = np.empty(len(node_associations))
+        start = 0
+        for i, node_association in enumerate(node_associations):
+            y_pred = np.argmax(
+                predictions[start : start + node_association, ...].numpy(), axis=1
+            )
+            y_true = labels[start : start + node_association].numpy()
+            mask = y_true != self.background_label
+            accuracies[i] = sklearn.metrics.balanced_accuracy_score(
+                y_pred=y_pred[mask], y_true=y_true[mask]
+            )
+            start += node_association
+        return np.mean(accuracies[accuracies == accuracies])
+
+
+class NodeClassificationF1Score(NodeClassificationMetric):
+    def _compare(
+        self,
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+        node_associations: List[int],
+        **kwargs,
+    ) -> float:
+        accuracies = np.empty(len(node_associations))
+        start = 0
+        for i, node_association in enumerate(node_associations):
+            y_pred = np.argmax(
+                predictions[start : start + node_association, ...].numpy(), axis=1
+            )
+            y_true = labels[start : start + node_association].numpy()
+            mask = y_true != self.background_label
+            accuracies[i] = sklearn.metrics.f1_score(
+                y_pred=y_pred[mask], y_true=y_true[mask], average="weighted"
+            )
+            start += node_association
+        return np.mean(accuracies[accuracies == accuracies])
+
 
 # Legacy compatibility (remove in the future)
 GraphClassificationAccuracy = MultiLabelAccuracy

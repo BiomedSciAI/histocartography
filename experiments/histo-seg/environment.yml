@@ -22,6 +22,8 @@ dependencies:
     - torchvision==0.4.2
     - tqdm==4.50.2
     - opencv-python==4.4.0.44
+    - torch-lr-finder==0.2.1
+    - nibabel==3.2.1
     # Optional
     - pylint
     - black

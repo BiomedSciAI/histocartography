@@ -110,7 +110,7 @@ def test_cnn(
     ]
     results = defaultdict(list)
 
-    for i, (name, image, annotation, annotation2) in enumerate(tqdm(test_dataset)):
+    for i, (name, image, annotation, _, annotation2) in enumerate(tqdm(test_dataset)):
         time_before = datetime.datetime.now()
         predicted_mask = inferencer.predict(image, operation=operation)
 
@@ -162,7 +162,7 @@ def test_cnn(
 if __name__ == "__main__":
     config, config_path, test = get_config(
         name="test",
-        default="pretrain.yml",
+        default="config/pretrain.yml",
         required=("model", "data"),
     )
     prepare_experiment(config_path=config_path, **config)

@@ -163,6 +163,7 @@ def prepare_graph_datasets(
     centroid_features: str = "no",
     normalize_features: bool = False,
     downsample_segmentation_maps: int = 1,
+    tissue_mask_directory: Optional[str] = None,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -185,6 +186,13 @@ def prepare_graph_datasets(
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
         superpixel_directory=graph_directory / ".." / "..",
+        tissue_mask_directory=graph_directory
+        / ".."
+        / ".."
+        / ".."
+        / tissue_mask_directory
+        if tissue_mask_directory is not None
+        else None,
         add_image_sizes=True,
     )
     if train_fraction is not None:
@@ -250,6 +258,7 @@ def prepare_graph_datasets(
 def prepare_graph_testset(
     graph_directory: str,
     test: bool = False,
+    tissue_mask_directory: Optional[str] = None,
     centroid_features: str = "no",
     normalize_features: bool = False,
     test_slides: Optional[List[int]] = TEST_SLIDES,
@@ -270,6 +279,13 @@ def prepare_graph_testset(
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
         superpixel_directory=graph_directory / ".." / "..",
+        tissue_mask_directory=graph_directory
+        / ".."
+        / ".."
+        / ".."
+        / tissue_mask_directory
+        if tissue_mask_directory is not None
+        else None,
         add_image_sizes=True,
     )
     test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
@@ -373,6 +389,7 @@ def prepare_patch_datasets(
 def prepare_patch_testset(
     image_path: str,
     test: bool,
+    tissue_mask_directory: Optional[str] = None,
     test_slides: Optional[List[int]] = TEST_SLIDES,
     normalizer: Optional[dict] = None,
     **kwargs,
@@ -391,6 +408,7 @@ def prepare_patch_testset(
         pd.read_pickle(IMAGES_DF),
         annotation_metadata,
         processed_image_directory=PREPROCESS_PATH / image_path,
+        tissue_mask_directory=PREPROCESS_PATH / image_path / tissue_mask_directory if tissue_mask_directory is not None else None,
         add_image_sizes=True,
     )
     test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]

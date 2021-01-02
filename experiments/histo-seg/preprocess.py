@@ -30,7 +30,7 @@ def preprocessing(
     if test:
         metadata = metadata.iloc[[0]]
         cores = 1
-        config["stages"][2]["superpixel"]["params"]["nr_superpixels"] = 10
+        config["stages"][3]["superpixel"]["params"]["nr_superpixels"] = 10
         config['stages'][1]['stain_normalizers']['params']['target_path'] = metadata.iloc[0].path
     else:
         # Inject target path into config
@@ -44,7 +44,7 @@ def preprocessing(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="preprocess.yml")
+    parser.add_argument("--config", type=str, default="config/stain_normalizers.yml")
     parser.add_argument("--level", type=str, default="WARNING")
     parser.add_argument("--test", action="store_const", const=True, default=False)
     args = parser.parse_args()

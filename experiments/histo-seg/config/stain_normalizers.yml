@@ -17,6 +17,17 @@ pipeline:
         - normalized_image
         params:
           target: ZT76_39_B_2_1
+    - tissue_mask:
+        class: BrightnessThresholdTissueMask
+        inputs:
+        - normalized_image
+        outputs:
+        - tissue_mask
+        params:
+          blur_size: 25
+          dilation_steps: 5
+          erosion_steps: 10
+          kernel_size: 20
 params:
   dataset: eth
   save: True

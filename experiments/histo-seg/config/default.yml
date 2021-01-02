@@ -22,7 +22,8 @@ train:
     validation_slides:
       - 76
     patch_size: null
-    graph_directory:  "outputs/v2_500_mobilenet_v2"
+    graph_directory:  "outputs/v3_900_19a9b40d174f40c4b217ddf84eb63e3b"
+    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
@@ -91,7 +92,8 @@ train:
     seed: null
     validation_frequency: 5
 test:
-  data: {}
+  data:
+    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
   model:
     architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
   params:

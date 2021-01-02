@@ -64,6 +64,7 @@ train:
     validation_frequency: 2
 test:
   data:
+    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     normalizer:
       type: train
       mean:

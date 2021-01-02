@@ -282,6 +282,7 @@ def train_graph_classifier(
                     node_labels,
                     superpixels,
                     annotations,
+                    _,
                 ) in enumerate(validation_loader):
                     graph = graph.to(device)
                     logits = model(graph)
@@ -333,7 +334,7 @@ def train_graph_classifier(
 if __name__ == "__main__":
     config, config_path, test = get_config(
         name="train",
-        default="default.yml",
+        default="config/default.yml",
         required=("model", "data", "metrics", "params"),
     )
     logging.info("Start training")

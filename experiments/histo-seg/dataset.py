@@ -149,15 +149,18 @@ class GraphClassificationDataset(BaseDataset):
         if return_segmentation_info:
             self.superpixels = list()
             self.annotations = list()
+            self.tissue_masks = list()
             if self.USE_ANNOTATION2:
                 self.annotations2 = list()
             for i, row in self.metadata.iterrows():
+                tissue_mask_path = row["tissue_mask_path"]
                 annotation_path = row["annotation_path"]
                 superpixel_path = row["superpixel_path"]
                 if self.USE_ANNOTATION2:
                     annotation2_path = row["annotation2_path"]
                     annotation2 = read_image(annotation2_path)
                 annotation = read_image(annotation_path)
+                tissue_mask = read_image(tissue_mask_path)
                 with h5py.File(superpixel_path, "r") as file:
                     if "default_key_0" in file:
                         superpixel = file["default_key_0"][()]
@@ -182,6 +185,11 @@ class GraphClassificationDataset(BaseDataset):
                         new_size,
                         interpolation=cv2.INTER_NEAREST,
                     )
+                    tissue_mask = cv2.resize(
+                        tissue_mask,
+                        new_size,
+                        interpolation=cv2.INTER_NEAREST,
+                    )
                     if self.USE_ANNOTATION2:
                         annotation2 = cv2.resize(
                             annotation2,
@@ -190,6 +198,7 @@ class GraphClassificationDataset(BaseDataset):
                         )
                 self.superpixels.append(superpixel)
                 self.annotations.append(annotation)
+                self.tissue_masks.append(tissue_mask)
                 if self.USE_ANNOTATION2:
                     self.annotations2.append(annotation2)
 
@@ -340,6 +349,7 @@ class GraphClassificationDataset(BaseDataset):
         if self.return_segmentation_info:
             return_elements.append(self.superpixels[index])
             return_elements.append(self.annotations[index])
+            return_elements.append(self.tissue_masks[index])
             if self.USE_ANNOTATION2:
                 return_elements.append(self.annotations2[index])
         return tuple(return_elements)
@@ -373,10 +383,25 @@ class ImageDataset(BaseDataset):
         super().__init__(metadata, num_classes, background_index, **kwargs)
         self.downsample_factor = downsample_factor
         self.images, self.annotations = self._load_images()
+        self.tissue_masks = self._load_tissue_masks()
         self.normalizer = Normalize(mean, std)
         self.additional_annotation = "annotation2_path" in metadata
         if self.additional_annotation:
             self.annotations2 = self._load_annotation2()
+
+    def _load_tissue_masks(self):
+        mask_paths = self.metadata["tissue_mask_path"].tolist()
+        tissue_masks = list()
+        for mask_path in mask_paths:
+            tissue_mask = read_image(mask_path)
+            if self.downsample_factor != 1:
+                new_size = (
+                    math.floor(tissue_mask.shape[0] / self.downsample_factor),
+                    math.floor(tissue_mask.shape[1] / self.downsample_factor),
+                )
+                tissue_mask = cv2.resize(tissue_mask, new_size)
+            tissue_masks.append(tissue_mask)
+        return torch.from_numpy(np.array(tissue_masks))
 
     def _load_annotation2(self):
         assert "annotation2_path" in self.metadata
@@ -428,6 +453,7 @@ class ImageDataset(BaseDataset):
             return_elements.append(self.names[index])
         return_elements.append(normalized_image)
         return_elements.append(annotation)
+        return_elements.append(self.tissue_masks[index])
         if self.additional_annotation:
             return_elements.append(self.annotations2[index])
         return tuple(return_elements)
@@ -558,13 +584,14 @@ def collate_valid(
     Returns:
         Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
     """
-    graphs, graph_labels, node_labels, annotations, superpixels = map(
+    graphs, graph_labels, node_labels, superpixels, annotations, tissue_masks = map(
         list, zip(*samples)
     )
     return (
         dgl.batch(graphs),
         torch.stack(graph_labels),
         torch.cat(node_labels),
-        np.stack(annotations),
         np.stack(superpixels),
+        np.stack(annotations),
+        np.stack(tissue_masks)
     )

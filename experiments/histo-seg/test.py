@@ -108,6 +108,7 @@ def test_gnn(
         _,
         superpixels,
         annotation,
+        _,
         annotation2,
     ) in enumerate(tqdm(test_dataset)):
         time_before = datetime.datetime.now()
@@ -162,7 +163,7 @@ def test_gnn(
 if __name__ == "__main__":
     config, config_path, test = get_config(
         name="test",
-        default="default.yml",
+        default="config/default.yml",
         required=("model", "data"),
     )
     fill_missing_information(config["model"], config["data"])

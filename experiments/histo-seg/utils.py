@@ -136,6 +136,7 @@ def merge_metadata(
     graph_directory: Optional[Path] = None,
     superpixel_directory: Optional[Path] = None,
     processed_image_directory: Optional[Path] = None,
+    tissue_mask_directory: Optional[Path] = None,
     add_image_sizes: bool = False,
 ):
     # Prepare annotation paths
@@ -176,6 +177,17 @@ def merge_metadata(
         )
         preprocessed_metadata = preprocessed_metadata.set_index("name")
         image_metadata = image_metadata.join(preprocessed_metadata)
+
+    if tissue_mask_directory is not None:
+        tissue_metadata = pd.DataFrame(
+            [
+                (path.name.split(".")[0], path)
+                for path in tissue_mask_directory.iterdir()
+            ],
+            columns=["name", "tissue_mask_path"],
+        )
+        tissue_metadata = tissue_metadata.set_index("name")
+        image_metadata = image_metadata.join(tissue_metadata)
 
     # Add image sizes
     if add_image_sizes:

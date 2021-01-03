@@ -124,7 +124,11 @@ class Experiment:
                 logging.warning(
                     f"Config path {path} does not exist. This might be an error"
                 )
-            reduce(Experiment.get, path[:-1], config).update({path[-1]: value})
+            try:
+                reduce(Experiment.get, path[:-1], config).update({path[-1]: value})
+            except AttributeError as e:
+                print(f"Could not update {path[-1]}: {value} on path {path[:-1]}")
+                raise e
 
     @staticmethod
     def unpack(parameters: Iterable[ParameterList]):
@@ -273,24 +277,8 @@ class MNISTExperiment(Experiment):
 
 
 class PreprocessingExperiment(Experiment):
-    def __init__(
-        self, name, cores=4, queue="prod.med", base="config/preprocess.yml", gpus=0
-    ) -> None:
-        super().__init__(
-            "preprocessing_" + name,
-            cores=cores,
-            core_multiplier=7,
-            gpus=gpus,
-            subsample=None,
-            main_file="preprocess",
-            queue=queue,
-            disable_multithreading=True,
-            no_save=False,
-            base=base,
-        )
-        self.name = name
-        self.cores = cores
-        self.gpus = gpus
+    def __init__(self, name, base, **kwargs) -> None:
+        super().__init__("preprocessing_" + name, base=base, **kwargs)
         with open(self.base) as file:
             config: dict = yaml.load(file, Loader=yaml.FullLoader)
         self.translator = dict(
@@ -328,6 +316,78 @@ class PreprocessingExperiment(Experiment):
         self._translate_all(fixed)
         self._translate_all(sequential)
         self._translate_all(grid)
+        super().generate(
+            fixed=fixed,
+            sequential=sequential,
+            grid=grid,
+        )
+
+
+class GPUPreprocessingExperiment(PreprocessingExperiment):
+    def __init__(
+        self, name, workers=24, queue="prod.med", base="config/preprocess.yml"
+    ) -> None:
+        self.workers = workers
+        super().__init__(
+            name,
+            cores=max(1, 1 + (workers - 1) // 8),
+            gpus=1,
+            subsample=None,
+            main_file="preprocess",
+            queue=queue,
+            disable_multithreading=False,
+            no_save=False,
+            base=base,
+        )
+
+    def generate(
+        self,
+        fixed: Iterable[ParameterList] = list(),
+        sequential: Union[
+            Iterable[ParameterList], Iterable[Iterable[ParameterList]]
+        ] = (ParameterList(list(), [None]),),
+        grid: Iterable[ParameterList] = (),
+    ):
+        super().generate(
+            fixed=[
+                Parameter(["params", "cores"], 1),
+                Parameter(
+                    ["feature_extraction", "params", "num_workers"], self.workers
+                ),
+            ]
+            + fixed,
+            sequential=sequential,
+            grid=grid,
+        )
+
+
+class CPUPreprocessingExperiment(PreprocessingExperiment):
+    def __init__(
+        self, name, cores=4, queue="prod.med", base="config/preprocess.yml"
+    ) -> None:
+        super().__init__(
+            name,
+            cores=cores,
+            core_multiplier=7,
+            gpus=0,
+            subsample=None,
+            main_file="preprocess",
+            queue=queue,
+            disable_multithreading=True,
+            no_save=False,
+            base=base,
+        )
+        self.name = name
+        self.cores = cores
+
+    def generate(
+        self,
+        fixed: Iterable[ParameterList] = list(),
+        sequential: Union[
+            Iterable[ParameterList], Iterable[Iterable[ParameterList]]
+        ] = (ParameterList(list(), [None]),),
+        grid: Iterable[ParameterList] = (),
+    ):
         super().generate(
             fixed=[
                 Parameter(["params", "cores"], self.cores * 7 if self.gpus == 0 else 1),
@@ -447,7 +507,9 @@ if __name__ == "__main__":
     BASE = Path("config") / args.base
 
     # Preprocessing
-    PreprocessingExperiment(name="superpixels", base="config/superpixel.yml").generate(
+    CPUPreprocessingExperiment(
+        name="superpixels", base="config/superpixel.yml"
+    ).generate(
         sequential=[
             ParameterList(
                 [
@@ -459,7 +521,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    PreprocessingExperiment(name="handcrafted").generate(
+    CPUPreprocessingExperiment(name="handcrafted").generate(
         fixed=[
             Parameter(
                 ["feature_extraction"],
@@ -477,7 +539,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    PreprocessingExperiment(name="resnet34",).generate(
+    CPUPreprocessingExperiment(name="resnet34",).generate(
         fixed=[
             Parameter(
                 ["feature_extraction", "params", "architecture"],
@@ -495,7 +557,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    PreprocessingExperiment(name="lowres",).generate(
+    CPUPreprocessingExperiment(name="lowres",).generate(
         fixed=[
             Parameter(
                 ["feature_extraction", "params", "architecture"],
@@ -517,7 +579,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="v1_few_superpixels",).generate(
+    CPUPreprocessingExperiment(name="v1_few_superpixels",).generate(
         grid=[
             ParameterList(
                 [
@@ -533,7 +595,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="v1",).generate(
+    CPUPreprocessingExperiment(name="v1",).generate(
         grid=[
             ParameterList(
                 [
@@ -549,7 +611,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="v0_few_superpixels",).generate(
+    CPUPreprocessingExperiment(name="v0_few_superpixels",).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -571,7 +633,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(
+    CPUPreprocessingExperiment(
         name="normalizer_targets",
         base="config/stain_normalizers.yml",
         queue="prod.short",
@@ -589,7 +651,7 @@ if __name__ == "__main__":
             )
         ]
     )
-    PreprocessingExperiment(
+    CPUPreprocessingExperiment(
         name="new_superpixels", base="config/superpixel.yml"
     ).generate(
         fixed=[
@@ -609,7 +671,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="mobilenet", queue="prod.long").generate(
+    CPUPreprocessingExperiment(name="mobilenet", queue="prod.long").generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -629,7 +691,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="pretrained", queue="prod.long").generate(
+    CPUPreprocessingExperiment(name="pretrained", queue="prod.long").generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -660,7 +722,9 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="pretrained_additional", queue="prod.long").generate(
+    CPUPreprocessingExperiment(
+        name="pretrained_additional", queue="prod.long"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -694,7 +758,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(
+    CPUPreprocessingExperiment(
         name="preprare_new_pretraining", queue="prod.long", base="config/superpixel.yml"
     ).generate(
         fixed=[
@@ -714,7 +778,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="new_pretraining", queue="prod.long").generate(
+    CPUPreprocessingExperiment(name="new_pretraining", queue="prod.long").generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -749,7 +813,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="new_baseline", queue="prod.long").generate(
+    CPUPreprocessingExperiment(name="new_baseline", queue="prod.long").generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -777,7 +841,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(
+    CPUPreprocessingExperiment(
         name="add_tissue_masks", base="config/stain_normalizers.yml"
     ).generate(
         fixed=[
@@ -786,6 +850,44 @@ if __name__ == "__main__":
                 "ZT111_4_C_7_1",
             ),
         ]
+    )
+    GPUPreprocessingExperiment(
+        name="augmented_new_baseline",
+        queue="prod.med",
+        base="config/augmented_preprocess.yml",
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+            Parameter(["feature_extraction", "params", "architecture"], "mobilenet_v2"),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    [
+                        "superpixel",
+                        "params",
+                        "nr_superpixels",
+                    ],
+                    [300, 600, 900, 1200],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v4_mobilenet_{s}" for s in [300, 600, 900, 1200]],
+                ),
+            ]
+        ],
     )
 
     # ETH
@@ -2166,26 +2268,6 @@ if __name__ == "__main__":
                     "resnext50_32x4d",
                 ],
             )
-        ],
-    )
-    PretrainingExperiment(name="basic_scratch_mobile").generate(
-        fixed=[
-            Parameter(
-                ["train", "model", "pretrained"],
-                False,
-            ),
-            Parameter(["train", "data", "train_fraction"], 0.75),
-            Parameter(["train", "data", "training_slides"], None),
-            Parameter(["train", "data", "validation_slides"], None),
-            Parameter(["train", "model", "architecture"], "mobilenet_v2"),
-        ],
-        grid=[
-            ParameterList(
-                ["train", "params", "optimizer", "params", "lr"],
-                [0.001, 0.0001, 0.00001],
-            ),
-            ParameterList(["train", "model", "width_mult"], [0.5, 1.0]),
-            ParameterList(["train", "model", "dropout"], [0.0, 0.2, 0.3]),
         ],
     )
     PretrainingExperiment(name="dropout_test").generate(

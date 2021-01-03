@@ -309,7 +309,7 @@ def prepare_graph_testset(
         precomputed_std = None
 
     if test:
-        test_metadata = test_metadata.sample(1)
+        test_metadata = test_metadata.sample(5)
 
     test_dataset = GraphClassificationDataset(
         test_metadata,
@@ -408,7 +408,9 @@ def prepare_patch_testset(
         pd.read_pickle(IMAGES_DF),
         annotation_metadata,
         processed_image_directory=PREPROCESS_PATH / image_path,
-        tissue_mask_directory=PREPROCESS_PATH / image_path / tissue_mask_directory if tissue_mask_directory is not None else None,
+        tissue_mask_directory=PREPROCESS_PATH / image_path / tissue_mask_directory
+        if tissue_mask_directory is not None
+        else None,
         add_image_sizes=True,
     )
     test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]

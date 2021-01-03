@@ -505,7 +505,7 @@ class DeepFeatureExtractor(FeatureExtractor):
             instance_map (np.ndarray): Extracted instance_map
 
         Returns:
-            torch.Tensor: Extracted features
+            torch.Tensor: Extracted features of shape [nr_instances, nr_features]
         """
         image_dataset = InstanceMapPatchDataset(
             input_image,
@@ -529,4 +529,112 @@ class DeepFeatureExtractor(FeatureExtractor):
         for i, image_batch in image_loader:
             embeddings = self.patch_feature_extractor(image_batch)
             features[i, :] = embeddings
+        return features.cpu().detach()
+
+
+class AugmentedInstanceMapPatchDataset(InstanceMapPatchDataset):
+    """Helper class to use a give image and extracted instance maps as a dataset and provides the ability to change the dataset transform at run time"""
+
+    def __init__(
+        self,
+        image: np.ndarray,
+        instance_map: np.ndarray,
+        size: int,
+        fill_value: Optional[int],
+        mean: Optional[List[float]],
+        std: Optional[List[float]],
+    ) -> None:
+        super().__init__(image, instance_map, size, fill_value)
+        self.mean = mean
+        self.std = std
+
+    def set_augmentation(self, augmentor):
+        basic_transforms = [transforms.Resize(224)]
+        basic_transforms.append(augmentor)
+        basic_transforms.append(transforms.ToTensor())
+        if self.mean is not None and self.std is not None:
+            basic_transforms.append(transforms.Normalize(self.mean, self.std))
+        self.dataset_transform = transforms.Compose(basic_transforms)
+
+
+class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
+    """Helper class to extract deep features from instance maps with different augmentations"""
+
+    def __init__(
+        self,
+        rotations: Optional[List[int]] = None,
+        flips: Optional[List[int]] = None,
+        **kwargs,
+    ) -> None:
+        """Creates a feature extractor that extracts feature for all of the given augmentations. Otherwise works the same as the DeepFeatureExtractor
+
+        Args:
+            rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.
+            flips (Optional[List[int]], optional): List of flips to use, in {'n', 'h', 'v'}. Defaults to None.
+        """
+        self.rotations = rotations
+        self.flips = flips
+        super().__init__(**kwargs)
+        if rotations is None:
+            rotations = [0]
+        if flips is None:
+            flips = ["n"]
+        self.transforms = []
+        for angle in rotations:
+            for flip in flips:
+                t = [
+                    transforms.Lambda(
+                        lambda x: transforms.functional.rotate(x, angle=angle)
+                    )
+                ]
+                if flip == "h":
+                    t.append(
+                        transforms.Lambda(lambda x: transforms.functional.hflip(x))
+                    )
+                if flip == "v":
+                    t.append(
+                        transforms.Lambda(lambda x: transforms.functional.vflip(x))
+                    )
+                self.transforms.append(transforms.Compose(t))
+
+    def _extract_features(
+        self, input_image: np.ndarray, instance_map: np.ndarray
+    ) -> torch.Tensor:
+        """Extract features for a given RGB image and its extracted instance_map for all augmentations
+
+        Args:
+            input_image (np.ndarray): RGB input image
+            instance_map (np.ndarray): Extracted instance_map
+
+        Returns:
+            torch.Tensor: Extracted features of shape [nr_instances, nr_augmentations, nr_features]
+        """
+        image_dataset = AugmentedInstanceMapPatchDataset(
+            input_image,
+            instance_map,
+            self.size,
+            self.fill_value,
+            self.normalizer_mean,
+            self.normalizer_std,
+        )
+        image_loader = DataLoader(
+            image_dataset,
+            shuffle=False,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+        )
+        features = torch.empty(
+            size=(
+                len(image_dataset),
+                len(self.transforms),
+                self.patch_feature_extractor.num_features,
+            ),
+            dtype=torch.float32,
+            device=self.device,
+        )
+        for i, transform in enumerate(self.transforms):
+            image_dataset.set_augmentation(transform)
+            for j, image_batch in image_loader:
+                embeddings = self.patch_feature_extractor(image_batch)
+                features[j, i, :] = embeddings
         return features.cpu().detach()

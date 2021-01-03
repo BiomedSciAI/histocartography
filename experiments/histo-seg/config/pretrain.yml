@@ -83,6 +83,7 @@ test:
     dataset: eth
     batch_size: 32
     patch_size: 224
+    threshold: 0.25
     num_workers: 8
     overlap: 200
     operation: argmax

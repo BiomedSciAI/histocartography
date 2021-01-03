@@ -1,6 +1,6 @@
 """Dataloader for precomputed graphs in .bin format"""
 import math
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 import cv2
 import dgl
@@ -114,6 +114,8 @@ class BaseDataset(Dataset):
 
 
 class GraphClassificationDataset(BaseDataset):
+    """Dataset used for extracted and dumped graphs"""
+
     def __init__(
         self,
         metadata: pd.DataFrame,
@@ -220,6 +222,9 @@ class GraphClassificationDataset(BaseDataset):
 
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):
+            assert (
+                len(graph.ndata[FEATURES].shape) == 2
+            ), f"Cannot use GraphClassificationDataset when the preprocessing was run with augmentations"
             if centroid_features == "only":
                 features = (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(
                     torch.float32
@@ -311,35 +316,8 @@ class GraphClassificationDataset(BaseDataset):
             graph_labels.append(graph_label)
         return graph_labels
 
-    def __getitem__(
-        self, index: int
-    ) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
-        """Returns a sample (patch) of graph i
-
-        Args:
-            index (int): Index of graph
-
-        Returns:
-            Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Subgraph and graph label and the node labels
-        """
-        if isinstance(index, str):
-            index = self.name_to_index[index]
-        graph = self.graphs[index]
-        image_size = self.image_sizes[index]
-        node_labels = graph.ndata[LABEL]
+    def _build_return_tuple(self, graph, node_labels, index):
         graph_label = self.graph_labels[index]
-
-        # Random patch sampling
-        if self.patch_size is not None:
-            bounding_box = self._get_random_patch(
-                full_size=image_size, patch_size=self.patch_size
-            )
-            relevant_nodes = self._get_indices_in_bounding_box(
-                graph.ndata[CENTROID], bounding_box
-            )
-            graph = self._generate_subgraph(graph, relevant_nodes)
-            node_labels = node_labels[relevant_nodes]
-
         return_elements = list()
         if self.return_names:
             return_elements.append(self.names[index])
@@ -354,6 +332,42 @@ class GraphClassificationDataset(BaseDataset):
                 return_elements.append(self.annotations2[index])
         return tuple(return_elements)
 
+    def _get_random_subgraph(self, graph, node_labels, image_size):
+        bounding_box = self._get_random_patch(
+            full_size=image_size, patch_size=self.patch_size
+        )
+        relevant_nodes = self._get_indices_in_bounding_box(
+            graph.ndata[CENTROID], bounding_box
+        )
+        graph = self._generate_subgraph(graph, relevant_nodes)
+        node_labels = node_labels[relevant_nodes]
+        return graph, node_labels
+
+    def __getitem__(
+        self, index: int
+    ) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
+        """Returns a sample (patch) of graph i
+
+        Args:
+            index (int): Index of graph
+
+        Returns:
+            Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Subgraph and graph label and the node labels
+        """
+        if isinstance(index, str):
+            index = self.name_to_index[index]
+        graph = self.graphs[index]
+        node_labels = graph.ndata[LABEL]
+
+        # Random patch sampling
+        if self.patch_size is not None:
+            image_size = self.image_sizes[index]
+            graph, node_labels = self._get_random_subgraph(
+                graph, node_labels, image_size
+            )
+
+        return self._build_return_tuple(graph, node_labels, index)
+
     def __len__(self) -> int:
         """Number of graphs in the dataset
 
@@ -361,6 +375,95 @@ class GraphClassificationDataset(BaseDataset):
             int: Length of the dataset
         """
         return len(self.graphs)
+
+
+class AugmentedGraphClassificationDataset(GraphClassificationDataset):
+    """Dataset variation used for extracted and dumped graphs with augmentations"""
+
+    def __init__(
+        self, metadata: pd.DataFrame, augmentation: Optional[int] = None, **kwargs
+    ) -> None:
+        self.augmentation = augmentation
+        super().__init__(metadata, **kwargs)
+
+    def set_augmentation(self, augmentation: Optional[int] = None) -> None:
+        """Set a fixed augmentation to be used
+
+        Args:
+            augmentation (Optional[int], optional): Augmentation index to use. None refers to randomly sample features for each node. Defaults to None.
+        """
+        self.augmentation = augmentation
+
+    def _select_graph_features(self, centroid_features: str) -> None:
+        """Skips the feature selection step as it is done during data loading
+
+        Args:
+            centroid_features (str): Centroid features to select during data loading
+        """
+        self.centroid_features = centroid_features
+
+    def __getitem__(self, index: int) -> Any:
+        """Get a graph to train with. Randomly samples features from the available features.
+
+        Args:
+            index (int): Index of the graph
+
+        Returns:
+            Any: Return tuple depending on the arguments
+        """
+        if isinstance(index, str):
+            index = self.name_to_index[index]
+        image_size = self.image_sizes[index]
+        graph = self.graphs[index]
+
+        augmented_graph = dgl.DGLGraph(graph_data=graph)
+        augmented_graph.ndata[CENTROID] = graph.ndata[CENTROID]
+        augmented_graph.ndata[LABEL] = graph.ndata[LABEL]
+
+        # Get features
+        if self.centroid_features == "only":
+            features = (augmented_graph.ndata[CENTROID] / torch.Tensor(image_size)).to(
+                torch.float32
+            )
+        else:
+            assert (
+                len(graph.ndata[FEATURES].shape) == 3
+            ), f"Cannot use AugmentedDataset when the preprocessing was not run with augmentations"
+            nr_nodes, nr_augmentations, _ = graph.ndata[FEATURES].shape
+            if self.augmentation is not None:
+                sample = torch.randint(low=0, high=nr_augmentations, size=(nr_nodes,))
+            else:
+                sample = (
+                    torch.ones(size=(nr_nodes,), dtype=torch.long) * self.augmentation
+                )
+            features = graph.ndata[FEATURES][torch.arange(nr_nodes), sample].to(
+                torch.float32
+            )
+
+            if self.mean is not None and self.std is not None:
+                features = (features - self.mean) / self.std
+
+            if self.centroid_features == "cat":
+                features = torch.cat(
+                    [
+                        features,
+                        (augmented_graph.ndata[CENTROID] / torch.Tensor(image_size)).to(
+                            torch.float32
+                        ),
+                    ],
+                    dim=1,
+                )
+        augmented_graph.ndata[GNN_NODE_FEAT_IN] = features
+        node_labels = augmented_graph.ndata[LABEL]
+
+        # Random patch sampling
+        if self.patch_size is not None:
+            image_size = self.image_sizes[index]
+            augmented_graph, node_labels = self._get_random_subgraph(
+                augmented_graph, node_labels, image_size
+            )
+
+        return self._build_return_tuple(augmented_graph, node_labels, index)
 
 
 class ImageDataset(BaseDataset):

@@ -5,6 +5,7 @@ from typing import Any, List
 import numpy as np
 import sklearn.metrics
 import torch
+from histocartography.preprocessing.utils import fast_histogram
 
 
 class SegmentationMetric:
@@ -398,7 +399,7 @@ class NodeClassificationAccuracy(NodeClassificationMetric):
             start += node_association
         return np.mean(accuracies[accuracies == accuracies])
 
-    
+
 class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
     def _compare(
         self,
@@ -443,6 +444,31 @@ class NodeClassificationF1Score(NodeClassificationMetric):
             )
             start += node_association
         return np.mean(accuracies[accuracies == accuracies])
+
+
+def sum_up_gleason(annotation, n_class=4, thres=0):
+    # read the mask and count the grades
+    grade_count = fast_histogram(annotation.flatten(), n_class)
+    grade_count = grade_count / grade_count.sum()
+    grade_count[grade_count < thres] = 0
+
+    # get the max and second max scores and write them to file
+    idx = np.argsort(grade_count)
+    primary_score = idx[-1]
+    secondary_score = idx[-2]
+
+    if np.sum(grade_count == 0) == n_class - 1:
+        secondary_score = primary_score
+    if secondary_score == 0:
+        secondary_score = primary_score
+    if primary_score == 0:
+        primary_score = secondary_score
+
+    # Fix scores
+    if primary_score + secondary_score == 0:
+        return 0
+    else:
+        return primary_score + secondary_score - 1
 
 
 # Legacy compatibility (remove in the future)

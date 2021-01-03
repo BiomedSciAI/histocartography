@@ -7,10 +7,12 @@ from typing import Dict, NewType
 import mlflow
 import torch
 from tqdm.auto import tqdm
+from sklearn.metrics import cohen_kappa_score
+import matplotlib.pyplot as plt
 
 from inference import PatchBasedInference
 from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
-from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU
+from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU, sum_up_gleason
 from utils import dynamic_import_from, get_config
 
 
@@ -62,6 +64,7 @@ def test_cnn(
     patch_size: int,
     overlap: int,
     test: bool,
+    threshold: float,
     operation: str,
     local_save_path,
     mlflow_save_path,
@@ -110,11 +113,17 @@ def test_cnn(
     ]
     results = defaultdict(list)
 
-    for i, (name, image, annotation, _, annotation2) in enumerate(tqdm(test_dataset)):
+    gleason_score_predictions = list()
+    gleason_grade_1 = list()
+    gleason_grade_2 = list()
+
+    for i, (name, image, annotation, tissue_mask, annotation2) in enumerate(
+        tqdm(test_dataset)
+    ):
         time_before = datetime.datetime.now()
         predicted_mask = inferencer.predict(image, operation=operation)
 
-        for metric in tqdm(metrics, desc="Compute metrics"):
+        for metric in metrics:
             for pathologist, ground_truth in zip([1, 2], [annotation, annotation2]):
                 results[f"{metric.__class__.__name__}_{pathologist}"].append(
                     metric(
@@ -125,7 +134,33 @@ def test_cnn(
                     .tolist()
                 )
 
+        predicted_mask = predicted_mask.detach().cpu().numpy()
+        tissue_mask = tissue_mask.detach().cpu().numpy()
+        predicted_mask[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        gleason_score_predictions.append(
+            sum_up_gleason(predicted_mask, n_class=NR_CLASSES, thres=threshold)
+        )
+        gleason_grade_1.append(
+            sum_up_gleason(annotation.numpy(), n_class=NR_CLASSES, thres=0)
+        )
+        gleason_grade_2.append(
+            sum_up_gleason(annotation2.numpy(), n_class=NR_CLASSES, thres=0)
+        )
+
         if i > 0 and i % 10 == 0:
+            results["GleasonScoreKappa_1"] = [
+                cohen_kappa_score(
+                    gleason_grade_1, gleason_score_predictions, weights="quadratic"
+                )
+            ]
+            results["GleasonScoreKappa_2"] = [
+                cohen_kappa_score(
+                    gleason_grade_2, gleason_score_predictions, weights="quadratic"
+                )
+            ]
+            results["GleasonScoreKappa_inter"] = [
+                cohen_kappa_score(gleason_grade_1, gleason_grade_2, weights="quadratic")
+            ]
             log_segmentation_results(results, step=i)
 
         # Save figure
@@ -147,6 +182,7 @@ def test_cnn(
                 str(file_name),
                 artifact_path=f"test_{operation}_segmentation_maps",
             )
+        plt.close(fig=fig)
 
         # Log duration
         duration = (datetime.datetime.now() - time_before).total_seconds()
@@ -156,6 +192,20 @@ def test_cnn(
             duration,
             step=i,
         )
+
+    results["GleasonScoreKappa_1"] = [
+        cohen_kappa_score(
+            gleason_grade_1, gleason_score_predictions, weights="quadratic"
+        )
+    ]
+    results["GleasonScoreKappa_2"] = [
+        cohen_kappa_score(
+            gleason_grade_2, gleason_score_predictions, weights="quadratic"
+        )
+    ]
+    results["GleasonScoreKappa_inter"] = [
+        cohen_kappa_score(gleason_grade_1, gleason_grade_2, weights="quadratic")
+    ]
     log_segmentation_results(results, step=len(test_dataset))
 
 

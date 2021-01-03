@@ -399,7 +399,9 @@ class ImageDataset(BaseDataset):
                     math.floor(tissue_mask.shape[0] / self.downsample_factor),
                     math.floor(tissue_mask.shape[1] / self.downsample_factor),
                 )
-                tissue_mask = cv2.resize(tissue_mask, new_size)
+                tissue_mask = cv2.resize(
+                    tissue_mask, new_size, interpolation=cv2.INTER_NEAREST
+                )
             tissue_masks.append(tissue_mask)
         return torch.from_numpy(np.array(tissue_masks))
 
@@ -414,7 +416,9 @@ class ImageDataset(BaseDataset):
                     math.floor(annotation.shape[0] / self.downsample_factor),
                     math.floor(annotation.shape[1] / self.downsample_factor),
                 )
-                annotation = cv2.resize(annotation, new_size)
+                annotation = cv2.resize(
+                    annotation, new_size, interpolation=cv2.INTER_NEAREST
+                )
             annotations.append(annotation)
         return torch.from_numpy(np.array(annotations))
 
@@ -435,8 +439,10 @@ class ImageDataset(BaseDataset):
                     math.floor(image.shape[0] / self.downsample_factor),
                     math.floor(image.shape[1] / self.downsample_factor),
                 )
-                image = cv2.resize(image, new_size)
-                annotation = cv2.resize(annotation, new_size)
+                image = cv2.resize(image, new_size, interpolation=cv2.INTER_NEAREST)
+                annotation = cv2.resize(
+                    annotation, new_size, interpolation=cv2.INTER_NEAREST
+                )
             images.append(image)
             annotations.append(annotation)
         return torch.from_numpy(np.array(images)), torch.from_numpy(
@@ -593,5 +599,5 @@ def collate_valid(
         torch.cat(node_labels),
         np.stack(superpixels),
         np.stack(annotations),
-        np.stack(tissue_masks)
+        np.stack(tissue_masks),
     )

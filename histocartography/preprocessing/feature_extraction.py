@@ -480,7 +480,6 @@ class PatchFeatureExtractor:
         patch = patch.to(self.device)
         with torch.no_grad():
             embeddings = self.model(patch).squeeze()
-            # embeddings = embeddings.cpu().detach()
             return embeddings
 
 
@@ -582,8 +581,7 @@ class DeepFeatureExtractor(FeatureExtractor):
             dtype=torch.float32,
             device=self.device,
         )
-        for i, image_batch in tqdm(image_loader, desc='Instance-level feature extraction'):
-            image_batch = image_batch.to(self.device)
+        for i, image_batch in image_loader:
             embeddings = self.patch_feature_extractor(image_batch)
             features[i, :] = embeddings
         return features.cpu().detach()

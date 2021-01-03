@@ -777,7 +777,9 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PreprocessingExperiment(name="add_tissue_masks", base="config/stain_normalizers.yml").generate(
+    PreprocessingExperiment(
+        name="add_tissue_masks", base="config/stain_normalizers.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1743,9 +1745,7 @@ if __name__ == "__main__":
                 [
                     f"outputs/v3_{x}_{y}"
                     for x in [300, 600, 900, 1200]
-                    for y in [
-                        "mobilenet_v2"
-                    ]
+                    for y in ["mobilenet_v2"]
                 ],
             )
         ],
@@ -2692,6 +2692,35 @@ if __name__ == "__main__":
         ],
         sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
     )
+    CNNTestingExperiment(name="various").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/633/{run}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+                    for run in [
+                        "19a9b40d174f40c4b217ddf84eb63e3b",
+                        "c62233eed1574d2ca2d9b8ee51b83ffc",
+                        "02906fe539444b13a76d39d4a0dfbb6f",
+                    ]
+                ],
+            )
+        ]
+    )
+    CNNTestingExperiment(name="thresholds").generate(
+        fixed=[
+            Parameter(
+                ["test", "model", "architecture"],
+                "s3://mlflow/633/c62233eed1574d2ca2d9b8ee51b83ffc/artifacts/best.valid.MultiLabelBalancedAccuracy",
+            )
+        ],
+        sequential=[
+            ParameterList(
+                ["test", "params", "threshold"],
+                [0.0, 0.1, 0.15, 0.2, 0.225, 0.25, 0.275, 0.3, 0.323, 0.35],
+            )
+        ],
+    )
 
     GNNTestingExperiment(name="gnn_deep").generate(
         sequential=[
@@ -2724,4 +2753,18 @@ if __name__ == "__main__":
                 ],
             )
         ]
+    )
+    GNNTestingExperiment(name="thresholds").generate(
+        fixed=[
+            Parameter(
+                ["test", "model", "architecture"],
+                "s3://mlflow/631/3cb5cf60d3e0479a929c4a6ce9aee24b/artifacts/best.valid.segmentation.MeanIoU",
+            )
+        ],
+        sequential=[
+            ParameterList(
+                ["test", "params", "threshold"],
+                [0.0, 0.1, 0.15, 0.2, 0.225, 0.25, 0.275, 0.3, 0.323, 0.35],
+            )
+        ],
     )

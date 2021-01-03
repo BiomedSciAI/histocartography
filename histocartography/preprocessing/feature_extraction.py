@@ -1,7 +1,7 @@
 """Extract features from images for a given structure"""
 
 from abc import abstractmethod
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -371,14 +371,13 @@ class InstanceMapPatchDataset(Dataset):
 class PatchFeatureExtractor:
     """Helper class to use a CNN to extract features from an image"""
 
-    def __init__(self, architecture: str) -> None:
+    def __init__(self, architecture: str, device: torch.device) -> None:
         """Create a patch feature extracter of a given architecture and put it on GPU if available
 
         Args:
             architecture (str): String of architecture. According to torchvision.models syntax
         """
-        cuda = torch.cuda.is_available()
-        self.device = torch.device("cuda:0" if cuda else "cpu")
+        self.device = device
 
         if architecture.startswith("s3://mlflow"):
             model = self._get_mlflow_model(url=architecture)
@@ -437,8 +436,7 @@ class PatchFeatureExtractor:
         model = mlflow.pytorch.load_model(url, map_location=self.device)
         return model
 
-    @staticmethod
-    def _get_torchvision_model(architecture: str) -> nn.Module:
+    def _get_torchvision_model(self, architecture: str) -> nn.Module:
         """Returns a torchvision model from a given architecture string
 
         Args:
@@ -449,6 +447,7 @@ class PatchFeatureExtractor:
         """
         model_class = dynamic_import_from("torchvision.models", architecture)
         model = model_class(pretrained=True)
+        model = model.to(self.device)
         return model
 
     @staticmethod
@@ -478,9 +477,13 @@ class PatchFeatureExtractor:
         Returns:
             torch.Tensor: Embedding of image
         """
+        patch = patch.to(self.device)
         with torch.no_grad():
             embeddings = self.model(patch).squeeze()
+<<<<<<< HEAD
             # embeddings = embeddings.cpu().detach()
+=======
+>>>>>>> Fix gpu feature extraction
             return embeddings
 
 
@@ -512,23 +515,26 @@ class DeepFeatureExtractor(FeatureExtractor):
         else:
             self.normalizer = None
         super().__init__(**kwargs)
+
+        # Handle GPU
+        cuda = torch.cuda.is_available()
+        self.device = torch.device("cuda:0" if cuda else "cpu")
+
         if normalizer is not None:
             self.normalizer_mean = normalizer.get("mean", [0, 0, 0])
             self.normalizer_std = normalizer.get("std", [1, 1, 1])
         else:
             self.normalizer_mean = None
             self.normalizer_std = None
-        self.patch_feature_extractor = PatchFeatureExtractor(architecture)
+        self.patch_feature_extractor = PatchFeatureExtractor(
+            architecture, device=self.device
+        )
         self.fill_value = 255 if self.mask else None
         self.batch_size = batch_size
         self.architecture_unprocessed = architecture
         self.num_workers = num_workers
         if self.num_workers in [0, 1]:
             torch.set_num_threads(1)
-
-        # Handle GPU
-        cuda = torch.cuda.is_available()
-        self.device = torch.device("cuda:0" if cuda else "cpu")
 
     @staticmethod
     def _preprocess_architecture(architecture: str) -> str:

@@ -46,6 +46,7 @@ pipeline:
         - features
         params:
           architecture: mobilenet_v2
+          num_workers: 0
           normalizer:
             type: imagenet
             mean:
@@ -79,3 +80,4 @@ params:
   save: True
   cores: 64
   labels: True
+  link_directory: null

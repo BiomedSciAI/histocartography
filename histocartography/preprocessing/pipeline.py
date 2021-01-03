@@ -38,7 +38,11 @@ class PipelineStep(ABC):
             str: Representation of a graph builder
         """
         variables = ",".join([f"{k}={v}" for k, v in sorted(self.__dict__.items())])
-        return f"{self.__class__.__name__}({variables})"
+        return (
+            f"{self.__class__.__name__}({variables})".replace(" ", "")
+            .replace('"', "")
+            .replace("'", "")
+        )
 
     def mkdir(self) -> Path:
         """Create path to output files"""
@@ -74,7 +78,10 @@ class PipelineStep(ABC):
             outputs = tuple([outputs])
         for i, output in enumerate(outputs):
             output_file.create_dataset(
-                f"{self.output_key}_{i}", data=output, compression="gzip", compression_opts=9
+                f"{self.output_key}_{i}",
+                data=output,
+                compression="gzip",
+                compression_opts=9,
             )
 
     def process_and_save(self, output_name: str, *args, **kwargs: Any) -> Any:
@@ -137,6 +144,7 @@ class PipelineRunner:
             self.stages.append(pipeline_stage())
             self.stage_configs.append(config)
             path = pipeline_stage().mkdir() if save else None
+        self.final_path = path
 
     def precompute(self) -> None:
         """Precompute all necessary information for all stages"""
@@ -227,9 +235,30 @@ class BatchPipelineRunner:
         pipeline = self._build_pipeline_runner()
         pipeline.run(name=name, **row)
 
+    def link_output(self, link_directory: str) -> None:
+        """Creates a symlink between the output directory of the pipeline and the provided path.
+           Overwrites link if it already exists.
+
+        Args:
+            link_directory (str): Path to link the output directory to
+        """
+        if os.path.exists(link_directory):
+            if os.path.islink(link_directory):
+                logging.critical("Link already exists: overwriting...")
+                os.remove(link_directory)
+            else:
+                logging.critical(
+                    "Link path already exists, but it is something else than a link. Ignoring..."
+                )
+                return
+        os.symlink(self.final_path, link_directory, target_is_directory=True)
+        logging.info(f"Created symlink: {link_directory} -> {self.final_path}")
+
     def _precompute(self):
         """Precompute all necessary information for all stages"""
-        self._build_pipeline_runner().precompute()
+        tmp_runner = self._build_pipeline_runner()
+        self.final_path = tmp_runner.final_path
+        tmp_runner.precompute()
 
     def run(self, metadata: pd.DataFrame, cores: int = 1) -> None:
         """Runs the pipeline for the provided metadata dataframe and a specified

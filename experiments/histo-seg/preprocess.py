@@ -1,6 +1,7 @@
 import argparse
 import logging
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 import yaml
@@ -17,6 +18,7 @@ def preprocessing(
     labels: bool = True,
     save: bool = True,
     test: bool = False,
+    link_directory: Optional[str] = None,
 ):
     PREPROCESS_PATH = dynamic_import_from(dataset, "PREPROCESS_PATH")
     IMAGES_DF = dynamic_import_from(dataset, "IMAGES_DF")
@@ -30,21 +32,27 @@ def preprocessing(
     if test:
         metadata = metadata.iloc[[0]]
         cores = 1
-        config["stages"][3]["superpixel"]["params"]["nr_superpixels"] = 10
-        config['stages'][1]['stain_normalizers']['params']['target_path'] = metadata.iloc[0].path
+        config["stages"][3]["superpixel"]["params"]["nr_superpixels"] = 300
+        config["stages"][1]["stain_normalizers"]["params"][
+            "target_path"
+        ] = metadata.iloc[0].path
     else:
         # Inject target path into config
-        target = config['stages'][1]['stain_normalizers']['params']['target']
+        target = config["stages"][1]["stain_normalizers"]["params"]["target"]
         target_path = metadata.loc[target, "path"]
-        config['stages'][1]['stain_normalizers']['params']['target_path'] = target_path
+        config["stages"][1]["stain_normalizers"]["params"]["target_path"] = target_path
 
-    pipeline = BatchPipelineRunner(output_path=PREPROCESS_PATH, pipeline_config=config, save=save)
+    pipeline = BatchPipelineRunner(
+        output_path=PREPROCESS_PATH, pipeline_config=config, save=save
+    )
     pipeline.run(metadata=metadata, cores=cores)
+    if link_directory is not None:
+        pipeline.link_output(link_directory)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/stain_normalizers.yml")
+    parser.add_argument("--config", type=str, default="config/preprocess.yml")
     parser.add_argument("--level", type=str, default="WARNING")
     parser.add_argument("--test", action="store_const", const=True, default=False)
     args = parser.parse_args()

@@ -47,7 +47,7 @@ def preprocessing(
     )
     pipeline.run(metadata=metadata, cores=cores)
     if link_directory is not None:
-        pipeline.link_output(link_directory)
+        pipeline.link_output(str(PREPROCESS_PATH / "outputs" / link_directory))
 
 
 if __name__ == "__main__":

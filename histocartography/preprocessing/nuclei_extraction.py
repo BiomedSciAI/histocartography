@@ -11,17 +11,16 @@ from PIL import Image
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from mlflow.pytorch import load_model, log_model
+from mlflow.pytorch import load_model
 from skimage.measure import regionprops
 from tqdm import tqdm
 
 from ..utils import dynamic_import_from
 from .pipeline import PipelineStep
-from ..ml.models.hovernet import HoverNet
-from ..ml.models.hovernetpt.net_desc import HoVerNet
 from ..utils.image import extract_patches_from_image
 from ..utils.hover import process_instance
 from ..utils.io import is_mlflow_url
+# from ..ml.models.hovernet import HoVerNet
 
 
 class NucleiExtractor(PipelineStep):

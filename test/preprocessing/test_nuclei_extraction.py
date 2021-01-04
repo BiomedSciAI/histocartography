@@ -22,7 +22,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
 
         # 2. create a nuclei extractor 
         extractor = NucleiExtractor(
-            model_path='s3://mlflow/7653a1e1e5f443dd81ff61aa59386bd0/artifacts/hovernet_kumar_notype'
+            model_path='s3://mlflow/90a7e42bf0224683933bdc4bcb496a24/artifacts/hovernet_kumar_notype'
         )
 
         # 3. process the image 
@@ -53,4 +53,4 @@ class NucleiExtractionTestCase(unittest.TestCase):
 if __name__ == "__main__":
     model = NucleiExtractionTestCase()
     model.test_nuclei_extractor_with_local()
-    # model.test_nuclei_extractor_with_mlflow()
+    model.test_nuclei_extractor_with_mlflow()

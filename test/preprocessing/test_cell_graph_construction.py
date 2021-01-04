@@ -49,7 +49,7 @@ class CellGraphBuildingTestCase(unittest.TestCase):
 
         # 2. nuclei detection 
         nuclei_detector = NucleiExtractor(
-            model_path='checkpoints/hovernet_pannuke.pth'
+            model_path='checkpoints/hovernet_kumar_notype.pth'
         )
         instance_map, _, instance_centroids = nuclei_detector.process(image)
 

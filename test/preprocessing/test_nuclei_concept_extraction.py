@@ -24,7 +24,7 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
 
         # 2. detect nuclei
         extractor = NucleiExtractor(
-            model_path='checkpoints/hovernet_pannuke.pth'
+            model_path='checkpoints/hovernet_kumar_notype.pth'
         )
         instance_map, _, _ = extractor.process(image)
 

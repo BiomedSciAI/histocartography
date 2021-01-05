@@ -381,18 +381,18 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
     """Dataset variation used for extracted and dumped graphs with augmentations"""
 
     def __init__(
-        self, metadata: pd.DataFrame, augmentation: Optional[int] = None, **kwargs
+        self, metadata: pd.DataFrame, augmentation_mode: Optional[str] = None, **kwargs
     ) -> None:
-        self.augmentation = augmentation
+        self.augmentation_mode = augmentation_mode
         super().__init__(metadata, **kwargs)
 
-    def set_augmentation(self, augmentation: Optional[int] = None) -> None:
+    def set_augmentation_mode(self, augmentation_mode: Optional[str] = None) -> None:
         """Set a fixed augmentation to be used
 
         Args:
             augmentation (Optional[int], optional): Augmentation index to use. None refers to randomly sample features for each node. Defaults to None.
         """
-        self.augmentation = augmentation
+        self.augmentation_mode = augmentation_mode
 
     def _select_graph_features(self, centroid_features: str) -> None:
         """Skips the feature selection step as it is done during data loading
@@ -430,12 +430,16 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                 len(graph.ndata[FEATURES].shape) == 3
             ), f"Cannot use AugmentedDataset when the preprocessing was not run with augmentations"
             nr_nodes, nr_augmentations, _ = graph.ndata[FEATURES].shape
-            if self.augmentation is not None:
-                sample = torch.randint(low=0, high=nr_augmentations, size=(nr_nodes,))
+
+            # Sample based on augmentation mode
+            if self.augmentation_mode == "graph":
+                sample = torch.ones(size=(nr_nodes,), dtype=torch.long) * torch.randint(low=0, high=nr_augmentations, size=(1,))
+            elif self.augmentation_mode == "node":
+                sample = torch.randint(low=0, high=nr_augmentations, size=(nr_nodes,), dtype=torch.long)
             else:
-                sample = (
-                    torch.ones(size=(nr_nodes,), dtype=torch.long) * self.augmentation
-                )
+                sample = torch.zeros(size=(nr_nodes,), dtype=torch.long)
+
+            # Select features to use
             features = graph.ndata[FEATURES][torch.arange(nr_nodes), sample].to(
                 torch.float32
             )

@@ -1,16 +1,3 @@
-upper_bound:
-  stages:
-    stain_normalizer:
-      class: "VahadaneStainNormalizer"
-      params:
-        target: "ZT111_4_C_7_1"
-    superpixel_extractor:
-      class: "SLICSuperpixelExtractor"
-      params:
-        nr_superpixels: 2000
-        color_space: "rgb"
-  params:
-    cores: 16
 train:
   data:
     overfit_test: False
@@ -22,14 +9,14 @@ train:
     validation_slides:
       - 76
     patch_size: null
-    graph_directory:  "outputs/v3_900_19a9b40d174f40c4b217ddf84eb63e3b"
+    graph_directory:  "outputs/v4_mobilenet_300"
     tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
-    use_augmentation_dataset: false
-    augmentation_mode: null
+    use_augmentation_dataset: true
+    augmentation_mode: node
   model:
     gnn_config:
       activation: "PReLU"
@@ -52,7 +39,7 @@ train:
       hidden_dim: 32
       activation: "PReLU"
       input_dropout: 0.0
-      seperate_heads: True
+      seperate_heads: False
   metrics:
     graph:
       - "GraphClassificationBalancedAccuracy"
@@ -93,16 +80,3 @@ train:
     dataset: "eth"
     seed: null
     validation_frequency: 5
-test:
-  data:
-    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
-  model:
-    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
-  params:
-    experiment_name: "anv_wsss_test_gnn"
-    experiment_tags: null
-    dataset: eth
-    operation: argmax
-    local_save_path: '/dataT/anv/Data/ETH/gnn_test_masks'
-    mlflow_save_path: 'gnn_test_masks'
-    threshold: 0.25

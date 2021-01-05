@@ -14,7 +14,7 @@ from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
 
-from dataset import GraphClassificationDataset, ImageDataset, PatchClassificationDataset
+from dataset import GraphClassificationDataset, ImageDataset, PatchClassificationDataset, AugmentedGraphClassificationDataset
 from utils import merge_metadata
 
 with os.popen("hostname") as subprocess:
@@ -164,6 +164,8 @@ def prepare_graph_datasets(
     normalize_features: bool = False,
     downsample_segmentation_maps: int = 1,
     tissue_mask_directory: Optional[str] = None,
+    use_augmentation_dataset: bool = False,
+    augmentation_mode: Optional[bool] = False
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -231,26 +233,45 @@ def prepare_graph_datasets(
     else:
         patch_size_augmentation = (patch_size, patch_size)
 
-    training_dataset = GraphClassificationDataset(
-        training_metadata,
-        patch_size=patch_size_augmentation,
-        num_classes=NR_CLASSES,
-        background_index=BACKGROUND_CLASS,
-        centroid_features=centroid_features,
-        mean=precomputed_mean,
-        std=precomputed_std,
-    )
-    validation_dataset = GraphClassificationDataset(
-        validation_metadata,
-        patch_size=patch_size_augmentation if use_patches_for_validation else None,
-        num_classes=NR_CLASSES,
-        background_index=BACKGROUND_CLASS,
-        centroid_features=centroid_features,
-        mean=precomputed_mean,
-        std=precomputed_std,
-        return_segmentation_info=True,
-        segmentation_downsample_ratio=downsample_segmentation_maps,
-    )
+    training_arguments = {
+        "patch_size": patch_size_augmentation,
+        "num_classes": NR_CLASSES,
+        "background_index": BACKGROUND_CLASS,
+        "centroid_features": centroid_features,
+        "mean": precomputed_mean,
+        "std": precomputed_std,
+    }
+    validation_arguments = {
+        "patch_size": patch_size_augmentation if use_patches_for_validation else None,
+        "num_classes": NR_CLASSES,
+        "background_index": BACKGROUND_CLASS,
+        "centroid_features": centroid_features,
+        "mean": precomputed_mean,
+        "std": precomputed_std,
+        "return_segmentation_info": True,
+        "segmentation_downsample_ratio": downsample_segmentation_maps,
+    }
+
+    if use_augmentation_dataset:
+        training_dataset = AugmentedGraphClassificationDataset(
+            training_metadata,
+            augmentation_mode=augmentation_mode,
+            **training_arguments
+        )
+        validation_dataset = AugmentedGraphClassificationDataset(
+            validation_metadata,
+            augmentation_mode=None,
+            **validation_arguments
+        )
+    else:
+        training_dataset = GraphClassificationDataset(
+            training_metadata,
+            **training_arguments
+        )
+        validation_dataset = GraphClassificationDataset(
+            validation_metadata,
+            **validation_arguments
+        )
 
     return training_dataset, validation_dataset
 
@@ -262,8 +283,10 @@ def prepare_graph_testset(
     centroid_features: str = "no",
     normalize_features: bool = False,
     test_slides: Optional[List[int]] = TEST_SLIDES,
+    use_augmentation_dataset: bool = False,
+    augmentation_mode: Optional[bool] = False,
     **kwargs,
-):
+) -> Dataset:
     graph_directory = PREPROCESS_PATH / graph_directory
 
     annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
@@ -311,18 +334,28 @@ def prepare_graph_testset(
     if test:
         test_metadata = test_metadata.sample(5)
 
-    test_dataset = GraphClassificationDataset(
-        test_metadata,
-        patch_size=None,
-        num_classes=NR_CLASSES,
-        background_index=BACKGROUND_CLASS,
-        centroid_features=centroid_features,
-        mean=precomputed_mean,
-        std=precomputed_std,
-        return_segmentation_info=True,
-        return_names=True,
-        **kwargs,
-    )
+    test_arguments = {
+        "patch_size": None,
+        "num_classes": NR_CLASSES,
+        "background_index": BACKGROUND_CLASS,
+        "centroid_features": centroid_features,
+        "mean": precomputed_mean,
+        "std": precomputed_std,
+        "return_segmentation_info": True,
+        "return_names": True,
+    }
+    test_arguments.update(kwargs)
+    if use_augmentation_dataset:
+        test_dataset = AugmentedGraphClassificationDataset(
+            test_metadata,
+            augmentation_mode=None,
+            **test_arguments
+        )
+    else:
+        test_dataset = GraphClassificationDataset(
+            test_metadata,
+            **test_arguments
+        )
     return test_dataset
 
 

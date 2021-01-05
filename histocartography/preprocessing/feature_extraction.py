@@ -710,7 +710,7 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
             for flip in flips:
                 t = [
                     transforms.Lambda(
-                        lambda x: transforms.functional.rotate(x, angle=angle)
+                        lambda x, a=angle: transforms.functional.rotate(x, angle=a)
                     )
                 ]
                 if flip == "h":

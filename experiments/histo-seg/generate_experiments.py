@@ -852,6 +852,47 @@ if __name__ == "__main__":
         ]
     )
     GPUPreprocessingExperiment(
+        name="augmented_new_pretrained",
+        queue="prod.med",
+        base="config/augmented_preprocess.yml",
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+            Parameter(
+                ["feature_extraction", "params", "architecture"],
+                "models/19a9b40d174f40c4b217ddf84eb63e3b_best_valid_MultiLabelBalancedAccuracy.pth",
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    [
+                        "superpixel",
+                        "params",
+                        "nr_superpixels",
+                    ],
+                    [300, 600, 900, 1200],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v4_19a9b40d174f40c4b217ddf84eb63e3b_{s}" for s in [300, 600, 900, 1200]],
+                ),
+            ]
+        ],
+    )
+    GPUPreprocessingExperiment(
         name="augmented_new_baseline",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
@@ -1988,6 +2029,306 @@ if __name__ == "__main__":
                 ],
             )
         ],
+    )
+    GraphClassifierExperiment(name="v4_mobilenet_300").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_mobilenet_300"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_mobilenet_600").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_mobilenet_600"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_mobilenet_900").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_mobilenet_900"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_pretrained_300").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_300"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_pretrained_600").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_600"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_pretrained_900").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_900"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_mobilenet_deep_300").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_mobilenet_300"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_mobilenet_deep_600").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_mobilenet_600"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_mobilenet_deep_900").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_mobilenet_900"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_pretrained_deep_300").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_300"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_pretrained_deep_600").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_600"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
+    )
+    GraphClassifierExperiment(name="v4_pretrained_deep_900").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_900"),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
+        ]
     )
 
     # MNIST

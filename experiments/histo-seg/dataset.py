@@ -217,7 +217,9 @@ class GraphClassificationDataset(BaseDataset):
         names, graphs = list(), list()
         for name, row in metadata.iterrows():
             names.append(name)
-            graphs.append(load_graphs(str(row["graph_path"]))[0][0])
+            graph = load_graphs(str(row["graph_path"]))[0][0]
+            graph.readonly()
+            graphs.append(graph)
         return names, graphs
 
     def _select_graph_features(self, centroid_features):

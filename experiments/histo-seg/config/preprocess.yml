@@ -75,6 +75,7 @@ pipeline:
         - graph
         params:
           nr_classes: 5
+          hops: 1
 params:
   dataset: eth
   save: True

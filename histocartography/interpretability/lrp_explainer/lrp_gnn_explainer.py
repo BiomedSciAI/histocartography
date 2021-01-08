@@ -4,7 +4,6 @@ from copy import deepcopy
 from histocartography.utils.io import get_device
 from histocartography.interpretability.constants import KEEP_PERCENTAGE_OF_NODE_IMPORTANCE
 from ..base_explainer import BaseExplainer
-from ..explanation import GraphExplanation
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
 
 

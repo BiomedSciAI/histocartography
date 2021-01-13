@@ -608,6 +608,7 @@ class PatchClassificationDataset(ImageDataset):
         self.stride = stride
         self.patches = self._generate_patches()
         self.labels = self._generate_labels()
+        self.masks = self._generate_tissue_masks()
         self.augmentor = self._get_augmentor(augmentations, mean, std)
 
     def _generate_patches(self):
@@ -629,6 +630,14 @@ class PatchClassificationDataset(ImageDataset):
         return torch.as_tensor(
             np.array(list(map(self._to_unique_onehot, labels)), dtype=np.uint8)
         )
+
+    def _generate_tissue_masks(self):
+        masks = self.tissue_masks.unfold(1, self.patch_size, self.stride).unfold(
+            2, self.patch_size, self.stride
+        )
+        masks = masks.reshape([-1, self.patch_size, self.patch_size])
+        masks = masks // 255
+        return masks
 
     @staticmethod
     def _get_augmentor(
@@ -665,6 +674,29 @@ class PatchClassificationDataset(ImageDataset):
 
     def __len__(self) -> int:
         return len(self.patches)
+
+    def drop_tissueless_patches(self, minimum_fraction: 0.0) -> None:
+        """Drops patches that have less than minimum_fraction of tissue on them
+
+        Args:
+            minimum_fraction (0.0): Minimum fraction of tissues
+        """
+        tissue_percentages = self.masks.sum(dim=1).sum(dim=1) / float(self.patch_size * self.patch_size)
+        patches_with_tissue = tissue_percentages > minimum_fraction
+        self.patches = self.patches[patches_with_tissue]
+        self.labels = self.labels[patches_with_tissue]
+        self.masks = self.masks[patches_with_tissue]
+
+    def drop_confusing_patches(self) -> None:
+        """Drops patches that contain more than one class
+        """
+        patches_with_single_class = self.labels.sum(dim=1) == 1
+        self.patches = self.patches[patches_with_single_class]
+        self.labels = self.labels[patches_with_single_class]
+        self.masks = self.masks[patches_with_single_class]
+
+    def get_class_weights(self) -> torch.Tensor:
+        pass
 
 
 def collate(

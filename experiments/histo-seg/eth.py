@@ -424,19 +424,25 @@ def prepare_graph_testset(
 
 def prepare_patch_datasets(
     image_path: str,
+    tissue_mask_directory: str,
     training_slides: Optional[List[int]] = None,
     validation_slides: Optional[List[int]] = None,
     train_fraction: Optional[float] = None,
     overfit_test: bool = False,
     normalizer: Optional[dict] = None,
+    drop_multiclass_patches: bool = False,
+    drop_tissue_patches: float = 0.0,
+    drop_validation_patches: bool = False,
     **kwargs,
 ) -> Tuple[Dataset, Dataset]:
 
+    image_path = PREPROCESS_PATH / image_path
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
-        processed_image_directory=PREPROCESS_PATH / image_path,
+        processed_image_directory=image_path,
         add_image_sizes=True,
+        tissue_mask_directory=image_path / tissue_mask_directory,
     )
 
     if train_fraction is not None:
@@ -479,6 +485,17 @@ def prepare_patch_datasets(
         std=std,
         **kwargs,
     )
+
+    if drop_multiclass_patches:
+        training_dataset.drop_confusing_patches()
+    if drop_tissue_patches > 0.0:
+        training_dataset.drop_tissueless_patches(minimum_fraction=drop_tissue_patches)
+    if drop_validation_patches:
+        if drop_multiclass_patches:
+            validation_dataset.drop_confusing_patches()
+        if drop_tissue_patches > 0.0:
+            validation_dataset.drop_tissueless_patches(minimum_fraction=drop_tissue_patches)
+
     return training_dataset, validation_dataset
 
 

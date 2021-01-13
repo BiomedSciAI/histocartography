@@ -12,6 +12,7 @@ train:
     stride: 112
     downsample_factor: 3
     image_path: "VahadaneStainNormalizer(lambda_c=0.01,lambda_s=0.1,target=ZT111_4_C_7_1,thres=0.8)"
+    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     normalizer:
       type: train
       mean:
@@ -32,6 +33,9 @@ train:
         contrast: 0.5
         brightness: 0.5
         hue: 0.4
+    drop_multiclass_patches: False
+    drop_tissue_patches: 0.0
+    drop_validation_patches: False
   model:
     architecture: "mobilenet_v2"
     pretrained: True

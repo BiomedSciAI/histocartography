@@ -66,18 +66,25 @@ class ClassifierHead(nn.Module):
 
 class NodeClassifierHead(nn.Module):
     def __init__(
-        self, latent_dim: int, node_classifier_config: Dict, nr_classes: int = 4,
+        self,
+        latent_dim: int,
+        node_classifier_config: Dict,
+        nr_classes: int = 4,
     ) -> None:
         super().__init__()
         self.seperate_heads = node_classifier_config.pop("seperate_heads", True)
         if self.seperate_heads:
             node_classifiers = [
-                ClassifierHead(input_dim=latent_dim, output_dim=1, **node_classifier_config)
+                ClassifierHead(
+                    input_dim=latent_dim, output_dim=1, **node_classifier_config
+                )
                 for _ in range(nr_classes)
             ]
             self.node_classifiers = nn.ModuleList(node_classifiers)
         else:
-            self.node_classifier = ClassifierHead(input_dim=latent_dim, output_dim=nr_classes, **node_classifier_config)
+            self.node_classifier = ClassifierHead(
+                input_dim=latent_dim, output_dim=nr_classes, **node_classifier_config
+            )
 
     def forward(self, node_embedding: torch.Tensor) -> torch.Tensor:
         if self.seperate_heads:
@@ -267,3 +274,25 @@ class PatchTissueClassifier(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+
+class SegmentationFromCNN(nn.Module):
+    def __init__(self, base_model, upsample_mode="bicubic"):
+        super().__init__()
+        self.base_model = base_model.model
+        last_layer_weights = self.base_model.classifier[-1].weight.data
+        last_layer_bias = self.base_model.classifier[-1].bias.data
+        self.base_model.classifier = self.base_model.classifier[:-1]
+        self.post_process = nn.Sequential(
+            nn.AvgPool2d(7, 1, padding=3),
+            nn.Conv2d(1280, 4, 1),
+            nn.Upsample(scale_factor=32, mode="bicubic"),
+        )
+        self.post_process[1].weight.data = last_layer_weights.unsqueeze(2).unsqueeze(3)
+        self.post_process[1].bias.data = last_layer_bias
+
+    def forward(self, x):
+        x = self.base_model.features(x)
+        x = self.base_model.classifier(x)
+        x = self.post_process(x)
+        return x

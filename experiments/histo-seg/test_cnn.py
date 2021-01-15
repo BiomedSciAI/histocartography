@@ -4,13 +4,13 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, NewType
 
+import matplotlib.pyplot as plt
 import mlflow
 import torch
-from tqdm.auto import tqdm
 from sklearn.metrics import cohen_kappa_score
-import matplotlib.pyplot as plt
+from tqdm.auto import tqdm
 
-from inference import PatchBasedInference
+from inference import ImageInferenceModel, PatchBasedInference
 from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
 from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU, sum_up_gleason
 from utils import dynamic_import_from, get_config
@@ -66,8 +66,9 @@ def test_cnn(
     test: bool,
     threshold: float,
     operation: str,
-    local_save_path,
-    mlflow_save_path,
+    local_save_path: str,
+    mlflow_save_path: str,
+    inference_mode: str,
     **kwargs,
 ):
     logging.info(f"Unmatched arguments for testing: {kwargs}")
@@ -90,14 +91,20 @@ def test_cnn(
     model = get_model(**model_config)
     model = model.to(device)
 
-    inferencer = PatchBasedInference(
-        model=model,
-        device=device,
-        nr_classes=NR_CLASSES,
-        patch_size=(patch_size, patch_size),
-        overlap=(overlap, overlap),
-        **kwargs,
-    )
+    if inference_mode == "patch_based":
+        inferencer = PatchBasedInference(
+            model=model,
+            device=device,
+            nr_classes=NR_CLASSES,
+            patch_size=(patch_size, patch_size),
+            overlap=(overlap, overlap),
+            **kwargs,
+        )
+    else:
+        inferencer = ImageInferenceModel(
+            model=model, device=device, final_shape=test_dataset.annotations[0].shape
+        )
+
     run_id = robust_mlflow(mlflow.active_run).info.run_id
 
     local_save_path = Path(local_save_path)

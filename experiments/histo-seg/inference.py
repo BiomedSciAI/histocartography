@@ -1,5 +1,6 @@
 import sys
 
+
 # Fake it till you make it: fake SimpleITK dependency to avoid installing ITK on the cluster.
 class SimpleITK(object):
     def __getattr__(self, name):
@@ -8,11 +9,14 @@ class SimpleITK(object):
 
 sys.modules["SimpleITK"] = SimpleITK()
 
+import cv2
+import numpy as np
 import torch
 import torchio as tio
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-import numpy as np
+
+from models import SegmentationFromCNN
 
 
 def get_segmentation_map(node_logits, superpixels, NR_CLASSES):
@@ -35,6 +39,7 @@ class BaseInference:
             self.device = device
         else:
             self.device = next(model.parameters()).device
+        self.model = self.model.to(self.device)
 
 
 class PatchBasedInference(BaseInference):
@@ -150,3 +155,31 @@ class GraphNodeBasedInference(BaseInference):
         )
         segmentation_maps = torch.as_tensor(segmentation_maps)
         return segmentation_maps
+
+
+class ImageInferenceModel(BaseInference):
+    def __init__(self, model, device, final_shape) -> None:
+        segmentation_model = SegmentationFromCNN(model)
+        super().__init__(segmentation_model, device=device)
+        self.final_shape = final_shape
+
+    def predict(self, input_tensor, operation: str):
+        input_tensor = input_tensor.to(self.device)
+        logits = self.model(input_tensor.unsqueeze(0))
+        soft_predictions = logits.sigmoid()
+        if operation == "per_class":
+            predictions = soft_predictions[0].detach().cpu()
+        elif operation == "argmax":
+            hard_predictions = soft_predictions.argmax(dim=1)
+            predictions = hard_predictions[0].detach().cpu()
+        else:
+            raise NotImplementedError(
+                f"Only support operation [per_class, argmax], but got {operation}"
+            )
+        return torch.as_tensor(
+            cv2.resize(
+                predictions.numpy(),
+                dsize=self.final_shape,
+                interpolation=cv2.INTER_NEAREST,
+            )
+        )

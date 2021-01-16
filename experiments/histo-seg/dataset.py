@@ -682,7 +682,7 @@ class PatchClassificationDataset(ImageDataset):
         patch = self.patches[index].to(torch.float32) / 255.0
         label = self.labels[index]
         augmented_patch = self.augmentor(patch)
-        return augmented_patch, label, self.patch_annotations[index]
+        return augmented_patch, label
 
     def __len__(self) -> int:
         return len(self.patches)

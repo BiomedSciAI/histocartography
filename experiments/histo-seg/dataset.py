@@ -1,6 +1,6 @@
 """Dataloader for precomputed graphs in .bin format"""
 import math
-from typing import Dict, List, Optional, Tuple, Union, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import dgl
@@ -10,6 +10,7 @@ import pandas as pd
 import torch
 from dgl.data.utils import load_graphs
 from dgl.graph import DGLGraph
+from histocartography.preprocessing.utils import fast_histogram
 from torch.utils.data import Dataset
 from torchvision.transforms import (
     CenterCrop,
@@ -435,9 +436,13 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
 
             # Sample based on augmentation mode
             if self.augmentation_mode == "graph":
-                sample = torch.ones(size=(nr_nodes,), dtype=torch.long) * torch.randint(low=0, high=nr_augmentations, size=(1,))
+                sample = torch.ones(size=(nr_nodes,), dtype=torch.long) * torch.randint(
+                    low=0, high=nr_augmentations, size=(1,)
+                )
             elif self.augmentation_mode == "node":
-                sample = torch.randint(low=0, high=nr_augmentations, size=(nr_nodes,), dtype=torch.long)
+                sample = torch.randint(
+                    low=0, high=nr_augmentations, size=(nr_nodes,), dtype=torch.long
+                )
             else:
                 sample = torch.zeros(size=(nr_nodes,), dtype=torch.long)
 
@@ -589,6 +594,7 @@ class PatchClassificationDataset(ImageDataset):
         augmentations: Optional[List[Dict]] = None,
         num_classes: int = 4,
         background_index: int = 4,
+        class_threshold: float = 0.0001,
         **kwargs,
     ) -> None:
         assert (
@@ -606,6 +612,7 @@ class PatchClassificationDataset(ImageDataset):
         )
         self.patch_size = patch_size
         self.stride = stride
+        self.class_threshold = class_threshold
         self.patches = self._generate_patches()
         self.labels = self._generate_labels()
         self.masks = self._generate_tissue_masks()
@@ -619,16 +626,21 @@ class PatchClassificationDataset(ImageDataset):
         return patches
 
     def _to_unique_onehot(self, annotation):
-        unique_annotation = pd.unique(annotation.numpy().ravel())
+        counts = fast_histogram(annotation, self.num_classes + 1)
+        counts = counts / counts.sum()
+        unique_annotation = np.where(counts > self.class_threshold)[0]
         return self._to_onehot_with_ignore(unique_annotation).sum(axis=0).numpy()
 
     def _generate_labels(self):
         labels = self.annotations.unfold(1, self.patch_size, self.stride).unfold(
             2, self.patch_size, self.stride
         )
-        labels = labels.reshape([-1, self.patch_size, self.patch_size])
+        self.patch_annotations = labels.reshape([-1, self.patch_size, self.patch_size])
         return torch.as_tensor(
-            np.array(list(map(self._to_unique_onehot, labels)), dtype=np.uint8)
+            np.array(
+                list(map(self._to_unique_onehot, self.patch_annotations)),
+                dtype=np.uint8,
+            )
         )
 
     def _generate_tissue_masks(self):
@@ -670,7 +682,7 @@ class PatchClassificationDataset(ImageDataset):
         patch = self.patches[index].to(torch.float32) / 255.0
         label = self.labels[index]
         augmented_patch = self.augmentor(patch)
-        return augmented_patch, label
+        return augmented_patch, label, self.patch_annotations[index]
 
     def __len__(self) -> int:
         return len(self.patches)
@@ -681,22 +693,36 @@ class PatchClassificationDataset(ImageDataset):
         Args:
             minimum_fraction (0.0): Minimum fraction of tissues
         """
-        tissue_percentages = self.masks.sum(dim=1).sum(dim=1) / float(self.patch_size * self.patch_size)
+        tissue_percentages = self.masks.sum(dim=1).sum(dim=1) / float(
+            self.patch_size * self.patch_size
+        )
         patches_with_tissue = tissue_percentages > minimum_fraction
         self.patches = self.patches[patches_with_tissue]
         self.labels = self.labels[patches_with_tissue]
         self.masks = self.masks[patches_with_tissue]
+        self.patch_annotations = self.patch_annotations[patches_with_tissue]
+
+    def drop_unlablled_patches(self) -> None:
+        patches_with_at_least_one_class = self.labels.sum(dim=1) != 0
+        self.patches = self.patches[patches_with_at_least_one_class]
+        self.labels = self.labels[patches_with_at_least_one_class]
+        self.masks = self.masks[patches_with_at_least_one_class]
+        self.patch_annotations = self.patch_annotations[patches_with_at_least_one_class]
 
     def drop_confusing_patches(self) -> None:
-        """Drops patches that contain more than one class
-        """
+        """Drops patches that contain more than one class"""
         patches_with_single_class = self.labels.sum(dim=1) == 1
         self.patches = self.patches[patches_with_single_class]
         self.labels = self.labels[patches_with_single_class]
         self.masks = self.masks[patches_with_single_class]
+        self.patch_annotations = self.patch_annotations[patches_with_single_class]
 
     def get_class_weights(self) -> torch.Tensor:
-        pass
+        _, classes, counts = self.labels.unique(
+            dim=0, return_inverse=True, return_counts=True
+        )
+        frequencies = 1 / counts.to(torch.float32)
+        return frequencies[classes]
 
 
 def collate(

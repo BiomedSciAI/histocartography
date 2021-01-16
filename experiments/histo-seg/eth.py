@@ -431,6 +431,7 @@ def prepare_patch_datasets(
     overfit_test: bool = False,
     normalizer: Optional[dict] = None,
     drop_multiclass_patches: bool = False,
+    drop_unlabelled_patches: bool = False,
     drop_tissue_patches: float = 0.0,
     drop_validation_patches: bool = False,
     **kwargs,
@@ -488,6 +489,8 @@ def prepare_patch_datasets(
 
     if drop_multiclass_patches:
         training_dataset.drop_confusing_patches()
+    elif drop_unlabelled_patches:
+        training_dataset.drop_unlablled_patches()
     if drop_tissue_patches > 0.0:
         training_dataset.drop_tissueless_patches(minimum_fraction=drop_tissue_patches)
     if drop_validation_patches:

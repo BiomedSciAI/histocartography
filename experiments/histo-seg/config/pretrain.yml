@@ -36,6 +36,7 @@ train:
     drop_multiclass_patches: False
     drop_tissue_patches: 0.0
     drop_validation_patches: False
+    drop_unlabelled_patches: False
   model:
     architecture: "mobilenet_v2"
     pretrained: True

@@ -4,7 +4,7 @@ from typing import Dict, Optional
 
 import mlflow
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm.auto import tqdm, trange
 
 from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
@@ -26,6 +26,7 @@ def train_patch_classifier(
     test: bool,
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
+    balanced_batches: bool = False,
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -45,10 +46,16 @@ def train_patch_classifier(
 
     # Data loaders
     training_dataset, validation_dataset = prepare_patch_datasets(**data_config)
+    if balanced_batches:
+        training_sample_weights = training_dataset.get_class_weights()
+        sampler = WeightedRandomSampler(training_sample_weights, len(training_dataset), replacement=True)
+    else:
+        sampler = None
     training_loader = DataLoader(
         training_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=not balanced_batches,
+        sampler=sampler,
         num_workers=num_workers,
         pin_memory=True,
     )
@@ -184,7 +191,7 @@ def train_patch_classifier(
 if __name__ == "__main__":
     config, config_path, test = get_config(
         name="train",
-        default="pretrain.yml",
+        default="config/pretrain.yml",
         required=("model", "data", "metrics", "params"),
     )
     logging.info("Start pre-training")

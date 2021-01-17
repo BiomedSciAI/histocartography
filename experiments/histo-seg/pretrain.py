@@ -27,6 +27,7 @@ def train_patch_classifier(
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
     balanced_batches: bool = False,
+    pretrain_epochs: Optional[int] = None,
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -48,7 +49,9 @@ def train_patch_classifier(
     training_dataset, validation_dataset = prepare_patch_datasets(**data_config)
     if balanced_batches:
         training_sample_weights = training_dataset.get_class_weights()
-        sampler = WeightedRandomSampler(training_sample_weights, len(training_dataset), replacement=True)
+        sampler = WeightedRandomSampler(
+            training_sample_weights, len(training_dataset), replacement=True
+        )
     else:
         sampler = None
     training_loader = DataLoader(
@@ -109,11 +112,17 @@ def train_patch_classifier(
         )
         scheduler = scheduler_class(optim, **scheduler_config.get("params", {}))
 
+    if pretrain_epochs is not None:
+        model.freeze_encoder()
+
     for epoch in trange(nr_epochs):
 
         # Train model
         time_before_training = datetime.datetime.now()
         model.train()
+        if pretrain_epochs is not None and epoch == pretrain_epochs:
+            model.unfreeze_encoder()
+
         for patches, labels in tqdm(
             training_loader, desc="train", total=len(training_loader)
         ):

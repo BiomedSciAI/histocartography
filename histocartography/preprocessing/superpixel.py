@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from skimage.color.colorconv import rgb2hed
 from skimage.segmentation import slic
+from skimage import filters, color, graph
 
 from .pipeline import PipelineStep
 
@@ -141,3 +142,84 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         )
         superpixels += 1  # Handle regionprops that ignores all values of 0
         return superpixels
+
+
+class SuperpixelMerger(SuperpixelExtractor):
+    def __init__(self, nr_superpixels: int, downsampling_factor: int, threshold: float = 0.06, **kwargs) -> None:
+        self.threshold = threshold
+        super().__init__(
+            nr_superpixels, downsampling_factor=downsampling_factor, **kwargs
+        )
+
+    def process(self, input_image: np.ndarray, superpixels: np.ndarray) -> np.ndarray:
+        logging.debug("Input size: %s", input_image.shape)
+        original_height, original_width, _ = input_image.shape
+        if self.downsampling_factor != 1:
+            input_image = self._downsample(input_image, self.downsampling_factor)
+            logging.debug("Downsampled to %s", input_image.shape)
+        merged_superpixels = self._merge_superpixels(input_image, superpixels)
+        if self.downsampling_factor != 1:
+            merged_superpixels = self._upsample(
+                merged_superpixels, original_height, original_width
+            )
+            logging.debug("Upsampled to %s", merged_superpixels.shape)
+        return merged_superpixels
+
+    def _merge_superpixels(self, input_image, superpixels):
+        edges = filters.sobel(color.rgb2gray(input_image))
+        g = graph.rag_boundary(superpixels, edges)
+        return graph.merge_hierarchical(
+            superpixels,
+            g,
+            thresh=self.threshold,
+            rag_copy=False,
+            in_place_merge=True,
+            merge_func=self._merge_boundary,
+            weight_func=self._weight_boundary,
+        )
+
+    def _weight_boundary(graph, src, dst, n):
+        """
+        Handle merging of nodes of a region boundary region adjacency graph.
+
+        This function computes the `"weight"` and the count `"count"`
+        attributes of the edge between `n` and the node formed after
+        merging `src` and `dst`.
+
+
+        Parameters
+        ----------
+        graph : RAG
+            The graph under consideration.
+        src, dst : int
+            The vertices in `graph` to be merged.
+        n : int
+            A neighbor of `src` or `dst` or both.
+
+        Returns
+        -------
+        data : dict
+            A dictionary with the "weight" and "count" attributes to be
+            assigned for the merged node.
+
+        """
+        default = {"weight": 0.0, "count": 0}
+
+        count_src = graph[src].get(n, default)["count"]
+        count_dst = graph[dst].get(n, default)["count"]
+
+        weight_src = graph[src].get(n, default)["weight"]
+        weight_dst = graph[dst].get(n, default)["weight"]
+
+        count = count_src + count_dst
+        return {
+            "count": count,
+            "weight": (count_src * weight_src + count_dst * weight_dst) / count,
+        }
+
+    def merge_boundary(graph, src, dst):
+        """Call back called before merging 2 nodes.
+
+        In this case we don't need to do any computation here.
+        """
+        pass

@@ -242,14 +242,13 @@ class SpecialSuperpixelMerger(SuperpixelMerger):
     def __init__(
         self,
         downsampling_factor: int,
-        threshold: float,
         w_hist: float = 0.5,
         w_mean: float = 0.5,
         **kwargs,
     ) -> None:
         self.w_hist = w_hist
         self.w_mean = w_mean
-        super().__init__(downsampling_factor, threshold=threshold, **kwargs)
+        super().__init__(downsampling_factor, **kwargs)
 
     def _color_features_per_channel(self, img_ch):
         hist, _ = np.histogram(img_ch, bins=np.arange(0, 257, 64))  # 8 bins

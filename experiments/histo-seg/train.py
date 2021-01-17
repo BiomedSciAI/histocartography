@@ -282,7 +282,7 @@ def train_graph_classifier(
                     node_labels,
                     superpixels,
                     annotations,
-                    _,
+                    tissue_masks,
                 ) in enumerate(validation_loader):
                     graph = graph.to(device)
                     logits = model(graph)
@@ -314,6 +314,7 @@ def train_graph_classifier(
                         loss=loss.item(),
                         annotation=annotations,
                         predicted_segmentation=segmentation_maps,
+                        tissue_masks=tissue_masks,
                         **loss_information,
                     )
 

@@ -12,7 +12,9 @@ import numpy as np
 import torch
 import yaml
 from matplotlib.colors import ListedColormap
+from sklearn.metrics import cohen_kappa_score
 
+from metrics import sum_up_gleason
 from utils import dynamic_import_from, fix_seeds
 
 with os.popen("hostname") as subprocess:
@@ -229,6 +231,10 @@ class GraphClassificationLoggingHelper:
         self.prefix = prefix
         self.background_label = background_label
         self.leading_zeros = leading_zeros
+        self.gleason_grade_ground_truth = list()
+        self.gleason_grade_prediction = list()
+        self.gleason_agreement_name = "GleasonScoreKappa"
+        self.best_agreement = 0.0
 
     def add_iteration_outputs(
         self,
@@ -240,6 +246,7 @@ class GraphClassificationLoggingHelper:
         node_associations=None,
         annotation=None,
         predicted_segmentation=None,
+        tissue_masks=None,
     ):
         if graph_logits is not None and graph_labels is not None:
             self.graph_logger.add_iteration_outputs(
@@ -255,6 +262,17 @@ class GraphClassificationLoggingHelper:
         if loss is not None:
             self.combined_logger.add_iteration_outputs(loss=loss)
         if annotation is not None and predicted_segmentation is not None:
+            for ground_truth, prediction, tissue_mask in zip(
+                annotation, predicted_segmentation, tissue_masks
+            ):
+                self.gleason_grade_ground_truth.append(sum_up_gleason(ground_truth))
+                prediction_masked = prediction.clone()
+                prediction_masked[
+                    ~tissue_mask.astype(bool)
+                ] = self.background_label
+                self.gleason_grade_prediction.append(
+                    sum_up_gleason(prediction_masked, thres=0.25)
+                )
             predicted_segmentation[
                 annotation == self.background_label
             ] = self.background_label
@@ -312,3 +330,25 @@ class GraphClassificationLoggingHelper:
         self.combined_logger.log_and_clear(step, model)
         self.save_segmentation_masks(step)
         self.segmentation_logger.log_and_clear(step, model)
+        if len(self.gleason_grade_ground_truth) > 0:
+            current_agreement = cohen_kappa_score(
+                    self.gleason_grade_ground_truth,
+                    self.gleason_grade_prediction,
+                    weights="quadratic",
+                )
+            robust_mlflow(
+                mlflow.log_metric,
+                f"{self.prefix}.{self.gleason_agreement_name}",
+                current_agreement,
+                step,
+            )
+            if current_agreement > self.best_agreement:
+                if model is not None:
+                    robust_mlflow(
+                            mlflow.pytorch.log_model,
+                            model,
+                            f"best.{self.prefix}.{self.gleason_agreement_name}",
+                        )
+                self.best_agreement = current_agreement
+        self.gleason_grade_ground_truth = list()
+        self.gleason_grade_prediction = list()

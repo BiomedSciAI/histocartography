@@ -239,13 +239,18 @@ class ImageTissueClassifier(nn.Module):
 
 
 class PatchTissueClassifier(nn.Module):
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, freeze: int = 0, **kwargs) -> None:
         super().__init__()
-        self.model = self._select_model(**kwargs)
+        self.model = self._select_model(freeze=freeze, **kwargs)
+        self.freeze = freeze
 
-    @staticmethod
     def _select_model(
-        architecture: str, num_classes: int, dropout: int, freeze: int = 0, **kwargs
+        self,
+        architecture: str,
+        num_classes: int,
+        dropout: int,
+        freeze: int = 0,
+        **kwargs,
     ) -> Tuple[nn.Module, int]:
         """Returns the model and number of features for a given name
 
@@ -260,20 +265,45 @@ class PatchTissueClassifier(nn.Module):
         if isinstance(model, torchvision.models.resnet.ResNet):
             feature_dim = model.fc.in_features
             model.fc = nn.Linear(feature_dim, num_classes)
-            for layer in list(model.children())[:freeze]:
-                for param in layer.parameters():
-                    param.requires_grad = False
         else:
             feature_dim = model.classifier[-1].in_features
             model.classifier = nn.Sequential(
                 nn.Dropout(p=dropout), nn.Linear(feature_dim, num_classes)
             )
-            for param in model.features[:freeze].parameters():
-                param.requires_grad = False
+        self._freeze_layers(model, freeze)
         return model
 
     def forward(self, x):
         return self.model(x)
+
+    @staticmethod
+    def _freeze_layers(model, freeze):
+        if isinstance(model, torchvision.models.resnet.ResNet):
+            for layer in list(model.children())[:freeze]:
+                for param in layer.parameters():
+                    param.requires_grad = False
+        else:
+            for param in model.features[:freeze].parameters():
+                param.requires_grad = False
+
+    def freeze_encoder(self):
+        if isinstance(self.model, torchvision.models.resnet.ResNet):
+            for layer in list(self.model.children())[:-1]:
+                for param in layer.parameters():
+                    param.requires_grad = False
+        else:
+            for param in self.model.features.parameters():
+                param.requires_grad = False
+
+    def unfreeze_encoder(self):
+        if isinstance(self.model, torchvision.models.resnet.ResNet):
+            for layer in list(self.model.children())[:-1]:
+                for param in layer.parameters():
+                    param.requires_grad = True
+        else:
+            for param in self.model.features.parameters():
+                param.requires_grad = True
+        self._freeze_layers(self.model, self.freeze)
 
 
 class SegmentationFromCNN(nn.Module):

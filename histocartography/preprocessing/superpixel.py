@@ -6,9 +6,10 @@ from abc import abstractmethod
 
 import cv2
 import numpy as np
+from skimage import color, filters
 from skimage.color.colorconv import rgb2hed
+from skimage.future import graph
 from skimage.segmentation import slic
-from skimage import filters, color, graph
 
 from .pipeline import PipelineStep
 
@@ -16,9 +17,7 @@ from .pipeline import PipelineStep
 class SuperpixelExtractor(PipelineStep):
     """Helper class to extract superpixels from images"""
 
-    def __init__(
-        self, nr_superpixels: int, downsampling_factor: int = 1, **kwargs
-    ) -> None:
+    def __init__(self, downsampling_factor: int = 1, **kwargs) -> None:
         """Abstract class that extracts superpixels from RGB Images
 
         Args:
@@ -27,7 +26,6 @@ class SuperpixelExtractor(PipelineStep):
                                                  resolution. Defaults to 1.
         """
         self.downsampling_factor = downsampling_factor
-        self.nr_superpixels = nr_superpixels
         super().__init__(**kwargs)
 
     def process(self, input_image: np.ndarray) -> np.ndarray:
@@ -72,7 +70,7 @@ class SuperpixelExtractor(PipelineStep):
         Returns:
             np.array: Output tensor
         """
-        height, width, _ = image.shape
+        height, width = image.shape[0], image.shape[1]
         new_height = math.floor(height / downsampling_factor)
         new_width = math.floor(width / downsampling_factor)
         downsampled_image = cv2.resize(
@@ -103,6 +101,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
 
     def __init__(
         self,
+        nr_superpixels: int,
         blur_kernel_size: float = 0,
         max_iter: int = 10,
         compactness: int = 30,
@@ -116,6 +115,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             max_iter (int, optional): Number of iterations of the slic algorithm. Defaults to 10.
             compactness (int, optional): Compactness of the superpixels. Defaults to 30.
         """
+        self.nr_superpixels = nr_superpixels
         self.blur_kernel_size = blur_kernel_size
         self.max_iter = max_iter
         self.compactness = compactness
@@ -145,19 +145,20 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
 
 
 class SuperpixelMerger(SuperpixelExtractor):
-    def __init__(self, nr_superpixels: int, downsampling_factor: int, threshold: float = 0.06, **kwargs) -> None:
+    def __init__(
+        self, downsampling_factor: int, threshold: float = 0.06, **kwargs
+    ) -> None:
         self.threshold = threshold
-        super().__init__(
-            nr_superpixels, downsampling_factor=downsampling_factor, **kwargs
-        )
+        super().__init__(downsampling_factor=downsampling_factor, **kwargs)
 
     def process(self, input_image: np.ndarray, superpixels: np.ndarray) -> np.ndarray:
         logging.debug("Input size: %s", input_image.shape)
         original_height, original_width, _ = input_image.shape
         if self.downsampling_factor != 1:
             input_image = self._downsample(input_image, self.downsampling_factor)
+            superpixels = self._downsample(superpixels, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
-        merged_superpixels = self._merge_superpixels(input_image, superpixels)
+        merged_superpixels = self._extract_superpixels(input_image, superpixels)
         if self.downsampling_factor != 1:
             merged_superpixels = self._upsample(
                 merged_superpixels, original_height, original_width
@@ -165,10 +166,10 @@ class SuperpixelMerger(SuperpixelExtractor):
             logging.debug("Upsampled to %s", merged_superpixels.shape)
         return merged_superpixels
 
-    def _merge_superpixels(self, input_image, superpixels):
+    def _extract_superpixels(self, input_image, superpixels):
         edges = filters.sobel(color.rgb2gray(input_image))
         g = graph.rag_boundary(superpixels, edges)
-        return graph.merge_hierarchical(
+        merged_superpixels = graph.merge_hierarchical(
             superpixels,
             g,
             thresh=self.threshold,
@@ -177,7 +178,10 @@ class SuperpixelMerger(SuperpixelExtractor):
             merge_func=self._merge_boundary,
             weight_func=self._weight_boundary,
         )
+        merged_superpixels += 1  # Handle regionprops that ignores all values of 0
+        return merged_superpixels
 
+    @staticmethod
     def _weight_boundary(graph, src, dst, n):
         """
         Handle merging of nodes of a region boundary region adjacency graph.
@@ -217,7 +221,8 @@ class SuperpixelMerger(SuperpixelExtractor):
             "weight": (count_src * weight_src + count_dst * weight_dst) / count,
         }
 
-    def merge_boundary(graph, src, dst):
+    @staticmethod
+    def _merge_boundary(graph, src, dst):
         """Call back called before merging 2 nodes.
 
         In this case we don't need to do any computation here.

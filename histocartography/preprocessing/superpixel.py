@@ -146,9 +146,14 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
 
 class SuperpixelMerger(SuperpixelExtractor):
     def __init__(
-        self, downsampling_factor: int, threshold: float = 0.06, **kwargs
+        self,
+        downsampling_factor: int,
+        threshold: float = 0.06,
+        connectivity: int = 2,
+        **kwargs,
     ) -> None:
         self.threshold = threshold
+        self.connectivity = connectivity
         super().__init__(downsampling_factor=downsampling_factor, **kwargs)
 
     def process(self, input_image: np.ndarray, superpixels: np.ndarray) -> np.ndarray:
@@ -166,9 +171,12 @@ class SuperpixelMerger(SuperpixelExtractor):
             logging.debug("Upsampled to %s", merged_superpixels.shape)
         return merged_superpixels
 
-    def _extract_superpixels(self, input_image, superpixels):
+    def _generate_graph(self, input_image, superpixels):
         edges = filters.sobel(color.rgb2gray(input_image))
-        g = graph.rag_boundary(superpixels, edges)
+        return graph.rag_boundary(superpixels, edges, connectivity=self.connectivity)
+
+    def _extract_superpixels(self, input_image, superpixels):
+        g = self._generate_graph(input_image, superpixels)
         merged_superpixels = graph.merge_hierarchical(
             superpixels,
             g,
@@ -228,3 +236,115 @@ class SuperpixelMerger(SuperpixelExtractor):
         In this case we don't need to do any computation here.
         """
         pass
+
+
+class SpecialSuperpixelMerger(SuperpixelMerger):
+    def __init__(
+        self,
+        downsampling_factor: int,
+        threshold: float,
+        w_hist: float = 0.5,
+        w_mean: float = 0.5,
+        **kwargs,
+    ) -> None:
+        self.w_hist = w_hist
+        self.w_mean = w_mean
+        super().__init__(downsampling_factor, threshold=threshold, **kwargs)
+
+    def _color_features_per_channel(self, img_ch):
+        hist, _ = np.histogram(img_ch, bins=np.arange(0, 257, 64))  # 8 bins
+        return hist
+
+    def _generate_graph(self, input_image, superpixels):
+        g = graph.RAG(superpixels, connectivity=self.connectivity)
+
+        for n in g:
+            g.nodes[n].update(
+                {
+                    "labels": [n],
+                    "N": 0,
+                    "x": np.array([0, 0, 0]),
+                    "y": np.array([0, 0, 0]),
+                    "r": np.array([]),
+                    "g": np.array([]),
+                    "b": np.array([]),
+                }
+            )
+
+        for index in np.ndindex(superpixels.shape):
+            current = superpixels[index]
+            g.nodes[current]["N"] += 1
+            g.nodes[current]["x"] += input_image[index]
+            g.nodes[current]["y"] = np.vstack(
+                (g.nodes[current]["y"], input_image[index])
+            )
+
+        for n in g:
+            g.nodes[n]["mean"] = g.nodes[n]["x"] / g.nodes[n]["N"]
+            g.nodes[n]["mean"] = g.nodes[n]["mean"] / np.linalg.norm(g.nodes[n]["mean"])
+
+            g.nodes[n]["y"] = np.delete(g.nodes[n]["y"], 0, axis=0)
+            g.nodes[n]["r"] = self._color_features_per_channel(g.nodes[n]["y"][:, 0])
+            g.nodes[n]["g"] = self._color_features_per_channel(g.nodes[n]["y"][:, 1])
+            g.nodes[n]["b"] = self._color_features_per_channel(g.nodes[n]["y"][:, 2])
+
+            g.nodes[n]["r"] = g.nodes[n]["r"] / np.linalg.norm(g.nodes[n]["r"])
+            g.nodes[n]["g"] = g.nodes[n]["r"] / np.linalg.norm(g.nodes[n]["g"])
+            g.nodes[n]["b"] = g.nodes[n]["r"] / np.linalg.norm(g.nodes[n]["b"])
+
+        for x, y, d in g.edges(data=True):
+            diff_mean = np.linalg.norm(g.nodes[x]["mean"] - g.nodes[y]["mean"]) / 2
+
+            diff_r = np.linalg.norm(g.nodes[x]["r"] - g.nodes[y]["r"]) / 2
+            diff_g = np.linalg.norm(g.nodes[x]["g"] - g.nodes[y]["g"]) / 2
+            diff_b = np.linalg.norm(g.nodes[x]["b"] - g.nodes[y]["b"]) / 2
+            diff_hist = (diff_r + diff_g + diff_b) / 3
+
+            diff = self.w_hist * diff_hist + self.w_mean * diff_mean
+
+            d["weight"] = diff
+
+        return g
+
+    def _weight_boundary(self, graph, src, dst, n):
+        diff_mean = np.linalg.norm(graph.nodes[dst]["mean"] - graph.nodes[n]["mean"])
+
+        diff_r = np.linalg.norm(graph.nodes[dst]["r"] - graph.nodes[n]["r"]) / 2
+        diff_g = np.linalg.norm(graph.nodes[dst]["g"] - graph.nodes[n]["g"]) / 2
+        diff_b = np.linalg.norm(graph.nodes[dst]["b"] - graph.nodes[n]["b"]) / 2
+        diff_hist = (diff_r + diff_g + diff_b) / 3
+
+        diff = self.w_hist * diff_hist + self.w_mean * diff_mean
+
+        return {"weight": diff}
+
+    def _merge_boundary(self, graph, src, dst):
+        graph.nodes[dst]["x"] += graph.nodes[src]["x"]
+        graph.nodes[dst]["N"] += graph.nodes[src]["N"]
+        graph.nodes[dst]["mean"] = graph.nodes[dst]["x"] / graph.nodes[dst]["N"]
+        graph.nodes[dst]["mean"] = graph.nodes[dst]["mean"] / np.linalg.norm(
+            graph.nodes[dst]["mean"]
+        )
+
+        graph.nodes[dst]["y"] = np.vstack(
+            (graph.nodes[dst]["y"], graph.nodes[src]["y"])
+        )
+        graph.nodes[dst]["r"] = self._color_features_per_channel(
+            graph.nodes[dst]["y"][:, 0]
+        )
+        graph.nodes[dst]["g"] = self._color_features_per_channel(
+            graph.nodes[dst]["y"][:, 1]
+        )
+        graph.nodes[dst]["b"] = self._color_features_per_channel(
+            graph.nodes[dst]["y"][:, 2]
+        )
+
+        graph.nodes[dst]["r"] = graph.nodes[dst]["r"] / np.linalg.norm(
+            graph.nodes[dst]["r"]
+        )
+        graph.nodes[dst]["g"] = graph.nodes[dst]["r"] / np.linalg.norm(
+            graph.nodes[dst]["g"]
+        )
+        graph.nodes[dst]["b"] = graph.nodes[dst]["r"] / np.linalg.norm(
+            graph.nodes[dst]["b"]
+        )

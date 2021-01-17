@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import torch
-from tqdm.auto import tqdm
+import yaml
 from matplotlib.colors import ListedColormap
 
 from utils import dynamic_import_from, fix_seeds
@@ -66,6 +66,23 @@ def log_segmentation_results(results, step):
             means = torch.sum(values, axis=0) / torch.sum(~mask, axis=0)
             for j, mean in enumerate(means):
                 robust_mlflow(mlflow.log_metric, f"{k}_class_{j}", mean.item(), step)
+
+
+def log_preprocessing_parameters(graph_path: Path):
+    config_path = graph_path / "config.yml"
+    if config_path.exists():
+        with open(config_path, "r") as file:
+            config = yaml.load(file)
+            for stage in config.get("stages", []):
+                for stage_name, v in stage.items():
+                    if stage_name in ["io"]:
+                        continue
+                    else:
+                        robust_mlflow(mlflow.log_param, stage_name, v["class"])
+                        robust_mlflow(
+                            mlflow.log_params,
+                            flatten(v["params"], parent_key=stage_name),
+                        )
 
 
 def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):

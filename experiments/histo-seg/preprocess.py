@@ -1,5 +1,6 @@
 import argparse
 import logging
+from os import pipe
 from pathlib import Path
 from typing import Optional
 
@@ -35,12 +36,12 @@ def preprocessing(
         config["stages"][3]["superpixel"]["params"]["nr_superpixels"] = 300
         config["stages"][1]["stain_normalizers"]["params"][
             "target_path"
-        ] = metadata.iloc[0].path
+        ] = str(metadata.iloc[0].path)
     else:
         # Inject target path into config
         target = config["stages"][1]["stain_normalizers"]["params"]["target"]
         target_path = metadata.loc[target, "path"]
-        config["stages"][1]["stain_normalizers"]["params"]["target_path"] = target_path
+        config["stages"][1]["stain_normalizers"]["params"]["target_path"] = str(target_path)
 
     pipeline = BatchPipelineRunner(
         output_path=PREPROCESS_PATH, pipeline_config=config, save=save
@@ -48,6 +49,8 @@ def preprocessing(
     pipeline.run(metadata=metadata, cores=cores)
     if link_directory is not None:
         pipeline.link_output(str(PREPROCESS_PATH / "outputs" / link_directory))
+    with open(Path(pipeline.final_path) / "config.yml", 'w') as config_file:
+        yaml.dump(config, config_file, indent=2)
 
 
 if __name__ == "__main__":

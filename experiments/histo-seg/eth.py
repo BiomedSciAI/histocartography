@@ -14,7 +14,13 @@ from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
 
-from dataset import GraphClassificationDataset, ImageDataset, PatchClassificationDataset, AugmentedGraphClassificationDataset
+from dataset import (
+    AugmentedGraphClassificationDataset,
+    GraphClassificationDataset,
+    ImageDataset,
+    PatchClassificationDataset,
+)
+from logging_helper import log_preprocessing_parameters
 from utils import merge_metadata
 
 with os.popen("hostname") as subprocess:
@@ -165,7 +171,7 @@ def prepare_graph_datasets(
     downsample_segmentation_maps: int = 1,
     tissue_mask_directory: Optional[str] = None,
     use_augmentation_dataset: bool = False,
-    augmentation_mode: Optional[bool] = False
+    augmentation_mode: Optional[bool] = False,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -183,6 +189,7 @@ def prepare_graph_datasets(
     )
 
     graph_directory = PREPROCESS_PATH / graph_directory
+    log_preprocessing_parameters(graph_directory)
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
@@ -254,23 +261,17 @@ def prepare_graph_datasets(
 
     if use_augmentation_dataset:
         training_dataset = AugmentedGraphClassificationDataset(
-            training_metadata,
-            augmentation_mode=augmentation_mode,
-            **training_arguments
+            training_metadata, augmentation_mode=augmentation_mode, **training_arguments
         )
         validation_dataset = AugmentedGraphClassificationDataset(
-            validation_metadata,
-            augmentation_mode=None,
-            **validation_arguments
+            validation_metadata, augmentation_mode=None, **validation_arguments
         )
     else:
         training_dataset = GraphClassificationDataset(
-            training_metadata,
-            **training_arguments
+            training_metadata, **training_arguments
         )
         validation_dataset = GraphClassificationDataset(
-            validation_metadata,
-            **validation_arguments
+            validation_metadata, **validation_arguments
         )
 
     return training_dataset, validation_dataset
@@ -347,15 +348,10 @@ def prepare_graph_testset(
     test_arguments.update(kwargs)
     if use_augmentation_dataset:
         test_dataset = AugmentedGraphClassificationDataset(
-            test_metadata,
-            augmentation_mode=None,
-            **test_arguments
+            test_metadata, augmentation_mode=None, **test_arguments
         )
     else:
-        test_dataset = GraphClassificationDataset(
-            test_metadata,
-            **test_arguments
-        )
+        test_dataset = GraphClassificationDataset(test_metadata, **test_arguments)
     return test_dataset
 
 
@@ -497,7 +493,9 @@ def prepare_patch_datasets(
         if drop_multiclass_patches:
             validation_dataset.drop_confusing_patches()
         if drop_tissue_patches > 0.0:
-            validation_dataset.drop_tissueless_patches(minimum_fraction=drop_tissue_patches)
+            validation_dataset.drop_tissueless_patches(
+                minimum_fraction=drop_tissue_patches
+            )
 
     return training_dataset, validation_dataset
 

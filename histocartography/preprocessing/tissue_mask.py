@@ -9,22 +9,7 @@ import numpy as np
 import cv2
 
 
-class BrightnessThresholdTissueMask(PipelineStep):
-    def __init__(
-        self,
-        base_path: Union[None, str, Path],
-        blur_size=25,
-        dilation_steps=5,
-        erosion_steps=10,
-        kernel_size=20,
-    ) -> None:
-        self.blur_size = blur_size
-        self.dilation_steps = dilation_steps
-        self.erosion_steps = erosion_steps
-        self.kernel_size = kernel_size
-        super().__init__(base_path=base_path)
-        self.kernel = np.ones((self.kernel_size, self.kernel_size), "uint8")
-
+class TissueMask(PipelineStep):
     def mkdir(self) -> Path:
         """Create path to output files"""
         assert (
@@ -33,28 +18,6 @@ class BrightnessThresholdTissueMask(PipelineStep):
         if not self.output_dir.exists():
             self.output_dir.mkdir()
         return self.base_path
-
-    def process(self, image) -> Any:
-        """According to https://github.com/eiriniar/gleason_CNN/blob/master/utils/create_tissue_masks.py"""
-        grey_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        blur = cv2.GaussianBlur(grey_image, (self.blur_size, self.blur_size), 0)
-        ret, img_thres = cv2.threshold(
-            blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-        )
-        # add padding to avoid weird borders afterwards
-        bb = self.dilation_steps * 2 + self.erosion_steps + 2 * self.kernel_size + 40
-        img_thres = cv2.copyMakeBorder(
-            img_thres, bb, bb, bb, bb, cv2.BORDER_CONSTANT, value=0
-        )
-        # dilation to fill black holes
-        img = cv2.dilate(img_thres, self.kernel, iterations=self.dilation_steps)
-        # followed by erosion to restore borders, eat up small objects
-        img = cv2.erode(img, self.kernel, iterations=self.erosion_steps)
-        # then dilate again
-        img = cv2.dilate(img, self.kernel, iterations=self.dilation_steps)
-        # crop to restore original image
-        ws = np.array(img)[bb:-bb, bb:-bb]
-        return ws
 
     def process_and_save(self, output_name: str, *args, **kwargs) -> np.ndarray:
         """Process and save in the provided path as a png image
@@ -83,3 +46,42 @@ class BrightnessThresholdTissueMask(PipelineStep):
             with Image.fromarray(output) as output_image:
                 output_image.save(output_path)
         return output
+
+
+class BrightnessThresholdTissueMask(TissueMask):
+    def __init__(
+        self,
+        base_path: Union[None, str, Path],
+        blur_size=25,
+        dilation_steps=5,
+        erosion_steps=10,
+        kernel_size=20,
+    ) -> None:
+        self.blur_size = blur_size
+        self.dilation_steps = dilation_steps
+        self.erosion_steps = erosion_steps
+        self.kernel_size = kernel_size
+        super().__init__(base_path=base_path)
+        self.kernel = np.ones((self.kernel_size, self.kernel_size), "uint8")
+
+    def process(self, image) -> Any:
+        """According to https://github.com/eiriniar/gleason_CNN/blob/master/utils/create_tissue_masks.py"""
+        grey_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        blur = cv2.GaussianBlur(grey_image, (self.blur_size, self.blur_size), 0)
+        ret, img_thres = cv2.threshold(
+            blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+        )
+        # add padding to avoid weird borders afterwards
+        bb = self.dilation_steps * 2 + self.erosion_steps + 2 * self.kernel_size + 40
+        img_thres = cv2.copyMakeBorder(
+            img_thres, bb, bb, bb, bb, cv2.BORDER_CONSTANT, value=0
+        )
+        # dilation to fill black holes
+        img = cv2.dilate(img_thres, self.kernel, iterations=self.dilation_steps)
+        # followed by erosion to restore borders, eat up small objects
+        img = cv2.erode(img, self.kernel, iterations=self.erosion_steps)
+        # then dilate again
+        img = cv2.dilate(img, self.kernel, iterations=self.dilation_steps)
+        # crop to restore original image
+        ws = np.array(img)[bb:-bb, bb:-bb]
+        return ws

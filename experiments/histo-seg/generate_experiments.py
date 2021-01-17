@@ -845,16 +845,6 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="add_tissue_masks", base="config/stain_normalizers.yml"
-    ).generate(
-        fixed=[
-            Parameter(
-                ["stain_normalizers", "params", "target"],
-                "ZT111_4_C_7_1",
-            ),
-        ]
-    )
-    GPUPreprocessingExperiment(
         name="augmented_new_pretrained",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
@@ -895,7 +885,7 @@ if __name__ == "__main__":
             ]
         ],
     )
-    GPUPreprocessingExperiment(
+    CPUPreprocessingExperiment(
         name="augmented_new_baseline",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
@@ -970,7 +960,7 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"v5_19a9b40d174f40c4b217ddf84eb63e3b_{s}" for s in [300, 600, 900, 1200]],
+                    [f"v5_two_hop_19a9b40d174f40c4b217ddf84eb63e3b_{s}" for s in [300, 600, 900, 1200]],
                 ),
             ]
         ],
@@ -1009,67 +999,97 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"v5_mobilenet_{s}" for s in [300, 600, 900, 1200]],
+                    [f"v5_two_hop_mobilenet_{s}" for s in [300, 600, 900, 1200]],
                 ),
             ]
         ],
     )
-    CPUPreprocessingExperiment(name="grid_superpixels", base="config/superpixel.yml").generate(
-        fixed=[Parameter(
-                ["stain_normalizers", "params", "target"],
-                "ZT111_4_C_7_1",
-            )],
-        sequential=[
-            [
-                ParameterList(["superpixel", "params", "nr_superpixels"],
-                [300, 800, 60, 200]),
-                ParameterList(["superpixel", "params", "compactness"], [
-                    1000, 1000, 1000, 1000
-                ])
-            ]
-        ]
-    )
-    CPUPreprocessingExperiment(name="non_overlapping_superpixels", base="config/superpixel.yml").generate(
-        fixed=[Parameter(
-                ["stain_normalizers", "params", "target"],
-                "ZT111_4_C_7_1",
-            )],
-        sequential=[
-            [
-                ParameterList(["superpixel", "params", "nr_superpixels"],
-                [700, 400, 250]),
-                ParameterList(["superpixel", "params", "compactness"], [
-                    30, 30, 30
-                ])
-            ]
-        ]
-    )
-    GPUPreprocessingExperiment(name="grid_graph", base="config/augmented_preprocess.yml").generate(
-        fixed=[Parameter(
-                ["stain_normalizers", "params", "target"],
-                "ZT111_4_C_7_1",
-            )],
-        sequential=[
-            [
-                ParameterList(["superpixel", "params", "nr_superpixels"],
-                [300, 800, 60, 200]),
-                ParameterList(["superpixel", "params", "compactness"], [
-                    1000, 1000, 1000, 1000
-                ]),
-                ParameterList(["feature_extraction", "params", "size"], [224, 224, 448, 448]),
-                ParameterList(
-                    ["params", "link_directory"],
-                    [f"grid_mobilenet_{s}" for s in ["40x_no_overlap", "40x_overlap", "20x_no_overlap", "40x_overlap"]],
-                ),
-            ]
-        ]
-    )
-    GPUPreprocessingExperiment(name="grid_graph_masked", base="config/augmented_preprocess.yml").generate(
-        fixed=[Parameter(
+    CPUPreprocessingExperiment(
+        name="three_hop_augmented_new_pretrained",
+        queue="prod.med",
+        base="config/augmented_preprocess.yml",
+    ).generate(
+        fixed=[
+            Parameter(
                 ["stain_normalizers", "params", "target"],
                 "ZT111_4_C_7_1",
             ),
-            Parameter(["feature_extraction", "params", "mask"], True)],
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+            Parameter(["graph_builders", "params", "hops"], 3),
+            Parameter(
+                ["feature_extraction", "params", "architecture"],
+                "models/19a9b40d174f40c4b217ddf84eb63e3b_best_valid_MultiLabelBalancedAccuracy.pth",
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    [
+                        "superpixel",
+                        "params",
+                        "nr_superpixels",
+                    ],
+                    [300, 600, 900, 1200],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v5_three_hop_19a9b40d174f40c4b217ddf84eb63e3b_{s}" for s in [300, 600, 900, 1200]],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        name="three_hop_augmented_new_baseline",
+        queue="prod.med",
+        base="config/augmented_preprocess.yml",
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "normalizer"],
+                {
+                    "type": "train",
+                    "mean": [0.86489, 0.63272, 0.85928],
+                    "std": [0.020820, 0.026320, 0.017309],
+                },
+            ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+            Parameter(["graph_builders", "params", "hops"], 3),
+            Parameter(["feature_extraction", "params", "architecture"], "mobilenet_v2"),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    [
+                        "superpixel",
+                        "params",
+                        "nr_superpixels",
+                    ],
+                    [300, 600, 900, 1200],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v5_three_hop_mobilenet_{s}" for s in [300, 600, 900, 1200]],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(name="grid_graph", base="config/augmented_preprocess.yml").generate(
+        fixed=[Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            )],
         sequential=[
             [
                 ParameterList(["superpixel", "params", "nr_superpixels"],
@@ -1080,12 +1100,12 @@ if __name__ == "__main__":
                 ParameterList(["feature_extraction", "params", "size"], [224, 224, 448, 448]),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"grid_mobilenet_mask_{s}" for s in ["40x_no_overlap", "40x_overlap", "20x_no_overlap", "40x_overlap"]],
+                    [f"v6_grid_mobilenet_{s}" for s in ["40x_no_overlap", "40x_overlap", "20x_no_overlap", "40x_overlap"]],
                 ),
             ]
         ]
     )
-    GPUPreprocessingExperiment(name="non_overlapping_graph", base="config/augmented_preprocess.yml").generate(
+    CPUPreprocessingExperiment(name="non_overlapping_graph", base="config/augmented_preprocess.yml").generate(
         fixed=[Parameter(
                 ["stain_normalizers", "params", "target"],
                 "ZT111_4_C_7_1",
@@ -3550,6 +3570,54 @@ if __name__ == "__main__":
             ParameterList(["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9])
         ],
     )
+    PretrainingExperiment(name="drop_unlabelled").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
+            Parameter(["train", "params", "optimizer", "scheduler"], {
+                "class": "MultiStepLR",
+                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+            }),
+            Parameter(["train", "data", "drop_unlabelled_patches"], True),
+        ],
+        grid=[
+            ParameterList(["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9])
+        ],
+    )
+    PretrainingExperiment(name="balanced_batches").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
+            Parameter(["train", "params", "optimizer", "scheduler"], {
+                "class": "MultiStepLR",
+                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+            }),
+            Parameter(["train", "params", "balanced_batches"], True),
+        ],
+        grid=[
+            ParameterList(["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45]),
+            ParameterList(["train", "data", "drop_unlabelled_patches"], [True, False]),
+            ParameterList(["train", "data", "drop_multiclass_patches"], [True, False]),
+        ],
+    )
+    PretrainingExperiment(name="encoder_pretraining").generate(
+        fixed=[
+            Parameter(["train", "params", "nr_epochs"], 500),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
+            Parameter(["train", "params", "optimizer", "scheduler"], {
+                "class": "MultiStepLR",
+                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+            }),
+            Parameter(["train", "params", "balanced_batches"], True),
+            Parameter(["train", "data", "drop_tissue_patches"], 0.15),
+            Parameter(["train", "data", "drop_unlabelled_patches"], True),
+            Parameter(["train", "data", "drop_multiclass_patches"], False),
+        ],
+        grid=[
+            ParameterList(["train", "params", "pretrain_epochs"], [None, 3, 5, 10, 17, 25]),
+            ParameterList(["train", "model", "freeze"], [17, 14, 12, 0])
+        ],
+    )
 
     CNNTestingExperiment(name="exponential_lr_decay").generate(
         fixed=[
@@ -3653,4 +3721,48 @@ if __name__ == "__main__":
                 [0.0, 0.1, 0.15, 0.2, 0.225, 0.25, 0.275, 0.3, 0.323, 0.35],
             )
         ],
+    )
+    GNNTestingExperiment(name="deep_gnns").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
+                    for run in [
+                        "05466db6787b474099b7c3c675929e80",
+                        "bbc33034429b423da734ff0e5d5b8c15",
+                        "1ca94f631e8d4cb9b1f45e4030f57c89"
+                    ]
+                ],
+            )
+        ]
+    )
+    GNNTestingExperiment(name="magnification_no_overlap").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
+                    for run in [
+                        "8fa60ec176b94c4a8c1bbbf2f3b4b393",
+                        "7d6a6336892a4741bf2ef63331b36656",
+                        "8a29f56a30924e43bedae3a998a7cbfd"
+                    ]
+                ],
+            )
+        ]
+    )
+    GNNTestingExperiment(name="grid_graph").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
+                    for run in [
+                        "f8c2c2772e6c4f7daf717ab792c87560",
+                        "2e0990b4560442b78af804816945d5c2",
+                    ]
+                ],
+            )
+        ]
     )

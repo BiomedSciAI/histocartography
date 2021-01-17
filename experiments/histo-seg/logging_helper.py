@@ -343,6 +343,7 @@ class GraphClassificationLoggingHelper:
                 step,
             )
             if current_agreement > self.best_agreement:
+                robust_mlflow(mlflow.log_metric, f"{self.prefix}.best.{self.gleason_agreement_name}", current_agreement, step)
                 if model is not None:
                     robust_mlflow(
                             mlflow.pytorch.log_model,

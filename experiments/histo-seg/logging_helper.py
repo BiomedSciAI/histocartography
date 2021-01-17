@@ -57,6 +57,16 @@ def log_sources():
             robust_mlflow(mlflow.log_artifact, str(file), "sources")
 
 
+def log_dependencies():
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        os.system(
+            f'conda env export | grep -v "^prefix: " > {temp_dir_name}/environment.yml'
+        )
+        robust_mlflow(
+            mlflow.log_artifact, f"{temp_dir_name}/environment.yml", "sources"
+        )
+
+
 def log_segmentation_results(results, step):
     for k, v in results.items():
         values = torch.Tensor(v)
@@ -116,6 +126,7 @@ def prepare_experiment(
     # Artifacts
     robust_mlflow(mlflow.log_artifact, config_path, "config")
     log_sources()
+    log_dependencies()
 
     # Log everything relevant
     log_parameters(data, model, seed=seed, **params)
@@ -267,9 +278,7 @@ class GraphClassificationLoggingHelper:
             ):
                 self.gleason_grade_ground_truth.append(sum_up_gleason(ground_truth))
                 prediction_masked = prediction.clone()
-                prediction_masked[
-                    ~tissue_mask.astype(bool)
-                ] = self.background_label
+                prediction_masked[~tissue_mask.astype(bool)] = self.background_label
                 self.gleason_grade_prediction.append(
                     sum_up_gleason(prediction_masked, thres=0.25)
                 )
@@ -332,10 +341,10 @@ class GraphClassificationLoggingHelper:
         self.segmentation_logger.log_and_clear(step, model)
         if len(self.gleason_grade_ground_truth) > 0:
             current_agreement = cohen_kappa_score(
-                    self.gleason_grade_ground_truth,
-                    self.gleason_grade_prediction,
-                    weights="quadratic",
-                )
+                self.gleason_grade_ground_truth,
+                self.gleason_grade_prediction,
+                weights="quadratic",
+            )
             robust_mlflow(
                 mlflow.log_metric,
                 f"{self.prefix}.{self.gleason_agreement_name}",
@@ -343,13 +352,18 @@ class GraphClassificationLoggingHelper:
                 step,
             )
             if current_agreement > self.best_agreement:
-                robust_mlflow(mlflow.log_metric, f"{self.prefix}.best.{self.gleason_agreement_name}", current_agreement, step)
+                robust_mlflow(
+                    mlflow.log_metric,
+                    f"{self.prefix}.best.{self.gleason_agreement_name}",
+                    current_agreement,
+                    step,
+                )
                 if model is not None:
                     robust_mlflow(
-                            mlflow.pytorch.log_model,
-                            model,
-                            f"best.{self.prefix}.{self.gleason_agreement_name}",
-                        )
+                        mlflow.pytorch.log_model,
+                        model,
+                        f"best.{self.prefix}.{self.gleason_agreement_name}",
+                    )
                 self.best_agreement = current_agreement
         self.gleason_grade_ground_truth = list()
         self.gleason_grade_prediction = list()

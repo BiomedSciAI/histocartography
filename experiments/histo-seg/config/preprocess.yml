@@ -37,21 +37,11 @@ pipeline:
         params:
           nr_superpixels: 500
           color_space: rgb
-    - superpixel:
-        class: SuperpixelMerger
-        inputs:
-        - normalized_image
-        - superpixels
-        outputs:
-        - merged_superpixels
-        params:
-          downsampling_factor: 4
-          threshold: 0.06
     - feature_extraction:
         class: DeepFeatureExtractor
         inputs:
         - normalized_image
-        - merged_superpixels
+        - superpixels
         outputs:
         - features
         params:
@@ -78,7 +68,7 @@ pipeline:
     - graph_builders:
         class: RAGGraphBuilder
         inputs:
-        - merged_superpixels
+        - superpixels
         - features
         - annotation
         outputs:

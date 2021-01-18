@@ -90,7 +90,7 @@ def get_device(cuda=False):
     """
     Get device (cpu or gpu)
     """
-    return'cuda:0' if cuda else 'cpu'
+    return 'cuda:0' if cuda else 'cpu'
 
 
 def get_files_in_folder(path, extension, with_ext=True):

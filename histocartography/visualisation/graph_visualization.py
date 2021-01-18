@@ -130,7 +130,7 @@ class GraphVisualization(PipelineStep):
             buckets, colors = self._get_buckets(node_importance, with_colors=True)            
 
         for centroid_id, centroid in enumerate(centroids):
-            centroid = [centroid[0], centroid[1]]
+            centroid = [centroid[1], centroid[0]]
             if node_importance is not None:
                 outline = colors[bisect.bisect(buckets, node_importance[centroid_id]) -1]
                 fill_col = outline

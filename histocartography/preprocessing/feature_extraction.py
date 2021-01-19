@@ -1,13 +1,12 @@
 """Extract features from images for a given structure"""
 
 from abc import abstractmethod
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
 import torch
 import torchvision
-from tqdm import tqdm
 from histocartography.utils import dynamic_import_from
 from PIL import Image
 from scipy.stats import skew
@@ -20,6 +19,7 @@ from skimage.morphology import disk
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+from tqdm import tqdm
 
 from .pipeline import PipelineStep
 
@@ -762,3 +762,80 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
                 embeddings = self.patch_feature_extractor(image_batch)
                 features[j, i, :] = embeddings
         return features.cpu().detach()
+
+
+class FeatureMerger(PipelineStep):
+    def __init__(self, *args, **kwargs) -> None:
+        """Merge features from an initial instance map to a merged instance map by averaging the features."""
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _merge_features(
+        features: torch.Tensor, translator: Dict[int, int]
+    ) -> torch.Tensor:
+        """Merge regular one-dimensional features
+
+        Args:
+            features (torch.Tensor): Feature matrix of shape (nr_superpixels, latent_dimension)
+            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+
+        Returns:
+            torch.Tensor: Merged features of shape (nr_merged_superpixels, latent_dimension)
+        """
+        latent_dim = features.shape[1]
+        merged_features = np.empty((len(translator), latent_dim))
+        for index, values in translator.items():
+            merged_features[index - 1] = features[values - 1].mean(axis=0)
+        return torch.as_tensor(merged_features)
+
+    @staticmethod
+    def _merge_augmented_features(
+        features: torch.Tensor, translator: Dict[int, int]
+    ) -> torch.Tensor:
+        """Merge augmented one-dimensional features
+
+        Args:
+            features (torch.Tensor): Feature matrix of shape (nr_superpixels, nr_augmentations, latent_dimension)
+            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+
+        Returns:
+            torch.Tensor: Merged features of shape (nr_merged_superpixels, nr_augmentations, latent_dimension)
+        """
+        nr_augmentations = features.shape[1]
+        latent_dim = features.shape[2]
+        merged_features = np.empty((len(translator), nr_augmentations, latent_dim))
+        for index, values in translator.items():
+            merged_features[index - 1] = features[values - 1].mean(axis=0)
+        return torch.as_tensor(merged_features)
+
+    def process(
+        self,
+        instance_map: np.ndarray,
+        merged_instance_map: np.ndarray,
+        features: torch.Tensor,
+    ) -> torch.Tensor:
+        """Merge features from an initial instance_map to a merged_instance_map by feature averaging
+
+        Args:
+            instance_map (np.ndarray): Initial instance map
+            merged_instance_map (np.ndarray): Merged instance map that overlaps with initial instance_map
+            features (torch.Tensor): Extracted features
+
+        Raises:
+            NotImplementedError: Only 1D and 2D features supported
+
+        Returns:
+            torch.Tensor: Merged features
+        """
+        num_merged_superpixels = merged_instance_map.max()
+        translator = dict()
+        for i in range(1, num_merged_superpixels + 1):
+            mask = merged_instance_map == i
+            values = np.unique(instance_map[mask])
+            translator[i] = values
+        if len(features.shape) == 2:
+            return self._merge_features(features, translator)
+        elif len(features.shape) == 3:
+            return self._merge_augmented_features(features, translator)
+        else:
+            raise NotImplementedError

@@ -3,6 +3,7 @@
 import logging
 import math
 from abc import abstractmethod
+from typing import Any, Dict
 
 import cv2
 import numpy as np
@@ -152,11 +153,27 @@ class SuperpixelMerger(SuperpixelExtractor):
         connectivity: int = 2,
         **kwargs,
     ) -> None:
+        """Base superpixel merger
+
+        Args:
+            downsampling_factor (int): Downsampling factor to use
+            threshold (float, optional): Connectivity threshold. Defaults to 0.06.
+            connectivity (int, optional): Connectivity for merging graph. Defaults to 2.
+        """
         self.threshold = threshold
         self.connectivity = connectivity
         super().__init__(downsampling_factor=downsampling_factor, **kwargs)
 
     def process(self, input_image: np.ndarray, superpixels: np.ndarray) -> np.ndarray:
+        """Merge superpixels based on an initial superpixel segmentation and the input image
+
+        Args:
+            input_image (np.ndarray): Input image
+            superpixels (np.ndarray): Initial superpixel segmentation
+
+        Returns:
+            np.ndarray: Merged superpixel segmentation
+        """
         logging.debug("Input size: %s", input_image.shape)
         original_height, original_width, _ = input_image.shape
         if self.downsampling_factor != 1:
@@ -171,11 +188,9 @@ class SuperpixelMerger(SuperpixelExtractor):
             logging.debug("Upsampled to %s", merged_superpixels.shape)
         return merged_superpixels
 
-    def _generate_graph(self, input_image, superpixels):
-        edges = filters.sobel(color.rgb2gray(input_image))
-        return graph.rag_boundary(superpixels, edges, connectivity=self.connectivity)
-
-    def _extract_superpixels(self, input_image, superpixels):
+    def _extract_superpixels(
+        self, input_image: np.ndarray, superpixels: np.ndarray
+    ) -> np.ndarray:
         g = self._generate_graph(input_image, superpixels)
         merged_superpixels = graph.merge_hierarchical(
             superpixels,
@@ -183,14 +198,55 @@ class SuperpixelMerger(SuperpixelExtractor):
             thresh=self.threshold,
             rag_copy=False,
             in_place_merge=True,
-            merge_func=self._merge_boundary,
-            weight_func=self._weight_boundary,
+            merge_func=self._merging_function,
+            weight_func=self._weighting_function,
         )
         merged_superpixels += 1  # Handle regionprops that ignores all values of 0
         return merged_superpixels
 
+    @abstractmethod
+    def _generate_graph(
+        self, input_image: np.ndarray, superpixels: np.ndarray
+    ) -> graph.RAG:
+        """Generate a graph based on the input image and initial superpixel segmentation"""
+
+    @abstractmethod
+    def _weighting_function(
+        self, graph: graph.RAG, src: int, dst: int, n: int
+    ) -> Dict[str, Any]:
+        """
+        Handle merging of nodes of a region boundary region adjacency graph.
+        """
+
+    @abstractmethod
+    def _merging_function(self, graph: graph.RAG, src: int, dst: int) -> None:
+        """Call back called before merging 2 nodes."""
+
+
+class EdgeSuperpixelMerger(SuperpixelMerger):
+    def __init__(self, downsampling_factor: int, **kwargs) -> None:
+        """Superpixel merging based on edge features"""
+        super().__init__(downsampling_factor, **kwargs)
+
+    def _generate_graph(
+        self, input_image: np.ndarray, superpixels: np.ndarray
+    ) -> graph.RAG:
+        """Generate a graph based on the input image and initial superpixel segmentation
+
+        Args:
+            input_image (np.ndarray): Input image
+            superpixels (np.ndarray): Initial superpixel segmentation
+
+        Returns:
+            graph.RAG: Connectivity graph
+        """
+        edges = filters.sobel(color.rgb2gray(input_image))
+        return graph.rag_boundary(superpixels, edges, connectivity=self.connectivity)
+
     @staticmethod
-    def _weight_boundary(graph, src, dst, n):
+    def _weighting_function(
+        graph: graph.RAG, src: int, dst: int, n: int
+    ) -> Dict[str, Any]:
         """
         Handle merging of nodes of a region boundary region adjacency graph.
 
@@ -230,7 +286,7 @@ class SuperpixelMerger(SuperpixelExtractor):
         }
 
     @staticmethod
-    def _merge_boundary(graph, src, dst):
+    def _merging_function(graph: graph.RAG, src: int, dst: int) -> None:
         """Call back called before merging 2 nodes.
 
         In this case we don't need to do any computation here.
@@ -246,15 +302,32 @@ class SpecialSuperpixelMerger(SuperpixelMerger):
         w_mean: float = 0.5,
         **kwargs,
     ) -> None:
+        """Alternative superpixel merger taken from the HACT-Net Implementation
+
+        Args:
+            downsampling_factor (int): Factor to use
+            w_hist (float, optional): Weight of the histogram features for merging. Defaults to 0.5.
+            w_mean (float, optional): Weight of the mean features for merging. Defaults to 0.5.
+        """
         self.w_hist = w_hist
         self.w_mean = w_mean
         super().__init__(downsampling_factor, **kwargs)
 
-    def _color_features_per_channel(self, img_ch):
+    def _color_features_per_channel(self, img_ch: np.ndarray) -> np.ndarray:
+        """Extract color histograms from image channel
+
+        Args:
+            img_ch (np.ndarray): Image channel
+
+        Returns:
+            np.ndarray: Histogram of the image channel
+        """
         hist, _ = np.histogram(img_ch, bins=np.arange(0, 257, 64))  # 8 bins
         return hist
 
-    def _generate_graph(self, input_image, superpixels):
+    def _generate_graph(
+        self, input_image: np.ndarray, superpixels: np.ndarray
+    ) -> np.ndarray:
         g = graph.RAG(superpixels, connectivity=self.connectivity)
 
         for n in g:
@@ -305,7 +378,9 @@ class SpecialSuperpixelMerger(SuperpixelMerger):
 
         return g
 
-    def _weight_boundary(self, graph, src, dst, n):
+    def _weighting_function(
+        self, graph: graph.RAG, src: int, dst: int, n: int
+    ) -> Dict[str, Any]:
         diff_mean = np.linalg.norm(graph.nodes[dst]["mean"] - graph.nodes[n]["mean"])
 
         diff_r = np.linalg.norm(graph.nodes[dst]["r"] - graph.nodes[n]["r"]) / 2
@@ -317,7 +392,7 @@ class SpecialSuperpixelMerger(SuperpixelMerger):
 
         return {"weight": diff}
 
-    def _merge_boundary(self, graph, src, dst):
+    def _merging_function(self, graph: graph.RAG, src: int, dst: int) -> None:
         graph.nodes[dst]["x"] += graph.nodes[src]["x"]
         graph.nodes[dst]["N"] += graph.nodes[src]["N"]
         graph.nodes[dst]["mean"] = graph.nodes[dst]["x"] / graph.nodes[dst]["N"]

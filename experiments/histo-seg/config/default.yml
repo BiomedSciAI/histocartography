@@ -77,6 +77,7 @@ train:
       class: "Adam"
       params:
         lr: 0.00003
+      scheduler: null
     loss:
       graph:
         class: "GraphBCELoss"
@@ -87,14 +88,15 @@ train:
           drop_probability: 0.0
       node_weight: 0.5
     batch_size: 8
-    nr_epochs: 2000
+    nr_epochs: 500
     num_workers: 8
-    clip_gradient_norm: 5.0
+    clip_gradient_norm: null
     dataset: "eth"
     seed: null
     validation_frequency: 5
 test:
   data:
+    use_augmentation_dataset: True
     tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
   model:
     architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'

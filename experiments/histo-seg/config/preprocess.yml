@@ -35,6 +35,7 @@ pipeline:
         outputs:
         - superpixels
         params:
+          compactness: 30
           nr_superpixels: 500
           color_space: rgb
     - feature_extraction:

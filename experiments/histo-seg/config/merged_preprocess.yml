@@ -36,6 +36,7 @@ pipeline:
         - superpixels
         params:
           downsampling_factor: 1
+          compactness: 30
           nr_superpixels: 500
           color_space: rgb
     - feature_extraction:
@@ -69,15 +70,15 @@ pipeline:
           mask: False
           size: 224
     - superpixel:
-        class: EdgeSuperpixelMerger
+        class: SpecialSuperpixelMerger
         inputs:
         - normalized_image
         - superpixels
         outputs:
         - merged_superpixels
         params:
-          downsampling_factor: 1
-          threshold: 0.06
+          downsampling_factor: 8
+          threshold: 0.01
     - feature_extraction:
         class: FeatureMerger
         inputs:
@@ -86,6 +87,8 @@ pipeline:
         - features
         outputs:
         - merged_features
+        params:
+          downsampling_factor: 8
     - io:
         class: ImageLoader
         inputs:

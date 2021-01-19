@@ -1,6 +1,8 @@
 """Extract features from images for a given structure"""
 
+import math
 from abc import abstractmethod
+from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import cv2
@@ -18,7 +20,6 @@ from skimage.morphology import disk
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from tqdm import tqdm
 
 from .pipeline import PipelineStep
 
@@ -641,9 +642,108 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
 
 
 class FeatureMerger(PipelineStep):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, downsampling_factor: int, *args, **kwargs) -> None:
         """Merge features from an initial instance map to a merged instance map by averaging the features."""
+        self.downsampling_factor = downsampling_factor
         super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _downsample(image: np.ndarray, downsampling_factor: int) -> np.ndarray:
+        """Downsample an input image with a given downsampling factor
+
+        Args:
+            image (np.array): Input tensor
+            downsampling_factor (int): Factor to downsample
+
+        Returns:
+            np.array: Output tensor
+        """
+        height, width = image.shape[0], image.shape[1]
+        new_height = math.floor(height / downsampling_factor)
+        new_width = math.floor(width / downsampling_factor)
+        downsampled_image = cv2.resize(
+            image, (new_height, new_width), interpolation=cv2.INTER_NEAREST
+        )
+        return downsampled_image
+
+    def process(
+        self,
+        instance_map: np.ndarray,
+        merged_instance_map: np.ndarray,
+        features: torch.Tensor,
+    ) -> torch.Tensor:
+        """Merge features from an initial instance_map to a merged_instance_map by feature averaging
+
+        Args:
+            instance_map (np.ndarray): Initial instance map
+            merged_instance_map (np.ndarray): Merged instance map that overlaps with initial instance_map
+            features (torch.Tensor): Extracted features
+
+        Raises:
+            NotImplementedError: Only 1D and 2D features supported
+
+        Returns:
+            torch.Tensor: Merged features
+        """
+        if self.downsampling_factor != 1:
+            instance_map = self._downsample(instance_map, self.downsampling_factor)
+            merged_instance_map = self._downsample(
+                merged_instance_map, self.downsampling_factor
+            )
+        translator = self._get_translator(instance_map, merged_instance_map)
+        if len(features.shape) == 2:
+            return self._merge_features(features, translator)
+        elif len(features.shape) == 3:
+            return self._merge_augmented_features(features, translator)
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def _check_translator_consistency(
+        instance_map, merged_instance_map, translator
+    ) -> None:
+        for instance_id in np.unique(merged_instance_map):
+            assert (
+                instance_id in translator
+            ), f"Merged instance id {instance_id} is not mapped to any superpixel: {translator}"
+            assert (
+                len(translator[instance_id]) > 0
+            ), f"Merged instance id {instance_id} is not mapped to any superpixel: {translator}"
+        all_values = np.concatenate(list(translator.values()))
+        assert len(all_values) == len(
+            set(all_values)
+        ), f"Mapped values contain duplicates: {all_values}"
+        all_values = set(all_values)
+        for instance_id in np.unique(instance_map):
+            assert (
+                instance_id in all_values
+            ), f"Inital instance id {instance_id} does not appear in translator"
+
+    def _get_translator(
+        self, instance_map: np.ndarray, merged_instance_map: np.ndarray
+    ) -> Dict[int, int]:
+        """Calculate which instances of the initial instance map belong to each instance of the merged instance map
+
+        Args:
+            instance_map (np.ndarray): Initial instance map
+            merged_instance_map (np.ndarray): Merged instance map
+
+        Returns:
+            Dict[int, int]: Mapping from merged instance map id to initial instance map id
+        """
+        nr_spx = instance_map.max() + 1
+        translator = defaultdict(list)
+        for i in range(1, nr_spx):
+            mask = instance_map == i
+            assignments, counts = np.unique(
+                merged_instance_map[mask], return_counts=True
+            )
+            assignment = assignments[counts.argmax()]
+            translator[assignment].append(i)
+        self._check_translator_consistency(
+            instance_map, merged_instance_map, translator
+        )
+        return {k: np.array(v) for k, v in translator.items()}
 
     @staticmethod
     def _merge_features(
@@ -683,35 +783,3 @@ class FeatureMerger(PipelineStep):
         for index, values in translator.items():
             merged_features[index - 1] = features[values - 1].mean(axis=0)
         return torch.as_tensor(merged_features)
-
-    def process(
-        self,
-        instance_map: np.ndarray,
-        merged_instance_map: np.ndarray,
-        features: torch.Tensor,
-    ) -> torch.Tensor:
-        """Merge features from an initial instance_map to a merged_instance_map by feature averaging
-
-        Args:
-            instance_map (np.ndarray): Initial instance map
-            merged_instance_map (np.ndarray): Merged instance map that overlaps with initial instance_map
-            features (torch.Tensor): Extracted features
-
-        Raises:
-            NotImplementedError: Only 1D and 2D features supported
-
-        Returns:
-            torch.Tensor: Merged features
-        """
-        num_merged_superpixels = merged_instance_map.max()
-        translator = dict()
-        for i in range(1, num_merged_superpixels + 1):
-            mask = merged_instance_map == i
-            values = np.unique(instance_map[mask])
-            translator[i] = values
-        if len(features.shape) == 2:
-            return self._merge_features(features, translator)
-        elif len(features.shape) == 3:
-            return self._merge_augmented_features(features, translator)
-        else:
-            raise NotImplementedError

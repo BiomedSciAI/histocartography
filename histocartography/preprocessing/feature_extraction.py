@@ -239,7 +239,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         x2 = x2 + 2 if x2 + 2 <= instance_map.shape[1] - 1 else x2
         y2 = y2 + 2 if y2 + 2 <= instance_map.shape[0] - 1 else y2
         nuclei_map = sp_mask[y1:y2, x1:x2]
-        contours, _ = cv2.findContours(nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         hull = cv2.convexHull(contours[0])
         convex_hull_perimeter = cv2.arcLength(hull, True)
 

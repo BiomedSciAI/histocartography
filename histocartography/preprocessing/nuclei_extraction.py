@@ -30,7 +30,7 @@ class NucleiExtractor(PipelineStep):
         self,
         model_path: str,
         size: int = 256,
-        batch_size: int = 2,
+        batch_size: int = 32,
         num_workers: int = 0,
         **kwargs,
     ) -> None:

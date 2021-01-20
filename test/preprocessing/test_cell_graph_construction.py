@@ -36,7 +36,7 @@ class CellGraphBuildingTestCase(unittest.TestCase):
         cell_graph = output['graph']
         print('Number of nodes:', cell_graph.number_of_nodes())
         print('Number of edges:', cell_graph.number_of_edges())
-        print('Node features:', cell_graph.ndata['gnn_node_feat_in'].shape)
+        print('Node features:', cell_graph.ndata['feat'].shape)
         print('Node centroids:', cell_graph.ndata['centroid'].shape)
 
     def test_cell_graph_building(self):
@@ -51,7 +51,7 @@ class CellGraphBuildingTestCase(unittest.TestCase):
         nuclei_detector = NucleiExtractor(
             model_path='checkpoints/hovernet_kumar_notype.pth'
         )
-        instance_map, _, instance_centroids = nuclei_detector.process(image)
+        instance_map, instance_centroids = nuclei_detector.process(image)
 
         # 3. nuclei feature extraction 
         nuclei_feature_extractor = DeepFeatureExtractor(
@@ -74,7 +74,7 @@ class CellGraphBuildingTestCase(unittest.TestCase):
         # 5. print graph properties
         print('Number of nodes:', cell_graph.number_of_nodes())
         print('Number of edges:', cell_graph.number_of_edges())
-        print('Node features:', cell_graph.ndata['gnn_node_feat_in'].shape)
+        print('Node features:', cell_graph.ndata['feat'].shape)
         print('Node centroids:', cell_graph.ndata['centroid'].shape)
 
     def tearDown(self):
@@ -83,5 +83,6 @@ class CellGraphBuildingTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     model = CellGraphBuildingTestCase()
-    model.test_cell_graph_building_with_pipeline_runner()
     model.test_cell_graph_building()
+    model.test_cell_graph_building_with_pipeline_runner()
+

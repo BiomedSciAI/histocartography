@@ -16,7 +16,6 @@ stages:
       - image
       outputs:
       - instance_map
-      - instance_labels
       - instance_centroids
       params:
         model_path: "checkpoints/hovernet_kumar_notype.pth"

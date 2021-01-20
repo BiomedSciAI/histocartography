@@ -110,7 +110,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
 
         # pre-extract centroids to compute crowdedness 
         centroids = [r.centroid for r in regions]
-        all_crowdedness = self._compute_std_crowdedness(centroids)
+        all_mean_crowdedness, all_std_crowdedness = self._compute_crowdedness(centroids)
 
         for region_id, region in enumerate(regions):
             sp_mask = np.array(instance_map == region["label"], np.uint8)
@@ -202,7 +202,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 glcm_entropy
             ]
 
-            feats_crowdedness = [all_crowdedness[region_id]] 
+            feats_crowdedness = [all_mean_crowdedness[region_id], all_std_crowdedness[region_id]] 
 
             sp_feats = feats_shape + feats_color + feats_texture + feats_crowdedness
 
@@ -213,12 +213,13 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         return torch.Tensor(node_feat)
 
     @staticmethod
-    def _compute_std_crowdedness(centroids, k=10):
+    def _compute_crowdedness(centroids, k=10):
         dist = euclidean_distances(centroids, centroids)
         idx = np.argpartition(dist, kth=k+1, axis=-1)
         x = np.take_along_axis(dist, idx, axis=-1)[:, :k+1]
-        feat_crowd = np.std(x, axis=1)
-        return np.reshape(feat_crowd, newshape=(-1, 1))
+        std_crowd = np.reshape(np.std(x, axis=1), newshape=(-1, 1))
+        mean_crow = np.reshape(np.mean(x, axis=1), newshape=(-1, 1))
+        return mean_crow, std_crowd
 
     @staticmethod
     def bounding_box(img):
@@ -629,5 +630,6 @@ HANDCRAFTED_FEATURES_NAMES = {
     'glcm_ASM': 60,
     'glcm_dispersion': 61,
     'glcm_entropy': 62,
-    'std_crowdedness': 63
+    'mean_crowdedness': 63,
+    'std_crowdedness': 64
 }

@@ -16,6 +16,13 @@ from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
 from histocartography.dataloader.constants import get_number_of_classes
 
 
+def get_device(cuda=False):
+    """
+    Get device (cpu or gpu)
+    """
+    return'cuda:0' if cuda else 'cpu'
+
+
 def is_mlflow_url(candidate):
     if candidate.find('s3://mlflow/') != -1:
         return True
@@ -91,7 +98,6 @@ def get_device(cuda=False):
     Get device (cpu or gpu)
     """
     return 'cuda:0' if cuda else 'cpu'
-
 
 def get_files_in_folder(path, extension, with_ext=True):
     """Returns all the file names in a folder, (Relative to the parent folder)

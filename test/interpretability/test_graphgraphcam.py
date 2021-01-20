@@ -9,8 +9,10 @@ import h5py
 from dgl.data.utils import load_graphs
 
 from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
+from histocartography.utils.graph import set_graph_on_cuda
 
 BASE_S3 = 's3://mlflow/'
+IS_CUDA = torch.cuda.is_available()
 
 
 class GraphGradCAMTestCase(unittest.TestCase):
@@ -24,13 +26,14 @@ class GraphGradCAMTestCase(unittest.TestCase):
         """
 
         # 1. load a cell graph
-        cell_graph, label_dict = load_graphs('../data/1937_benign_4_cg.bin')
-        cell_graph = cell_graph[0]
+        cell_graph, label_dict = load_graphs('../data/1607_adh_10.bin')
+        cell_graph = set_graph_on_cuda(cell_graph[0]) if IS_CUDA else cell_graph[0]
 
         # 2. run the explainer
         explainer = GraphGradCAMExplainer(
             model_path=BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0'
         )
+
         importance_scores, logits = explainer.process(cell_graph)
 
         # 3. print output 

@@ -85,15 +85,15 @@ def log_preprocessing_parameters(graph_path: Path):
     if config_path.exists():
         with open(config_path, "r") as file:
             config = yaml.load(file)
-            for stage in config.get("stages", []):
+            for i, stage in enumerate(config.get("stages", [])):
                 for stage_name, v in stage.items():
                     if stage_name in ["io"]:
                         continue
                     else:
-                        robust_mlflow(mlflow.log_param, stage_name, v["class"])
+                        robust_mlflow(mlflow.log_param, f"{i}_{stage_name}", v["class"])
                         robust_mlflow(
                             mlflow.log_params,
-                            flatten(v["params"], parent_key=stage_name),
+                            flatten(v["params"], parent_key=f"{i}_{stage_name}"),
                         )
 
 

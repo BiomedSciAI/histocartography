@@ -81,8 +81,6 @@ class GINLayer(BaseLayer):
             edge_encoding_dim = min(node_dim, 16)  # hardcoded param setting the edge encoding to 16
             self.edge_encoder = nn.Linear(edge_dim, edge_encoding_dim)
 
-        print('Config in GIN layer:', config)
-
         self.mlp = MLP(
             node_dim,
             hidden_dim,
@@ -131,7 +129,7 @@ class GINLayer(BaseLayer):
         """
         Node update function
         """
-        h = nodes.data[GNN_NODE_FEAT_OUT]
+        h = nodes.data[GNN_NODE_FEAT_IN]
         h = self.mlp(h)
         h = F.relu(h)
         return {GNN_NODE_FEAT_OUT: h}
@@ -152,13 +150,13 @@ class GINLayer(BaseLayer):
         g.update_all(self.msg_fn, self.reduce_fn)
 
         if self.learn_eps:
-            g.ndata[GNN_NODE_FEAT_OUT] = g.ndata[GNN_AGG_MSG] + \
+            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_AGG_MSG] + \
                 (1 + self.eps[self.layer_id]) * g.ndata[GNN_NODE_FEAT_IN]
         else:
             if GNN_AGG_MSG in g.ndata.keys():
-                g.ndata[GNN_NODE_FEAT_OUT] = g.ndata[GNN_AGG_MSG] + g.ndata[GNN_NODE_FEAT_IN]
+                g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_AGG_MSG] + g.ndata[GNN_NODE_FEAT_IN]
             else:
-                g.ndata[GNN_NODE_FEAT_OUT] = g.ndata[GNN_NODE_FEAT_IN]
+                g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_NODE_FEAT_IN]
 
         g.apply_nodes(func=self.node_update_fn)
 

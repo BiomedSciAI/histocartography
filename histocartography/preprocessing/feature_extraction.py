@@ -12,6 +12,7 @@ from histocartography.utils import dynamic_import_from
 from PIL import Image
 from scipy.stats import skew
 from skimage.feature import greycomatrix, greycoprops
+from sklearn.metrics.pairwise import euclidean_distances
 from skimage.filters.rank import entropy as Entropy
 from skimage.measure import regionprops
 from skimage.measure._regionprops import _RegionProperties
@@ -107,7 +108,11 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         # For each super-pixel
         regions = regionprops(instance_map)
 
-        for _, region in enumerate(regions):
+        # pre-extract centroids to compute crowdedness
+        centroids = [r.centroid for r in regions]
+        all_mean_crowdedness, all_std_crowdedness = self._compute_crowdedness(centroids)
+
+        for region_id, region in enumerate(regions):
             sp_mask = np.array(instance_map == region["label"], np.uint8)
             sp_rgb = cv2.bitwise_and(input_image, input_image, mask=sp_mask)
             sp_gray = img_gray * sp_mask
@@ -127,6 +132,12 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             orientation = region["orientation"]
             perimeter = region["perimeter"]
             solidity = region["solidity"]
+            convex_hull_perimeter = self._compute_convex_hull_perimeter(sp_mask, instance_map)
+            roughness = convex_hull_perimeter / perimeter
+            shape_factor = 4 * np.pi * area / convex_hull_perimeter**2
+            ellipticity = minor_axis_length / major_axis_length
+            roundness = (4 * np.pi * area)/ (perimeter ** 2)
+
             feats_shape = [
                 area,
                 convex_area,
@@ -140,6 +151,10 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 orientation,
                 perimeter,
                 solidity,
+                roughness,
+                shape_factor,
+                ellipticity,
+                roundness
             ]
 
             # (rgb color space) [13 x 3 features]
@@ -173,6 +188,8 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             glcm_energy = glcm_energy[0, 0]
             glcm_ASM = greycoprops(filt_glcm, prop="ASM")
             glcm_ASM = glcm_ASM[0, 0]
+            glcm_dispersion = np.std(filt_glcm)
+            glcm_entropy = np.mean(Entropy(np.squeeze(filt_glcm), disk(3)))
 
             feats_texture = [
                 entropy,
@@ -181,15 +198,53 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 glcm_homogeneity,
                 glcm_energy,
                 glcm_ASM,
+                glcm_dispersion,
+                glcm_entropy
             ]
 
-            sp_feats = feats_shape + feats_color + feats_texture
+            feats_crowdedness = [all_mean_crowdedness[region_id], all_std_crowdedness[region_id]]
+
+            sp_feats = feats_shape + feats_color + feats_texture + feats_crowdedness
 
             features = np.hstack(sp_feats)
             node_feat.append(features)
 
         node_feat = np.vstack(node_feat)
         return torch.Tensor(node_feat)
+
+    @staticmethod
+    def _compute_crowdedness(centroids, k=10):
+        dist = euclidean_distances(centroids, centroids)
+        idx = np.argpartition(dist, kth=k+1, axis=-1)
+        x = np.take_along_axis(dist, idx, axis=-1)[:, :k+1]
+        std_crowd = np.reshape(np.std(x, axis=1), newshape=(-1, 1))
+        mean_crow = np.reshape(np.mean(x, axis=1), newshape=(-1, 1))
+        return mean_crow, std_crowd
+
+    @staticmethod
+    def bounding_box(img):
+        rows = np.any(img, axis=1)
+        cols = np.any(img, axis=0)
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+        rmax += 1
+        cmax += 1
+        return [rmin, rmax, cmin, cmax]
+
+    def _compute_convex_hull_perimeter(self, sp_mask, instance_map):
+        """Compute the perimeter of the convex hull induced by the input mask."""
+
+        y1, y2, x1, x2 = self.bounding_box(sp_mask)
+        y1 = y1 - 2 if y1 - 2 >= 0 else y1
+        x1 = x1 - 2 if x1 - 2 >= 0 else x1
+        x2 = x2 + 2 if x2 + 2 <= instance_map.shape[1] - 1 else x2
+        y2 = y2 + 2 if y2 + 2 <= instance_map.shape[0] - 1 else y2
+        nuclei_map = sp_mask[y1:y2, x1:x2]
+        _, contours, _ = cv2.findContours(nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        hull = cv2.convexHull(contours[0])
+        convex_hull_perimeter = cv2.arcLength(hull, True)
+
+        return convex_hull_perimeter
 
 
 class InstanceMapPatchDataset(Dataset):
@@ -384,7 +439,7 @@ class PatchFeatureExtractor:
         """Returns a torchvision model from a given architecture string
 
         Args:
-            architecture (str): Torchvision model description 
+            architecture (str): Torchvision model description
 
         Returns:
             nn.Module: A pretrained pytorch model
@@ -509,3 +564,72 @@ class DeepFeatureExtractor(FeatureExtractor):
             embeddings = self.patch_feature_extractor(image_batch)
             features[i, :] = embeddings
         return features.cpu().detach()
+
+
+HANDCRAFTED_FEATURES_NAMES = {
+    'area': 0,
+    'convex_area': 1,
+    'eccentricity': 2,
+    'equivalent_diameter': 3,
+    'euler_number': 4,
+    'extent': 5,
+    'filled_area': 6,
+    'major_axis_length': 7,
+    'minor_axis_length': 8,
+    'orientation': 9,
+    'perimeter': 10,
+    'solidity': 11,
+    'roughness': 12,
+    'shape_factor': 13,
+    'ellipticity': 14,
+    'roundness': 15,
+    'feats_r_hist_bin1': 16,
+    'feats_r_hist_bin2': 17,
+    'feats_r_hist_bin3': 18,
+    'feats_r_hist_bin4': 19,
+    'feats_r_hist_bin5': 20,
+    'feats_r_hist_bin6': 21,
+    'feats_r_hist_bin7': 22,
+    'feats_r_hist_bin8': 23,
+    'feats_r_color_mean': 24,
+    'feats_r_color_std': 25,
+    'feats_r_color_median': 26,
+    'feats_r_color_skewness': 27,
+    'feats_r_color_energy': 28,
+    'feats_g_hist_bin1': 29,
+    'feats_g_hist_bin2': 30,
+    'feats_g_hist_bin3': 31,
+    'feats_g_hist_bin4': 32,
+    'feats_g_hist_bin5': 33,
+    'feats_g_hist_bin6': 34,
+    'feats_g_hist_bin7': 35,
+    'feats_g_hist_bin8': 36,
+    'feats_g_color_mean': 37,
+    'feats_g_color_std': 38,
+    'feats_g_color_median': 39,
+    'feats_g_color_skewness': 40,
+    'feats_g_color_energy': 41,
+    'feats_b_hist_bin1': 42,
+    'feats_b_hist_bin2': 43,
+    'feats_b_hist_bin3': 44,
+    'feats_b_hist_bin4': 45,
+    'feats_b_hist_bin5': 46,
+    'feats_b_hist_bin6': 47,
+    'feats_b_hist_bin7': 48,
+    'feats_b_hist_bin8': 49,
+    'feats_b_color_mean': 50,
+    'feats_b_color_std': 51,
+    'feats_b_color_median': 52,
+    'feats_b_color_skewness': 53,
+    'feats_b_color_energy': 54,
+    'entropy': 55,
+    'glcm_contrast': 56,
+    'glcm_dissimilarity': 57,
+    'glcm_homogeneity': 58,
+    'glcm_energy': 59,
+    'glcm_ASM': 60,
+    'glcm_dispersion': 61,
+    'glcm_entropy': 62,
+    'mean_crowdedness': 63,
+    'std_crowdedness': 64
+}

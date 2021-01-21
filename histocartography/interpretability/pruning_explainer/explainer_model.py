@@ -138,16 +138,10 @@ class ExplainerModel(nn.Module):
         return x 
 
     def forward(self):
-
-        # masked_adj = self._masked_adj()  # @TODO: hack alert: not mask over the edges
-        masked_adj = self.adj
         masked_x = self._masked_node_feats()
-
-        # build a graph from the new x & adjacency matrix...
-        graph = [masked_adj, masked_x]
+        graph = [self.adj, masked_x]
         ypred = self.model(graph)
-
-        return ypred, masked_adj, masked_x
+        return ypred, masked_x
 
     def distillation_loss(self, inner_logits):
         log_output = nn.LogSoftmax(dim=1)(inner_logits)
@@ -168,24 +162,15 @@ class ExplainerModel(nn.Module):
         alpha = alpha.to(self.device)
         pred_loss = self.coeffs['ce'] * (alpha * ce_loss + (1 - alpha) * distillation_loss)
 
-        # 2. size loss
-        adj_mask = self._get_adj_mask(with_zeroing=True)
-        adj_loss = self.coeffs["adj"] * torch.sum(adj_mask)
-
-        # 3. adj entropy loss
-        adj_mask = self._get_adj_mask(with_zeroing=False)
-        adj_ent = -adj_mask * torch.log(adj_mask) - (1 - adj_mask) * torch.log(1 - adj_mask)
-        adj_ent_loss = self.coeffs["adj_ent"] * torch.mean(adj_ent)
-
-        # 4. node loss 
+        # 2. node loss 
         node_mask = self._get_node_feats_mask()
         node_loss = self.coeffs["node"] * torch.sum(node_mask)
 
-        # 5. node entropy loss
+        # 3. node entropy loss
         node_ent = -node_mask * torch.log(node_mask) - (1 - node_mask) * torch.log(1 - node_mask)
         node_ent_loss = self.coeffs["node_ent"] * torch.mean(node_ent)
 
-        # sum all the losses
-        loss = pred_loss + node_loss + adj_loss + node_ent_loss + adj_ent_loss
+        # 4. sum all the losses
+        loss = pred_loss + node_loss + node_ent_loss
 
         return loss

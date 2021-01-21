@@ -3,7 +3,7 @@ import numpy as np
 import dgl 
 
 
-def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None):
+def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None, nuclei_labels=None):
     """Cleaning a graph by thresholding its node values.
 
     Args:
@@ -41,6 +41,13 @@ def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_componen
             node_importance_dict[node_id] = node_importance[node_id]
         nx.set_node_attributes(graph, node_importance_dict, 'node_importance')
 
+    # set nuclei labels  
+    if nuclei_labels is not None:
+        nuclei_labels_dict = {}
+        for node_id in range(num_nodes):
+            nuclei_labels_dict[node_id] = nuclei_labels[node_id]
+        nx.set_node_attributes(graph, nuclei_labels_dict, 'nuclei_label')        
+
     # extract largest cc
     if max_component:
         largest_cc = max(nx.connected_components(graph), key=len)
@@ -55,7 +62,7 @@ def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_componen
     return graph
 
 
-def adj_to_dgl(adj, feat, node_importance=None, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None):
+def adj_to_dgl(adj, feat, node_importance=None, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None, nuclei_labels=None):
     """Cleaning a graph by thresholding its node values.
 
     Args:
@@ -66,18 +73,16 @@ def adj_to_dgl(adj, feat, node_importance=None, threshold=0.1, max_component=Fal
         - rm_iso_nodes      : if remove isolated nodes
     """
 
-    networkx_graph = adj_to_networkx(adj, feat, node_importance, threshold, max_component, rm_iso_nodes, centroids)
+    networkx_graph = adj_to_networkx(adj, feat, node_importance, threshold, max_component, rm_iso_nodes, centroids, nuclei_labels)
     graph = dgl.DGLGraph()
 
     node_keys = []
-    for cand_key in ['node_importance', 'centroid', 'feat']:
+    for cand_key in ['node_importance', 'centroid', 'feat', 'nuclei_label']:
         try:
             nx.get_node_attributes(networkx_graph, cand_key)
             node_keys.append(cand_key)
         except:
             x = 0 # do nothing...
-
-    print('Node keys', node_keys)
 
     graph.from_networkx(networkx_graph, edge_attrs=None, node_attrs=None if len(node_keys)==0 else node_keys)
     return graph
@@ -96,12 +101,15 @@ def set_graph_on_cuda(graph):
 
 
 def set_graph_on_cpu(graph):
+    cpu_graph = dgl.DGLGraph()
+    cpu_graph.add_nodes(graph.number_of_nodes())
+    cpu_graph.add_edges(graph.edges()[0], graph.edges()[1])
     for key_graph, val_graph in graph.ndata.items():
-        tmp = graph.ndata.pop(key_graph)
-        graph.ndata[key_graph] = tmp.cpu()
+        tmp = graph.ndata[key_graph].clone()
+        cpu_graph.ndata[key_graph] = tmp.cpu()
     for key_graph, val_graph in graph.edata.items():
-        graph.edata[key_graph] = graph.edata.pop(key_graph).cpu()
-    return graph
+        cpu_graph.edata[key_graph] = graph.edata[key_graph].clone().cpu()
+    return cpu_graph
 
 
 def to_cpu(x):

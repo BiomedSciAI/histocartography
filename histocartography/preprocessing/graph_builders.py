@@ -24,7 +24,7 @@ class BaseGraphBuilder(PipelineStep):
     Base interface class for graph building.
     """
 
-    def __init__(self, nr_classes: int, **kwargs) -> None:
+    def __init__(self, nr_classes: int = 6, **kwargs) -> None:
         super().__init__(**kwargs)
         self.nr_classes = nr_classes
 

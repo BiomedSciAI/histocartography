@@ -86,7 +86,6 @@ def main(args):
             load_superpx_graph=load_superpx_graph(config['model_type']),
             load_image=False,
             load_in_ram=args.in_ram,
-            show_superpx=False,
             fold_id=fold_id
         )
 

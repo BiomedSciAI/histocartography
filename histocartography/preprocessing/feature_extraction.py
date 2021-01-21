@@ -108,9 +108,9 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         # For each super-pixel
         regions = regionprops(instance_map)
 
-        # pre-extract centroids to compute crowdedness 
+        # pre-extract centroids to compute crowdedness
         centroids = [r.centroid for r in regions]
-        all_crowdedness = self._compute_std_crowdedness(centroids)
+        all_mean_crowdedness, all_std_crowdedness = self._compute_crowdedness(centroids)
 
         for region_id, region in enumerate(regions):
             sp_mask = np.array(instance_map == region["label"], np.uint8)
@@ -133,7 +133,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             perimeter = region["perimeter"]
             solidity = region["solidity"]
             convex_hull_perimeter = self._compute_convex_hull_perimeter(sp_mask, instance_map)
-            roughness = convex_hull_perimeter / perimeter  
+            roughness = convex_hull_perimeter / perimeter
             shape_factor = 4 * np.pi * area / convex_hull_perimeter**2
             ellipticity = minor_axis_length / major_axis_length
             roundness = (4 * np.pi * area)/ (perimeter ** 2)
@@ -188,8 +188,8 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             glcm_energy = glcm_energy[0, 0]
             glcm_ASM = greycoprops(filt_glcm, prop="ASM")
             glcm_ASM = glcm_ASM[0, 0]
-            glcm_dispersion = np.std(filt_glcm)  
-            glcm_entropy = np.mean(Entropy(np.squeeze(filt_glcm), disk(3)))     
+            glcm_dispersion = np.std(filt_glcm)
+            glcm_entropy = np.mean(Entropy(np.squeeze(filt_glcm), disk(3)))
 
             feats_texture = [
                 entropy,
@@ -202,7 +202,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 glcm_entropy
             ]
 
-            feats_crowdedness = [all_crowdedness[region_id]] 
+            feats_crowdedness = [all_mean_crowdedness[region_id], all_std_crowdedness[region_id]]
 
             sp_feats = feats_shape + feats_color + feats_texture + feats_crowdedness
 
@@ -213,12 +213,13 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         return torch.Tensor(node_feat)
 
     @staticmethod
-    def _compute_std_crowdedness(centroids, k=10):
+    def _compute_crowdedness(centroids, k=10):
         dist = euclidean_distances(centroids, centroids)
         idx = np.argpartition(dist, kth=k+1, axis=-1)
         x = np.take_along_axis(dist, idx, axis=-1)[:, :k+1]
-        feat_crowd = np.std(x, axis=1)
-        return np.reshape(feat_crowd, newshape=(-1, 1))
+        std_crowd = np.reshape(np.std(x, axis=1), newshape=(-1, 1))
+        mean_crow = np.reshape(np.mean(x, axis=1), newshape=(-1, 1))
+        return mean_crow, std_crowd
 
     @staticmethod
     def bounding_box(img):
@@ -239,7 +240,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         x2 = x2 + 2 if x2 + 2 <= instance_map.shape[1] - 1 else x2
         y2 = y2 + 2 if y2 + 2 <= instance_map.shape[0] - 1 else y2
         nuclei_map = sp_mask[y1:y2, x1:x2]
-        contours, _ = cv2.findContours(nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         hull = cv2.convexHull(contours[0])
         convex_hull_perimeter = cv2.arcLength(hull, True)
 
@@ -438,7 +439,7 @@ class PatchFeatureExtractor:
         """Returns a torchvision model from a given architecture string
 
         Args:
-            architecture (str): Torchvision model description 
+            architecture (str): Torchvision model description
 
         Returns:
             nn.Module: A pretrained pytorch model
@@ -629,5 +630,6 @@ HANDCRAFTED_FEATURES_NAMES = {
     'glcm_ASM': 60,
     'glcm_dispersion': 61,
     'glcm_entropy': 62,
-    'std_crowdedness': 63
+    'mean_crowdedness': 63,
+    'std_crowdedness': 64
 }

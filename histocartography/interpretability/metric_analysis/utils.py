@@ -56,7 +56,5 @@ def read_features(path):
 def read_info(path):
     with h5py.File(path, 'r') as f:
         centroids = np.array(f['instance_centroid_location']).astype(int)
-        labels = np.array(f['instance_centroid_label']).astype(int)
-    return centroids, labels
-
-
+        # labels = np.array(f['instance_centroid_label']).astype(int)
+    return centroids

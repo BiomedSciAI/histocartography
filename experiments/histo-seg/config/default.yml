@@ -105,6 +105,6 @@ test:
     experiment_tags: null
     dataset: eth
     operation: argmax
-    local_save_path: '/dataT/anv/Data/ETH/gnn_test_masks'
+    local_save_path: '/dataP/anv/data/ETH/gnn_test_masks'
     mlflow_save_path: 'gnn_test_masks'
     threshold: 0.25

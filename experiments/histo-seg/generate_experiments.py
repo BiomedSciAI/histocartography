@@ -20,7 +20,7 @@ def get_lsf(
     queue="prod.med",
     cores=5,
     gpus=0,
-    log_dir="/dataT/anv/logs",
+    log_dir="/dataP/anv/logs",
     log_name="preprocessing",
     main_file_name="preprocess",
     nosave=False,
@@ -34,7 +34,6 @@ def get_lsf(
         f"#BSUB -n {cores}\n"
         f"{f'#BSUB -R rusage[ngpus_excl_p={gpus}]' if gpus != 0 else ''}\n"
         f'#BSUB -R "span[hosts=1]"\n'
-        f"module purge\n"
         f"module load Miniconda3\n"
         f"source activate histocartography\n\n"
         f'#BSUB -J "{log_dir}/{log_name}"\n'
@@ -42,6 +41,7 @@ def get_lsf(
         f'#BSUB -e "{log_dir}/{log_name}.stderr"\n\n'
         f"{extra_line}"
         f'export PYTHONPATH="$PWD/../../:{{$PYTHONPATH}}"\n'
+        f"which python\n"
         f"{'OMP_NUM_THREADS=1 ' if disable_multithreading else ''}"
         f"python {main_file_name}.py "
         f"--config {{PATH}}/{config_name}.yml "
@@ -284,7 +284,7 @@ class PreprocessingExperiment(Experiment):
         self.translator = dict(
             map(
                 self._expand,
-                enumerate(config["pipeline"]["stages"]),
+                list(reversed(list(enumerate(config["pipeline"]["stages"])))),
             )
         )
 
@@ -391,9 +391,7 @@ class CPUPreprocessingExperiment(PreprocessingExperiment):
         super().generate(
             fixed=[
                 Parameter(["params", "cores"], self.cores * 7 if self.gpus == 0 else 1),
-                Parameter(
-                    ["feature_extraction", "params", "num_workers"], 0
-                ),
+                Parameter(["feature_extraction", "params", "num_workers"], 0),
             ]
             + fixed,
             sequential=sequential,
@@ -880,7 +878,10 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"v4_19a9b40d174f40c4b217ddf84eb63e3b_{s}" for s in [300, 600, 900, 1200]],
+                    [
+                        f"v4_19a9b40d174f40c4b217ddf84eb63e3b_{s}"
+                        for s in [300, 600, 900, 1200]
+                    ],
                 ),
             ]
         ],
@@ -960,7 +961,10 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"v5_two_hop_19a9b40d174f40c4b217ddf84eb63e3b_{s}" for s in [300, 600, 900, 1200]],
+                    [
+                        f"v5_two_hop_19a9b40d174f40c4b217ddf84eb63e3b_{s}"
+                        for s in [300, 600, 900, 1200]
+                    ],
                 ),
             ]
         ],
@@ -1041,7 +1045,10 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"v5_three_hop_19a9b40d174f40c4b217ddf84eb63e3b_{s}" for s in [300, 600, 900, 1200]],
+                    [
+                        f"v5_three_hop_19a9b40d174f40c4b217ddf84eb63e3b_{s}"
+                        for s in [300, 600, 900, 1200]
+                    ],
                 ),
             ]
         ],
@@ -1085,45 +1092,335 @@ if __name__ == "__main__":
             ]
         ],
     )
-    CPUPreprocessingExperiment(name="grid_graph", base="config/augmented_preprocess.yml").generate(
-        fixed=[Parameter(
+    CPUPreprocessingExperiment(
+        name="grid_graph", base="config/augmented_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["stain_normalizers", "params", "target"],
                 "ZT111_4_C_7_1",
-            )],
+            )
+        ],
         sequential=[
             [
-                ParameterList(["superpixel", "params", "nr_superpixels"],
-                [300, 800, 60, 200]),
-                ParameterList(["superpixel", "params", "compactness"], [
-                    1000, 1000, 1000, 1000
-                ]),
-                ParameterList(["feature_extraction", "params", "size"], [224, 224, 448, 448]),
+                ParameterList(
+                    ["superpixel", "params", "nr_superpixels"], [300, 800, 60, 200]
+                ),
+                ParameterList(
+                    ["superpixel", "params", "compactness"], [1000, 1000, 1000, 1000]
+                ),
+                ParameterList(
+                    ["feature_extraction", "params", "size"], [224, 224, 448, 448]
+                ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"v6_grid_mobilenet_{s}" for s in ["40x_no_overlap", "40x_overlap", "20x_no_overlap", "40x_overlap"]],
+                    [
+                        f"v6_grid_mobilenet_{s}"
+                        for s in [
+                            "40x_no_overlap",
+                            "40x_overlap",
+                            "20x_no_overlap",
+                            "40x_overlap",
+                        ]
+                    ],
                 ),
             ]
-        ]
+        ],
     )
-    CPUPreprocessingExperiment(name="non_overlapping_graph", base="config/augmented_preprocess.yml").generate(
-        fixed=[Parameter(
+    CPUPreprocessingExperiment(
+        name="non_overlapping_graph", base="config/augmented_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["stain_normalizers", "params", "target"],
                 "ZT111_4_C_7_1",
-            )],
+            )
+        ],
         sequential=[
             [
-                ParameterList(["superpixel", "params", "nr_superpixels"],
-                [700, 400, 250]),
-                ParameterList(["superpixel", "params", "compactness"], [
-                    30, 30, 30
-                ]),
-                ParameterList(["feature_extraction", "params", "size"], [224, 336, 448]),
+                ParameterList(
+                    ["superpixel", "params", "nr_superpixels"], [700, 400, 250]
+                ),
+                ParameterList(["superpixel", "params", "compactness"], [30, 30, 30]),
+                ParameterList(
+                    ["feature_extraction", "params", "size"], [224, 336, 448]
+                ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [f"v6_mobilenet_{s}" for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]],
+                    [
+                        f"v6_mobilenet_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
                 ),
             ]
-        ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        "edge_merged_low_no_overlap", base="config/merged_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.06
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
+                    [30, 30, 30],
+                ),
+                ParameterList(
+                    ["feature_extraction", "params", "size"], [224, 336, 448]
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v8_mobilenet_low_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        "edge_merged_med_no_overlap", base="config/merged_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.1
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
+                    [30, 30, 30],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 4, "feature_extraction", "params", "size"],
+                    [224, 336, 448],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v8_mobilenet_med_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        "edge_merged_high_no_overlap", base="config/merged_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.12
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
+                    [30, 30, 30],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 4, "feature_extraction", "params", "size"],
+                    [224, 336, 448],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v8_mobilenet_high_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        "color_merged_low_no_overlap", base="config/merged_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.01
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "class"],
+                "SpecialSuperpixelMerger",
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
+                    [30, 30, 30],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 4, "feature_extraction", "params", "size"],
+                    [224, 336, 448],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v9_mobilenet_low_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        "color_merged_med_no_overlap", base="config/merged_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.02
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "class"],
+                "SpecialSuperpixelMerger",
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
+                    [30, 30, 30],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 4, "feature_extraction", "params", "size"],
+                    [224, 336, 448],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v9_mobilenet_med_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        "color_merged_high_no_overlap", base="config/merged_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.03
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "class"],
+                "SpecialSuperpixelMerger",
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
+                    [30, 30, 30],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 4, "feature_extraction", "params", "size"],
+                    [224, 336, 448],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v9_mobilenet_high_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        "color_merged_very_high_no_overlap", base="config/merged_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.04
+            ),
+            Parameter(
+                ["pipeline", "stages", 5, "superpixel", "class"],
+                "SpecialSuperpixelMerger",
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
+                    [30, 30, 30],
+                ),
+                ParameterList(
+                    ["pipeline", "stages", 4, "feature_extraction", "params", "size"],
+                    [224, 336, 448],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v9_mobilenet_very_high_{s}"
+                        for s in ["40x_no_overlap", "30x_no_overlap", "20x_no_overlap"]
+                    ],
+                ),
+            ]
+        ],
     )
 
     # ETH
@@ -2235,8 +2532,10 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_mobilenet_600").generate(
         fixed=[
@@ -2248,8 +2547,10 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_mobilenet_900").generate(
         fixed=[
@@ -2261,12 +2562,17 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_pretrained_300").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_300"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_300",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2274,12 +2580,17 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_pretrained_600").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_600"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_600",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2287,12 +2598,17 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_pretrained_900").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_900"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_900",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2300,8 +2616,10 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_mobilenet_deep_300").generate(
         fixed=[
@@ -2337,8 +2655,10 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_mobilenet_deep_600").generate(
         fixed=[
@@ -2374,8 +2694,10 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_mobilenet_deep_900").generate(
         fixed=[
@@ -2411,12 +2733,17 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_pretrained_deep_300").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_300"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_300",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2448,12 +2775,17 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_pretrained_deep_600").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_600"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_600",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2485,12 +2817,17 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v4_pretrained_deep_900").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_900"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v4_19a9b40d174f40c4b217ddf84eb63e3b_900",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2522,8 +2859,10 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v5_mobilenet_deep_300").generate(
         fixed=[
@@ -2559,12 +2898,17 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v5_pretrained_deep_300").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v5_19a9b40d174f40c4b217ddf84eb63e3b_300"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v5_19a9b40d174f40c4b217ddf84eb63e3b_300",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2596,8 +2940,10 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v5_mobilenet_deep_600").generate(
         fixed=[
@@ -2633,12 +2979,17 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v5_pretrained_deep_600").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], "outputs/v5_19a9b40d174f40c4b217ddf84eb63e3b_600"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v5_19a9b40d174f40c4b217ddf84eb63e3b_600",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2670,8 +3021,10 @@ if __name__ == "__main__":
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"])
-        ]
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            )
+        ],
     )
     GraphClassifierExperiment(name="v6_no_overlap").generate(
         fixed=[
@@ -2704,11 +3057,17 @@ if __name__ == "__main__":
                 2,
             ),
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
-            Parameter(["train", "data", "augmentation_mode"], "graph")
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
         ],
         sequential=[
-            ParameterList(["train", "data", "graph_directory"], [f"outputs/v6_mobilenet_{magnification}x_no_overlap" for magnification in [20, 30, 40]])
-        ]
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v6_mobilenet_{magnification}x_no_overlap"
+                    for magnification in [20, 30, 40]
+                ],
+            )
+        ],
     )
     GraphClassifierExperiment(name="v6_grid_graph").generate(
         fixed=[
@@ -2741,15 +3100,24 @@ if __name__ == "__main__":
                 2,
             ),
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
-            Parameter(["train", "data", "augmentation_mode"], "graph")
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
         ],
         sequential=[
-            ParameterList(["train", "data", "graph_directory"], [f"outputs/grid_mobilenet_{i}" for i in ["40x_no_overlap", "40x_overlap", "20x_no_overlap"]])
-        ]
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/grid_mobilenet_{i}"
+                    for i in ["40x_no_overlap", "40x_overlap", "20x_no_overlap"]
+                ],
+            )
+        ],
     )
     GraphClassifierExperiment(name="v6_deep_gnn").generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v6_mobilenet_20x_no_overlap"),
+            Parameter(
+                ["train", "data", "graph_directory"],
+                f"outputs/v6_mobilenet_20x_no_overlap",
+            ),
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
@@ -2775,13 +3143,282 @@ if __name__ == "__main__":
                 2,
             ),
             Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
-            Parameter(["train", "data", "augmentation_mode"], "graph")
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
         ],
         sequential=[
             ParameterList(
                 ["train", "model", "gnn_config", "n_layers"],
                 [6, 8, 10, 12, 14, 16, 18, 20],
             ),
+        ],
+    )
+    GraphClassifierExperiment(name="v6_step_scheduler").generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                f"outputs/v6_mobilenet_20x_no_overlap",
+            ),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "params", "optimizer", "scheduler"],
+                    [None]
+                    + [
+                        {
+                            "class": "StepLR",
+                            "params": {"step_size": step_size, "gamma": gamma},
+                        }
+                        for step_size in [50, 75, 100]
+                        for gamma in [0.5, 0.2, 0.1]
+                    ],
+                )
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="v6_exponential_scheduler").generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                f"outputs/v6_mobilenet_20x_no_overlap",
+            ),
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "params", "optimizer", "scheduler"],
+                    [None]
+                    + [
+                        {"class": "ExponentialLR", "params": {"gamma": gamma}}
+                        for gamma in [0.999, 0.99, 0.95]
+                    ],
+                )
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="multihop").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.99}},
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "data", "graph_directory"],
+                    [
+                        f"outputs/{x}"
+                        for x in [
+                            "v5_three_hop_mobilenet_300",
+                            "v5_two_hop_mobilenet_300",
+                            "v4_mobilenet_300",
+                            "v5_three_hop_mobilenet_600",
+                            "v5_two_hop_mobilenet_600",
+                            "v4_mobilenet_600",
+                        ]
+                    ],
+                )
+            ]
+        ],
+    )
+    GraphClassifierExperiment(name="v9_color_merged").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.99}},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v9_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "40x_no_overlap",
+                        "30x_no_overlap",
+                        "20x_no_overlap",
+                    ]
+                    for level in ["low", "med", "high", "very_high"]
+                ],
+            )
+        ]
+    )
+    GraphClassifierExperiment(name="v8_edge_merged").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.99}},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v8_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "40x_no_overlap",
+                        "30x_no_overlap",
+                        "20x_no_overlap",
+                    ]
+                    for level in ["low", "med", "high"]
+                ],
+            )
         ]
     )
 
@@ -3545,57 +4182,80 @@ if __name__ == "__main__":
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
-            Parameter(["train", "params", "optimizer", "scheduler"], {
-                "class": "MultiStepLR",
-                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
-            })
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "MultiStepLR",
+                    "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+                },
+            ),
         ],
         grid=[
             ParameterList(["train", "data", "drop_multiclass_patches"], [True, False]),
-            ParameterList(["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9])
+            ParameterList(
+                ["train", "data", "drop_tissue_patches"],
+                [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9],
+            ),
         ],
     )
     PretrainingExperiment(name="drop_patches_on_val").generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
-            Parameter(["train", "params", "optimizer", "scheduler"], {
-                "class": "MultiStepLR",
-                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
-            }),
-            Parameter(["train", "data", "drop_validation_patches"], True)
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "MultiStepLR",
+                    "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+                },
+            ),
+            Parameter(["train", "data", "drop_validation_patches"], True),
         ],
         grid=[
             ParameterList(["train", "data", "drop_multiclass_patches"], [True, False]),
-            ParameterList(["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9])
+            ParameterList(
+                ["train", "data", "drop_tissue_patches"],
+                [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9],
+            ),
         ],
     )
     PretrainingExperiment(name="drop_unlabelled").generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
-            Parameter(["train", "params", "optimizer", "scheduler"], {
-                "class": "MultiStepLR",
-                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
-            }),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "MultiStepLR",
+                    "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+                },
+            ),
             Parameter(["train", "data", "drop_unlabelled_patches"], True),
         ],
         grid=[
-            ParameterList(["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9])
+            ParameterList(
+                ["train", "data", "drop_tissue_patches"],
+                [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9],
+            )
         ],
     )
     PretrainingExperiment(name="balanced_batches").generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
-            Parameter(["train", "params", "optimizer", "scheduler"], {
-                "class": "MultiStepLR",
-                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
-            }),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "MultiStepLR",
+                    "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+                },
+            ),
             Parameter(["train", "params", "balanced_batches"], True),
         ],
         grid=[
-            ParameterList(["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45]),
+            ParameterList(
+                ["train", "data", "drop_tissue_patches"], [0.0, 0.15, 0.3, 0.45]
+            ),
             ParameterList(["train", "data", "drop_unlabelled_patches"], [True, False]),
             ParameterList(["train", "data", "drop_multiclass_patches"], [True, False]),
         ],
@@ -3604,18 +4264,23 @@ if __name__ == "__main__":
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
-            Parameter(["train", "params", "optimizer", "scheduler"], {
-                "class": "MultiStepLR",
-                "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
-            }),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "MultiStepLR",
+                    "params": {"milestones": [50, 100, 200, 300], "gamma": 0.2},
+                },
+            ),
             Parameter(["train", "params", "balanced_batches"], True),
             Parameter(["train", "data", "drop_tissue_patches"], 0.15),
             Parameter(["train", "data", "drop_unlabelled_patches"], True),
             Parameter(["train", "data", "drop_multiclass_patches"], False),
         ],
         grid=[
-            ParameterList(["train", "params", "pretrain_epochs"], [None, 3, 5, 10, 17, 25]),
-            ParameterList(["train", "model", "freeze"], [17, 14, 12, 0])
+            ParameterList(
+                ["train", "params", "pretrain_epochs"], [None, 3, 5, 10, 17, 25]
+            ),
+            ParameterList(["train", "model", "freeze"], [17, 14, 12, 0]),
         ],
     )
 
@@ -3675,6 +4340,60 @@ if __name__ == "__main__":
             )
         ],
     )
+    CNNTestingExperiment(name="normal_loader").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/633/{run}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+                    for run in [
+                        "69c7f3f2bf3b4bb6844c8b039496cf84",
+                    ]
+                ],
+            )
+        ],
+        grid=[
+            ParameterList(
+                ["test", "params", "inference_mode"], ["patch_based", "hacky"]
+            )
+        ],
+    )
+    CNNTestingExperiment(name="balanced_loader").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/633/{run}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+                    for run in [
+                        "4097a5e9d82244148f0036ce45cf913a",
+                    ]
+                ],
+            )
+        ],
+        grid=[
+            ParameterList(
+                ["test", "params", "inference_mode"], ["patch_based", "hacky"]
+            )
+        ],
+    )
+    CNNTestingExperiment(name="classifier_pretrain").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/633/{run}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+                    for run in [
+                        "51e964834a214c0cb5761abd233d5277",
+                    ]
+                ],
+            )
+        ],
+        grid=[
+            ParameterList(
+                ["test", "params", "inference_mode"], ["patch_based", "hacky"]
+            )
+        ],
+    )
 
     GNNTestingExperiment(name="gnn_deep").generate(
         sequential=[
@@ -3731,7 +4450,7 @@ if __name__ == "__main__":
                     for run in [
                         "05466db6787b474099b7c3c675929e80",
                         "bbc33034429b423da734ff0e5d5b8c15",
-                        "1ca94f631e8d4cb9b1f45e4030f57c89"
+                        "1ca94f631e8d4cb9b1f45e4030f57c89",
                     ]
                 ],
             )
@@ -3746,7 +4465,7 @@ if __name__ == "__main__":
                     for run in [
                         "8fa60ec176b94c4a8c1bbbf2f3b4b393",
                         "7d6a6336892a4741bf2ef63331b36656",
-                        "8a29f56a30924e43bedae3a998a7cbfd"
+                        "8a29f56a30924e43bedae3a998a7cbfd",
                     ]
                 ],
             )
@@ -3761,6 +4480,33 @@ if __name__ == "__main__":
                     for run in [
                         "f8c2c2772e6c4f7daf717ab792c87560",
                         "2e0990b4560442b78af804816945d5c2",
+                    ]
+                ],
+            )
+        ]
+    )
+    GNNTestingExperiment(name="exponential_lr").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
+                    for run in [
+                        "6ac7eccc11c848738a747270db669584",
+                    ]
+                ],
+            )
+        ]
+    )
+    GNNTestingExperiment(name="one_vs_two_hop_300").generate(
+        sequential=[
+            ParameterList(
+                ["test", "model", "architecture"],
+                [
+                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
+                    for run in [
+                        "d6cf9a9f69d9414c8528bc142b19d364",
+                        "f10989d99f4448ae8b1eb93bff8e2032",
                     ]
                 ],
             )

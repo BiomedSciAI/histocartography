@@ -49,7 +49,7 @@ class BaseDataset(Dataset):
         Args:
             metadata (pd.DataFrame): Metadata dataframe
         """
-        assert not metadata.isna().any().any(), f"Some entries in metadata are NaN"
+        assert not metadata.isna().any().any(), f"Some entries in metadata are NaN: {metadata.isna().any()}"
         assert (
             "width" in metadata and "height" in metadata
         ), f"Metadata lacks image sizes"

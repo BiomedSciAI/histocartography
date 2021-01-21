@@ -22,10 +22,6 @@ class Configuration:
         # Tumor types
         self.tumor_types = ['benign', 'pathologicalbenign', 'udh', 'adh', 'fea', 'dcis', 'malignant']
 
-        # Nuclei types
-        self.nuclei_types = ['NA', 'Normal', 'Atypical', 'Tumor', 'Stromal', 'Lymphocyte', 'Dead']  # nuclei names as per qupath annotation
-        self.nuclei_labels = [-1, 0, 1, 2, 3, 4, 5]
-
         # Select tumor labels and colors
         if args.classification_mode == 2:
             self.tumor_labels = [0, 0, 0, -1, -1, 1, 1]
@@ -59,11 +55,10 @@ class Configuration:
             self.percentages = np.array([args.p])
 
         if args.explainer == '-1':
-            self.explainers = ['GraphGradCAM', 'GraphLRP', 'GraphGradCAMpp', 'GNNExplainer', 'Random']
+            self.explainers = ['GraphLRP', 'GraphGradCAMpp', 'GNNExplainer', 'Random']
             #self.explainers = ['GraphGradCAMpp']
         else:
             self.explainers = [args.explainer]
-
 
         # List of concepts
         self.feature_names = ['mean_fg', 'mean_diff', 'var_fg', 'skew_fg', 'mean_entropy',
@@ -72,13 +67,6 @@ class Configuration:
                               'roundness', 'ellipticity', 'crowdedness', 'mean_h', 'std_h', 'median_h', 'roughness', 'shape_factor',
                               'std_crowdedness', 'glcm_entropy', 'glcm_variance'
                               ]
-
-        # IMPORTANT CONCEPTS:
-        # nuclei type: distribution of nuclei classes, percentage of
-        # nuclei size: area
-        # nuclei shape: roundness, ellipticity
-        # nuclei spatial organization: crowdedness
-        # nuclei chromatin: mean, std, median of H channel
 
     def get_sample_names(self, args, explainers):
         samples = []

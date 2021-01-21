@@ -4,9 +4,10 @@ import warnings
 warnings.warn = warn
 
 import argparse
+import numpy as np
 from config import *
 from explainability import *
-from concept_metrics import ConceptMetric, ConceptRanking
+from concept_metrics import ConceptMetric
 from sklearn.metrics import auc
 from plotting import *
 from histocartography.utils.io import write_json
@@ -63,7 +64,7 @@ parser.add_argument('--distance',
 parser.add_argument('--nuclei-selection-type',
                     help='Nuclei selection type, eg. w/ hard thresholding, w/ cumulutative',
                     choices=['cumul', 'thresh', 'absolute', 'random'],
-                    default='thresh',
+                    default='absolute',
                     required=False)
 parser.add_argument('--rm-non-epithelial-nuclei',
                     help='If we should remove all the non epithelial nuclei.',
@@ -89,7 +90,11 @@ parser.add_argument('--visualize',
                     help='Visualize flag',
                     default='False',
                     required=False)
-
+parser.add_argument('--tumor_type',
+                    help='Explainability method',
+                    choices=['adh', 'benign', 'dcis', 'fea', 'malignant', 'pathologicalbenign', 'udh'],
+                    default='adh',
+                    required=False)
 
 args = parser.parse_args()
 config = Configuration(args=args)
@@ -112,7 +117,7 @@ print('Total #TRoI: ', len(config.samples))
 if eval(args.extract_features):
     from extract_features import *
     extract = ExtractFeatures(config)
-    extract.extract_feature()
+    extract.extract_feature(tumor_types=[args.tumor_type])
     exit()
 
 # *************************************************************************** Get explanation
@@ -129,6 +134,7 @@ for e in explainers:
         score_per_concept_per_percentage_per_pair[concept] = {}
         stats_per_concept_per_percentage_per_tumor_type[concept] = {}
         for p in percentages:
+            # @TODO: create 3 different splits 
             exp = Explainability(
                 args=args,
                 config=config,
@@ -140,17 +146,9 @@ for e in explainers:
             )
             exp.get_explanation()
 
-            # plot nuclei selection on the original image 
-            if args.with_nuclei_selection_plot:
-                plot_nuclei_selection(exp, base_path=args.base_path)
-
             m = ConceptMetric(args=args, config=config, explainer=e, percentage=p, explanation=exp)
-            if concept == 'type':
-                concept_score_per_pair = m.compute_nuclei_score()
-                concept_stats_per_tumor_type = {}
-            else:
-                concept_stats_per_tumor_type = m.compute_tumor_type_stats()
-                concept_score_per_pair = m.compute_concept_score()
+            concept_stats_per_tumor_type = m.compute_tumor_type_stats()
+            concept_score_per_pair = m.compute_concept_score()
             score_per_concept_per_percentage_per_pair[concept][str(p)] = concept_score_per_pair
             stats_per_concept_per_percentage_per_tumor_type[concept][str(p)] = concept_stats_per_tumor_type
 
@@ -165,34 +163,35 @@ for e in explainers:
                 len(exp.labels),
                 ' --concept-score= ',
                 concept_score_per_pair,
-                # ' --stats-tumor-type= ',
-                # concept_stats_per_tumor_type
                 )
 
-            if visualize:
-                #plot_concept_map_per_tumor_type(args, config, e, p, exp)
-                plot_concept_map_per_tumor_class(args, config, e, p, exp)
-        
         # compute AUC over the values of p for a given concept and for each pair of classes 
         all_pairs = [pair for pair, _ in concept_score_per_pair.items()]
         score_per_concept_per_percentage_per_pair[concept]['auc'] = {}
         for pair in all_pairs:  # loop over all the pairs
-            auc_score = auc(percentages,
-                            [score_per_concept_per_percentage_per_pair[concept][str(p)][pair] for p in percentages])
-            score_per_concept_per_percentage_per_pair[concept]['auc'][pair] = auc_score
+            auc_score1 = auc(percentages,
+                            [score_per_concept_per_percentage_per_pair[concept][str(p)][pair][0] for p in percentages])
 
-        # compute average over the values of p for a given concept and for each tumor type 
-        all_tumor_types = [t for t, _ in concept_stats_per_tumor_type.items()]
-        stats_per_concept_per_percentage_per_tumor_type[concept]['avg'] = {}
-        for t in all_tumor_types:  # loop over all the tumor types
-            avg_mean = sum([stats_per_concept_per_percentage_per_tumor_type[concept][str(p)][t]['mean'] for p in percentages]) / len(percentages)
-            avg_std = sum([stats_per_concept_per_percentage_per_tumor_type[concept][str(p)][t]['std'] for p in percentages]) / len(percentages)
-            avg_ratio = sum([stats_per_concept_per_percentage_per_tumor_type[concept][str(p)][t]['ratio'] for p in percentages]) / len(percentages)
-            stats_per_concept_per_percentage_per_tumor_type[concept]['avg'][t] = {
-                'mean': float(np.round(avg_mean, 4)),
-                'std': float(np.round(avg_std, 4)),
-                'ratio': float(np.round(avg_ratio, 4))
-            }
+            auc_score2 = auc(percentages,
+                            [score_per_concept_per_percentage_per_pair[concept][str(p)][pair][1] for p in percentages])
+
+            auc_score3 = auc(percentages,
+                            [score_per_concept_per_percentage_per_pair[concept][str(p)][pair][2] for p in percentages])
+
+            score_per_concept_per_percentage_per_pair[concept]['auc'][pair] = [auc_score1, auc_score2, auc_score3]
+
+        # # compute average over the values of p for a given concept and for each tumor type 
+        # all_tumor_types = [t for t, _ in concept_stats_per_tumor_type.items()]
+        # stats_per_concept_per_percentage_per_tumor_type[concept]['avg'] = {}
+        # for t in all_tumor_types:  # loop over all the tumor types
+        #     avg_mean = sum([stats_per_concept_per_percentage_per_tumor_type[concept][str(p)][t]['mean'] for p in percentages]) / len(percentages)
+        #     avg_std = sum([stats_per_concept_per_percentage_per_tumor_type[concept][str(p)][t]['std'] for p in percentages]) / len(percentages)
+        #     avg_ratio = sum([stats_per_concept_per_percentage_per_tumor_type[concept][str(p)][t]['ratio'] for p in percentages]) / len(percentages)
+        #     stats_per_concept_per_percentage_per_tumor_type[concept]['avg'][t] = {
+        #         'mean': float(np.round(avg_mean, 4)),
+        #         'std': float(np.round(avg_std, 4)),
+        #         'ratio': float(np.round(avg_ratio, 4))
+        #     }
 
     # print & save the scores 
     # for concept_id, (concept_name, concept_val) in enumerate(score_per_concept_per_percentage_per_pair.items()):
@@ -203,21 +202,32 @@ for e in explainers:
     #             print('        - Class pair: {} with distance: {}'.format(pair_name, pair_val))
     #     print('\n\n')
 
+    print('***Split1')
     for concept_id, (concept_name, concept_val) in enumerate(score_per_concept_per_percentage_per_pair.items()):
         # print('*** - Concept: {} | ({}/{})'.format(concept_name, concept_id + 1, len(ALL_CONCEPTS)))
         # print('    *** - Percentage: {} | ({}/{})'.format(p_name, p_id + 1, len(percentages)))
         out = [np.round(pair_val[1], 4) for _, pair_val in enumerate(concept_val['auc'].items())]
-        print(out[0], out[1], out[2])
+        print(out[0][0], out[1][0], out[2][0])
+        # for _, (pair_name, pair_val) in enumerate(p_val.items()):
+        #     print('        - Class pair: {} with distance: {}'.format(pair_name, pair_val))
+
+    print('***Split2')
+    for concept_id, (concept_name, concept_val) in enumerate(score_per_concept_per_percentage_per_pair.items()):
+        # print('*** - Concept: {} | ({}/{})'.format(concept_name, concept_id + 1, len(ALL_CONCEPTS)))
+        # print('    *** - Percentage: {} | ({}/{})'.format(p_name, p_id + 1, len(percentages)))
+        out = [np.round(pair_val[1], 4) for _, pair_val in enumerate(concept_val['auc'].items())]
+        print(out[0][1], out[1][1], out[2][1])
+        # for _, (pair_name, pair_val) in enumerate(p_val.items()):
+        #     print('        - Class pair: {} with distance: {}'.format(pair_name, pair_val))
+
+    print('***Split3')
+    for concept_id, (concept_name, concept_val) in enumerate(score_per_concept_per_percentage_per_pair.items()):
+        # print('*** - Concept: {} | ({}/{})'.format(concept_name, concept_id + 1, len(ALL_CONCEPTS)))
+        # print('    *** - Percentage: {} | ({}/{})'.format(p_name, p_id + 1, len(percentages)))
+        out = [np.round(pair_val[1], 4) for _, pair_val in enumerate(concept_val['auc'].items())]
+        print(out[0][2], out[1][2], out[2][2])
         # for _, (pair_name, pair_val) in enumerate(p_val.items()):
         #     print('        - Class pair: {} with distance: {}'.format(pair_name, pair_val))
 
     write_json(e + '_output_pair.json', score_per_concept_per_percentage_per_pair)
     write_json(e + '_output_tumor_stats.json', stats_per_concept_per_percentage_per_tumor_type)
-
-    # # rank the concepts and checking aggreement with pathologists
-    # concept_ranker = ConceptRanking(score_per_concept_per_percentage_per_pair)
-    # ranking_score_per_pair, aggregated_ranking_score = concept_ranker.rank_concepts(p_to_keep='auc')
-
-# if visualize:
-#     plot_auc_map(args, config, p_concept_scores, title='Concept score vs Percentage: ' + args.concept, filename='concept')
-#     plot_auc_map(args, config, p_nuclei_scores, title='Nuclei score vs Percentage: ' + args.concept, filename='nuclei')

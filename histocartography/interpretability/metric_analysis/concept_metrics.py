@@ -61,9 +61,10 @@ class ConceptMetric:
                 x = input[i]
             else:
                 x = np.vstack((x, input[i]))
+
+        # 1. create the bins (shared across all the splits)
         minm = np.min(x, axis=0)
         maxm = np.max(x, axis=0)
-
         bins = []
         for i in range(len(minm)):
             bins_ = np.array([])
@@ -74,11 +75,16 @@ class ConceptMetric:
                 j += 1
             bins.append(bins_)
 
-        # Create D-dimensional histogram
+        # Create one histogram for each split:
         count = []
-        for i in range(len(input)):
-            H, _ = np.histogramdd(input[i], bins=bins, density=True)
-            count.append(H)
+        for split_id in range(3):  # 3 is the number of splits 
+            for i in range(len(input)):
+                num_samples = len(input[i])
+                from_ = int(num_samples / 3) * split_id
+                to_ = int(num_samples / 3) * (split_id+1)
+                subset = input[i][from_:to_]
+                H, _ = np.histogramdd(subset, bins=bins, density=True)
+                count.append(H)
 
         minm = np.inf
         maxm = -np.inf
@@ -95,6 +101,10 @@ class ConceptMetric:
         return count
 
     def get_distance(self, input, dist):
+        """
+        input is organised as follow:
+        - S1-C0, S1-C1, S1-C2, S2-C0, S2-C1, S2-C2, S3-C0, S3-C1, S3-C2 
+        """
         
         # 1. get all pairs of classes 
         all_pairs = list(itertools.combinations(self.classes, 2))
@@ -102,8 +112,13 @@ class ConceptMetric:
 
         # 2. compute distance for each pair 
         for pair in all_pairs:
-            score = dist.distance(input[pair[0]], input[pair[1]])
-            distance_per_pair[str(pair)] = score
+            scores = []
+            for split_id in range(3):
+                i1 = pair[0] + split_id * 3
+                i2 = pair[1] + split_id * 3
+                score = dist.distance(input[i1], input[i2])
+                scores.append(score)
+            distance_per_pair[str(pair)] = scores
 
         return distance_per_pair
 
@@ -139,14 +154,6 @@ class ConceptMetric:
                 nuclei_ = np.zeros(len(self.config.nuclei_types[1:]))
                 for k in range(nuclei_.size):
                     nuclei_[k] = sum(self.nuclei_labels[i][j] == k)
-                    '''
-                    mask = self.nuclei_labels[i][j] == k
-                    if isinstance(self.nuclei_labels[i][j], np.float64):
-                        nuclei_[k] = mask
-                    else:
-                        nuclei_[k] = sum(mask)
-                    #'''
-
                 if j == 0:
                     nuclei__ = nuclei_ #/ np.sum(nuclei_)
                 else:
@@ -158,83 +165,8 @@ class ConceptMetric:
             histogram = np.sum(nuclei_per_tumor_type, axis=0)
             histogram = histogram / np.sum(histogram)
             histogram_per_tumor_type.append(histogram)
-            # print('Histogram:', i, histogram)
 
-        # # Histogram analysis
-        # all_nuclei_histograms = []
-        # for nuclei_type in range(nuclei[0].shape[1]):  # 0 to 5
-        #     nuclei_type_data = [nuclei[tumor_type][:, nuclei_type, None] for tumor_type in range(len(nuclei))]
-        #     histogram = self.histogram_analysis(nuclei_type_data, step=0.05)
-        #     all_nuclei_histograms.append(histogram)
-        
-        # all_distances_per_pair = [self.get_distance(x, self.nuclei_dist) for x in all_nuclei_histograms]
-        # merged_distance_per_pair = {}
-        # for pair in all_distances_per_pair[0].keys():
-        #     merged_distance_per_pair[pair] = sum([val[pair] for val in all_distances_per_pair])
-    
         distance_per_pair = self.get_distance(histogram_per_tumor_type, self.nuclei_dist) 
             
         return distance_per_pair
 
-
-# concepts are organised as: 'type', 'roundness', 'ellipticity', 'crowdedness', 'std_h', 'area'
-# class pairs are organised as: (0, 1), (0, 2), (1, 2)
-
-PATHOLOGIST_CONCEPT_RANKING = np.array([
-    [0, 0, 0],
-    [1, 1, 1],
-    [2, 2, 2],
-    [3, 3, 3],
-    [4, 4, 4],
-    [5, 5, 5]
-])
-
-
-class ConceptRanking:
-    def __init__(self, score_per_concept_per_percentage_per_pair):
-
-        self.score_per_concept_per_percentage_per_pair = score_per_concept_per_percentage_per_pair
-
-        # extract all concepts
-        self.all_concepts = list(self.score_per_concept_per_percentage_per_pair.keys())
-        self.num_concepts = len(self.all_concepts)
-
-        # extract all percentages (p)
-        self.all_p = list(self.score_per_concept_per_percentage_per_pair[self.all_concepts[0]].keys())
-        self.num_p = len(self.all_p)
-
-        # extract all class pairs 
-        self.all_pairs = list(self.score_per_concept_per_percentage_per_pair[self.all_concepts[0]][self.all_p[0]].keys())
-        self.num_pairs = len(self.all_pairs)
-
-        self._compute_scores_as_matrix()
-
-    def rank_concepts(self, p_to_keep='auc', with_risk=True):
-        scores_to_keep = self.concept_scores[:, self.all_p.index(p_to_keep), :]  # dim: num_concepts x num_pairs
-        scores_ranked = np.argsort(-scores_to_keep, axis=0)  # rank from larger concept value to smallest 
-
-        ranking_score_per_pair = {}
-        for pair_id, pair in enumerate(self.all_pairs):
-            ranking_score_per_pair[pair] = stats.spearmanr(scores_ranked[:, pair_id], PATHOLOGIST_CONCEPT_RANKING[:, pair_id])[0]
-            # print('Pair:', pair, ' | Ranking are:', scores_ranked[:, pair_id], ' and ', PATHOLOGIST_CONCEPT_RANKING[:, pair_id])
-            # print('With correlation:', ranking_score_per_pair[pair])
-
-        if with_risk:
-            risk = self.get_risk_per_pair()
-        else:
-            risk = [1] * self.num_pairs
-
-        aggregated_ranking_score = sum([val * risk[id] for id, (_, val) in enumerate(ranking_score_per_pair.items())]) / self.num_pairs
-
-        return ranking_score_per_pair, aggregated_ranking_score
-
-    def get_risk_per_pair(self):
-        risk_per_pair = [np.abs(pair[1] - pair[0]) for pair in self.all_pairs]
-        return risk_per_pair
-
-    def _compute_scores_as_matrix(self):
-        self.concept_scores = np.zeros((self.num_concepts, self.num_p, self.num_pairs))
-        for concept_id, (_, concept_val) in enumerate(self.score_per_concept_per_percentage_per_pair.items()):
-            for p_id, (_, p_val) in enumerate(concept_val.items()):
-                for pair_id, (_, pair_val) in enumerate(p_val.items()):
-                    self.concept_scores[concept_id, p_id, pair_id] = pair_val

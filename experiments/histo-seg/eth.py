@@ -13,6 +13,7 @@ import torch
 from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
+from tqdm.auto import tqdm
 
 from dataset import (
     AugmentedGraphClassificationDataset,
@@ -21,12 +22,12 @@ from dataset import (
     PatchClassificationDataset,
 )
 from logging_helper import log_preprocessing_parameters
-from utils import merge_metadata
+from utils import find_superpath, merge_metadata
 
 with os.popen("hostname") as subprocess:
     hostname = subprocess.read()
 if hostname.startswith("zhcc"):
-    BASE_PATH = Path("/dataT/anv/Data/ETH")
+    BASE_PATH = Path("/dataP/anv/data/ETH")
 elif hostname.startswith("Gerbil"):
     BASE_PATH = Path("/Users/anv/Documents/ETH")
 else:
@@ -75,8 +76,8 @@ def generate_image_folder_structure(delete: bool = False) -> None:
     # Copy images
     if not TMA_IMAGE_PATH.exists():
         TMA_IMAGE_PATH.mkdir()
-    for images_folder in filter(
-        lambda x: x.name.startswith(IMAGE_PREFIX), BASE_PATH.iterdir()
+    for images_folder in tqdm(
+        list(filter(lambda x: x.name.startswith(IMAGE_PREFIX), BASE_PATH.iterdir())), desc="Copy images"
     ):
         for image_path in images_folder.iterdir():
             shutil.copy(image_path, TMA_IMAGE_PATH)
@@ -87,9 +88,11 @@ def generate_image_folder_structure(delete: bool = False) -> None:
 def generate_images_meta_df() -> None:
     """Generate the images metadata data frame and save it to IMAGES_DF"""
     df = list()
-    for image_path in TMA_IMAGE_PATH.iterdir():
+    for image_path in tqdm(TMA_IMAGE_PATH.iterdir(), desc="DF images"):
         # Handle OSX madness
         if image_path.name == ".DS_Store":
+            continue
+        if image_path.is_dir():
             continue
         slide = image_path.name.split("_")[0]
         slide = int(slide[len(IMAGE_PREFIX) :])
@@ -127,11 +130,11 @@ def generate_mask_folder_structure(delete: bool = False) -> None:
     if not TEST_ANNOTATION_PATH.exists():
         TEST_ANNOTATION_PATH.mkdir()
 
-    for _, new_pathologist_path in TEST_ANNOTATIONS_PATHS:
+    for pathologist, new_pathologist_path in TEST_ANNOTATIONS_PATHS:
         old_pathologist_path = BASE_PATH / new_pathologist_path.name
         if not new_pathologist_path.exists():
             new_pathologist_path.mkdir()
-        for file in old_pathologist_path.iterdir():
+        for file in tqdm(old_pathologist_path.iterdir(), f"Masks pathologist {pathologist}"):
             shutil.copy(file, new_pathologist_path)
         if delete:
             shutil.rmtree(old_pathologist_path)
@@ -143,12 +146,16 @@ def generate_annotations_meta_df() -> None:
     for file in (TRAIN_ANNOTATION_PATH).iterdir():
         if file.name == ".DS_Store":
             continue
+        if file.is_dir():
+            continue
         name = file.name.split(".")[0].split(MASK_PREFIX)[1]
         df.append((name, file, 1, "train"))
 
     for pathologist, pathologist_path in TEST_ANNOTATIONS_PATHS:
-        for file in pathologist_path.iterdir():
+        for file in tqdm(pathologist_path.iterdir(), desc=f"DF Masks pathologist {pathologist}"):
             if file.name == ".DS_Store":
+                continue
+            if file.is_dir():
                 continue
             name = file.name.split(".")[0].split(
                 MASK_PREFIX[:-1] + str(pathologist) + MASK_PREFIX[-1]
@@ -190,18 +197,17 @@ def prepare_graph_datasets(
 
     graph_directory = PREPROCESS_PATH / graph_directory
     log_preprocessing_parameters(graph_directory)
+    tissue_mask_directory = (
+        find_superpath(graph_directory, tissue_mask_directory)
+        if tissue_mask_directory is not None
+        else None
+    )
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
         superpixel_directory=graph_directory / ".." / "..",
-        tissue_mask_directory=graph_directory
-        / ".."
-        / ".."
-        / ".."
-        / tissue_mask_directory
-        if tissue_mask_directory is not None
-        else None,
+        tissue_mask_directory=tissue_mask_directory,
         add_image_sizes=True,
     )
     if train_fraction is not None:

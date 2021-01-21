@@ -16,6 +16,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import time
 import torch
 import yaml
 from PIL import Image
@@ -336,6 +337,95 @@ def get_segmentation_map(node_logits, superpixels, node_associations, NR_CLASSES
         segmentation_maps[i] = np.stack(all_maps).sum(axis=0)
         start += end
     return segmentation_maps
+
+
+def find_superpath(path: Path, name: str) -> Path:
+    assert Path(path).exists(), f"Path does not exist: {path}"
+    if path.name == name:
+        return Path(path).resolve()
+    if (path / name).exists():
+        return (path / name).resolve()
+    elif path.name == "":
+        exit(1)
+    else:
+        return find_superpath(Path(path).resolve().parent, name)
+
+
+def slow_two_hop_neighborhood(graph):
+    new_graph = graph.subgraph(graph.nodes())
+    new_graph.readonly(False)
+    for node in graph.nodes():
+        for succ in graph.successors(node):
+            for s in graph.successors(succ):
+                if s != node and not new_graph.has_edge_between(node, s):
+                    new_graph.add_edge(node, s)
+                    new_graph.add_edge(s, node)
+    new_graph.copy_from_parent()
+    return new_graph
+
+
+def two_hop_neighborhood(graph):
+    A = graph.adjacency_matrix().to_dense()
+    A_tilde = (1.0 * ((A + A.matmul(A)) >= 1)) - torch.eye(A.shape[0])
+    ngraph = nx.convert_matrix.from_numpy_matrix(A_tilde.numpy())
+    new_graph = dgl.DGLGraph()
+    new_graph.from_networkx(ngraph)
+    for k, v in graph.ndata.items():
+        new_graph.ndata[k] = v
+    for k, v in graph.edata.items():
+        new_graph.edata[k] = v
+    return new_graph
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+        return result
+    return timed
+
+
+def plot_confusion_matrix(cm, classes, figname=None, normalize=False, title=None, cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    (This function is copied from the scikit docs.)
+    """
+    plt.figure(figsize=(7,7))
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45, fontsize=18)
+    plt.yticks(tick_marks, classes, fontsize=18)
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    print(cm)
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        if normalize:
+            plt.text(j, i, '%.2f' % cm[i, j], horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black",
+                     fontsize=16)
+        else:
+            plt.text(j, i, cm[i, j], horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black",
+                     fontsize=16)
+    plt.tight_layout()
+    #plt.ylabel('True label', fontsize=20)
+    #plt.xlabel('Predicted label', fontsize=20)
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    if title is not None:
+        plt.title(title)
+    # plt.colorbar()
+    if figname is None:
+        plt.show()
+    else:
+        plt.savefig(figname)
+        plt.close()
 
 
 class SuperpixelVisualizer:

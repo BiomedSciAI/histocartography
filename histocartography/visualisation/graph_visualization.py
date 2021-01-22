@@ -115,12 +115,18 @@ class GraphVisualization(PipelineStep):
         
         if instance_map is not None:
             instance_map = instance_map.squeeze()
+            instance_ids = list(np.unique(instance_map))
             mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
-            alpha = ((instance_map != 0) * 255).astype(np.uint8).squeeze()
+            alpha = np.zeros(instance_map.shape)
+            for instance_id in instance_ids:
+                alpha += ((instance_map == instance_id) * 255).astype(np.uint8).squeeze()
+                alpha = Image.fromarray(alpha).convert('L')
+                # alpha = alpha.filter(ImageFilter.MinFilter(21))
+                alpha = alpha.filter(ImageFilter.FIND_EDGES)
+                alpha = np.array(alpha)
             alpha = Image.fromarray(alpha).convert('L')
-            # alpha = alpha.filter(ImageFilter.MinFilter(21))
-            alpha = alpha.filter(ImageFilter.FIND_EDGES)
             mask.putalpha(alpha)
+            mask.save('../data/test.png')
             canvas.paste(mask, (0, 0), mask)
         
         return canvas

@@ -4,14 +4,19 @@ import numpy as np
 import cv2 
 import torch 
 import yaml
+import os 
 from dgl.data.utils import save_graphs
 
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.feature_extraction import DeepFeatureExtractor, FeatureMerger
 from histocartography.preprocessing.graph_builders import RAGGraphBuilder
-from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor, SpecialSuperpixelMerger
+from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor, SpecialSuperpixelMerger, EdgeSuperpixelMerger
 from histocartography.visualisation.graph_visualization import GraphVisualization
 from histocartography.utils.io import load_image
+
+BASE_N_SEGMENTS = 1000
+BASE_N_PIXELS = 100000
+MAX_N_SEGMENTS = 10000
 
 
 class TissueGraphBuildingTestCase(unittest.TestCase):
@@ -26,51 +31,62 @@ class TissueGraphBuildingTestCase(unittest.TestCase):
         """
 
         # 1. load an image
-        image = np.array(load_image('../data/1607_adh_10.png'))
+        base_path = '../data'
+        image_name = '1238_adh_10.png'
+        image = np.array(load_image(os.path.join(base_path, image_name)))
 
         # 2. super pixel detection 
-        superpixel_detector = SLICSuperpixelExtractor(nr_superpixels=200, downsampling_factor=4)
+        nr_superpixels = min(int(BASE_N_SEGMENTS * (image.shape[0] * image.shape[1]/BASE_N_PIXELS)), MAX_N_SEGMENTS)
+        nr_superpixels = 200
+        superpixel_detector = SLICSuperpixelExtractor(
+            nr_superpixels=nr_superpixels,
+            downsampling_factor=2,
+            compactness=20,
+            blur_kernel_size=1
+        )
         superpixels = superpixel_detector.process(image)
 
         # 3. super pixel feature extraction 
-        feature_extractor = DeepFeatureExtractor(architecture='resnet34')
+        feature_extractor = DeepFeatureExtractor(architecture='resnet34', size=96)
         features = feature_extractor.process(image, superpixels)
 
         # 4. super pixel merging 
-        superpixel_merger = SpecialSuperpixelMerger(downsampling_factor=8)
+        superpixel_merger = SpecialSuperpixelMerger(downsampling_factor=2, threshold=0.01)
         merged_superpixels = superpixel_merger.process(image, superpixels)
 
         # 5. super pixel feature merging
-        feature_merger = FeatureMerger(downsampling_factor=8)
+        feature_merger = FeatureMerger(downsampling_factor=2)
         merged_features = feature_merger.process(superpixels, merged_superpixels, features)
 
-        # 4. build the tissue graph
+        # 6. build the tissue graph
         tissue_graph_builder = RAGGraphBuilder()
         tissue_graph = tissue_graph_builder.process(
             structure=merged_superpixels,
             features=merged_features,
         )
 
-        # 5. print graph properties
+        # 7. print graph properties
         print('Number of nodes:', tissue_graph.number_of_nodes())
         print('Number of edges:', tissue_graph.number_of_edges())
         print('Node features:', tissue_graph.ndata['feat'].shape)
         print('Node centroids:', tissue_graph.ndata['centroid'].shape)
 
-        # 6. save DGL graph
-        save_graphs("../data/1607_adh_10_tg.bin", [tissue_graph], labels={"glabel": torch.tensor([1])})
+        # 8. save DGL graph
+        tg_fname = image_name.replace('.png', '_tg.bin')
+        save_graphs(os.path.join(base_path, tg_fname), [tissue_graph], labels={"glabel": torch.tensor([0])})
 
-        # 7. visualize the graph 
+        # 9. visualize the graph 
         visualiser = GraphVisualization(
             show_centroid=True,
-            show_edges=True
+            show_edges=False
         )
         out = visualiser.process(
             image=image,
             graph=tissue_graph,
             instance_map=merged_superpixels
-            )
-        out.save('../data/1607_adh_10_tg_viz.png')
+        )
+        tg_fname = image_name.replace('.png', '_tg.png')
+        out.save(os.path.join(base_path, tg_fname))
 
     def tearDown(self):
         """Tear down the tests."""

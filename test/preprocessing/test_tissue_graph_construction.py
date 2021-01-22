@@ -8,9 +8,9 @@ import os
 from dgl.data.utils import save_graphs
 
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
-from histocartography.preprocessing.feature_extraction import DeepFeatureExtractor, FeatureMerger
+from histocartography.preprocessing.feature_extraction import AverageFeatureMerger, DeepFeatureExtractor
 from histocartography.preprocessing.graph_builders import RAGGraphBuilder
-from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor, SpecialSuperpixelMerger, EdgeSuperpixelMerger
+from histocartography.preprocessing.superpixel import ColorMergedSuperpixelExtractor
 from histocartography.visualisation.graph_visualization import GraphVisualization
 from histocartography.utils.io import load_image
 
@@ -37,45 +37,42 @@ class TissueGraphBuildingTestCase(unittest.TestCase):
 
         # 2. super pixel detection 
         nr_superpixels = min(int(BASE_N_SEGMENTS * (image.shape[0] * image.shape[1]/BASE_N_PIXELS)), MAX_N_SEGMENTS)
+        print('PUS number of super pixels:', nr_superpixels)
         nr_superpixels = 200
-        superpixel_detector = SLICSuperpixelExtractor(
+        superpixel_detector = ColorMergedSuperpixelExtractor(
             nr_superpixels=nr_superpixels,
-            downsampling_factor=2,
+            downsampling_factor=8,
             compactness=20,
             blur_kernel_size=1
         )
-        superpixels = superpixel_detector.process(image)
+        merged_superpixels, superpixels, mapping = superpixel_detector.process(image)
 
         # 3. super pixel feature extraction 
         feature_extractor = DeepFeatureExtractor(architecture='resnet34', size=96)
         features = feature_extractor.process(image, superpixels)
 
-        # 4. super pixel merging 
-        superpixel_merger = SpecialSuperpixelMerger(downsampling_factor=2, threshold=0.01)
-        merged_superpixels = superpixel_merger.process(image, superpixels)
+        # 4. super pixel feature merging
+        feature_merger = AverageFeatureMerger()
+        merged_features = feature_merger.process(features, mapping)
 
-        # 5. super pixel feature merging
-        feature_merger = FeatureMerger(downsampling_factor=2)
-        merged_features = feature_merger.process(superpixels, merged_superpixels, features)
-
-        # 6. build the tissue graph
+        # 5. build the tissue graph
         tissue_graph_builder = RAGGraphBuilder()
         tissue_graph = tissue_graph_builder.process(
             structure=merged_superpixels,
             features=merged_features,
         )
 
-        # 7. print graph properties
+        # 6. print graph properties
         print('Number of nodes:', tissue_graph.number_of_nodes())
         print('Number of edges:', tissue_graph.number_of_edges())
         print('Node features:', tissue_graph.ndata['feat'].shape)
         print('Node centroids:', tissue_graph.ndata['centroid'].shape)
 
-        # 8. save DGL graph
+        # 7. save DGL graph
         tg_fname = image_name.replace('.png', '_tg.bin')
         save_graphs(os.path.join(base_path, tg_fname), [tissue_graph], labels={"glabel": torch.tensor([0])})
 
-        # 9. visualize the graph 
+        # 8. visualize the graph 
         visualiser = GraphVisualization(
             show_centroid=True,
             show_edges=False

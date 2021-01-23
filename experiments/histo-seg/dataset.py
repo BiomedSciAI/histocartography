@@ -174,16 +174,17 @@ class ImageDatapoint:
 
 class BaseDataset(Dataset):
     def __init__(
-        self, metadata, num_classes, background_index, return_names: bool = False
+        self,
+        metadata,
+        num_classes,
+        background_index,
     ) -> None:
         self._check_metadata(metadata)
         self.metadata = metadata
         self.image_sizes = self._load_image_sizes(metadata)
         self.num_classes = num_classes
         self.background_index = background_index
-        self.return_names = return_names
-        if return_names:
-            self.names = np.array(metadata.index.tolist())
+        self.names = np.array(metadata.index.tolist())
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -273,7 +274,6 @@ class GraphClassificationDataset(BaseDataset):
         std: Optional[torch.Tensor] = None,
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
-        return_names: bool = False,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -283,7 +283,7 @@ class GraphClassificationDataset(BaseDataset):
         assert (
             "graph_path" in metadata
         ), f"Metadata lacks graph path ({metadata.columns})"
-        super().__init__(metadata, num_classes, background_index, return_names)
+        super().__init__(metadata, num_classes, background_index)
         self.patch_size = patch_size
         self.mean = mean
         self.std = std
@@ -469,7 +469,7 @@ class GraphClassificationDataset(BaseDataset):
             graph=graph,
             graph_label=self.graph_labels[index],
             node_labels=node_labels,
-            name=self.names[index] if self.return_names else None,
+            name=self.names[index],
             instance_map=self.superpixels[index]
             if self.return_segmentation_info
             else None,
@@ -715,17 +715,16 @@ class ImageDataset(BaseDataset):
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         image = self.images[index].permute(2, 0, 1).to(torch.float32) / 255
         normalized_image = self.normalizer(image)
-        annotation = self.annotations[index]
 
-        return_elements = list()
-        if self.return_names:
-            return_elements.append(self.names[index])
-        return_elements.append(normalized_image)
-        return_elements.append(annotation)
-        return_elements.append(self.tissue_masks[index])
-        if self.additional_annotation:
-            return_elements.append(self.annotations2[index])
-        return tuple(return_elements)
+        return ImageDatapoint(
+            image=normalized_image,
+            segmentation_mask=self.annotations[index],
+            tissue_mask=self.tissue_masks[index],
+            name=self.names[index],
+            additional_segmentation_mask=self.annotations2[index]
+            if self.additional_annotation
+            else None,
+        )
 
     def __len__(self) -> int:
         return len(self.images)

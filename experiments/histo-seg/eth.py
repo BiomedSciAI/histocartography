@@ -77,7 +77,8 @@ def generate_image_folder_structure(delete: bool = False) -> None:
     if not TMA_IMAGE_PATH.exists():
         TMA_IMAGE_PATH.mkdir()
     for images_folder in tqdm(
-        list(filter(lambda x: x.name.startswith(IMAGE_PREFIX), BASE_PATH.iterdir())), desc="Copy images"
+        list(filter(lambda x: x.name.startswith(IMAGE_PREFIX), BASE_PATH.iterdir())),
+        desc="Copy images",
     ):
         for image_path in images_folder.iterdir():
             shutil.copy(image_path, TMA_IMAGE_PATH)
@@ -134,7 +135,9 @@ def generate_mask_folder_structure(delete: bool = False) -> None:
         old_pathologist_path = BASE_PATH / new_pathologist_path.name
         if not new_pathologist_path.exists():
             new_pathologist_path.mkdir()
-        for file in tqdm(old_pathologist_path.iterdir(), f"Masks pathologist {pathologist}"):
+        for file in tqdm(
+            old_pathologist_path.iterdir(), f"Masks pathologist {pathologist}"
+        ):
             shutil.copy(file, new_pathologist_path)
         if delete:
             shutil.rmtree(old_pathologist_path)
@@ -152,7 +155,9 @@ def generate_annotations_meta_df() -> None:
         df.append((name, file, 1, "train"))
 
     for pathologist, pathologist_path in TEST_ANNOTATIONS_PATHS:
-        for file in tqdm(pathologist_path.iterdir(), desc=f"DF Masks pathologist {pathologist}"):
+        for file in tqdm(
+            pathologist_path.iterdir(), desc=f"DF Masks pathologist {pathologist}"
+        ):
             if file.name == ".DS_Store":
                 continue
             if file.is_dir():
@@ -486,7 +491,6 @@ def prepare_patch_testset(
     return ImageDataset(
         metadata=test_metadata,
         num_classes=NR_CLASSES,
-        return_names=True,
         background_index=BACKGROUND_CLASS,
         mean=mean,
         std=std,

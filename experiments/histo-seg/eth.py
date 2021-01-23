@@ -8,8 +8,10 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
+from histocartography.preprocessing.utils import fast_histogram
 from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
@@ -22,7 +24,7 @@ from dataset import (
     PatchClassificationDataset,
 )
 from logging_helper import log_preprocessing_parameters
-from utils import find_superpath, merge_metadata
+from utils import find_superpath, merge_metadata, read_image
 
 with os.popen("hostname") as subprocess:
     hostname = subprocess.read()
@@ -53,6 +55,8 @@ TEST_PATHOLOGISTS = [1, 2]
 TEST_ANNOTATIONS_PATHS = [
     (i, TEST_ANNOTATION_PATH / f"{TEST_ANNOTATION}{i}") for i in TEST_PATHOLOGISTS
 ]
+TRAIN_IMAGE_LEVEL_ANNOTATIONS = BASE_PATH / "image_level_train.csv"
+TEST_IMAGE_LEVEL_ANNOTATIONS = BASE_PATH / "image_level_test.csv"
 
 PREPROCESS_PATH = BASE_PATH / "preprocess"
 DATASET_PATH = BASE_PATH / "datasets"
@@ -168,6 +172,96 @@ def generate_annotations_meta_df() -> None:
             df.append((name, file, pathologist, "test"))
     df = pd.DataFrame(df, columns=["name", "path", "pathologist", "use"])
     df.to_pickle(ANNOTATIONS_DF)
+
+
+def generate_labels() -> None:
+    def to_onehot_with_ignore(input_vector) -> torch.Tensor:
+        input_vector = torch.Tensor(input_vector.astype(np.int64)).to(torch.int64)
+        one_hot_vector = torch.nn.functional.one_hot(
+            input_vector, num_classes=NR_CLASSES + 1
+        )
+        clean_one_hot_vector = torch.cat(
+            [
+                one_hot_vector[:, 0:BACKGROUND_CLASS],
+                one_hot_vector[:, BACKGROUND_CLASS + 1 :],
+            ],
+            dim=1,
+        )
+        return clean_one_hot_vector.sum(dim=0)
+
+    def gleason_grade(labels):
+        b, g3, g4, g5 = labels
+        if g3 + g4 + g5 == 0:
+            return "benign"
+        else:
+            if g3 == 1 and g4 == 0 and g5 == 0:
+                return "grade6"
+            elif g3 == 1 and g4 == 1 and g5 == 0:
+                return "grade7"
+            elif g3 == 0 and g4 == 1 and g5 == 0:
+                return "grade8"
+            elif g3 == 0 and g4 == 1 and g5 == 1:
+                return "grade9"
+            elif g3 == 0 and g4 == 0 and g5 == 1:
+                return "grade10"
+            elif g5 == 1 and g4 == 1:
+                return "grade9"
+            elif g5 == 1 and g4 == 0 and g3 == 1:
+                print(f"Weird grade: {labels}")
+                return "grade8"
+            else:
+                print(f"Weird grade: {labels}")
+                return "grade7"
+
+    def read_image_level_csv(path):
+        df = pd.read_csv(path)
+        df = df.replace(to_replace=np.nan, value=0.0)
+        for column in ["benign", "grade3", "grade4", "grade5"]:
+            df[column] = df[column].apply(int)
+        return df
+
+    def read_image_level_annotations(
+        train=TRAIN_IMAGE_LEVEL_ANNOTATIONS, test=TEST_IMAGE_LEVEL_ANNOTATIONS
+    ):
+        train_df = read_image_level_csv(train)
+        train_df["use"] = "train"
+        test_df = read_image_level_csv(test)
+        test_df["use"] = "test"
+        df = train_df.append(test_df, ignore_index=True)
+        df["pathologist"] = 3
+        df = df.rename(columns={"image_name": "name"})
+        return df
+
+    def add_gleason_score(df):
+        grades = list()
+        for _, row in df.iterrows():
+            grades.append(
+                gleason_grade(
+                    (row["benign"], row["grade3"], row["grade4"], row["grade5"])
+                )
+            )
+        df["gleason_grade"] = grades
+        return df
+
+    image_df = pd.read_pickle(ANNOTATIONS_DF)
+    image_level_df = list()
+    for _, row in tqdm(image_df.iterrows(), total=len(image_df)):
+        annotation = read_image(row["path"])
+        labels = np.where(fast_histogram(annotation, NR_CLASSES))[0]
+        labels = to_onehot_with_ignore(labels)
+        labels = tuple(labels.tolist())
+        image_level_df.append((row["name"], row["pathologist"], row["use"]) + labels)
+    image_level_df = pd.DataFrame(
+        image_level_df,
+        columns=["name", "pathologist", "use", "benign", "grade3", "grade4", "grade5"],
+    )
+    original_df = add_gleason_score(image_level_df)
+
+    additional_df = read_image_level_annotations()
+    additional_df = add_gleason_score(additional_df)
+
+    combined_df = original_df.append(additional_df, ignore_index=True)
+    combined_df.to_pickle(BASE_PATH / "image_level_annotations.pickle")
 
 
 def prepare_graph_datasets(
@@ -552,7 +646,7 @@ def show_segmentation_masks(output, annotation=None, annotation2=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["cleanup"], default="cleanup")
+    parser.add_argument("command", choices=["cleanup", "labels"], default="cleanup")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -566,3 +660,5 @@ if __name__ == "__main__":
         generate_images_meta_df()
         generate_mask_folder_structure(delete=True)
         generate_annotations_meta_df()
+    elif args.command == "labels":
+        generate_labels()

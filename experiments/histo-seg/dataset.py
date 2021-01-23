@@ -166,10 +166,17 @@ def collate_graphs(samples: List[GraphDatapoint]) -> GraphBatch:
 @dataclass
 class ImageDatapoint:
     image: torch.Tensor
-    segmentation_mask: Optional[np.ndarray]
-    tissue_mask: Optional[np.ndarray]
-    additional_segmentation_mask: Optional[np.ndarray]
-    name: Optional[str]
+    segmentation_mask: Optional[np.ndarray] = None
+    tissue_mask: Optional[np.ndarray] = None
+    additional_segmentation_mask: Optional[np.ndarray] = None
+    name: Optional[str] = None
+
+    @property
+    def has_multiple_annotations(self):
+        return (
+            self.segmentation_mask is not None
+            and self.additional_segmentation_mask is not None
+        )
 
 
 class BaseDataset(Dataset):

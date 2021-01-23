@@ -129,6 +129,8 @@ def test_cnn(
 
     image_datapoint: ImageDatapoint
     for i, image_datapoint in enumerate(tqdm(test_dataset)):
+        assert image_datapoint.has_multiple_annotations, f"Datapoint does not have multiple annotations: {image_datapoint}"
+
         time_before = datetime.datetime.now()
         predicted_mask = inferencer.predict(image_datapoint.image, operation=operation)
 

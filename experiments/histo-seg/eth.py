@@ -304,18 +304,18 @@ def prepare_graph_testset(
     pathologist2_metadata = pathologist2_metadata.rename(
         columns={"path": "annotation2_path"}
     )
+    log_preprocessing_parameters(graph_directory)
+    tissue_mask_directory = (
+        find_superpath(graph_directory, tissue_mask_directory)
+        if tissue_mask_directory is not None
+        else None
+    )
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
         superpixel_directory=graph_directory / ".." / "..",
-        tissue_mask_directory=graph_directory
-        / ".."
-        / ".."
-        / ".."
-        / tissue_mask_directory
-        if tissue_mask_directory is not None
-        else None,
+        tissue_mask_directory=tissue_mask_directory,
         add_image_sizes=True,
     )
     test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]

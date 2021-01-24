@@ -149,7 +149,7 @@ class NucleiExtractor(PipelineStep):
     def precompute(self, final_path) -> None:
         """Precompute all necessary information"""
         if self.base_path is not None:
-            self._link_to_path(Path(final_path) / "instance_maps")
+            self._link_to_path(Path(final_path) / "nuclei_maps")
 
 
 class ImageToPatchDataset(Dataset):

@@ -552,11 +552,18 @@ class AugmentedInstanceMapPatchDataset(InstanceMapPatchDataset):
         image: np.ndarray,
         instance_map: np.ndarray,
         size: int,
+        downsample_factor: int,
         fill_value: Optional[int],
         mean: Optional[List[float]],
         std: Optional[List[float]],
     ) -> None:
-        super().__init__(image, instance_map, size, fill_value)
+        super().__init__(
+            image,
+            instance_map,
+            size=size,
+            downsample_factor=downsample_factor,
+            fill_value=fill_value,
+        )
         self.mean = mean
         self.std = std
 
@@ -624,10 +631,11 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
         image_dataset = AugmentedInstanceMapPatchDataset(
             input_image,
             instance_map,
-            self.size,
-            self.fill_value,
-            self.normalizer_mean,
-            self.normalizer_std,
+            size=self.size,
+            downsample_factor=self.downsample_factor,
+            fill_value=self.fill_value,
+            mean=self.normalizer_mean,
+            std=self.normalizer_std,
         )
         image_loader = DataLoader(
             image_dataset,

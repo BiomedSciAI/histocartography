@@ -2,13 +2,15 @@
 
 import logging
 import math
-from pathlib import Path
 import warnings
 from abc import abstractmethod
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict
 
 import cv2
+import h5py
+import joblib
 import numpy as np
 from skimage import color, filters
 from skimage.color.colorconv import rgb2hed
@@ -592,6 +594,38 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             )
             logging.debug("Upsampled to %s", merged_superpixles.shape)
         return merged_superpixles, initial_superpixels, mapping
+
+    def process_and_save(self, output_name: str, *args, **kwargs: Any) -> Any:
+        """Process and save in the provided path as as .h5 file
+
+        Args:
+            output_name (str): Name of output file
+        """
+        assert (
+            self.base_path is not None
+        ), "Can only save intermediate output if base_path was not None when constructing the object"
+        superpixel_output_path = self.output_dir / f"{output_name}.h5"
+        mapping_output_path = self.output_dir / f"{output_name}.joblib"
+        if superpixel_output_path.exists() and mapping_output_path.exists():
+            logging.info(
+                f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
+            )
+            with h5py.File(superpixel_output_path, "r") as input_file:
+                merged_superpixels, initial_superpixels = self._get_outputs(
+                    input_file=input_file
+                )
+            mapping = joblib.load(mapping_output_path)
+        else:
+            merged_superpixels, initial_superpixels, mapping = self.process(
+                *args, **kwargs
+            )
+            with h5py.File(superpixel_output_path, "w") as output_file:
+                self._set_outputs(
+                    output_file=output_file,
+                    outputs=(merged_superpixels, initial_superpixels),
+                )
+            joblib.dump(mapping, mapping_output_path)
+        return merged_superpixels, initial_superpixels, mapping
 
 
 class EdgeMergedSuperpixelExtractor(MergedSuperpixelExtractor):

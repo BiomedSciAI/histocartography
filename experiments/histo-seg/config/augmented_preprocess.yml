@@ -68,6 +68,7 @@ pipeline:
               - 0.225
           mask: False
           size: 224
+          downsample_factor: 1
     - io:
         class: ImageLoader
         inputs:

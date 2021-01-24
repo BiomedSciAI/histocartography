@@ -208,6 +208,7 @@ class InstanceMapPatchDataset(Dataset):
         image: np.ndarray,
         instance_map: np.ndarray,
         size: int,
+        downsample_factor: int,
         fill_value: Optional[int],
         mean: Optional[List[float]] = None,
         std: Optional[List[float]] = None,
@@ -227,13 +228,13 @@ class InstanceMapPatchDataset(Dataset):
         self.instance_map = instance_map
         self.properties = regionprops(instance_map)
         basic_transforms = [
-            transforms.Resize(224),
+            transforms.Resize(size),
             transforms.ToTensor(),
         ]
         if mean is not None and std is not None:
             basic_transforms.append(transforms.Normalize(mean, std))
         self.dataset_transform = transforms.Compose(basic_transforms)
-        self.patch_size = (size, size, 3)
+        self.patch_size = (size * downsample_factor, size * downsample_factor, 3)
         self.fill_value = fill_value
 
     def _get_instance_patch(self, region_property: _RegionProperties) -> np.ndarray:
@@ -444,6 +445,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         architecture: str,
         mask: bool = False,
         size: int = 224,
+        downsample_factor: int = 1,
         normalizer: Optional[dict] = None,
         batch_size: int = 32,
         num_workers: int = 0,
@@ -459,6 +461,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         self.architecture = self._preprocess_architecture(architecture)
         self.mask = mask
         self.size = size
+        self.downsample_factor = downsample_factor
         if normalizer is not None:
             self.normalizer = normalizer.get("type", "unknown")
         else:
@@ -516,12 +519,13 @@ class DeepFeatureExtractor(FeatureExtractor):
             torch.Tensor: Extracted features of shape [nr_instances, nr_features]
         """
         image_dataset = InstanceMapPatchDataset(
-            input_image,
-            instance_map,
-            self.size,
-            self.fill_value,
-            self.normalizer_mean,
-            self.normalizer_std,
+            image=input_image,
+            instance_map=instance_map,
+            size=self.size,
+            downsample_factor=self.downsample_factor,
+            fill_value=self.fill_value,
+            mean=self.normalizer_mean,
+            std=self.normalizer_std,
         )
         image_loader = DataLoader(
             image_dataset,

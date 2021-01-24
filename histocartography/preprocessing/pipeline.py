@@ -53,7 +53,22 @@ class PipelineStep(ABC):
             self.output_dir.mkdir()
         return self.output_dir
 
-    def precompute(self) -> None:
+    def _link_to_path(self, link_directory):
+        if Path(link_directory).parent.resolve() == Path(self.output_dir):
+            logging.info("Link to self skipped")
+            return
+        if os.path.exists(link_directory):
+            if os.path.islink(link_directory):
+                logging.info("Link already exists: overwriting...")
+                os.remove(link_directory)
+            else:
+                logging.critical(
+                    "Link path already exists, but it is something else than a link. Ignoring..."
+                )
+                return
+        os.symlink(self.output_dir, link_directory, target_is_directory=True)
+
+    def precompute(self, final_path) -> None:
         """Precompute all necessary information for this step"""
         pass
 
@@ -149,7 +164,7 @@ class PipelineRunner:
     def precompute(self) -> None:
         """Precompute all necessary information for all stages"""
         for stage in self.stages:
-            stage.precompute()
+            stage.precompute(self.final_path)
 
     def run(self, name: Optional[str], **inputs: Any) -> Dict[str, Any]:
         """Run the preprocessing pipeline for a given name and input parameters and return the specified outputs

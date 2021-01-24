@@ -1,6 +1,7 @@
 """Extract features from images for a given structure"""
 
 import math
+from pathlib import Path
 import warnings
 from abc import abstractmethod
 from collections import defaultdict
@@ -55,6 +56,11 @@ class FeatureExtractor(PipelineStep):
         Returns:
             torch.Tensor: Extracted features
         """
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "features")
 
 
 class HandcraftedFeatureExtractor(FeatureExtractor):
@@ -789,6 +795,11 @@ class FeatureMerger(PipelineStep):
             merged_features[index - 1] = features[values - 1].mean(axis=0)
         return torch.as_tensor(merged_features)
 
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "features")
+
 
 class AverageFeatureMerger(PipelineStep):
     def __init__(self, *args, **kwargs) -> None:
@@ -841,3 +852,8 @@ class AverageFeatureMerger(PipelineStep):
         for index, values in translator.items():
             merged_features[index - 1] = features[values - 1].mean(axis=0)
         return torch.as_tensor(merged_features)
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "features")

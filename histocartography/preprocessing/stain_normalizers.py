@@ -201,11 +201,13 @@ class StainNormalizer(PipelineStep):
                 output_image.save(output_path)
         return output
 
-    def precompute(self) -> None:
+    def precompute(self, final_path) -> None:
         """Precompute all necessary information"""
         if not self.save_path.exists():
             target_image = load_image(Path(self.target_path))
             self.fit(target_image)
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "normalized_images")
 
 
 class MacenkoStainNormalizer(StainNormalizer):

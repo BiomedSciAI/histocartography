@@ -2,6 +2,7 @@
 
 import logging
 import math
+from pathlib import Path
 import warnings
 from abc import abstractmethod
 from collections import defaultdict
@@ -97,6 +98,11 @@ class SuperpixelExtractor(PipelineStep):
             image, (new_width, new_height), interpolation=cv2.INTER_NEAREST
         )
         return upsampled_image
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "instance_maps")
 
 
 class SLICSuperpixelExtractor(SuperpixelExtractor):

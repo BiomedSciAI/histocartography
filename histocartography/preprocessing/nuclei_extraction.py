@@ -1,6 +1,7 @@
 """Detect and Classify nuclei from an image with the HoverNet model."""
 
 from abc import abstractmethod
+from pathlib import Path
 from typing import Optional, Tuple
 
 import cv2
@@ -144,6 +145,11 @@ class NucleiExtractor(PipelineStep):
             instance_centroids[i, 1] = center_y
         
         return instance_map, instance_labels, instance_centroids
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "instance_maps")
 
 
 class ImageToPatchDataset(Dataset):

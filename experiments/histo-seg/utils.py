@@ -152,7 +152,12 @@ def merge_metadata(
 
     if graph_directory is not None:
         graph_metadata = pd.DataFrame(
-            [(path.name.split(".")[0], path) for path in graph_directory.iterdir()],
+            [
+                (path.name.split(".")[0], path)
+                for path in filter(
+                    lambda x: x.name.endswith('.bin'), graph_directory.iterdir()
+                )
+            ],
             columns=["name", "graph_path"],
         )
         graph_metadata = graph_metadata.set_index("name")
@@ -162,7 +167,9 @@ def merge_metadata(
         superpixel_metadata = pd.DataFrame(
             [
                 (path.name.split(".")[0], path)
-                for path in superpixel_directory.iterdir()
+                for path in filter(
+                    lambda x: x.name.endswith('.h5'), superpixel_directory.iterdir()
+                )
             ],
             columns=["name", "superpixel_path"],
         )
@@ -173,7 +180,9 @@ def merge_metadata(
         preprocessed_metadata = pd.DataFrame(
             [
                 (path.name.split(".")[0], path)
-                for path in processed_image_directory.iterdir()
+                for path in filter(
+                    lambda x: x.name.endswith('.png'), processed_image_directory.iterdir()
+                )
             ],
             columns=["name", "processed_image_path"],
         )
@@ -184,7 +193,9 @@ def merge_metadata(
         tissue_metadata = pd.DataFrame(
             [
                 (path.name.split(".")[0], path)
-                for path in tissue_mask_directory.iterdir()
+                for path in filter(
+                    lambda x: x.name.endswith('.png'), tissue_mask_directory.iterdir()
+                )
             ],
             columns=["name", "tissue_mask_path"],
         )

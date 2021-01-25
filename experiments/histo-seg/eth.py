@@ -295,17 +295,14 @@ def prepare_graph_datasets(
     )
 
     graph_directory = PREPROCESS_PATH / graph_directory
+    superpixel_directory = graph_directory / "superpixels"
+    tissue_mask_directory = graph_directory / "tissue_masks"
     log_preprocessing_parameters(graph_directory)
-    tissue_mask_directory = (
-        find_superpath(graph_directory, tissue_mask_directory)
-        if tissue_mask_directory is not None
-        else None
-    )
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
-        superpixel_directory=graph_directory / ".." / "..",
+        superpixel_directory=superpixel_directory,
         tissue_mask_directory=tissue_mask_directory,
         add_image_sizes=True,
     )
@@ -404,16 +401,13 @@ def prepare_graph_testset(
         columns={"path": "annotation2_path"}
     )
     log_preprocessing_parameters(graph_directory)
-    tissue_mask_directory = (
-        find_superpath(graph_directory, tissue_mask_directory)
-        if tissue_mask_directory is not None
-        else None
-    )
+    superpixel_directory = graph_directory / "superpixels"
+    tissue_mask_directory = graph_directory / "tissue_masks"
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
-        superpixel_directory=graph_directory / ".." / "..",
+        superpixel_directory=superpixel_directory,
         tissue_mask_directory=tissue_mask_directory,
         add_image_sizes=True,
     )

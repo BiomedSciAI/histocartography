@@ -93,7 +93,7 @@ def log_preprocessing_parameters(graph_path: Path):
                         robust_mlflow(mlflow.log_param, f"{i}_{stage_name}", v["class"])
                         robust_mlflow(
                             mlflow.log_params,
-                            flatten(v["params"], parent_key=f"{i}_{stage_name}"),
+                            flatten(v.get("params", {}), parent_key=f"{i}_{stage_name}"),
                         )
 
 

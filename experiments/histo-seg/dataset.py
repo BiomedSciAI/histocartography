@@ -316,15 +316,19 @@ class GraphClassificationDataset(BaseDataset):
                     annotation2 = read_image(annotation2_path)
                 annotation = read_image(annotation_path)
                 tissue_mask = read_image(tissue_mask_path)
-                with h5py.File(superpixel_path, "r") as file:
-                    if "default_key_0" in file:
-                        superpixel = file["default_key_0"][()]
-                    elif "default_key" in file:
-                        superpixel = file["default_key"][()]
-                    else:
-                        raise NotImplementedError(
-                            f"Superpixels not found in keys. Available are: {file.keys()}"
-                        )
+                try:
+                    with h5py.File(superpixel_path, "r") as file:
+                        if "default_key_0" in file:
+                            superpixel = file["default_key_0"][()]
+                        elif "default_key" in file:
+                            superpixel = file["default_key"][()]
+                        else:
+                            raise NotImplementedError(
+                                f"Superpixels not found in keys. Available are: {file.keys()}"
+                            )
+                except OSError as e:
+                    print(f"Could not open {superpixel_path}")
+                    raise e
                 if self.downsample != 1:
                     new_size = (
                         annotation.shape[0] // self.downsample,

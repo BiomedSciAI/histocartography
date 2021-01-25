@@ -29,21 +29,23 @@ pipeline:
           erosion_steps: 10
           kernel_size: 20
     - superpixel:
-        class: SLICSuperpixelExtractor
+        class: ColorMergedSuperpixelExtractor
         inputs:
         - normalized_image
         outputs:
-        - superpixels
+        - merged_superpixels
+        - initial_superpixels
+        - mapping
         params:
-          downsampling_factor: 1
+          threshold: 0.01
+          downsampling_factor: 4
           compactness: 30
           nr_superpixels: 500
-          color_space: rgb
     - feature_extraction:
         class: AugmentedDeepFeatureExtractor
         inputs:
         - normalized_image
-        - superpixels
+        - initial_superpixels
         outputs:
         - features
         params:
@@ -69,26 +71,14 @@ pipeline:
               - 0.225
           mask: False
           size: 224
-    - superpixel:
-        class: SpecialSuperpixelMerger
-        inputs:
-        - normalized_image
-        - superpixels
-        outputs:
-        - merged_superpixels
-        params:
-          downsampling_factor: 8
-          threshold: 0.01
+          downsample_factor: 1
     - feature_extraction:
-        class: FeatureMerger
+        class: AverageFeatureMerger
         inputs:
-        - superpixels
-        - merged_superpixels
         - features
+        - mapping
         outputs:
         - merged_features
-        params:
-          downsampling_factor: 8
     - io:
         class: ImageLoader
         inputs:

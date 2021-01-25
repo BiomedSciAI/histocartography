@@ -1,6 +1,8 @@
 """Extract features from images for a given structure"""
 
 import math
+from pathlib import Path
+import warnings
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -430,6 +432,7 @@ class PatchFeatureExtractor:
         """Returns a torchvision model from a given architecture string
         Args:
             architecture (str): Torchvision model description
+
         Returns:
             nn.Module: A pretrained pytorch model
         """
@@ -611,6 +614,7 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
         **kwargs,
     ) -> None:
         """Creates a feature extractor that extracts feature for all of the given augmentations. Otherwise works the same as the DeepFeatureExtractor
+
         Args:
             rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.
             flips (Optional[List[int]], optional): List of flips to use, in {'n', 'h', 'v'}. Defaults to None.
@@ -644,9 +648,11 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
         self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
         """Extract features for a given RGB image and its extracted instance_map for all augmentations
+
         Args:
             input_image (np.ndarray): RGB input image
             instance_map (np.ndarray): Extracted instance_map
+
         Returns:
             torch.Tensor: Extracted features of shape [nr_instances, nr_augmentations, nr_features]
         """
@@ -695,9 +701,11 @@ class FeatureMerger(PipelineStep):
     @staticmethod
     def _downsample(image: np.ndarray, downsampling_factor: int) -> np.ndarray:
         """Downsample an input image with a given downsampling factor
+
         Args:
             image (np.array): Input tensor
             downsampling_factor (int): Factor to downsample
+
         Returns:
             np.array: Output tensor
         """
@@ -716,12 +724,15 @@ class FeatureMerger(PipelineStep):
         features: torch.Tensor,
     ) -> torch.Tensor:
         """Merge features from an initial instance_map to a merged_instance_map by feature averaging
+
         Args:
             instance_map (np.ndarray): Initial instance map
             merged_instance_map (np.ndarray): Merged instance map that overlaps with initial instance_map
             features (torch.Tensor): Extracted features
+
         Raises:
             NotImplementedError: Only 1D and 2D features supported
+
         Returns:
             torch.Tensor: Merged features
         """
@@ -763,9 +774,11 @@ class FeatureMerger(PipelineStep):
         self, instance_map: np.ndarray, merged_instance_map: np.ndarray
     ) -> Dict[int, int]:
         """Calculate which instances of the initial instance map belong to each instance of the merged instance map
+
         Args:
             instance_map (np.ndarray): Initial instance map
             merged_instance_map (np.ndarray): Merged instance map
+
         Returns:
             Dict[int, int]: Mapping from merged instance map id to initial instance map id
         """
@@ -788,9 +801,11 @@ class FeatureMerger(PipelineStep):
         features: torch.Tensor, translator: Dict[int, int]
     ) -> torch.Tensor:
         """Merge regular one-dimensional features
+
         Args:
             features (torch.Tensor): Feature matrix of shape (nr_superpixels, latent_dimension)
             translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+
         Returns:
             torch.Tensor: Merged features of shape (nr_merged_superpixels, latent_dimension)
         """
@@ -805,9 +820,11 @@ class FeatureMerger(PipelineStep):
         features: torch.Tensor, translator: Dict[int, int]
     ) -> torch.Tensor:
         """Merge augmented one-dimensional features
+
         Args:
             features (torch.Tensor): Feature matrix of shape (nr_superpixels, nr_augmentations, latent_dimension)
             translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+
         Returns:
             torch.Tensor: Merged features of shape (nr_merged_superpixels, nr_augmentations, latent_dimension)
         """
@@ -842,9 +859,11 @@ class AverageFeatureMerger(PipelineStep):
         features: torch.Tensor, translator: Dict[int, int]
     ) -> torch.Tensor:
         """Merge regular one-dimensional features
+
         Args:
             features (torch.Tensor): Feature matrix of shape (nr_superpixels, latent_dimension)
             translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+
         Returns:
             torch.Tensor: Merged features of shape (nr_merged_superpixels, latent_dimension)
         """
@@ -859,9 +878,11 @@ class AverageFeatureMerger(PipelineStep):
         features: torch.Tensor, translator: Dict[int, int]
     ) -> torch.Tensor:
         """Merge augmented one-dimensional features
+
         Args:
             features (torch.Tensor): Feature matrix of shape (nr_superpixels, nr_augmentations, latent_dimension)
             translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+
         Returns:
             torch.Tensor: Merged features of shape (nr_merged_superpixels, nr_augmentations, latent_dimension)
         """

@@ -2,6 +2,7 @@
 
 import logging
 from abc import abstractmethod
+from pathlib import Path
 from typing import Optional
 
 import cv2
@@ -164,6 +165,11 @@ class BaseGraphBuilder(PipelineStep):
             str: Representation of a graph builder
         """
         return f'{self.__class__.__name__}({",".join([f"{k}={v}" for k, v in vars(self).items()])})'
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "graphs")
 
 
 class RAGGraphBuilder(BaseGraphBuilder):

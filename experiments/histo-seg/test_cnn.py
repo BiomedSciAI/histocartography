@@ -2,7 +2,7 @@ import datetime
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, NewType
+from typing import Dict
 
 import matplotlib.pyplot as plt
 import mlflow
@@ -10,6 +10,7 @@ import torch
 from sklearn.metrics import cohen_kappa_score
 from tqdm.auto import tqdm
 
+from dataset import ImageDatapoint
 from inference import ImageInferenceModel, PatchBasedInference
 from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
 from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU, sum_up_gleason
@@ -102,7 +103,9 @@ def test_cnn(
         )
     else:
         inferencer = ImageInferenceModel(
-            model=model, device=device, final_shape=test_dataset.annotations[0].shape
+            model=model,
+            device=device,
+            final_shape=test_dataset[0].segmentation_mask.shape,
         )
 
     run_id = robust_mlflow(mlflow.active_run).info.run_id
@@ -124,14 +127,21 @@ def test_cnn(
     gleason_grade_1 = list()
     gleason_grade_2 = list()
 
-    for i, (name, image, annotation, tissue_mask, annotation2) in enumerate(
-        tqdm(test_dataset)
-    ):
+    image_datapoint: ImageDatapoint
+    for i, image_datapoint in enumerate(tqdm(test_dataset)):
+        assert image_datapoint.has_multiple_annotations, f"Datapoint does not have multiple annotations: {image_datapoint}"
+
         time_before = datetime.datetime.now()
-        predicted_mask = inferencer.predict(image, operation=operation)
+        predicted_mask = inferencer.predict(image_datapoint.image, operation=operation)
 
         for metric in metrics:
-            for pathologist, ground_truth in zip([1, 2], [annotation, annotation2]):
+            for pathologist, ground_truth in zip(
+                [1, 2],
+                [
+                    image_datapoint.segmentation_mask,
+                    image_datapoint.additional_segmentation_mask,
+                ],
+            ):
                 results[f"{metric.__class__.__name__}_{pathologist}"].append(
                     metric(
                         prediction=predicted_mask.unsqueeze(0),
@@ -148,10 +158,16 @@ def test_cnn(
             sum_up_gleason(predicted_mask, n_class=NR_CLASSES, thres=threshold)
         )
         gleason_grade_1.append(
-            sum_up_gleason(annotation.numpy(), n_class=NR_CLASSES, thres=0)
+            sum_up_gleason(
+                image_datapoint.segmentation_mask.numpy(), n_class=NR_CLASSES, thres=0
+            )
         )
         gleason_grade_2.append(
-            sum_up_gleason(annotation2.numpy(), n_class=NR_CLASSES, thres=0)
+            sum_up_gleason(
+                image_datapoint.additional_segmentation_mask.numpy(),
+                n_class=NR_CLASSES,
+                thres=0,
+            )
         )
 
         if i > 0 and i % 10 == 0:
@@ -175,13 +191,15 @@ def test_cnn(
             fig = show_class_acivation(predicted_mask)
         elif operation == "argmax":
             fig = show_segmentation_masks(
-                predicted_mask, annotation=annotation, annotation2=annotation2
+                predicted_mask,
+                annotation=image_datapoint.segmentation_mask,
+                annotation2=image_datapoint.additional_segmentation_mask,
             )
         else:
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
             )
-        file_name = save_path / f"{name}.png"
+        file_name = save_path / f"{image_datapoint.name}.png"
         fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
         if mlflow_save_path is not None:
             robust_mlflow(

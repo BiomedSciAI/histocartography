@@ -1,5 +1,7 @@
 """Dataloader for precomputed graphs in .bin format"""
 import math
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
@@ -29,18 +31,167 @@ from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
 
 
+@dataclass
+class GraphDatapoint:
+    """Dataclass that holds a datapoint for a graph"""
+
+    graph: dgl.DGLGraph
+    graph_label: Optional[torch.IntTensor] = None
+    node_labels: Optional[torch.IntTensor] = None
+    name: Optional[str] = None
+    instance_map: Optional[np.ndarray] = None
+    segmentation_mask: Optional[np.ndarray] = None
+    tissue_mask: Optional[np.ndarray] = None
+    additional_segmentation_mask: Optional[np.ndarray] = None
+
+    @property
+    def is_weakly_supervised(self):
+        return self.graph_label is not None and self.node_labels is None
+
+    @property
+    def is_strongly_supervised(self):
+        return self.node_labels is not None and self.graph_label is None
+
+    @property
+    def can_output_segmentation(self):
+        return self.instance_map is not None and self.tissue_mask is not None
+
+    @property
+    def has_validation_information(self):
+        return self.can_output_segmentation and self.segmentation_mask is not None
+
+    @property
+    def has_multiple_annotations(self):
+        return (
+            self.segmentation_mask is not None
+            and self.additional_segmentation_mask is not None
+        )
+
+
+@dataclass
+class GraphBatch:
+    """Dataclass for a batch of GraphDatapoints"""
+
+    meta_graph: dgl.DGLGraph
+    graph_labels: Optional[torch.IntTensor] = None
+    node_labels: Optional[torch.IntTensor] = None
+    names: Optional[List[str]] = None
+    instance_maps: Optional[np.ndarray] = None
+    segmentation_masks: Optional[np.ndarray] = None
+    tissue_masks: Optional[np.ndarray] = None
+    additional_segmentation_masks: Optional[np.ndarray] = None
+
+    @property
+    def is_weakly_supervised(self):
+        return self.graph_labels is not None and self.node_labels is None
+
+    @property
+    def is_strongly_supervised(self):
+        return self.node_labels is not None and self.graph_labels is None
+
+    @property
+    def can_output_segmentation(self):
+        return self.instance_maps is not None and self.tissue_masks is not None
+
+    @property
+    def has_validation_information(self):
+        return self.can_output_segmentation and self.segmentation_masks is not None
+
+    @property
+    def has_multiple_annotations(self):
+        return (
+            self.segmentation_masks is not None
+            and self.additional_segmentation_masks is not None
+        )
+
+
+def collate_graphs(samples: List[GraphDatapoint]) -> GraphBatch:
+    """Turns a list of GraphDatapoint into a GraphBatch
+
+    Args:
+        samples (List[GraphDatapoint]): Input datapoints
+
+    Returns:
+        GraphBatch: Output batch
+    """
+    merged_datapoints = defaultdict(list)
+    for sample in samples:
+        for attribute, value in asdict(sample).items():
+            if value is not None:
+                merged_datapoints[attribute].append(value)
+
+    nr_datapoints = len(samples)
+    for attribute, values in merged_datapoints.items():
+        assert (
+            len(values) == nr_datapoints
+        ), f"Could not batch samples, inconsistent attibutes: {samples}"
+
+    def map_name(name: str):
+        """Maps names of GraphDatapoint to the names of GraphBatch
+
+        Args:
+            name ([str]): Name of GraphDatapoint
+
+        Returns:
+            [str]: Name of GraphBatch
+        """
+        if name == "graph":
+            return "meta_graph"
+        elif name == "node_labels":
+            return "node_labels"
+        else:
+            return name + "s"
+
+    def merge(name: str, values: Any) -> Any:
+        """Merges attribues based on the names
+
+        Args:
+            name (str): Name of attibute
+            values (Any): Values to merge
+
+        Returns:
+            Any: Merged values
+        """
+        return {
+            "graph": dgl.batch,
+            "graph_label": torch.stack,
+            "node_labels": torch.cat,
+        }.get(name, np.stack)(values)
+
+    return GraphBatch(
+        **{map_name(k): merge(k, v) for k, v in merged_datapoints.items()}
+    )
+
+
+@dataclass
+class ImageDatapoint:
+    image: torch.Tensor
+    segmentation_mask: Optional[np.ndarray] = None
+    tissue_mask: Optional[np.ndarray] = None
+    additional_segmentation_mask: Optional[np.ndarray] = None
+    name: Optional[str] = None
+
+    @property
+    def has_multiple_annotations(self):
+        return (
+            self.segmentation_mask is not None
+            and self.additional_segmentation_mask is not None
+        )
+
+
 class BaseDataset(Dataset):
     def __init__(
-        self, metadata, num_classes, background_index, return_names: bool = False
+        self,
+        metadata,
+        num_classes,
+        background_index,
     ) -> None:
         self._check_metadata(metadata)
         self.metadata = metadata
         self.image_sizes = self._load_image_sizes(metadata)
         self.num_classes = num_classes
         self.background_index = background_index
-        self.return_names = return_names
-        if return_names:
-            self.names = np.array(metadata.index.tolist())
+        self.names = np.array(metadata.index.tolist())
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -49,7 +200,9 @@ class BaseDataset(Dataset):
         Args:
             metadata (pd.DataFrame): Metadata dataframe
         """
-        assert not metadata.isna().any().any(), f"Some entries in metadata are NaN"
+        assert (
+            not metadata.isna().any().any()
+        ), f"Some entries in metadata are NaN: {metadata.isna().any()}"
         assert (
             "width" in metadata and "height" in metadata
         ), f"Metadata lacks image sizes"
@@ -138,7 +291,7 @@ class GraphClassificationDataset(BaseDataset):
         assert (
             "graph_path" in metadata
         ), f"Metadata lacks graph path ({metadata.columns})"
-        super().__init__(metadata, num_classes, background_index, return_names)
+        super().__init__(metadata, num_classes, background_index)
         self.patch_size = patch_size
         self.mean = mean
         self.std = std
@@ -164,15 +317,20 @@ class GraphClassificationDataset(BaseDataset):
                     annotation2 = read_image(annotation2_path)
                 annotation = read_image(annotation_path)
                 tissue_mask = read_image(tissue_mask_path)
-                with h5py.File(superpixel_path, "r") as file:
-                    if "default_key_0" in file:
-                        superpixel = file["default_key_0"][()]
-                    elif "default_key" in file:
-                        superpixel = file["default_key"][()]
-                    else:
-                        raise NotImplementedError(
-                            f"Superpixels not found in keys. Available are: {file.keys()}"
-                        )
+                try:
+                    with h5py.File(superpixel_path, "r") as file:
+                        if "default_key_0" in file:
+                            superpixel = file["default_key_0"][()]
+                        elif "default_key" in file:
+                            superpixel = file["default_key"][()]
+                        else:
+                            raise NotImplementedError(
+                                f"Superpixels not found in keys. Available are: {file.keys()}"
+                            )
+                except OSError as e:
+                    print(f"Could not open {superpixel_path}")
+                    raise e
+
                 if self.downsample != 1:
                     new_size = (
                         annotation.shape[0] // self.downsample,
@@ -319,21 +477,25 @@ class GraphClassificationDataset(BaseDataset):
             graph_labels.append(graph_label)
         return graph_labels
 
-    def _build_return_tuple(self, graph, node_labels, index):
-        graph_label = self.graph_labels[index]
-        return_elements = list()
-        if self.return_names:
-            return_elements.append(self.names[index])
-        return_elements.append(graph)
-        return_elements.append(graph_label)
-        return_elements.append(node_labels)
-        if self.return_segmentation_info:
-            return_elements.append(self.superpixels[index])
-            return_elements.append(self.annotations[index])
-            return_elements.append(self.tissue_masks[index])
-            if self.USE_ANNOTATION2:
-                return_elements.append(self.annotations2[index])
-        return tuple(return_elements)
+    def _build_datapoint(self, graph, node_labels, index):
+        return GraphDatapoint(
+            graph=graph,
+            graph_label=self.graph_labels[index],
+            node_labels=node_labels,
+            name=self.names[index],
+            instance_map=self.superpixels[index]
+            if self.return_segmentation_info
+            else None,
+            segmentation_mask=self.annotations[index]
+            if self.return_segmentation_info
+            else None,
+            tissue_mask=self.tissue_masks[index]
+            if self.return_segmentation_info
+            else None,
+            additional_segmentation_mask=self.annotations2[index]
+            if self.USE_ANNOTATION2
+            else None,
+        )
 
     def _get_random_subgraph(self, graph, node_labels, image_size):
         bounding_box = self._get_random_patch(
@@ -369,7 +531,7 @@ class GraphClassificationDataset(BaseDataset):
                 graph, node_labels, image_size
             )
 
-        return self._build_return_tuple(graph, node_labels, index)
+        return self._build_datapoint(graph, node_labels, index)
 
     def __len__(self) -> int:
         """Number of graphs in the dataset
@@ -474,7 +636,7 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                 augmented_graph, node_labels, image_size
             )
 
-        return self._build_return_tuple(augmented_graph, node_labels, index)
+        return self._build_datapoint(augmented_graph, node_labels, index)
 
 
 class ImageDataset(BaseDataset):
@@ -566,17 +728,16 @@ class ImageDataset(BaseDataset):
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         image = self.images[index].permute(2, 0, 1).to(torch.float32) / 255
         normalized_image = self.normalizer(image)
-        annotation = self.annotations[index]
 
-        return_elements = list()
-        if self.return_names:
-            return_elements.append(self.names[index])
-        return_elements.append(normalized_image)
-        return_elements.append(annotation)
-        return_elements.append(self.tissue_masks[index])
-        if self.additional_annotation:
-            return_elements.append(self.annotations2[index])
-        return tuple(return_elements)
+        return ImageDatapoint(
+            image=normalized_image,
+            segmentation_mask=self.annotations[index],
+            tissue_mask=self.tissue_masks[index],
+            name=self.names[index],
+            additional_segmentation_mask=self.annotations2[index]
+            if self.additional_annotation
+            else None,
+        )
 
     def __len__(self) -> int:
         return len(self.images)
@@ -723,48 +884,3 @@ class PatchClassificationDataset(ImageDataset):
         )
         frequencies = 1 / counts.to(torch.float32)
         return frequencies[classes]
-
-
-def collate(
-    samples: List[Tuple[DGLGraph, torch.Tensor, torch.Tensor]]
-) -> Tuple[DGLGraph, torch.Tensor, torch.Tensor]:
-    """Aggregate a batch by performing the following:
-       Create a graph with disconnected components using dgl.batch
-       Stack the graph labels one-hot encoded labels (to shape B x nr_classes)
-       Concatenate the node labels to a single vector (graph association can be read from graph.batch_num_nodes)
-
-    Args:
-        samples (List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]): List of unaggregated samples
-
-    Returns:
-        Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
-    """
-    graphs, graph_labels, node_labels = map(list, zip(*samples))
-    return dgl.batch(graphs), torch.stack(graph_labels), torch.cat(node_labels)
-
-
-def collate_valid(
-    samples: List[Tuple[DGLGraph, torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]]
-) -> Tuple[DGLGraph, torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
-    """Aggregate a batch by performing the following:
-       Create a graph with disconnected components using dgl.batch
-       Stack the graph labels one-hot encoded labels (to shape B x nr_classes)
-       Concatenate the node labels to a single vector (graph association can be read from graph.batch_num_nodes)
-
-    Args:
-        samples (List[Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]]): List of unaggregated samples
-
-    Returns:
-        Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Aggregated graph and labels
-    """
-    graphs, graph_labels, node_labels, superpixels, annotations, tissue_masks = map(
-        list, zip(*samples)
-    )
-    return (
-        dgl.batch(graphs),
-        torch.stack(graph_labels),
-        torch.cat(node_labels),
-        np.stack(superpixels),
-        np.stack(annotations),
-        np.stack(tissue_masks),
-    )

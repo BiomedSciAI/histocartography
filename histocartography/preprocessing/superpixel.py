@@ -153,6 +153,7 @@ class SuperpixelMerger(SuperpixelExtractor):
         **kwargs,
     ) -> None:
         """Base superpixel merger
+
         Args:
             downsampling_factor (int): Downsampling factor to use
             threshold (float, optional): Connectivity threshold. Defaults to 0.06.
@@ -164,9 +165,11 @@ class SuperpixelMerger(SuperpixelExtractor):
 
     def process(self, input_image: np.ndarray, superpixels: np.ndarray) -> np.ndarray:
         """Merge superpixels based on an initial superpixel segmentation and the input image
+
         Args:
             input_image (np.ndarray): Input image
             superpixels (np.ndarray): Initial superpixel segmentation
+
         Returns:
             np.ndarray: Merged superpixel segmentation
         """
@@ -232,9 +235,11 @@ class EdgeSuperpixelMerger(SuperpixelMerger):
         self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> graph.RAG:
         """Generate a graph based on the input image and initial superpixel segmentation
+
         Args:
             input_image (np.ndarray): Input image
             superpixels (np.ndarray): Initial superpixel segmentation
+
         Returns:
             graph.RAG: Connectivity graph
         """
@@ -247,9 +252,12 @@ class EdgeSuperpixelMerger(SuperpixelMerger):
     ) -> Dict[str, Any]:
         """
         Handle merging of nodes of a region boundary region adjacency graph.
+
         This function computes the `"weight"` and the count `"count"`
         attributes of the edge between `n` and the node formed after
         merging `src` and `dst`.
+
+
         Parameters
         ----------
         graph : RAG
@@ -258,11 +266,13 @@ class EdgeSuperpixelMerger(SuperpixelMerger):
             The vertices in `graph` to be merged.
         n : int
             A neighbor of `src` or `dst` or both.
+
         Returns
         -------
         data : dict
             A dictionary with the "weight" and "count" attributes to be
             assigned for the merged node.
+
         """
         default = {"weight": 0.0, "count": 0}
 
@@ -281,6 +291,7 @@ class EdgeSuperpixelMerger(SuperpixelMerger):
     @staticmethod
     def _merging_function(graph: graph.RAG, src: int, dst: int) -> None:
         """Call back called before merging 2 nodes.
+
         In this case we don't need to do any computation here.
         """
         pass
@@ -295,6 +306,7 @@ class SpecialSuperpixelMerger(SuperpixelMerger):
         **kwargs,
     ) -> None:
         """Alternative superpixel merger taken from the HACT-Net Implementation
+
         Args:
             downsampling_factor (int): Factor to use
             w_hist (float, optional): Weight of the histogram features for merging. Defaults to 0.5.
@@ -310,8 +322,10 @@ class SpecialSuperpixelMerger(SuperpixelMerger):
 
     def _color_features_per_channel(self, img_ch: np.ndarray) -> np.ndarray:
         """Extract color histograms from image channel
+
         Args:
             img_ch (np.ndarray): Image channel
+
         Returns:
             np.ndarray: Histogram of the image channel
         """
@@ -428,6 +442,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         **kwargs,
     ) -> None:
         """Extract superpixels with the SLIC algorithm
+
         Args:
             blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.
             max_iter (int, optional): Number of iterations of the slic algorithm. Defaults to 10.
@@ -511,9 +526,11 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         self, instance_map: np.ndarray, merged_instance_map: np.ndarray
     ) -> Dict[int, int]:
         """Calculate which instances of the initial instance map belong to each instance of the merged instance map
+
         Args:
             instance_map (np.ndarray): Initial instance map
             merged_instance_map (np.ndarray): Merged instance map
+
         Returns:
             Dict[int, int]: Mapping from merged instance map id to initial instance map id
         """
@@ -542,8 +559,10 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
 
     def process(self, input_image: np.ndarray) -> np.ndarray:
         """Return the superpixels of a given input image
+
         Args:
             input_image (np.array): Input image
+
         Returns:
             np.array: Extracted superpixels
         """
@@ -567,6 +586,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
 
     def process_and_save(self, output_name: str, *args, **kwargs: Any) -> Any:
         """Process and save in the provided path as as .h5 file
+
         Args:
             output_name (str): Name of output file
         """
@@ -602,9 +622,11 @@ class EdgeMergedSuperpixelExtractor(MergedSuperpixelExtractor):
         self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> graph.RAG:
         """Generate a graph based on the input image and initial superpixel segmentation
+
         Args:
             input_image (np.ndarray): Input image
             superpixels (np.ndarray): Initial superpixel segmentation
+
         Returns:
             graph.RAG: Connectivity graph
         """
@@ -617,9 +639,12 @@ class EdgeMergedSuperpixelExtractor(MergedSuperpixelExtractor):
     ) -> Dict[str, Any]:
         """
         Handle merging of nodes of a region boundary region adjacency graph.
+
         This function computes the `"weight"` and the count `"count"`
         attributes of the edge between `n` and the node formed after
         merging `src` and `dst`.
+
+
         Parameters
         ----------
         graph : RAG
@@ -628,6 +653,7 @@ class EdgeMergedSuperpixelExtractor(MergedSuperpixelExtractor):
             The vertices in `graph` to be merged.
         n : int
             A neighbor of `src` or `dst` or both.
+
         Returns
         -------
         data : dict
@@ -651,6 +677,7 @@ class EdgeMergedSuperpixelExtractor(MergedSuperpixelExtractor):
     @staticmethod
     def _merging_function(graph: graph.RAG, src: int, dst: int) -> None:
         """Call back called before merging 2 nodes.
+
         In this case we don't need to do any computation here.
         """
         pass
@@ -659,6 +686,7 @@ class EdgeMergedSuperpixelExtractor(MergedSuperpixelExtractor):
 class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
     def __init__(self, w_hist: float = 0.5, w_mean: float = 0.5, **kwargs) -> None:
         """Superpixel merger based on color attibutes taken from the HACT-Net Implementation
+
         Args:
             w_hist (float, optional): Weight of the histogram features for merging. Defaults to 0.5.
             w_mean (float, optional): Weight of the mean features for merging. Defaults to 0.5.
@@ -669,8 +697,10 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
 
     def _color_features_per_channel(self, img_ch: np.ndarray) -> np.ndarray:
         """Extract color histograms from image channel
+
         Args:
             img_ch (np.ndarray): Image channel
+
         Returns:
             np.ndarray: Histogram of the image channel
         """

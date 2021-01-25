@@ -3,12 +3,11 @@ import logging
 from typing import Dict, List, Optional
 
 import mlflow
-import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
-from dataset import collate, collate_valid
+from dataset import GraphBatch, collate_graphs
 from logging_helper import (
     GraphClassificationLoggingHelper,
     prepare_experiment,
@@ -83,6 +82,7 @@ class CombinedCriterion(torch.nn.Module):
             ), f"Node weight loss must be between 0 and 1, but is {self.node_loss_weight}"
             self.graph_loss_weight = 1.0 - self.node_loss_weight
         self.mode = mode
+        self.device = device
 
     def forward(
         self,
@@ -98,14 +98,16 @@ class CombinedCriterion(torch.nn.Module):
             ), "Cannot use node criterion without input"
             return self.node_criterion(
                 logits=node_logits,
-                targets=node_labels,
+                targets=node_labels.to(self.device),
                 graph_associations=node_associations,
             )
         elif self.mode == "weak_supervision":
             assert (
                 graph_logits is not None and graph_labels is not None
             ), "Cannot use graph criterion without input"
-            return self.graph_criterion(logits=graph_logits, targets=graph_labels)
+            return self.graph_criterion(
+                logits=graph_logits, targets=graph_labels.to(self.device)
+            )
         elif self.mode == "semi_strong_supervision":
             assert (
                 node_logits is not None and node_labels is not None
@@ -113,6 +115,8 @@ class CombinedCriterion(torch.nn.Module):
             assert (
                 graph_logits is not None and graph_labels is not None
             ), "Cannot use combined criterion without graph input"
+            node_labels = node_labels.to(self.device)
+            graph_labels = graph_labels.to(self.device)
             node_loss = self.node_criterion(
                 logits=node_logits,
                 targets=node_labels,
@@ -167,13 +171,13 @@ def train_graph_classifier(
         training_dataset,
         batch_size=batch_size,
         shuffle=True,
-        collate_fn=collate,
+        collate_fn=collate_graphs,
         num_workers=num_workers,
     )
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=batch_size,
-        collate_fn=collate_valid,
+        collate_fn=collate_graphs,
         num_workers=num_workers,
     )
 
@@ -226,18 +230,24 @@ def train_graph_classifier(
         # Train model
         time_before_training = datetime.datetime.now()
         model.train()
-        for iteration, (graph, graph_labels, node_labels) in enumerate(training_loader):
+        graph_batch: GraphBatch
+        for graph_batch in training_loader:
+            assert (
+                not (mode == "strong_supervision") or graph_batch.is_strongly_supervised
+            )
+            assert not (mode == "weak_supervision") or graph_batch.is_weakly_supervised
+
             optim.zero_grad()
 
-            graph = graph.to(device)
+            graph = graph_batch.meta_graph.to(device)
             logits = model(graph)
 
             # Calculate loss
             loss_information = get_logit_information(logits, mode)
             loss_information.update(
                 {
-                    "graph_labels": graph_labels.to(device),
-                    "node_labels": node_labels.to(device),
+                    "graph_labels": graph_batch.graph_labels,
+                    "node_labels": graph_batch.node_labels,
                     "node_associations": graph.batch_num_nodes,
                 }
             )
@@ -276,23 +286,20 @@ def train_graph_classifier(
             time_before_validation = datetime.datetime.now()
             model.eval()
             with torch.no_grad():
-                for iteration, (
-                    graph,
-                    graph_labels,
-                    node_labels,
-                    superpixels,
-                    annotations,
-                    tissue_masks,
-                ) in enumerate(validation_loader):
-                    graph = graph.to(device)
+                for graph_batch in validation_loader:
+                    assert (
+                        graph_batch.has_validation_information
+                    ), f"Graph batch does not have information necessary for validation"
+
+                    graph = graph_batch.meta_graph.to(device)
                     logits = model(graph)
 
                     # Calculate loss
                     loss_information = get_logit_information(logits, mode)
                     loss_information.update(
                         {
-                            "graph_labels": graph_labels.to(device),
-                            "node_labels": node_labels.to(device),
+                            "graph_labels": graph_batch.graph_labels,
+                            "node_labels": graph_batch.node_labels,
                             "node_associations": graph.batch_num_nodes,
                         }
                     )
@@ -302,19 +309,20 @@ def train_graph_classifier(
                         segmentation_maps = get_segmentation_map(
                             node_logits=loss_information["node_logits"],
                             node_associations=graph.batch_num_nodes,
-                            superpixels=superpixels,
+                            superpixels=graph_batch.instance_maps,
                             NR_CLASSES=NR_CLASSES,
                         )
-                        annotations = torch.as_tensor(annotations)
+                        annotations = torch.as_tensor(graph_batch.segmentation_masks)
                         segmentation_maps = torch.as_tensor(segmentation_maps)
                     else:
+                        annotations = None
                         segmentation_maps = None
 
                     validation_metric_logger.add_iteration_outputs(
                         loss=loss.item(),
                         annotation=annotations,
                         predicted_segmentation=segmentation_maps,
-                        tissue_masks=tissue_masks,
+                        tissue_masks=graph_batch.tissue_masks,
                         **loss_information,
                     )
 

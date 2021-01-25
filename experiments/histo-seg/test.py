@@ -4,12 +4,13 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict
 
+import matplotlib.pyplot as plt
 import mlflow
 import torch
-from tqdm.auto import tqdm
 from sklearn.metrics import cohen_kappa_score
-import matplotlib.pyplot as plt
+from tqdm.auto import tqdm
 
+from dataset import GraphDatapoint
 from inference import GraphNodeBasedInference
 from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
 from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU, sum_up_gleason
@@ -108,22 +109,32 @@ def test_gnn(
     gleason_grade_1 = list()
     gleason_grade_2 = list()
 
-    for i, (
-        name,
-        image,
-        _,
-        _,
-        superpixels,
-        annotation,
-        tissue_mask,
-        annotation2,
-    ) in enumerate(tqdm(test_dataset)):
+    graph_datapoint: GraphDatapoint
+    for i, graph_datapoint in enumerate(tqdm(test_dataset)):
+        assert (
+            graph_datapoint.has_validation_information
+        ), f"Datapoint does not have validation information: {graph_datapoint}"
+        assert (
+            graph_datapoint.has_multiple_annotations
+        ), f"Datapoint does not have multiple annotations: {graph_datapoint}"
+        assert (
+            graph_datapoint.name is not None
+        ), f"Cannot test unnamed datapoint: {graph_datapoint}"
+
         time_before = datetime.datetime.now()
 
-        predicted_mask = inferencer.predict(image, superpixels, operation=operation)
+        predicted_mask = inferencer.predict(
+            graph_datapoint.graph, graph_datapoint.instance_map, operation=operation
+        )
 
         for metric in metrics:
-            for pathologist, ground_truth in zip([1, 2], [annotation, annotation2]):
+            for pathologist, ground_truth in zip(
+                [1, 2],
+                [
+                    graph_datapoint.segmentation_mask,
+                    graph_datapoint.additional_segmentation_mask,
+                ],
+            ):
                 results[f"{metric.__class__.__name__}_{pathologist}"].append(
                     metric(
                         prediction=predicted_mask.unsqueeze(0),
@@ -133,12 +144,22 @@ def test_gnn(
                     .tolist()
                 )
 
-        predicted_mask[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        predicted_mask[~graph_datapoint.tissue_mask.astype(bool)] = BACKGROUND_CLASS
         gleason_score_predictions.append(
             sum_up_gleason(predicted_mask, n_class=NR_CLASSES, thres=threshold)
         )
-        gleason_grade_1.append(sum_up_gleason(annotation, n_class=NR_CLASSES, thres=0))
-        gleason_grade_2.append(sum_up_gleason(annotation2, n_class=NR_CLASSES, thres=0))
+        gleason_grade_1.append(
+            sum_up_gleason(
+                graph_datapoint.segmentation_mask, n_class=NR_CLASSES, thres=0
+            )
+        )
+        gleason_grade_2.append(
+            sum_up_gleason(
+                graph_datapoint.additional_segmentation_mask,
+                n_class=NR_CLASSES,
+                thres=0,
+            )
+        )
 
         if i > 0 and i % 10 == 0:
             results["GleasonScoreKappa_1"] = [
@@ -161,13 +182,15 @@ def test_gnn(
             fig = show_class_acivation(predicted_mask)
         elif operation == "argmax":
             fig = show_segmentation_masks(
-                predicted_mask, annotation=annotation, annotation2=annotation2
+                predicted_mask,
+                annotation=graph_datapoint.segmentation_mask,
+                annotation2=graph_datapoint.additional_segmentation_mask,
             )
         else:
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
             )
-        file_name = save_path / f"{name}.png"
+        file_name = save_path / f"{graph_datapoint.name}.png"
         fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
         if mlflow_save_path is not None:
             robust_mlflow(

@@ -8,11 +8,14 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
+from histocartography.preprocessing.utils import fast_histogram
 from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
+from tqdm.auto import tqdm
 
 from dataset import (
     AugmentedGraphClassificationDataset,
@@ -21,12 +24,12 @@ from dataset import (
     PatchClassificationDataset,
 )
 from logging_helper import log_preprocessing_parameters
-from utils import merge_metadata
+from utils import find_superpath, merge_metadata, read_image
 
 with os.popen("hostname") as subprocess:
     hostname = subprocess.read()
 if hostname.startswith("zhcc"):
-    BASE_PATH = Path("/dataT/anv/Data/ETH")
+    BASE_PATH = Path("/dataP/anv/data/ETH")
 elif hostname.startswith("Gerbil"):
     BASE_PATH = Path("/Users/anv/Documents/ETH")
 else:
@@ -52,6 +55,8 @@ TEST_PATHOLOGISTS = [1, 2]
 TEST_ANNOTATIONS_PATHS = [
     (i, TEST_ANNOTATION_PATH / f"{TEST_ANNOTATION}{i}") for i in TEST_PATHOLOGISTS
 ]
+TRAIN_IMAGE_LEVEL_ANNOTATIONS = BASE_PATH / "image_level_train.csv"
+TEST_IMAGE_LEVEL_ANNOTATIONS = BASE_PATH / "image_level_test.csv"
 
 PREPROCESS_PATH = BASE_PATH / "preprocess"
 DATASET_PATH = BASE_PATH / "datasets"
@@ -75,8 +80,9 @@ def generate_image_folder_structure(delete: bool = False) -> None:
     # Copy images
     if not TMA_IMAGE_PATH.exists():
         TMA_IMAGE_PATH.mkdir()
-    for images_folder in filter(
-        lambda x: x.name.startswith(IMAGE_PREFIX), BASE_PATH.iterdir()
+    for images_folder in tqdm(
+        list(filter(lambda x: x.name.startswith(IMAGE_PREFIX), BASE_PATH.iterdir())),
+        desc="Copy images",
     ):
         for image_path in images_folder.iterdir():
             shutil.copy(image_path, TMA_IMAGE_PATH)
@@ -87,9 +93,11 @@ def generate_image_folder_structure(delete: bool = False) -> None:
 def generate_images_meta_df() -> None:
     """Generate the images metadata data frame and save it to IMAGES_DF"""
     df = list()
-    for image_path in TMA_IMAGE_PATH.iterdir():
+    for image_path in tqdm(TMA_IMAGE_PATH.iterdir(), desc="DF images"):
         # Handle OSX madness
         if image_path.name == ".DS_Store":
+            continue
+        if image_path.is_dir():
             continue
         slide = image_path.name.split("_")[0]
         slide = int(slide[len(IMAGE_PREFIX) :])
@@ -127,11 +135,13 @@ def generate_mask_folder_structure(delete: bool = False) -> None:
     if not TEST_ANNOTATION_PATH.exists():
         TEST_ANNOTATION_PATH.mkdir()
 
-    for _, new_pathologist_path in TEST_ANNOTATIONS_PATHS:
+    for pathologist, new_pathologist_path in TEST_ANNOTATIONS_PATHS:
         old_pathologist_path = BASE_PATH / new_pathologist_path.name
         if not new_pathologist_path.exists():
             new_pathologist_path.mkdir()
-        for file in old_pathologist_path.iterdir():
+        for file in tqdm(
+            old_pathologist_path.iterdir(), f"Masks pathologist {pathologist}"
+        ):
             shutil.copy(file, new_pathologist_path)
         if delete:
             shutil.rmtree(old_pathologist_path)
@@ -143,12 +153,18 @@ def generate_annotations_meta_df() -> None:
     for file in (TRAIN_ANNOTATION_PATH).iterdir():
         if file.name == ".DS_Store":
             continue
+        if file.is_dir():
+            continue
         name = file.name.split(".")[0].split(MASK_PREFIX)[1]
         df.append((name, file, 1, "train"))
 
     for pathologist, pathologist_path in TEST_ANNOTATIONS_PATHS:
-        for file in pathologist_path.iterdir():
+        for file in tqdm(
+            pathologist_path.iterdir(), desc=f"DF Masks pathologist {pathologist}"
+        ):
             if file.name == ".DS_Store":
+                continue
+            if file.is_dir():
                 continue
             name = file.name.split(".")[0].split(
                 MASK_PREFIX[:-1] + str(pathologist) + MASK_PREFIX[-1]
@@ -156,6 +172,96 @@ def generate_annotations_meta_df() -> None:
             df.append((name, file, pathologist, "test"))
     df = pd.DataFrame(df, columns=["name", "path", "pathologist", "use"])
     df.to_pickle(ANNOTATIONS_DF)
+
+
+def generate_labels() -> None:
+    def to_onehot_with_ignore(input_vector) -> torch.Tensor:
+        input_vector = torch.Tensor(input_vector.astype(np.int64)).to(torch.int64)
+        one_hot_vector = torch.nn.functional.one_hot(
+            input_vector, num_classes=NR_CLASSES + 1
+        )
+        clean_one_hot_vector = torch.cat(
+            [
+                one_hot_vector[:, 0:BACKGROUND_CLASS],
+                one_hot_vector[:, BACKGROUND_CLASS + 1 :],
+            ],
+            dim=1,
+        )
+        return clean_one_hot_vector.sum(dim=0)
+
+    def gleason_grade(labels):
+        b, g3, g4, g5 = labels
+        if g3 + g4 + g5 == 0:
+            return "benign"
+        else:
+            if g3 == 1 and g4 == 0 and g5 == 0:
+                return "grade6"
+            elif g3 == 1 and g4 == 1 and g5 == 0:
+                return "grade7"
+            elif g3 == 0 and g4 == 1 and g5 == 0:
+                return "grade8"
+            elif g3 == 0 and g4 == 1 and g5 == 1:
+                return "grade9"
+            elif g3 == 0 and g4 == 0 and g5 == 1:
+                return "grade10"
+            elif g5 == 1 and g4 == 1:
+                return "grade9"
+            elif g5 == 1 and g4 == 0 and g3 == 1:
+                print(f"Weird grade: {labels}")
+                return "grade8"
+            else:
+                print(f"Weird grade: {labels}")
+                return "grade7"
+
+    def read_image_level_csv(path):
+        df = pd.read_csv(path)
+        df = df.replace(to_replace=np.nan, value=0.0)
+        for column in ["benign", "grade3", "grade4", "grade5"]:
+            df[column] = df[column].apply(int)
+        return df
+
+    def read_image_level_annotations(
+        train=TRAIN_IMAGE_LEVEL_ANNOTATIONS, test=TEST_IMAGE_LEVEL_ANNOTATIONS
+    ):
+        train_df = read_image_level_csv(train)
+        train_df["use"] = "train"
+        test_df = read_image_level_csv(test)
+        test_df["use"] = "test"
+        df = train_df.append(test_df, ignore_index=True)
+        df["pathologist"] = 3
+        df = df.rename(columns={"image_name": "name"})
+        return df
+
+    def add_gleason_score(df):
+        grades = list()
+        for _, row in df.iterrows():
+            grades.append(
+                gleason_grade(
+                    (row["benign"], row["grade3"], row["grade4"], row["grade5"])
+                )
+            )
+        df["gleason_grade"] = grades
+        return df
+
+    image_df = pd.read_pickle(ANNOTATIONS_DF)
+    image_level_df = list()
+    for _, row in tqdm(image_df.iterrows(), total=len(image_df)):
+        annotation = read_image(row["path"])
+        labels = np.where(fast_histogram(annotation, NR_CLASSES))[0]
+        labels = to_onehot_with_ignore(labels)
+        labels = tuple(labels.tolist())
+        image_level_df.append((row["name"], row["pathologist"], row["use"]) + labels)
+    image_level_df = pd.DataFrame(
+        image_level_df,
+        columns=["name", "pathologist", "use", "benign", "grade3", "grade4", "grade5"],
+    )
+    original_df = add_gleason_score(image_level_df)
+
+    additional_df = read_image_level_annotations()
+    additional_df = add_gleason_score(additional_df)
+
+    combined_df = original_df.append(additional_df, ignore_index=True)
+    combined_df.to_pickle(BASE_PATH / "image_level_annotations.pickle")
 
 
 def prepare_graph_datasets(
@@ -189,19 +295,15 @@ def prepare_graph_datasets(
     )
 
     graph_directory = PREPROCESS_PATH / graph_directory
+    superpixel_directory = graph_directory / "superpixels"
+    tissue_mask_directory = graph_directory / "tissue_masks"
     log_preprocessing_parameters(graph_directory)
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
-        superpixel_directory=graph_directory / ".." / "..",
-        tissue_mask_directory=graph_directory
-        / ".."
-        / ".."
-        / ".."
-        / tissue_mask_directory
-        if tissue_mask_directory is not None
-        else None,
+        superpixel_directory=superpixel_directory,
+        tissue_mask_directory=tissue_mask_directory,
         add_image_sizes=True,
     )
     if train_fraction is not None:
@@ -298,18 +400,15 @@ def prepare_graph_testset(
     pathologist2_metadata = pathologist2_metadata.rename(
         columns={"path": "annotation2_path"}
     )
+    log_preprocessing_parameters(graph_directory)
+    superpixel_directory = graph_directory / "superpixels"
+    tissue_mask_directory = graph_directory / "tissue_masks"
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
-        superpixel_directory=graph_directory / ".." / "..",
-        tissue_mask_directory=graph_directory
-        / ".."
-        / ".."
-        / ".."
-        / tissue_mask_directory
-        if tissue_mask_directory is not None
-        else None,
+        superpixel_directory=superpixel_directory,
+        tissue_mask_directory=tissue_mask_directory,
         add_image_sizes=True,
     )
     test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
@@ -352,69 +451,6 @@ def prepare_graph_testset(
         )
     else:
         test_dataset = GraphClassificationDataset(test_metadata, **test_arguments)
-    return test_dataset
-
-
-def prepare_graph_testset(
-    graph_directory: str,
-    test: bool = False,
-    centroid_features: str = "no",
-    normalize_features: bool = False,
-    test_slides: Optional[List[int]] = TEST_SLIDES,
-    **kwargs,
-):
-    graph_directory = PREPROCESS_PATH / graph_directory
-
-    annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
-    pathologist2_metadata = annotation_metadata[
-        (annotation_metadata.use == "test") & (annotation_metadata.pathologist == 2)
-    ]
-    pathologist2_metadata = pathologist2_metadata.set_index("name")
-    pathologist2_metadata = pathologist2_metadata.rename(
-        columns={"path": "annotation2_path"}
-    )
-    all_metadata = merge_metadata(
-        pd.read_pickle(IMAGES_DF),
-        pd.read_pickle(ANNOTATIONS_DF),
-        graph_directory=graph_directory,
-        superpixel_directory=graph_directory / ".." / "..",
-        add_image_sizes=True,
-    )
-    test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
-    test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
-
-    if normalize_features:
-        precomputed_mean = torch.load(
-            PREPROCESS_PATH
-            / "outputs"
-            / "normalizers"
-            / f"mean_{graph_directory.name}.pth"
-        )
-        precomputed_std = torch.load(
-            PREPROCESS_PATH
-            / "outputs"
-            / "normalizers"
-            / f"std_{graph_directory.name}.pth"
-        )
-    else:
-        precomputed_mean = None
-        precomputed_std = None
-
-    if test:
-        test_metadata = test_metadata.sample(1)
-
-    test_dataset = GraphClassificationDataset(
-        test_metadata,
-        patch_size=None,
-        num_classes=NR_CLASSES,
-        background_index=BACKGROUND_CLASS,
-        centroid_features=centroid_features,
-        mean=precomputed_mean,
-        std=precomputed_std,
-        return_segmentation_info=True,
-        return_names=True,
-        **kwargs,
-    )
     return test_dataset
 
 
@@ -543,7 +579,6 @@ def prepare_patch_testset(
     return ImageDataset(
         metadata=test_metadata,
         num_classes=NR_CLASSES,
-        return_names=True,
         background_index=BACKGROUND_CLASS,
         mean=mean,
         std=std,
@@ -605,7 +640,7 @@ def show_segmentation_masks(output, annotation=None, annotation2=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["cleanup"], default="cleanup")
+    parser.add_argument("command", choices=["cleanup", "labels"], default="cleanup")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -619,3 +654,5 @@ if __name__ == "__main__":
         generate_images_meta_df()
         generate_mask_folder_structure(delete=True)
         generate_annotations_meta_df()
+    elif args.command == "labels":
+        generate_labels()

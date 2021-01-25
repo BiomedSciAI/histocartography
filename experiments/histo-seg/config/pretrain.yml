@@ -95,5 +95,5 @@ test:
     overlap: 200
     operation: argmax
     inference_mode: patch_based
-    local_save_path: '/dataT/anv/Data/ETH/cnn_test_masks'
+    local_save_path: '/dataP/anv/data/ETH/cnn_test_masks'
     mlflow_save_path: 'cnn_test_masks'

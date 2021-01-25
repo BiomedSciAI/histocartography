@@ -32,11 +32,9 @@ class FeatureExtractor(PipelineStep):
         self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
         """Extract features from the input_image for the defined instance_map
-
         Args:
             input_image (np.array): Original RGB image
             instance_map (np.array): Extracted instance_map
-
         Returns:
             torch.Tensor: Extracted features
         """
@@ -47,14 +45,17 @@ class FeatureExtractor(PipelineStep):
         self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
         """Extract features from the input_image for the defined structure
-
         Args:
             input_image (np.array): Original RGB image
             structure (np.array): Structure to extract features
-
         Returns:
             torch.Tensor: Extracted features
         """
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "features")
 
 
 class HandcraftedFeatureExtractor(FeatureExtractor):
@@ -256,6 +257,7 @@ class InstanceMapPatchDataset(Dataset):
         image: np.ndarray,
         instance_map: np.ndarray,
         size: int,
+        downsample_factor: int,
         fill_value: Optional[int],
         mean: Optional[List[float]] = None,
         std: Optional[List[float]] = None,
@@ -263,7 +265,6 @@ class InstanceMapPatchDataset(Dataset):
         """Create a dataset for a given image and extracted instance maps with desired patches
            of (size, size, 3). If fill_value is not None, it fills up pixels outside the
            instance maps with this value (all channels)
-
         Args:
             image (np.ndarray): RGB input image
             instance maps (np.ndarray): Extracted instance maps
@@ -275,21 +276,19 @@ class InstanceMapPatchDataset(Dataset):
         self.instance_map = instance_map
         self.properties = regionprops(instance_map)
         basic_transforms = [
-            transforms.Resize(224),
+            transforms.Resize(size),
             transforms.ToTensor(),
         ]
         if mean is not None and std is not None:
             basic_transforms.append(transforms.Normalize(mean, std))
         self.dataset_transform = transforms.Compose(basic_transforms)
-        self.patch_size = (size, size, 3)
+        self.patch_size = (size * downsample_factor, size * downsample_factor, 3)
         self.fill_value = fill_value
 
     def _get_instance_patch(self, region_property: _RegionProperties) -> np.ndarray:
         """Returns the image patch with the correct padding for a given region property
-
         Args:
             region_property (_RegionProperties): Region property of the instance maps
-
         Returns:
             np.ndarray: Representative image patch
         """
@@ -349,10 +348,8 @@ class InstanceMapPatchDataset(Dataset):
 
     def __getitem__(self, index: int) -> Tuple[int, torch.Tensor]:
         """Loads an image for a given instance maps index
-
         Args:
             index (int): Instance index
-
         Returns:
             Tuple[int, torch.Tensor]: instance_index, image as tensor
         """
@@ -362,7 +359,6 @@ class InstanceMapPatchDataset(Dataset):
 
     def __len__(self) -> int:
         """Returns the length of the dataset
-
         Returns:
             int: Length of the dataset
         """
@@ -374,7 +370,6 @@ class PatchFeatureExtractor:
 
     def __init__(self, architecture: str, device: torch.device) -> None:
         """Create a patch feature extracter of a given architecture and put it on GPU if available
-
         Args:
             architecture (str): String of architecture. According to torchvision.models syntax
         """
@@ -394,10 +389,8 @@ class PatchFeatureExtractor:
     @staticmethod
     def _get_num_features(model: nn.Module) -> int:
         """Get the number of features of a given model
-
         Args:
             model (nn.Module): A PyTorch model
-
         Returns:
             int: The number of features it has
         """
@@ -413,10 +406,8 @@ class PatchFeatureExtractor:
 
     def _get_local_model(self, path: str) -> nn.Module:
         """Load a model from a local path
-
         Args:
             path (str): Path to the model
-
         Returns:
             nn.Module: A PyTorch model
         """
@@ -425,10 +416,8 @@ class PatchFeatureExtractor:
 
     def _get_mlflow_model(self, url: str) -> nn.Module:
         """Load a MLflow model from a given URL
-
         Args:
             url (str): Model url
-
         Returns:
             nn.Module: A PyTorch model
         """
@@ -439,10 +428,8 @@ class PatchFeatureExtractor:
 
     def _get_torchvision_model(self, architecture: str) -> nn.Module:
         """Returns a torchvision model from a given architecture string
-
         Args:
             architecture (str): Torchvision model description
-
         Returns:
             nn.Module: A pretrained pytorch model
         """
@@ -454,10 +441,8 @@ class PatchFeatureExtractor:
     @staticmethod
     def _remove_classifier(model: nn.Module) -> nn.Module:
         """Returns the model without the classifier to get embeddings
-
         Args:
             model (nn.Module): Classifiation model
-
         Returns:
             nn.Module: Embedding model
         """
@@ -471,10 +456,8 @@ class PatchFeatureExtractor:
 
     def __call__(self, patch: torch.Tensor) -> torch.Tensor:
         """Computes the embedding of a normalized image input
-
         Args:
             image (torch.Tensor): Normalized image input
-
         Returns:
             torch.Tensor: Embedding of image
         """
@@ -492,13 +475,13 @@ class DeepFeatureExtractor(FeatureExtractor):
         architecture: str,
         mask: bool = False,
         size: int = 224,
+        downsample_factor: int = 1,
         normalizer: Optional[dict] = None,
         batch_size: int = 32,
         num_workers: int = 0,
         **kwargs,
     ) -> None:
         """Create a deep feature extractor
-
         Args:
             architecture (str): Name of the architecture to use. According to torchvision.models syntax
             mask (bool, optional): Whether to mask out the parts outside the instance maps. Defaults to True.
@@ -507,6 +490,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         self.architecture = self._preprocess_architecture(architecture)
         self.mask = mask
         self.size = size
+        self.downsample_factor = downsample_factor
         if normalizer is not None:
             self.normalizer = normalizer.get("type", "unknown")
         else:
@@ -536,10 +520,8 @@ class DeepFeatureExtractor(FeatureExtractor):
     @staticmethod
     def _preprocess_architecture(architecture: str) -> str:
         """Preprocess the architecture string to avoid characters that are not allowed as paths
-
         Args:
             architecture (str): Unprocessed architecture name
-
         Returns:
             str: Architecture name to use for the save path
         """
@@ -555,21 +537,20 @@ class DeepFeatureExtractor(FeatureExtractor):
         self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
         """Extract features for a given RGB image and its extracted instance_map
-
         Args:
             input_image (np.ndarray): RGB input image
             instance_map (np.ndarray): Extracted instance_map
-
         Returns:
             torch.Tensor: Extracted features of shape [nr_instances, nr_features]
         """
         image_dataset = InstanceMapPatchDataset(
-            input_image,
-            instance_map,
-            self.size,
-            self.fill_value,
-            self.normalizer_mean,
-            self.normalizer_std,
+            image=input_image,
+            instance_map=instance_map,
+            size=self.size,
+            downsample_factor=self.downsample_factor,
+            fill_value=self.fill_value,
+            mean=self.normalizer_mean,
+            std=self.normalizer_std,
         )
         image_loader = DataLoader(
             image_dataset,
@@ -587,6 +568,314 @@ class DeepFeatureExtractor(FeatureExtractor):
             features[i, :] = embeddings
         return features.cpu().detach()
 
+
+class AugmentedInstanceMapPatchDataset(InstanceMapPatchDataset):
+    """Helper class to use a give image and extracted instance maps as a dataset and provides the ability to change the dataset transform at run time"""
+
+    def __init__(
+        self,
+        image: np.ndarray,
+        instance_map: np.ndarray,
+        size: int,
+        downsample_factor: int,
+        fill_value: Optional[int],
+        mean: Optional[List[float]],
+        std: Optional[List[float]],
+    ) -> None:
+        super().__init__(
+            image,
+            instance_map,
+            size=size,
+            downsample_factor=downsample_factor,
+            fill_value=fill_value,
+        )
+        self.mean = mean
+        self.std = std
+
+    def set_augmentation(self, augmentor):
+        basic_transforms = [transforms.Resize(224)]
+        basic_transforms.append(augmentor)
+        basic_transforms.append(transforms.ToTensor())
+        if self.mean is not None and self.std is not None:
+            basic_transforms.append(transforms.Normalize(self.mean, self.std))
+        self.dataset_transform = transforms.Compose(basic_transforms)
+
+
+class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
+    """Helper class to extract deep features from instance maps with different augmentations"""
+
+    def __init__(
+        self,
+        rotations: Optional[List[int]] = None,
+        flips: Optional[List[int]] = None,
+        **kwargs,
+    ) -> None:
+        """Creates a feature extractor that extracts feature for all of the given augmentations. Otherwise works the same as the DeepFeatureExtractor
+        Args:
+            rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.
+            flips (Optional[List[int]], optional): List of flips to use, in {'n', 'h', 'v'}. Defaults to None.
+        """
+        self.rotations = rotations
+        self.flips = flips
+        super().__init__(**kwargs)
+        if rotations is None:
+            rotations = [0]
+        if flips is None:
+            flips = ["n"]
+        self.transforms = []
+        for angle in rotations:
+            for flip in flips:
+                t = [
+                    transforms.Lambda(
+                        lambda x, a=angle: transforms.functional.rotate(x, angle=a)
+                    )
+                ]
+                if flip == "h":
+                    t.append(
+                        transforms.Lambda(lambda x: transforms.functional.hflip(x))
+                    )
+                if flip == "v":
+                    t.append(
+                        transforms.Lambda(lambda x: transforms.functional.vflip(x))
+                    )
+                self.transforms.append(transforms.Compose(t))
+
+    def _extract_features(
+        self, input_image: np.ndarray, instance_map: np.ndarray
+    ) -> torch.Tensor:
+        """Extract features for a given RGB image and its extracted instance_map for all augmentations
+        Args:
+            input_image (np.ndarray): RGB input image
+            instance_map (np.ndarray): Extracted instance_map
+        Returns:
+            torch.Tensor: Extracted features of shape [nr_instances, nr_augmentations, nr_features]
+        """
+        image_dataset = AugmentedInstanceMapPatchDataset(
+            input_image,
+            instance_map,
+            size=self.size,
+            downsample_factor=self.downsample_factor,
+            fill_value=self.fill_value,
+            mean=self.normalizer_mean,
+            std=self.normalizer_std,
+        )
+        image_loader = DataLoader(
+            image_dataset,
+            shuffle=False,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+        )
+        features = torch.empty(
+            size=(
+                len(image_dataset),
+                len(self.transforms),
+                self.patch_feature_extractor.num_features,
+            ),
+            dtype=torch.float32,
+            device=self.device,
+        )
+        for i, transform in enumerate(self.transforms):
+            image_dataset.set_augmentation(transform)
+            for j, image_batch in image_loader:
+                embeddings = self.patch_feature_extractor(image_batch)
+                features[j, i, :] = embeddings
+        return features.cpu().detach()
+
+
+class FeatureMerger(PipelineStep):
+    def __init__(self, downsampling_factor: int, *args, **kwargs) -> None:
+        """Merge features from an initial instance map to a merged instance map by averaging the features."""
+        warnings.warn(
+            "FeatureMerger is depreciated. Use AverageFeatureMerger instead.",
+            DeprecationWarning,
+        )
+        self.downsampling_factor = downsampling_factor
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _downsample(image: np.ndarray, downsampling_factor: int) -> np.ndarray:
+        """Downsample an input image with a given downsampling factor
+        Args:
+            image (np.array): Input tensor
+            downsampling_factor (int): Factor to downsample
+        Returns:
+            np.array: Output tensor
+        """
+        height, width = image.shape[0], image.shape[1]
+        new_height = math.floor(height / downsampling_factor)
+        new_width = math.floor(width / downsampling_factor)
+        downsampled_image = cv2.resize(
+            image, (new_height, new_width), interpolation=cv2.INTER_NEAREST
+        )
+        return downsampled_image
+
+    def process(
+        self,
+        instance_map: np.ndarray,
+        merged_instance_map: np.ndarray,
+        features: torch.Tensor,
+    ) -> torch.Tensor:
+        """Merge features from an initial instance_map to a merged_instance_map by feature averaging
+        Args:
+            instance_map (np.ndarray): Initial instance map
+            merged_instance_map (np.ndarray): Merged instance map that overlaps with initial instance_map
+            features (torch.Tensor): Extracted features
+        Raises:
+            NotImplementedError: Only 1D and 2D features supported
+        Returns:
+            torch.Tensor: Merged features
+        """
+        if self.downsampling_factor != 1:
+            instance_map = self._downsample(instance_map, self.downsampling_factor)
+            merged_instance_map = self._downsample(
+                merged_instance_map, self.downsampling_factor
+            )
+        translator = self._get_translator(instance_map, merged_instance_map)
+        if len(features.shape) == 2:
+            return self._merge_features(features, translator)
+        elif len(features.shape) == 3:
+            return self._merge_augmented_features(features, translator)
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def _check_translator_consistency(
+        instance_map, merged_instance_map, translator
+    ) -> None:
+        for instance_id in np.unique(merged_instance_map):
+            assert (
+                instance_id in translator
+            ), f"Merged instance id {instance_id} is not mapped to any superpixel: {translator}"
+            assert (
+                len(translator[instance_id]) > 0
+            ), f"Merged instance id {instance_id} is not mapped to any superpixel: {translator}"
+        all_values = np.concatenate(list(translator.values()))
+        assert len(all_values) == len(
+            set(all_values)
+        ), f"Mapped values contain duplicates: {all_values}"
+        all_values = set(all_values)
+        for instance_id in np.unique(instance_map):
+            assert (
+                instance_id in all_values
+            ), f"Inital instance id {instance_id} does not appear in translator"
+
+    def _get_translator(
+        self, instance_map: np.ndarray, merged_instance_map: np.ndarray
+    ) -> Dict[int, int]:
+        """Calculate which instances of the initial instance map belong to each instance of the merged instance map
+        Args:
+            instance_map (np.ndarray): Initial instance map
+            merged_instance_map (np.ndarray): Merged instance map
+        Returns:
+            Dict[int, int]: Mapping from merged instance map id to initial instance map id
+        """
+        nr_spx = instance_map.max() + 1
+        translator = defaultdict(list)
+        for i in range(1, nr_spx):
+            mask = instance_map == i
+            assignments, counts = np.unique(
+                merged_instance_map[mask], return_counts=True
+            )
+            assignment = assignments[counts.argmax()]
+            translator[assignment].append(i)
+        self._check_translator_consistency(
+            instance_map, merged_instance_map, translator
+        )
+        return {k: np.array(v) for k, v in translator.items()}
+
+    @staticmethod
+    def _merge_features(
+        features: torch.Tensor, translator: Dict[int, int]
+    ) -> torch.Tensor:
+        """Merge regular one-dimensional features
+        Args:
+            features (torch.Tensor): Feature matrix of shape (nr_superpixels, latent_dimension)
+            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+        Returns:
+            torch.Tensor: Merged features of shape (nr_merged_superpixels, latent_dimension)
+        """
+        latent_dim = features.shape[1]
+        merged_features = np.empty((len(translator), latent_dim))
+        for index, values in translator.items():
+            merged_features[index - 1] = features[values - 1].mean(axis=0)
+        return torch.as_tensor(merged_features)
+
+    @staticmethod
+    def _merge_augmented_features(
+        features: torch.Tensor, translator: Dict[int, int]
+    ) -> torch.Tensor:
+        """Merge augmented one-dimensional features
+        Args:
+            features (torch.Tensor): Feature matrix of shape (nr_superpixels, nr_augmentations, latent_dimension)
+            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+        Returns:
+            torch.Tensor: Merged features of shape (nr_merged_superpixels, nr_augmentations, latent_dimension)
+        """
+        nr_augmentations = features.shape[1]
+        latent_dim = features.shape[2]
+        merged_features = np.empty((len(translator), nr_augmentations, latent_dim))
+        for index, values in translator.items():
+            merged_features[index - 1] = features[values - 1].mean(axis=0)
+        return torch.as_tensor(merged_features)
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "features")
+
+
+class AverageFeatureMerger(PipelineStep):
+    def __init__(self, *args, **kwargs) -> None:
+        """Merge features from an initial instance map to a merged instance map by averaging the features."""
+        super().__init__(*args, **kwargs)
+
+    def process(self, features, translator):
+        if len(features.shape) == 2:
+            return self._merge_features(features, translator)
+        elif len(features.shape) == 3:
+            return self._merge_augmented_features(features, translator)
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def _merge_features(
+        features: torch.Tensor, translator: Dict[int, int]
+    ) -> torch.Tensor:
+        """Merge regular one-dimensional features
+        Args:
+            features (torch.Tensor): Feature matrix of shape (nr_superpixels, latent_dimension)
+            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+        Returns:
+            torch.Tensor: Merged features of shape (nr_merged_superpixels, latent_dimension)
+        """
+        latent_dim = features.shape[1]
+        merged_features = np.empty((len(translator), latent_dim))
+        for index, values in translator.items():
+            merged_features[index - 1] = features[values - 1].mean(axis=0)
+        return torch.as_tensor(merged_features)
+
+    @staticmethod
+    def _merge_augmented_features(
+        features: torch.Tensor, translator: Dict[int, int]
+    ) -> torch.Tensor:
+        """Merge augmented one-dimensional features
+        Args:
+            features (torch.Tensor): Feature matrix of shape (nr_superpixels, nr_augmentations, latent_dimension)
+            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
+        Returns:
+            torch.Tensor: Merged features of shape (nr_merged_superpixels, nr_augmentations, latent_dimension)
+        """
+        nr_augmentations = features.shape[1]
+        latent_dim = features.shape[2]
+        merged_features = np.empty((len(translator), nr_augmentations, latent_dim))
+        for index, values in translator.items():
+            merged_features[index - 1] = features[values - 1].mean(axis=0)
+        return torch.as_tensor(merged_features)
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "features")
 
 HANDCRAFTED_FEATURES_NAMES = {
     'area': 0,
@@ -655,255 +944,3 @@ HANDCRAFTED_FEATURES_NAMES = {
     'mean_crowdedness': 63,
     'std_crowdedness': 64
 }
-
-
-class AugmentedInstanceMapPatchDataset(InstanceMapPatchDataset):
-    """Helper class to use a give image and extracted instance maps as a dataset and provides the ability to change the dataset transform at run time"""
-
-    def __init__(
-        self,
-        image: np.ndarray,
-        instance_map: np.ndarray,
-        size: int,
-        fill_value: Optional[int],
-        mean: Optional[List[float]],
-        std: Optional[List[float]],
-    ) -> None:
-        super().__init__(image, instance_map, size, fill_value)
-        self.mean = mean
-        self.std = std
-
-    def set_augmentation(self, augmentor):
-        basic_transforms = [transforms.Resize(224)]
-        basic_transforms.append(augmentor)
-        basic_transforms.append(transforms.ToTensor())
-        if self.mean is not None and self.std is not None:
-            basic_transforms.append(transforms.Normalize(self.mean, self.std))
-        self.dataset_transform = transforms.Compose(basic_transforms)
-
-
-class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
-    """Helper class to extract deep features from instance maps with different augmentations"""
-
-    def __init__(
-        self,
-        rotations: Optional[List[int]] = None,
-        flips: Optional[List[int]] = None,
-        **kwargs,
-    ) -> None:
-        """Creates a feature extractor that extracts feature for all of the given augmentations. Otherwise works the same as the DeepFeatureExtractor
-
-        Args:
-            rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.
-            flips (Optional[List[int]], optional): List of flips to use, in {'n', 'h', 'v'}. Defaults to None.
-        """
-        self.rotations = rotations
-        self.flips = flips
-        super().__init__(**kwargs)
-        if rotations is None:
-            rotations = [0]
-        if flips is None:
-            flips = ["n"]
-        self.transforms = []
-        for angle in rotations:
-            for flip in flips:
-                t = [
-                    transforms.Lambda(
-                        lambda x, a=angle: transforms.functional.rotate(x, angle=a)
-                    )
-                ]
-                if flip == "h":
-                    t.append(
-                        transforms.Lambda(lambda x: transforms.functional.hflip(x))
-                    )
-                if flip == "v":
-                    t.append(
-                        transforms.Lambda(lambda x: transforms.functional.vflip(x))
-                    )
-                self.transforms.append(transforms.Compose(t))
-
-    def _extract_features(
-        self, input_image: np.ndarray, instance_map: np.ndarray
-    ) -> torch.Tensor:
-        """Extract features for a given RGB image and its extracted instance_map for all augmentations
-
-        Args:
-            input_image (np.ndarray): RGB input image
-            instance_map (np.ndarray): Extracted instance_map
-
-        Returns:
-            torch.Tensor: Extracted features of shape [nr_instances, nr_augmentations, nr_features]
-        """
-        image_dataset = AugmentedInstanceMapPatchDataset(
-            input_image,
-            instance_map,
-            self.size,
-            self.fill_value,
-            self.normalizer_mean,
-            self.normalizer_std,
-        )
-        image_loader = DataLoader(
-            image_dataset,
-            shuffle=False,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-        )
-        features = torch.empty(
-            size=(
-                len(image_dataset),
-                len(self.transforms),
-                self.patch_feature_extractor.num_features,
-            ),
-            dtype=torch.float32,
-            device=self.device,
-        )
-        for i, transform in enumerate(self.transforms):
-            image_dataset.set_augmentation(transform)
-            for j, image_batch in image_loader:
-                embeddings = self.patch_feature_extractor(image_batch)
-                features[j, i, :] = embeddings
-        return features.cpu().detach()
-
-
-class FeatureMerger(PipelineStep):
-    def __init__(self, downsampling_factor: int, *args, **kwargs) -> None:
-        """Merge features from an initial instance map to a merged instance map by averaging the features."""
-        self.downsampling_factor = downsampling_factor
-        super().__init__(*args, **kwargs)
-
-    @staticmethod
-    def _downsample(image: np.ndarray, downsampling_factor: int) -> np.ndarray:
-        """Downsample an input image with a given downsampling factor
-
-        Args:
-            image (np.array): Input tensor
-            downsampling_factor (int): Factor to downsample
-
-        Returns:
-            np.array: Output tensor
-        """
-        height, width = image.shape[0], image.shape[1]
-        new_height = math.floor(height / downsampling_factor)
-        new_width = math.floor(width / downsampling_factor)
-        downsampled_image = cv2.resize(
-            image, (new_height, new_width), interpolation=cv2.INTER_NEAREST
-        )
-        return downsampled_image
-
-    def process(
-        self,
-        instance_map: np.ndarray,
-        merged_instance_map: np.ndarray,
-        features: torch.Tensor,
-    ) -> torch.Tensor:
-        """Merge features from an initial instance_map to a merged_instance_map by feature averaging
-
-        Args:
-            instance_map (np.ndarray): Initial instance map
-            merged_instance_map (np.ndarray): Merged instance map that overlaps with initial instance_map
-            features (torch.Tensor): Extracted features
-
-        Raises:
-            NotImplementedError: Only 1D and 2D features supported
-
-        Returns:
-            torch.Tensor: Merged features
-        """
-        if self.downsampling_factor != 1:
-            instance_map = self._downsample(instance_map, self.downsampling_factor)
-            merged_instance_map = self._downsample(
-                merged_instance_map, self.downsampling_factor
-            )
-        translator = self._get_translator(instance_map, merged_instance_map)
-        if len(features.shape) == 2:
-            return self._merge_features(features, translator)
-        elif len(features.shape) == 3:
-            return self._merge_augmented_features(features, translator)
-        else:
-            raise NotImplementedError
-
-    @staticmethod
-    def _check_translator_consistency(
-        instance_map, merged_instance_map, translator
-    ) -> None:
-        for instance_id in np.unique(merged_instance_map):
-            assert (
-                instance_id in translator
-            ), f"Merged instance id {instance_id} is not mapped to any superpixel: {translator}"
-            assert (
-                len(translator[instance_id]) > 0
-            ), f"Merged instance id {instance_id} is not mapped to any superpixel: {translator}"
-        all_values = np.concatenate(list(translator.values()))
-        assert len(all_values) == len(
-            set(all_values)
-        ), f"Mapped values contain duplicates: {all_values}"
-        all_values = set(all_values)
-        for instance_id in np.unique(instance_map):
-            assert (
-                instance_id in all_values
-            ), f"Inital instance id {instance_id} does not appear in translator"
-
-    def _get_translator(
-        self, instance_map: np.ndarray, merged_instance_map: np.ndarray
-    ) -> Dict[int, int]:
-        """Calculate which instances of the initial instance map belong to each instance of the merged instance map
-
-        Args:
-            instance_map (np.ndarray): Initial instance map
-            merged_instance_map (np.ndarray): Merged instance map
-
-        Returns:
-            Dict[int, int]: Mapping from merged instance map id to initial instance map id
-        """
-        nr_spx = instance_map.max() + 1
-        translator = defaultdict(list)
-        for i in range(1, nr_spx):
-            mask = instance_map == i
-            assignments, counts = np.unique(
-                merged_instance_map[mask], return_counts=True
-            )
-            assignment = assignments[counts.argmax()]
-            translator[assignment].append(i)
-        self._check_translator_consistency(
-            instance_map, merged_instance_map, translator
-        )
-        return {k: np.array(v) for k, v in translator.items()}
-
-    @staticmethod
-    def _merge_features(
-        features: torch.Tensor, translator: Dict[int, int]
-    ) -> torch.Tensor:
-        """Merge regular one-dimensional features
-
-        Args:
-            features (torch.Tensor): Feature matrix of shape (nr_superpixels, latent_dimension)
-            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
-
-        Returns:
-            torch.Tensor: Merged features of shape (nr_merged_superpixels, latent_dimension)
-        """
-        latent_dim = features.shape[1]
-        merged_features = np.empty((len(translator), latent_dim))
-        for index, values in translator.items():
-            merged_features[index - 1] = features[values - 1].mean(axis=0)
-        return torch.as_tensor(merged_features)
-
-    @staticmethod
-    def _merge_augmented_features(
-        features: torch.Tensor, translator: Dict[int, int]
-    ) -> torch.Tensor:
-        """Merge augmented one-dimensional features
-
-        Args:
-            features (torch.Tensor): Feature matrix of shape (nr_superpixels, nr_augmentations, latent_dimension)
-            translator (Dict[int, int]): Mapping from original superpixel index to merged superpixel index
-
-        Returns:
-            torch.Tensor: Merged features of shape (nr_merged_superpixels, nr_augmentations, latent_dimension)
-        """
-        nr_augmentations = features.shape[1]
-        latent_dim = features.shape[2]
-        merged_features = np.empty((len(translator), nr_augmentations, latent_dim))
-        for index, values in translator.items():
-            merged_features[index - 1] = features[values - 1].mean(axis=0)
-        return torch.as_tensor(merged_features)

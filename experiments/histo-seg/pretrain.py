@@ -4,11 +4,11 @@ from typing import Dict, Optional
 
 import mlflow
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm.auto import tqdm, trange
 
 from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
-from losses import get_loss
+from losses import get_loss, get_lr
 from models import PatchTissueClassifier
 from utils import dynamic_import_from, get_config
 
@@ -26,6 +26,8 @@ def train_patch_classifier(
     test: bool,
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
+    balanced_batches: bool = False,
+    pretrain_epochs: Optional[int] = None,
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -45,16 +47,26 @@ def train_patch_classifier(
 
     # Data loaders
     training_dataset, validation_dataset = prepare_patch_datasets(**data_config)
+    if balanced_batches:
+        training_sample_weights = training_dataset.get_class_weights()
+        sampler = WeightedRandomSampler(
+            training_sample_weights, len(training_dataset), replacement=True
+        )
+    else:
+        sampler = None
     training_loader = DataLoader(
         training_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=not balanced_batches,
+        sampler=sampler,
         num_workers=num_workers,
+        pin_memory=True,
     )
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
+        pin_memory=True,
     )
 
     # Compute device
@@ -90,18 +102,34 @@ def train_patch_classifier(
 
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
-    optimizer = optimizer_class(model.parameters(), **optimizer["params"])
+    optim = optimizer_class(model.parameters(), **optimizer["params"])
+
+    # Learning rate scheduler
+    scheduler_config = optimizer.get("scheduler", None)
+    if scheduler_config is not None:
+        scheduler_class = dynamic_import_from(
+            "torch.optim.lr_scheduler", scheduler_config["class"]
+        )
+        scheduler = scheduler_class(optim, **scheduler_config.get("params", {}))
+
+    if pretrain_epochs is not None:
+        model.freeze_encoder()
 
     for epoch in trange(nr_epochs):
 
         # Train model
         time_before_training = datetime.datetime.now()
         model.train()
+        if pretrain_epochs is not None and epoch == pretrain_epochs:
+            model.unfreeze_encoder()
+
         for patches, labels in tqdm(
             training_loader, desc="train", total=len(training_loader)
         ):
             patches = patches.to(device)
             labels = labels.to(device)
+
+            optim.zero_grad()
 
             logits = model(patches)
             loss = criterion(logits, labels)
@@ -111,13 +139,18 @@ def train_patch_classifier(
                 torch.nn.utils.clip_grad.clip_grad_norm_(
                     model.parameters(), clip_gradient_norm
                 )
-            optimizer.step()
+
+            optim.step()
 
             training_metric_logger.add_iteration_outputs(
-                losses=loss.item(),
+                loss=loss.item(),
                 logits=logits.detach().cpu(),
                 labels=labels.cpu(),
             )
+
+        if scheduler_config is not None:
+            robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
+            scheduler.step()
 
         training_metric_logger.log_and_clear(epoch)
         training_epoch_duration = (
@@ -145,7 +178,7 @@ def train_patch_classifier(
                     loss = criterion(logits, labels)
 
                     validation_metric_logger.add_iteration_outputs(
-                        losses=loss.item(),
+                        loss=loss.item(),
                         logits=logits.detach().cpu(),
                         labels=labels.cpu(),
                     )
@@ -167,7 +200,7 @@ def train_patch_classifier(
 if __name__ == "__main__":
     config, config_path, test = get_config(
         name="train",
-        default="pretrain.yml",
+        default="config/pretrain.yml",
         required=("model", "data", "metrics", "params"),
     )
     logging.info("Start pre-training")

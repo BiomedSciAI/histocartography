@@ -7,12 +7,20 @@ import shutil
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
+from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataset import Dataset
 
-from dataset import GraphClassificationDataset, PatchClassificationDataset
+from dataset import (
+    AugmentedGraphClassificationDataset,
+    GraphClassificationDataset,
+    ImageDataset,
+    PatchClassificationDataset,
+)
+from logging_helper import log_preprocessing_parameters
 from utils import merge_metadata
 
 with os.popen("hostname") as subprocess:
@@ -161,6 +169,9 @@ def prepare_graph_datasets(
     centroid_features: str = "no",
     normalize_features: bool = False,
     downsample_segmentation_maps: int = 1,
+    tissue_mask_directory: Optional[str] = None,
+    use_augmentation_dataset: bool = False,
+    augmentation_mode: Optional[bool] = False,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -178,11 +189,19 @@ def prepare_graph_datasets(
     )
 
     graph_directory = PREPROCESS_PATH / graph_directory
+    log_preprocessing_parameters(graph_directory)
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
         superpixel_directory=graph_directory / ".." / "..",
+        tissue_mask_directory=graph_directory
+        / ".."
+        / ".."
+        / ".."
+        / tissue_mask_directory
+        if tissue_mask_directory is not None
+        else None,
         add_image_sizes=True,
     )
     if train_fraction is not None:
@@ -216,47 +235,213 @@ def prepare_graph_datasets(
         training_metadata = training_metadata.sample(1)
         validation_metadata = validation_metadata.sample(1)
 
-    training_dataset = GraphClassificationDataset(
-        training_metadata,
-        patch_size=(patch_size, patch_size),
-        num_classes=NR_CLASSES,
-        background_index=BACKGROUND_CLASS,
-        centroid_features=centroid_features,
-        mean=precomputed_mean,
-        std=precomputed_std,
+    if patch_size is None:
+        patch_size_augmentation = None
+    else:
+        patch_size_augmentation = (patch_size, patch_size)
+
+    training_arguments = {
+        "patch_size": patch_size_augmentation,
+        "num_classes": NR_CLASSES,
+        "background_index": BACKGROUND_CLASS,
+        "centroid_features": centroid_features,
+        "mean": precomputed_mean,
+        "std": precomputed_std,
+    }
+    validation_arguments = {
+        "patch_size": patch_size_augmentation if use_patches_for_validation else None,
+        "num_classes": NR_CLASSES,
+        "background_index": BACKGROUND_CLASS,
+        "centroid_features": centroid_features,
+        "mean": precomputed_mean,
+        "std": precomputed_std,
+        "return_segmentation_info": True,
+        "segmentation_downsample_ratio": downsample_segmentation_maps,
+    }
+
+    if use_augmentation_dataset:
+        training_dataset = AugmentedGraphClassificationDataset(
+            training_metadata, augmentation_mode=augmentation_mode, **training_arguments
+        )
+        validation_dataset = AugmentedGraphClassificationDataset(
+            validation_metadata, augmentation_mode=None, **validation_arguments
+        )
+    else:
+        training_dataset = GraphClassificationDataset(
+            training_metadata, **training_arguments
+        )
+        validation_dataset = GraphClassificationDataset(
+            validation_metadata, **validation_arguments
+        )
+
+    return training_dataset, validation_dataset
+
+
+def prepare_graph_testset(
+    graph_directory: str,
+    test: bool = False,
+    tissue_mask_directory: Optional[str] = None,
+    centroid_features: str = "no",
+    normalize_features: bool = False,
+    test_slides: Optional[List[int]] = TEST_SLIDES,
+    use_augmentation_dataset: bool = False,
+    augmentation_mode: Optional[bool] = False,
+    **kwargs,
+) -> Dataset:
+    graph_directory = PREPROCESS_PATH / graph_directory
+
+    annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+    pathologist2_metadata = annotation_metadata[
+        (annotation_metadata.use == "test") & (annotation_metadata.pathologist == 2)
+    ]
+    pathologist2_metadata = pathologist2_metadata.set_index("name")
+    pathologist2_metadata = pathologist2_metadata.rename(
+        columns={"path": "annotation2_path"}
     )
-    validation_dataset = GraphClassificationDataset(
-        validation_metadata,
-        patch_size=(patch_size, patch_size) if use_patches_for_validation else None,
+    all_metadata = merge_metadata(
+        pd.read_pickle(IMAGES_DF),
+        pd.read_pickle(ANNOTATIONS_DF),
+        graph_directory=graph_directory,
+        superpixel_directory=graph_directory / ".." / "..",
+        tissue_mask_directory=graph_directory
+        / ".."
+        / ".."
+        / ".."
+        / tissue_mask_directory
+        if tissue_mask_directory is not None
+        else None,
+        add_image_sizes=True,
+    )
+    test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
+    test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
+
+    if normalize_features:
+        precomputed_mean = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"mean_{graph_directory.name}.pth"
+        )
+        precomputed_std = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"std_{graph_directory.name}.pth"
+        )
+    else:
+        precomputed_mean = None
+        precomputed_std = None
+
+    if test:
+        test_metadata = test_metadata.sample(5)
+
+    test_arguments = {
+        "patch_size": None,
+        "num_classes": NR_CLASSES,
+        "background_index": BACKGROUND_CLASS,
+        "centroid_features": centroid_features,
+        "mean": precomputed_mean,
+        "std": precomputed_std,
+        "return_segmentation_info": True,
+        "return_names": True,
+    }
+    test_arguments.update(kwargs)
+    if use_augmentation_dataset:
+        test_dataset = AugmentedGraphClassificationDataset(
+            test_metadata, augmentation_mode=None, **test_arguments
+        )
+    else:
+        test_dataset = GraphClassificationDataset(test_metadata, **test_arguments)
+    return test_dataset
+
+
+def prepare_graph_testset(
+    graph_directory: str,
+    test: bool = False,
+    centroid_features: str = "no",
+    normalize_features: bool = False,
+    test_slides: Optional[List[int]] = TEST_SLIDES,
+    **kwargs,
+):
+    graph_directory = PREPROCESS_PATH / graph_directory
+
+    annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+    pathologist2_metadata = annotation_metadata[
+        (annotation_metadata.use == "test") & (annotation_metadata.pathologist == 2)
+    ]
+    pathologist2_metadata = pathologist2_metadata.set_index("name")
+    pathologist2_metadata = pathologist2_metadata.rename(
+        columns={"path": "annotation2_path"}
+    )
+    all_metadata = merge_metadata(
+        pd.read_pickle(IMAGES_DF),
+        pd.read_pickle(ANNOTATIONS_DF),
+        graph_directory=graph_directory,
+        superpixel_directory=graph_directory / ".." / "..",
+        add_image_sizes=True,
+    )
+    test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
+    test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
+
+    if normalize_features:
+        precomputed_mean = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"mean_{graph_directory.name}.pth"
+        )
+        precomputed_std = torch.load(
+            PREPROCESS_PATH
+            / "outputs"
+            / "normalizers"
+            / f"std_{graph_directory.name}.pth"
+        )
+    else:
+        precomputed_mean = None
+        precomputed_std = None
+
+    if test:
+        test_metadata = test_metadata.sample(1)
+
+    test_dataset = GraphClassificationDataset(
+        test_metadata,
+        patch_size=None,
         num_classes=NR_CLASSES,
         background_index=BACKGROUND_CLASS,
         centroid_features=centroid_features,
         mean=precomputed_mean,
         std=precomputed_std,
         return_segmentation_info=True,
-        segmentation_downsample_ratio=downsample_segmentation_maps,
+        return_names=True,
+        **kwargs,
     )
-
-    return training_dataset, validation_dataset
+    return test_dataset
 
 
 def prepare_patch_datasets(
     image_path: str,
+    tissue_mask_directory: str,
     training_slides: Optional[List[int]] = None,
     validation_slides: Optional[List[int]] = None,
     train_fraction: Optional[float] = None,
     overfit_test: bool = False,
     normalizer: Optional[dict] = None,
+    drop_multiclass_patches: bool = False,
+    drop_unlabelled_patches: bool = False,
+    drop_tissue_patches: float = 0.0,
+    drop_validation_patches: bool = False,
     **kwargs,
 ) -> Tuple[Dataset, Dataset]:
 
+    image_path = PREPROCESS_PATH / image_path
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
-        processed_image_directory=PREPROCESS_PATH / image_path,
+        processed_image_directory=image_path,
         add_image_sizes=True,
+        tissue_mask_directory=image_path / tissue_mask_directory,
     )
-    
+
     if train_fraction is not None:
         train_indices, validation_indices = train_test_split(
             all_metadata.index.values, train_size=train_fraction
@@ -297,7 +482,125 @@ def prepare_patch_datasets(
         std=std,
         **kwargs,
     )
+
+    if drop_multiclass_patches:
+        training_dataset.drop_confusing_patches()
+    elif drop_unlabelled_patches:
+        training_dataset.drop_unlablled_patches()
+    if drop_tissue_patches > 0.0:
+        training_dataset.drop_tissueless_patches(minimum_fraction=drop_tissue_patches)
+    if drop_validation_patches:
+        if drop_multiclass_patches:
+            validation_dataset.drop_confusing_patches()
+        if drop_tissue_patches > 0.0:
+            validation_dataset.drop_tissueless_patches(
+                minimum_fraction=drop_tissue_patches
+            )
+
     return training_dataset, validation_dataset
+
+
+def prepare_patch_testset(
+    image_path: str,
+    test: bool,
+    tissue_mask_directory: Optional[str] = None,
+    test_slides: Optional[List[int]] = TEST_SLIDES,
+    normalizer: Optional[dict] = None,
+    **kwargs,
+) -> Dataset:
+
+    annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+    pathologist2_metadata = annotation_metadata[
+        (annotation_metadata.use == "test") & (annotation_metadata.pathologist == 2)
+    ]
+    pathologist2_metadata = pathologist2_metadata.set_index("name")
+    pathologist2_metadata = pathologist2_metadata.rename(
+        columns={"path": "annotation2_path"}
+    )
+
+    all_metadata = merge_metadata(
+        pd.read_pickle(IMAGES_DF),
+        annotation_metadata,
+        processed_image_directory=PREPROCESS_PATH / image_path,
+        tissue_mask_directory=PREPROCESS_PATH / image_path / tissue_mask_directory
+        if tissue_mask_directory is not None
+        else None,
+        add_image_sizes=True,
+    )
+    test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
+    test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
+
+    if test:
+        test_metadata = test_metadata.sample(1)
+
+    if normalizer is not None:
+        mean = torch.Tensor(normalizer["mean"])
+        std = torch.Tensor(normalizer["std"])
+    else:
+        mean = torch.Tensor([0, 0, 0])
+        std = torch.Tensor([1, 1, 1])
+
+    return ImageDataset(
+        metadata=test_metadata,
+        num_classes=NR_CLASSES,
+        return_names=True,
+        background_index=BACKGROUND_CLASS,
+        mean=mean,
+        std=std,
+        **kwargs,
+    )
+
+
+def show_class_acivation(per_class_output):
+    fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(8, 8))
+    for i, ax in enumerate(axes.flat):
+        im = ax.imshow(per_class_output[i], vmin=0, vmax=1, cmap="viridis")
+        ax.set_axis_off()
+        ax.set_title(MASK_VALUE_TO_TEXT[i])
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+    return fig
+
+
+def show_segmentation_masks(output, annotation=None, annotation2=None):
+    height = 4
+    width = 5
+    ncols = 1
+    if annotation is not None:
+        width += 5
+        ncols += 1
+        if annotation2 is not None:
+            width += 5
+            ncols += 1
+    fig, ax = plt.subplots(nrows=1, ncols=ncols, figsize=(width, height))
+    cmap = ListedColormap(MASK_VALUE_TO_COLOR.values())
+
+    mask_ax = ax if annotation is None else ax[0]
+    im = mask_ax.imshow(output, cmap=cmap, vmin=-0.5, vmax=4.5, interpolation="nearest")
+    mask_ax.axis("off")
+    if annotation is not None:
+        ax[1].imshow(
+            annotation, cmap=cmap, vmin=-0.5, vmax=4.5, interpolation="nearest"
+        )
+        ax[1].axis("off")
+        ax[0].set_title("Prediction")
+        if annotation2 is not None:
+            ax[2].imshow(
+                annotation2, cmap=cmap, vmin=-0.5, vmax=4.5, interpolation="nearest"
+            )
+            ax[2].axis("off")
+            ax[1].set_title("Ground Truth 1")
+            ax[2].set_title("Ground Truth 2")
+        else:
+            ax[1].set_title("Ground Truth")
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.016 if annotation2 is None else 0.01, 0.7])
+    cbar = fig.colorbar(im, ticks=[0, 1, 2, 3, 4], cax=cbar_ax)
+    cbar.ax.set_yticklabels(MASK_VALUE_TO_TEXT.values())
+    return fig
 
 
 if __name__ == "__main__":

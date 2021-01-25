@@ -1,0 +1,82 @@
+train:
+  data:
+    overfit_test: False
+    train_fraction: null
+    training_slides:
+      - 111
+      - 199
+      - 204
+    validation_slides:
+      - 76
+    patch_size: null
+    graph_directory:  "outputs/v4_mobilenet_300"
+    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
+    centroid_features: "cat"
+    use_patches_for_validation: false
+    normalize_features: false
+    downsample_segmentation_maps: 16
+    use_augmentation_dataset: true
+    augmentation_mode: node
+  model:
+    gnn_config:
+      activation: "PReLU"
+      agg_operator: "concat"
+      input_dim: 1282
+      hidden_dim: 32
+      layer_type: "gin_layer"
+      n_layers: 4
+      output_dim: 32
+      neighbor_pooling_type: "mean"
+      graph_norm: False
+      with_rlp: False
+      edge_dim: null
+      dropout: 0.0
+    graph_classifier_config:
+      n_layers: 2
+      hidden_dim: 32
+    node_classifier_config:
+      n_layers: 1
+      hidden_dim: 32
+      activation: "PReLU"
+      input_dropout: 0.0
+      seperate_heads: False
+  metrics:
+    graph:
+      - "GraphClassificationBalancedAccuracy"
+      - "GraphClassificationF1Score"
+      - "GraphClassificationAUCROC"
+      - "GraphClassificationBenignAccuracy"
+      - "GraphClassificationGleason3Accuracy"
+      - "GraphClassificationGleason4Accuracy"
+      - "GraphClassificationGleason5Accuracy"
+    node:
+      - "NodeClassificationAccuracy"
+      - "NodeClassificationBalancedAccuracy"
+      - "NodeClassificationF1Score"
+    segmentation:
+      - "MeanIoU"
+      - "fIoU"
+      - "MeanF1Score"
+  params:
+    experiment_name: "anv_wsss_train_classifier"
+    experiment_tags: null
+    optimizer:
+      class: "Adam"
+      params:
+        lr: 0.00003
+    loss:
+      graph:
+        class: "GraphBCELoss"
+      node:
+        class: "NodeStochasticCrossEntropy"
+        params:
+          background_label: 4
+          drop_probability: 0.0
+      node_weight: 0.5
+    batch_size: 8
+    nr_epochs: 2000
+    num_workers: 8
+    clip_gradient_norm: 5.0
+    dataset: "eth"
+    seed: null
+    validation_frequency: 5

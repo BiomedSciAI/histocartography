@@ -136,6 +136,7 @@ def merge_metadata(
     graph_directory: Optional[Path] = None,
     superpixel_directory: Optional[Path] = None,
     processed_image_directory: Optional[Path] = None,
+    tissue_mask_directory: Optional[Path] = None,
     add_image_sizes: bool = False,
 ):
     # Prepare annotation paths
@@ -176,6 +177,17 @@ def merge_metadata(
         )
         preprocessed_metadata = preprocessed_metadata.set_index("name")
         image_metadata = image_metadata.join(preprocessed_metadata)
+
+    if tissue_mask_directory is not None:
+        tissue_metadata = pd.DataFrame(
+            [
+                (path.name.split(".")[0], path)
+                for path in tissue_mask_directory.iterdir()
+            ],
+            columns=["name", "tissue_mask_path"],
+        )
+        tissue_metadata = tissue_metadata.set_index("name")
+        image_metadata = image_metadata.join(tissue_metadata)
 
     # Add image sizes
     if add_image_sizes:
@@ -307,6 +319,23 @@ def get_config(name="train", default="default.yml", required=[]):
         ), f"{key} not defined in config {args.config}: {config.keys()}"
 
     return config, args.config, args.test
+
+
+def get_segmentation_map(node_logits, superpixels, node_associations, NR_CLASSES):
+    batch_node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
+    segmentation_maps = np.empty((superpixels.shape), dtype=np.uint8)
+    start = 0
+    for i, end in enumerate(node_associations):
+        node_predictions = batch_node_predictions[start : start + end]
+
+        all_maps = list()
+        for label in range(NR_CLASSES):
+            (spx_indices,) = np.where(node_predictions == label)
+            map_l = np.isin(superpixels[i], spx_indices) * label
+            all_maps.append(map_l)
+        segmentation_maps[i] = np.stack(all_maps).sum(axis=0)
+        start += end
+    return segmentation_maps
 
 
 class SuperpixelVisualizer:

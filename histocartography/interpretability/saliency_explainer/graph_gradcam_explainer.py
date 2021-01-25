@@ -19,20 +19,26 @@ class GraphGradCAMExplainer(BaseExplainer):
         self.gnn_layer_ids = list(set([p.split('.')[2] for p in all_param_names]))
         self.gnn_layer_name = all_param_names[0].split('.')[0]
 
-    def process(self, graph):
+    def process(self, graph: dgl.DGLGraph, class_idx: int = None):
         """
         Explain a graph. 
 
         Args:
             graph (dgl.DGLGraph): graph to explain. 
+            class_idx (int, Optional): Index of the class to explain. If None, explainer winning class. 
+        
+        Returns:
+            node_importance (np.ndarray): Node-level importance scores
+            logits (np.ndarray): Prediction logits 
         """
 
         all_node_importances = []
         for layer_id in self.gnn_layer_ids:
             self.extractor = GradCAM(getattr(self.model, self.gnn_layer_name).layers, layer_id)
             original_logits = self.model([deepcopy(graph)])
-            winning_class = original_logits.argmax().item()
-            node_importance = self.extractor(winning_class, original_logits).cpu()
+            if class_idx is None:
+                class_idx = original_logits.argmax().item()
+            node_importance = self.extractor(class_idx, original_logits).cpu()
             all_node_importances.append(node_importance)
             self.extractor.clear_hooks()
 

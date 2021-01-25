@@ -1,27 +1,3 @@
-preprocess:
-  stages:
-    stain_normalizer:
-      class: "VahadaneStainNormalizer"
-      params:
-        target: "ZT76_39_B_2_1"
-    superpixel_extractor:
-      class: "SLICSuperpixelExtractor"
-      params:
-        nr_superpixels: 500
-        color_space: "rgb"
-    feature_extractor:
-      class: "DeepFeatureExtractor"
-      params:
-        architecture: "resnet18"
-        mask: False
-        size: 224
-    graph_builder:
-      class: "RAGGraphBuilder"
-      params:
-        nr_classes: 5
-  params:
-    cores: 64
-    labels: True
 upper_bound:
   stages:
     stain_normalizer:
@@ -45,17 +21,20 @@ train:
       - 204
     validation_slides:
       - 76
-    patch_size: 2500
-    graph_directory:  "outputs/v0_2000px"
+    patch_size: null
+    graph_directory:  "outputs/v3_900_19a9b40d174f40c4b217ddf84eb63e3b"
+    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
+    use_augmentation_dataset: false
+    augmentation_mode: null
   model:
     gnn_config:
-      activation: "relu"
+      activation: "PReLU"
       agg_operator: "concat"
-      input_dim: 514
+      input_dim: 1282
       hidden_dim: 32
       layer_type: "gin_layer"
       n_layers: 4
@@ -64,12 +43,16 @@ train:
       graph_norm: False
       with_rlp: False
       edge_dim: null
+      dropout: 0.0
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 32
     node_classifier_config:
-      n_layers: 2
-      hidden_dim: 16
+      n_layers: 1
+      hidden_dim: 32
+      activation: "PReLU"
+      input_dropout: 0.0
+      seperate_heads: True
   metrics:
     graph:
       - "GraphClassificationBalancedAccuracy"
@@ -81,6 +64,8 @@ train:
       - "GraphClassificationGleason5Accuracy"
     node:
       - "NodeClassificationAccuracy"
+      - "NodeClassificationBalancedAccuracy"
+      - "NodeClassificationF1Score"
     segmentation:
       - "MeanIoU"
       - "fIoU"
@@ -91,7 +76,8 @@ train:
     optimizer:
       class: "Adam"
       params:
-        lr: 2.0e-5
+        lr: 0.00003
+      scheduler: null
     loss:
       graph:
         class: "GraphBCELoss"
@@ -102,9 +88,23 @@ train:
           drop_probability: 0.0
       node_weight: 0.5
     batch_size: 8
-    nr_epochs: 2000
-    num_workers: 6
-    clip_gradient_norm: 5.0
+    nr_epochs: 500
+    num_workers: 8
+    clip_gradient_norm: null
     dataset: "eth"
     seed: null
-    validation_frequency: 1
+    validation_frequency: 5
+test:
+  data:
+    use_augmentation_dataset: True
+    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
+  model:
+    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
+  params:
+    experiment_name: "anv_wsss_test_gnn"
+    experiment_tags: null
+    dataset: eth
+    operation: argmax
+    local_save_path: '/dataT/anv/Data/ETH/gnn_test_masks'
+    mlflow_save_path: 'gnn_test_masks'
+    threshold: 0.25

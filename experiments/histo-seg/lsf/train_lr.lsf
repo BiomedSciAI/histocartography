@@ -8,10 +8,10 @@ module purge
 module load Miniconda3
 source activate histocartography
 
-#BSUB -J "/dataT/anv/logs/test"
-#BSUB -o "/dataT/anv/logs/test"
-#BSUB -e "/dataT/anv/logs/test.stderr"
+#BSUB -J "/dataT/anv/logs/training"
+#BSUB -o "/dataT/anv/logs/training"
+#BSUB -e "/dataT/anv/logs/training.stderr"
 
 export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 
-python train.py --config default.yml --test
+python train_lr.py --config default.yml

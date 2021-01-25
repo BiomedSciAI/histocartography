@@ -1,7 +1,8 @@
 import logging
 import os
+import tempfile
 import time
-import shutil
+from http.client import RemoteDisconnected
 from pathlib import Path
 from typing import DefaultDict
 
@@ -9,9 +10,11 @@ import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import torch
-from http.client import RemoteDisconnected
+import yaml
 from matplotlib.colors import ListedColormap
+from sklearn.metrics import cohen_kappa_score
 
+from metrics import sum_up_gleason
 from utils import dynamic_import_from, fix_seeds
 
 with os.popen("hostname") as subprocess:
@@ -24,7 +27,7 @@ if hostname.startswith("zhcc"):
         except FileExistsError:
             pass
 else:
-    SCRATCH_PATH = Path(".")
+    SCRATCH_PATH = Path("/tmp")
 
 
 def flatten(d, parent_key="", sep="."):
@@ -37,10 +40,6 @@ def flatten(d, parent_key="", sep="."):
             # Handle class names that are unnecessary
             if k == "class":
                 new_key = parent_key
-
-            # Handle lists (with no order)
-            if isinstance(v, list):
-                v = sorted(v)
 
             items.append((new_key, v))
     return dict(items)
@@ -56,6 +55,46 @@ def log_sources():
     for file in Path(".").iterdir():
         if file.name.endswith(".py"):
             robust_mlflow(mlflow.log_artifact, str(file), "sources")
+
+
+def log_dependencies():
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        os.system(
+            f'conda env export | grep -v "^prefix: " > {temp_dir_name}/environment.yml'
+        )
+        robust_mlflow(
+            mlflow.log_artifact, f"{temp_dir_name}/environment.yml", "sources"
+        )
+
+
+def log_segmentation_results(results, step):
+    for k, v in results.items():
+        values = torch.Tensor(v)
+        if len(values.shape) == 1:
+            robust_mlflow(mlflow.log_metric, k, values.mean().item(), step)
+        else:
+            mask = torch.isnan(values)
+            values[mask] = 0
+            means = torch.sum(values, axis=0) / torch.sum(~mask, axis=0)
+            for j, mean in enumerate(means):
+                robust_mlflow(mlflow.log_metric, f"{k}_class_{j}", mean.item(), step)
+
+
+def log_preprocessing_parameters(graph_path: Path):
+    config_path = graph_path / "config.yml"
+    if config_path.exists():
+        with open(config_path, "r") as file:
+            config = yaml.load(file)
+            for i, stage in enumerate(config.get("stages", [])):
+                for stage_name, v in stage.items():
+                    if stage_name in ["io"]:
+                        continue
+                    else:
+                        robust_mlflow(mlflow.log_param, f"{i}_{stage_name}", v["class"])
+                        robust_mlflow(
+                            mlflow.log_params,
+                            flatten(v["params"], parent_key=f"{i}_{stage_name}"),
+                        )
 
 
 def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):
@@ -87,6 +126,7 @@ def prepare_experiment(
     # Artifacts
     robust_mlflow(mlflow.log_artifact, config_path, "config")
     log_sources()
+    log_dependencies()
 
     # Log everything relevant
     log_parameters(data, model, seed=seed, **params)
@@ -115,17 +155,25 @@ class LoggingHelper:
         self.labels = list()
         self.extra_info = DefaultDict(list)
 
-    def add_iteration_outputs(self, losses=None, logits=None, labels=None, **kwargs):
-        if losses is not None:
-            self.losses.append(losses)
+    def add_iteration_outputs(self, loss=None, logits=None, labels=None, **kwargs):
+        if loss is not None:
+            if isinstance(loss, torch.Tensor):
+                loss = loss.item()
+            self.losses.append(loss)
         if logits is not None:
+            if isinstance(logits, torch.Tensor):
+                logits = logits.detach().cpu()
             self.logits.append(logits)
         if labels is not None:
+            if isinstance(labels, torch.Tensor):
+                labels = labels.detach().cpu()
             self.labels.append(labels)
         for name, value in kwargs.items():
             self.extra_info[name].extend(value)
 
     def _log(self, name, value, step):
+        if isinstance(value, torch.Tensor):
+            value = value.detach().cpu().mean().item()
         robust_mlflow(mlflow.log_metric, f"{self.prefix}.{name}", value, step)
 
     def _log_metrics(self, step):
@@ -177,26 +225,31 @@ class LoggingHelper:
 
 class GraphClassificationLoggingHelper:
     def __init__(
-        self, metrics_config, prefix, node_loss_weight, graph_loss_weight, **kwargs
+        self, metrics_config, prefix, background_label, leading_zeros=6, **kwargs
     ) -> None:
+        kwargs["background_label"] = background_label
         self.graph_logger = LoggingHelper(
             metrics_config.get("graph", {}), f"{prefix}.graph", **kwargs
         )
         self.node_logger = LoggingHelper(
             metrics_config.get("node", {}), f"{prefix}.node", **kwargs
         )
-        self.node_loss_weight = node_loss_weight
-        self.graph_loss_weight = graph_loss_weight
-        self.combined_logger = LoggingHelper({}, f"{prefix}.combined")
+        self.combined_logger = LoggingHelper({}, f"{prefix}.loss")
         self.segmentation_logger = LoggingHelper(
             metrics_config.get("segmentation", {}), f"{prefix}.segmentation", **kwargs
         )
         self.cmap = ListedColormap(["green", "blue", "yellow", "red", "white"])
+        self.prefix = prefix
+        self.background_label = background_label
+        self.leading_zeros = leading_zeros
+        self.gleason_grade_ground_truth = list()
+        self.gleason_grade_prediction = list()
+        self.gleason_agreement_name = "GleasonScoreKappa"
+        self.best_agreement = 0.0
 
     def add_iteration_outputs(
         self,
-        graph_loss=None,
-        node_loss=None,
+        loss=None,
         graph_logits=None,
         node_logits=None,
         graph_labels=None,
@@ -204,20 +257,34 @@ class GraphClassificationLoggingHelper:
         node_associations=None,
         annotation=None,
         predicted_segmentation=None,
+        tissue_masks=None,
     ):
-        if graph_loss is not None:
+        if graph_logits is not None and graph_labels is not None:
             self.graph_logger.add_iteration_outputs(
-                graph_loss, graph_logits, graph_labels
+                loss=None, logits=graph_logits, labels=graph_labels
             )
-        if node_loss is not None:
+        if node_logits is not None and node_labels is not None:
             self.node_logger.add_iteration_outputs(
-                node_loss, node_logits, node_labels, node_associations=node_associations
+                loss=None,
+                logits=node_logits,
+                labels=node_labels,
+                node_associations=node_associations,
             )
-        if graph_loss is not None and node_loss is not None:
-            self.combined_logger.add_iteration_outputs(
-                self.graph_loss_weight * graph_loss + self.node_loss_weight * node_loss
-            )
+        if loss is not None:
+            self.combined_logger.add_iteration_outputs(loss=loss)
         if annotation is not None and predicted_segmentation is not None:
+            for ground_truth, prediction, tissue_mask in zip(
+                annotation, predicted_segmentation, tissue_masks
+            ):
+                self.gleason_grade_ground_truth.append(sum_up_gleason(ground_truth))
+                prediction_masked = prediction.clone()
+                prediction_masked[~tissue_mask.astype(bool)] = self.background_label
+                self.gleason_grade_prediction.append(
+                    sum_up_gleason(prediction_masked, thres=0.25)
+                )
+            predicted_segmentation[
+                annotation == self.background_label
+            ] = self.background_label
             self.segmentation_logger.add_iteration_outputs(
                 logits=predicted_segmentation, labels=annotation
             )
@@ -243,28 +310,28 @@ class GraphClassificationLoggingHelper:
             )
             annotations = self.segmentation_logger.labels[random_batch]
             segmentation_maps = self.segmentation_logger.logits[random_batch]
-            leading_zeros = (annotations.shape[0] // 10) + 1
+            batch_leading_zeros = (annotations.shape[0] // 10) + 1
             run_id = robust_mlflow(mlflow.active_run).info.run_id
-            tmp_path = SCRATCH_PATH / run_id
-            if not tmp_path.exists():
-                tmp_path.mkdir()
-            for i, (annotation, segmentation_map) in enumerate(
-                zip(annotations, segmentation_maps)
-            ):
-                fig, _ = self.create_segmentation_maps(annotation, segmentation_map)
-                name = (
-                    tmp_path
-                    / f"valid_segmap_epoch_{str(step).zfill(6)}_{str(i).zfill(leading_zeros)}.png"
-                )
-                fig.savefig(str(name))
-                robust_mlflow(
-                    mlflow.log_artifact,
-                    str(name),
-                    artifact_path="validation_segmentation_maps",
-                )
-                plt.close(fig=fig)
-                plt.clf()
-            shutil.rmtree(tmp_path)
+            with tempfile.TemporaryDirectory(
+                prefix=run_id, dir=str(SCRATCH_PATH)
+            ) as tmp_path:
+                for i, (annotation, segmentation_map) in enumerate(
+                    zip(annotations, segmentation_maps)
+                ):
+                    fig, _ = self.create_segmentation_maps(annotation, segmentation_map)
+                    name = Path(tmp_path) / "{}_segmap_epoch_{}_{}.png".format(
+                        self.prefix,
+                        str(step).zfill(self.leading_zeros),
+                        str(i).zfill(batch_leading_zeros),
+                    )
+                    fig.savefig(str(name), bbox_inches="tight")
+                    robust_mlflow(
+                        mlflow.log_artifact,
+                        str(name),
+                        artifact_path=f"{self.prefix}_segmentation_maps",
+                    )
+                    plt.close(fig=fig)
+                    plt.clf()
 
     def log_and_clear(self, step, model=None):
         self.graph_logger.log_and_clear(step, model)
@@ -272,3 +339,31 @@ class GraphClassificationLoggingHelper:
         self.combined_logger.log_and_clear(step, model)
         self.save_segmentation_masks(step)
         self.segmentation_logger.log_and_clear(step, model)
+        if len(self.gleason_grade_ground_truth) > 0:
+            current_agreement = cohen_kappa_score(
+                self.gleason_grade_ground_truth,
+                self.gleason_grade_prediction,
+                weights="quadratic",
+            )
+            robust_mlflow(
+                mlflow.log_metric,
+                f"{self.prefix}.{self.gleason_agreement_name}",
+                current_agreement,
+                step,
+            )
+            if current_agreement > self.best_agreement:
+                robust_mlflow(
+                    mlflow.log_metric,
+                    f"{self.prefix}.best.{self.gleason_agreement_name}",
+                    current_agreement,
+                    step,
+                )
+                if model is not None:
+                    robust_mlflow(
+                        mlflow.pytorch.log_model,
+                        model,
+                        f"best.{self.prefix}.{self.gleason_agreement_name}",
+                    )
+                self.best_agreement = current_agreement
+        self.gleason_grade_ground_truth = list()
+        self.gleason_grade_prediction = list()

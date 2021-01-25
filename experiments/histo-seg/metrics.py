@@ -5,6 +5,7 @@ from typing import Any, List
 import numpy as np
 import sklearn.metrics
 import torch
+from histocartography.preprocessing.utils import fast_histogram
 
 
 class SegmentationMetric:
@@ -28,7 +29,7 @@ class SegmentationMetric:
         """
 
     def __call__(
-        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+        self, prediction: torch.Tensor, ground_truth: torch.Tensor
     ) -> torch.Tensor:
         """From either a batched, unbatched or batched with additional empty dimension calculate the metric accordingly
 
@@ -54,7 +55,7 @@ class SegmentationMetric:
             prediction = prediction.unsqueeze(0)
             ground_truth = ground_truth.unsqueeze(0)
         # Now we have shape BATCH x H x W
-        metric = self._compute_metric(ground_truth, prediction)
+        metric = self._compute_metric(ground_truth=ground_truth, prediction=prediction)
         if unbatched:
             return metric[0]
         return metric
@@ -71,7 +72,7 @@ class IoU(SegmentationMetric):
         """Create a IoU calculator for a certain number of classes
 
         Args:
-            nr_classes (int, optional): Number of classes to use. Defaults to 5.
+            nr_classes (int, optional): Number of classes to use
         """
         self.nr_classes = nr_classes
         self.smooth = 1e-12
@@ -97,6 +98,9 @@ class IoU(SegmentationMetric):
         class_iou = torch.empty((ground_truth.shape[0], self.nr_classes))
         for class_label in range(self.nr_classes):
             class_ground_truth = ground_truth == class_label
+            if class_label == self.background_label:
+                class_iou[:, class_label] = nan
+                continue
             if not class_ground_truth.any():
                 class_iou[:, class_label] = nan
                 continue
@@ -133,7 +137,7 @@ class MeanIoU(IoU):
         mask = torch.isnan(class_iou)
         class_iou[mask] = 0
         batch_mean_iou = torch.sum(class_iou, axis=1) / torch.sum(~mask, axis=1)
-        return batch_mean_iou.mean().item()
+        return batch_mean_iou.mean()
 
 
 class fIoU(IoU):
@@ -166,7 +170,7 @@ class fIoU(IoU):
         y[log_class_counts == 0] = 0
         class_weights = y / y.sum()
         batch_fiou = (class_weights * class_iou).sum(axis=1)
-        return batch_fiou.mean().item()
+        return batch_fiou.mean()
 
 
 class F1Score(SegmentationMetric):
@@ -247,7 +251,7 @@ class MeanF1Score(F1Score):
         mask = torch.isnan(class_f1)
         class_f1[mask] = 0
         batch_f1 = torch.sum(class_f1, axis=1) / torch.sum(~mask, axis=1)
-        return batch_f1.mean().item()
+        return batch_f1.mean()
 
 
 class ClassificationMetric:
@@ -394,6 +398,123 @@ class NodeClassificationAccuracy(NodeClassificationMetric):
             )
             start += node_association
         return np.mean(accuracies[accuracies == accuracies])
+
+    
+class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
+    def _compare(
+        self,
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+        node_associations: List[int],
+        **kwargs,
+    ) -> float:
+        accuracies = np.empty(len(node_associations))
+        start = 0
+        for i, node_association in enumerate(node_associations):
+            y_pred = np.argmax(
+                predictions[start : start + node_association, ...].numpy(), axis=1
+            )
+            y_true = labels[start : start + node_association].numpy()
+            mask = y_true != self.background_label
+            accuracies[i] = sklearn.metrics.balanced_accuracy_score(
+                y_pred=y_pred[mask], y_true=y_true[mask]
+            )
+            start += node_association
+        return np.mean(accuracies[accuracies == accuracies])
+
+
+class NodeClassificationF1Score(NodeClassificationMetric):
+    def _compare(
+        self,
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+        node_associations: List[int],
+        **kwargs,
+    ) -> float:
+        accuracies = np.empty(len(node_associations))
+        start = 0
+        for i, node_association in enumerate(node_associations):
+            y_pred = np.argmax(
+                predictions[start : start + node_association, ...].numpy(), axis=1
+            )
+            y_true = labels[start : start + node_association].numpy()
+            mask = y_true != self.background_label
+            accuracies[i] = sklearn.metrics.f1_score(
+                y_pred=y_pred[mask], y_true=y_true[mask], average="weighted"
+            )
+            start += node_association
+        return np.mean(accuracies[accuracies == accuracies])
+
+
+class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
+    def _compare(
+        self,
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+        node_associations: List[int],
+        **kwargs,
+    ) -> float:
+        accuracies = np.empty(len(node_associations))
+        start = 0
+        for i, node_association in enumerate(node_associations):
+            y_pred = np.argmax(
+                predictions[start : start + node_association, ...].numpy(), axis=1
+            )
+            y_true = labels[start : start + node_association].numpy()
+            mask = y_true != self.background_label
+            accuracies[i] = sklearn.metrics.balanced_accuracy_score(
+                y_pred=y_pred[mask], y_true=y_true[mask]
+            )
+            start += node_association
+        return np.mean(accuracies[accuracies == accuracies])
+
+
+class NodeClassificationF1Score(NodeClassificationMetric):
+    def _compare(
+        self,
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+        node_associations: List[int],
+        **kwargs,
+    ) -> float:
+        accuracies = np.empty(len(node_associations))
+        start = 0
+        for i, node_association in enumerate(node_associations):
+            y_pred = np.argmax(
+                predictions[start : start + node_association, ...].numpy(), axis=1
+            )
+            y_true = labels[start : start + node_association].numpy()
+            mask = y_true != self.background_label
+            accuracies[i] = sklearn.metrics.f1_score(
+                y_pred=y_pred[mask], y_true=y_true[mask], average="weighted"
+            )
+            start += node_association
+        return np.mean(accuracies[accuracies == accuracies])
+
+
+def sum_up_gleason(annotation, n_class=4, thres=0):
+    # read the mask and count the grades
+    grade_count = fast_histogram(annotation.flatten(), n_class)
+    grade_count = grade_count / grade_count.sum()
+    grade_count[grade_count < thres] = 0
+
+    # get the max and second max scores and write them to file
+    idx = np.argsort(grade_count)
+    primary_score = idx[-1]
+    secondary_score = idx[-2]
+
+    if np.sum(grade_count == 0) == n_class - 1:
+        secondary_score = primary_score
+    if secondary_score == 0:
+        secondary_score = primary_score
+    if primary_score == 0:
+        primary_score = secondary_score
+
+    # Fix scores
+    if primary_score + secondary_score == 0:
+        return 0
+    else:
+        return primary_score + secondary_score - 1
 
 
 # Legacy compatibility (remove in the future)

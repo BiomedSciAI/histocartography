@@ -6,6 +6,7 @@ from typing import Optional
 
 import cv2
 import dgl
+import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
@@ -13,10 +14,23 @@ from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 from sklearn.neighbors import kneighbors_graph
 
+from ..utils.vector import compute_l2_distance
 from .constants import CENTROID, FEATURES, LABEL
 from .pipeline import PipelineStep
 from .utils import fast_histogram
-from ..utils.vector import compute_l2_distance
+
+
+def two_hop_neighborhood(graph: dgl.DGLGraph):
+    A = graph.adjacency_matrix().to_dense()
+    A_tilde = (1.0 * ((A + A.matmul(A)) >= 1)) - torch.eye(A.shape[0])
+    ngraph = nx.convert_matrix.from_numpy_matrix(A_tilde.numpy())
+    new_graph = dgl.DGLGraph()
+    new_graph.from_networkx(ngraph)
+    for k, v in graph.ndata.items():
+        new_graph.ndata[k] = v
+    for k, v in graph.edata.items():
+        new_graph.edata[k] = v
+    return new_graph
 
 
 class BaseGraphBuilder(PipelineStep):
@@ -130,7 +144,7 @@ class BaseGraphBuilder(PipelineStep):
 
         Args:
             structure (np.ndarray): Structure of the graph, eg instance maps, centroids
-            annotation (np.ndarray): Annotations, eg node labels 
+            annotation (np.ndarray): Annotations, eg node labels
             graph (dgl.DGLGraph): Graph to add the centroids to
         """
 
@@ -157,14 +171,16 @@ class RAGGraphBuilder(BaseGraphBuilder):
     Super-pixel Graphs class for graph building.
     """
 
-    def __init__(self, kernel_size: int = 5, **kwargs) -> None:
+    def __init__(self, kernel_size: int = 5, hops: int = 1, **kwargs) -> None:
         """Create a graph builder that uses a provided kernel size to detect connectivity
 
         Args:
             kernel_size (int, optional): Size of the kernel to detect connectivity. Defaults to 5.
         """
         logging.debug("*** RAG Graph Builder ***")
+        assert hops > 0 and isinstance(hops, int), f"Invalid hops {hops} ({type(hops)}). Must be integer >= 0"
         self.kernel_size = kernel_size
+        self.hops = hops
         super().__init__(**kwargs)
 
     @staticmethod
@@ -218,6 +234,9 @@ class RAGGraphBuilder(BaseGraphBuilder):
         edge_list = np.nonzero(adjacency)
         graph.add_edges(list(edge_list[0]), list(edge_list[1]))
 
+        for _ in range(self.hops - 1):
+            graph = two_hop_neighborhood(graph)
+
 
 class KNNGraphBuilder(BaseGraphBuilder):
     """
@@ -225,7 +244,7 @@ class KNNGraphBuilder(BaseGraphBuilder):
     """
 
     def __init__(self, k: int = 5, thresh: int = None, **kwargs) -> None:
-        """Create a graph builder that uses the (thresholded) kNN algorithm to define the graph topology. 
+        """Create a graph builder that uses the (thresholded) kNN algorithm to define the graph topology.
 
         Args:
             k (int, optional): Number of neighbors. Defaults to 5.
@@ -251,16 +270,12 @@ class KNNGraphBuilder(BaseGraphBuilder):
 
         Args:
             centroids (np.array): Centroid locations
-            graph (dgl.DGLGraph): Graph to add the edges to 
+            graph (dgl.DGLGraph): Graph to add the edges to
         """
 
-        # build kNN adjacency 
+        # build kNN adjacency
         adj = kneighbors_graph(
-            centroids,
-            self.k,
-            mode='distance',
-            include_self=False,
-            metric='euclidean'
+            centroids, self.k, mode="distance", include_self=False, metric="euclidean"
         )
 
         # filter edges that are too far (ie larger than thresh)
@@ -269,7 +284,9 @@ class KNNGraphBuilder(BaseGraphBuilder):
         if self.thresh is not None:
             edge_list = list(
                 filter(
-                    lambda x: compute_l2_distance(centroids[x[0]], centroids[x[1]]) < self.thresh, edge_list
+                    lambda x: compute_l2_distance(centroids[x[0]], centroids[x[1]])
+                    < self.thresh,
+                    edge_list,
                 )
             )
 

@@ -1,26 +1,24 @@
-import datetime
 import logging
+import os
+import pickle
 from typing import Dict, List, Optional
 
+import dgl
+import matplotlib.pyplot as plt
 import mlflow
-import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from tqdm.auto import trange
+from torch_lr_finder import LRFinder
 
-from dataset import collate, collate_valid
-from logging_helper import (
-    GraphClassificationLoggingHelper,
-    prepare_experiment,
-    robust_mlflow,
-)
-from losses import get_loss, get_lr
+from dataset import GraphClassificationDataset
+from logging_helper import prepare_experiment, robust_mlflow
+from losses import get_loss
 from models import (
     ImageTissueClassifier,
     SemiSuperPixelTissueClassifier,
     SuperPixelTissueClassifier,
 )
-from utils import dynamic_import_from, get_config, get_segmentation_map
+from utils import dynamic_import_from, get_config
 
 
 def get_model(
@@ -86,10 +84,10 @@ class CombinedCriterion(torch.nn.Module):
 
     def forward(
         self,
-        graph_logits: Optional[torch.Tensor] = None,
-        graph_labels: Optional[torch.Tensor] = None,
         node_logits: Optional[torch.Tensor] = None,
         node_labels: Optional[torch.Tensor] = None,
+        graph_logits: Optional[torch.Tensor] = None,
+        graph_labels: Optional[torch.Tensor] = None,
         node_associations: Optional[List[int]] = None,
     ):
         if self.mode == "strong_supervision":
@@ -127,7 +125,7 @@ class CombinedCriterion(torch.nn.Module):
             raise NotImplementedError(f"Criterion mode {self.mode} not implemented")
 
 
-def train_graph_classifier(
+def find_learning_rate(
     dataset: str,
     model_config: Dict,
     data_config: Dict,
@@ -163,17 +161,31 @@ def train_graph_classifier(
 
     # Data loaders
     training_dataset, validation_dataset = prepare_graph_datasets(**data_config)
+
+    # More monkeypatches
+    old_method = GraphClassificationDataset.__getitem__
+
+    def new_method(*args, **kwargs):
+        outputs = old_method(*args, **kwargs)
+        return outputs[0], outputs[2]
+
+    GraphClassificationDataset.__getitem__ = new_method
+
+    def collate_special(samples):
+        graphs, node_labels = map(list, zip(*samples))
+        return dgl.batch(graphs), torch.cat(node_labels)
+
     training_loader = DataLoader(
         training_dataset,
         batch_size=batch_size,
         shuffle=True,
-        collate_fn=collate,
+        collate_fn=collate_special,
         num_workers=num_workers,
     )
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=batch_size,
-        collate_fn=collate_valid,
+        collate_fn=collate_special,
         num_workers=num_workers,
     )
 
@@ -196,151 +208,78 @@ def train_graph_classifier(
     # Loss function
     criterion = CombinedCriterion(loss=loss, mode=mode, device=device)
 
-    training_metric_logger = GraphClassificationLoggingHelper(
-        metrics_config,
-        "train",
-        background_label=BACKGROUND_CLASS,
-        nr_classes=NR_CLASSES,
-    )
-    validation_metric_logger = GraphClassificationLoggingHelper(
-        metrics_config,
-        "valid",
-        background_label=BACKGROUND_CLASS,
-        nr_classes=NR_CLASSES,
-    )
-
     # Optimizer
     optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
     optim = optimizer_class(model.parameters(), **optimizer["params"])
 
-    # Learning rate scheduler
-    scheduler_config = optimizer.get("scheduler", None)
-    if scheduler_config is not None:
-        scheduler_class = dynamic_import_from(
-            "torch.optim.lr_scheduler", scheduler_config["class"]
-        )
-        scheduler = scheduler_class(optim, **scheduler_config.get("params", {}))
+    lr_finder = LRFinder(model, optim, criterion, device=device)
 
-    for epoch in trange(nr_epochs):
+    # Fast AI Method
+    lr_finder.range_test(
+        training_loader, start_lr=1e-7, end_lr=1, num_iter=10000, diverge_th=30
+    )
+    fig, ax = plt.subplots(figsize=(15, 10))
+    lr_finder.plot(ax=ax)
+    with open("lr_range_test_fast_ai.pickle", "wb") as f:
+        pickle.dump(fig, f)
+    mlflow.log_artifact("lr_range_test_fast_ai.pickle")
+    os.remove("lr_range_test_fast_ai.pickle")
+    fig.savefig("lr_range_test_fast_ai.png", dpi=300)
+    mlflow.log_artifact("lr_range_test_fast_ai.png")
+    os.remove("lr_range_test_fast_ai.png")
+    lr_finder.reset()
 
-        # Train model
-        time_before_training = datetime.datetime.now()
-        model.train()
-        for iteration, (graph, graph_labels, node_labels) in enumerate(training_loader):
-            optim.zero_grad()
-
-            graph = graph.to(device)
-            logits = model(graph)
-
-            # Calculate loss
-            loss_information = get_logit_information(logits, mode)
-            loss_information.update(
-                {
-                    "graph_labels": graph_labels.to(device),
-                    "node_labels": node_labels.to(device),
-                    "node_associations": graph.batch_num_nodes,
-                }
-            )
-            loss = criterion(**loss_information)
-            loss.backward()
-
-            # Optimize
-            if clip_gradient_norm is not None:
-                torch.nn.utils.clip_grad.clip_grad_norm_(
-                    model.parameters(), clip_gradient_norm
-                )
-            optim.step()
-
-            # Log to MLflow
-            training_metric_logger.add_iteration_outputs(
-                loss=loss.item(), **loss_information
-            )
-
-        if scheduler_config is not None:
-            robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
-            scheduler.step()
-
-        training_metric_logger.log_and_clear(step=epoch)
-        training_epoch_duration = (
-            datetime.datetime.now() - time_before_training
-        ).total_seconds()
-        robust_mlflow(
-            mlflow.log_metric,
-            "train.seconds_per_epoch",
-            training_epoch_duration,
-            step=epoch,
-        )
-
-        if epoch % validation_frequency == 0:
-            # Validate model
-            time_before_validation = datetime.datetime.now()
-            model.eval()
-            with torch.no_grad():
-                for iteration, (
-                    graph,
-                    graph_labels,
-                    node_labels,
-                    superpixels,
-                    annotations,
-                    tissue_masks,
-                ) in enumerate(validation_loader):
-                    graph = graph.to(device)
-                    logits = model(graph)
-
-                    # Calculate loss
-                    loss_information = get_logit_information(logits, mode)
-                    loss_information.update(
-                        {
-                            "graph_labels": graph_labels.to(device),
-                            "node_labels": node_labels.to(device),
-                            "node_associations": graph.batch_num_nodes,
-                        }
-                    )
-                    loss = criterion(**loss_information)
-
-                    if mode in ["strong_supervision", "semi_strong_supervision"]:
-                        segmentation_maps = get_segmentation_map(
-                            node_logits=loss_information["node_logits"],
-                            node_associations=graph.batch_num_nodes,
-                            superpixels=superpixels,
-                            NR_CLASSES=NR_CLASSES,
-                        )
-                        annotations = torch.as_tensor(annotations)
-                        segmentation_maps = torch.as_tensor(segmentation_maps)
-                    else:
-                        segmentation_maps = None
-
-                    validation_metric_logger.add_iteration_outputs(
-                        loss=loss.item(),
-                        annotation=annotations,
-                        predicted_segmentation=segmentation_maps,
-                        tissue_masks=tissue_masks,
-                        **loss_information,
-                    )
-
-            validation_metric_logger.log_and_clear(
-                step=epoch, model=model if not test else None
-            )
-            validation_epoch_duration = (
-                datetime.datetime.now() - time_before_validation
-            ).total_seconds()
-            robust_mlflow(
-                mlflow.log_metric,
-                "valid.seconds_per_epoch",
-                validation_epoch_duration,
-                step=epoch,
-            )
+    # Leslie Smith Method
+    lr_finder.range_test(
+        training_loader,
+        val_loader=validation_loader,
+        start_lr=1e-6,
+        end_lr=1e-3,
+        num_iter=1000,
+        step_mode="linear",
+        diverge_th=30,
+    )
+    fig, ax = plt.subplots(figsize=(15, 10))
+    lr_finder.plot(ax=ax, log_lr=False)
+    with open("lr_range_test_leslie_smith.pickle", "wb") as f:
+        pickle.dump(fig, f)
+    mlflow.log_artifact("lr_range_test_leslie_smith.pickle")
+    os.remove("lr_range_test_leslie_smith.pickle")
+    fig.savefig("lr_range_test_leslie_smith.png", dpi=300)
+    mlflow.log_artifact("lr_range_test_leslie_smith.png")
+    os.remove("lr_range_test_leslie_smith.png")
+    lr_finder.reset()
 
 
 if __name__ == "__main__":
+    # Ugly monkeypatch
+    def _move_to_device(self, inputs, labels, non_blocking=True):
+        def move(obj, device, non_blocking):
+            if hasattr(obj, "to"):
+                return obj.to(device)
+            elif isinstance(obj, tuple):
+                return tuple(move(o, device, non_blocking) for o in obj)
+            elif isinstance(obj, list):
+                return [move(o, device, non_blocking) for o in obj]
+            elif isinstance(obj, dict):
+                return {k: move(o, device, non_blocking) for k, o in obj.items()}
+            else:
+                return obj
+
+        inputs = move(inputs, self.device, non_blocking=non_blocking)
+        labels = move(labels, self.device, non_blocking=non_blocking)
+        return inputs, labels
+
+    LRFinder._move_to_device = _move_to_device
+
     config, config_path, test = get_config(
         name="train",
-        default="config/default.yml",
+        default="default.yml",
         required=("model", "data", "metrics", "params"),
     )
-    logging.info("Start training")
     prepare_experiment(config_path=config_path, **config)
-    train_graph_classifier(
+    robust_mlflow(mlflow.log_param, "task", "find_lr")
+    find_learning_rate(
         model_config=config["model"],
         data_config=config["data"],
         metrics_config=config["metrics"],

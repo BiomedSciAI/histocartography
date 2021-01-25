@@ -63,7 +63,7 @@ class GraphGradCAMTGTestCase(unittest.TestCase):
         print('Importance scores:', importance_scores)
 
         # 4. save as h5 file
-        with h5py.File('1937_benign_4_importance.h5', 'w') as hf:
+        with h5py.File(os.path.join(base_path, image_name.replace('.png', '_importance.h5')), 'w') as hf:
             hf.create_dataset("importance",  data=importance_scores)
 
         # 5. detect super pixels for visualization  

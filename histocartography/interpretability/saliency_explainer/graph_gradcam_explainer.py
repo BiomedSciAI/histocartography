@@ -19,7 +19,7 @@ class GraphGradCAMExplainer(BaseExplainer):
         self.gnn_layer_ids = list(set([p.split('.')[2] for p in all_param_names]))
         self.gnn_layer_name = all_param_names[0].split('.')[0]
 
-    def process(self, graph, class_idx=None):
+    def process(self, graph: dgl.DGLGraph, class_idx: int = None):
         """
         Explain a graph. 
 

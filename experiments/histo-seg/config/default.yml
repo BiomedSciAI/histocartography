@@ -22,13 +22,13 @@ train:
     validation_slides:
       - 76
     patch_size: null
-    graph_directory:  "outputs/v3_900_19a9b40d174f40c4b217ddf84eb63e3b"
+    graph_directory:  "outputs/v10_mobilenet_med_20x_no_overlap"
     tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
-    use_augmentation_dataset: false
+    use_augmentation_dataset: true
     augmentation_mode: null
   model:
     gnn_config:
@@ -37,7 +37,7 @@ train:
       input_dim: 1282
       hidden_dim: 32
       layer_type: "gin_layer"
-      n_layers: 4
+      n_layers: 12
       output_dim: 32
       neighbor_pooling_type: "mean"
       graph_norm: False

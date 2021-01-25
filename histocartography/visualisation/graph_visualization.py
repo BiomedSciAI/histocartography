@@ -183,6 +183,7 @@ class GraphVisualization(PipelineStep):
                 draw_bd (ImageDraw.Draw): Drawing tool. 
                 fill (Tuple[int, int, int], Optional): Default to (255, 255, 0).
                 width (int, Optional): Edge stroke width. Default to 2. 
+                node_importance (np.ndarray, Optional): Node importance scores. 
         """
         if node_importance is not None:
             buckets, colors = self._get_buckets(node_importance, with_colors=True)            

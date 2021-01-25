@@ -32,12 +32,12 @@ class TissueGraphBuildingTestCase(unittest.TestCase):
 
         # 1. load an image
         base_path = '../data'
-        image_name = '1238_adh_10.png'
+        image_name = '1937_benign_4.png'
         image = np.array(load_image(os.path.join(base_path, image_name)))
 
         # 2. super pixel detection 
-        nr_superpixels = min(int(BASE_N_SEGMENTS * (image.shape[0] * image.shape[1]/BASE_N_PIXELS)), MAX_N_SEGMENTS)
-        print('PUS number of super pixels:', nr_superpixels)
+        # nr_superpixels = min(int(BASE_N_SEGMENTS * (image.shape[0] * image.shape[1]/BASE_N_PIXELS)), MAX_N_SEGMENTS)
+        # print('PUS number of super pixels:', nr_superpixels)
         nr_superpixels = 200
         superpixel_detector = ColorMergedSuperpixelExtractor(
             nr_superpixels=nr_superpixels,
@@ -48,7 +48,7 @@ class TissueGraphBuildingTestCase(unittest.TestCase):
         merged_superpixels, superpixels, mapping = superpixel_detector.process(image)
 
         # 3. super pixel feature extraction 
-        feature_extractor = DeepFeatureExtractor(architecture='resnet34', size=96)
+        feature_extractor = DeepFeatureExtractor(architecture='resnet50', size=96)
         features = feature_extractor.process(image, superpixels)
 
         # 4. super pixel feature merging
@@ -70,7 +70,7 @@ class TissueGraphBuildingTestCase(unittest.TestCase):
 
         # 7. save DGL graph
         tg_fname = image_name.replace('.png', '_tg.bin')
-        save_graphs(os.path.join(base_path, tg_fname), [tissue_graph], labels={"glabel": torch.tensor([0])})
+        save_graphs(os.path.join(base_path, tg_fname), [tissue_graph], labels={"glabel": torch.tensor([2])})
 
         # 8. visualize the graph 
         visualiser = GraphVisualization(

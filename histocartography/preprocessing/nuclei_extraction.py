@@ -18,10 +18,10 @@ from tqdm import tqdm
 
 from ..utils import dynamic_import_from
 from .pipeline import PipelineStep
-from ..ml.models.hovernet import HoverNet
 from ..utils.image import extract_patches_from_image
 from ..utils.hover import process_instance
 from ..utils.io import is_mlflow_url
+# from ..ml.models.hovernet import HoVerNet
 
 
 class NucleiExtractor(PipelineStep):
@@ -31,7 +31,7 @@ class NucleiExtractor(PipelineStep):
         self,
         model_path: str,
         size: int = 256,
-        batch_size: int = 2,
+        batch_size: int = 32,
         num_workers: int = 0,
         **kwargs,
     ) -> None:
@@ -61,11 +61,10 @@ class NucleiExtractor(PipelineStep):
         if is_mlflow_url(model_path):
             self.model = load_model(model_path,  map_location=torch.device('cpu'))
         else:
-            self.model = HoverNet()
-            self.model.load_state_dict(torch.load(model_path))
+            self.model = torch.load(model_path)
+
         self.model.eval()
         self.model = self.model.to(self.device)
-        self.nr_classes = self.model.nr_types
 
     def process(
         self,
@@ -108,7 +107,7 @@ class NucleiExtractor(PipelineStep):
             collate_fn=collate
         )
         pred_map = torch.empty(
-            size=(image_dataset.max_x_coord, image_dataset.max_y_coord, self.nr_classes + 3),
+            size=(image_dataset.max_x_coord, image_dataset.max_y_coord, 3),
             dtype=torch.float32,
             device=self.device,
         )
@@ -129,10 +128,7 @@ class NucleiExtractor(PipelineStep):
         pred_map = pred_map[:image_dataset.im_h,:image_dataset.im_w, :]
 
         # post process instance map and labels 
-        instance_map, instance_labels = process_instance(
-            pred_map,
-            nr_types=self.nr_classes
-        )
+        instance_map = process_instance(pred_map)
 
         # extract the centroid location in the instance map
         regions = regionprops(instance_map)
@@ -144,7 +140,7 @@ class NucleiExtractor(PipelineStep):
             instance_centroids[i, 0] = center_x
             instance_centroids[i, 1] = center_y
         
-        return instance_map, instance_labels, instance_centroids
+        return instance_map, instance_centroids
 
     def precompute(self, final_path) -> None:
         """Precompute all necessary information"""
@@ -178,8 +174,8 @@ class ImageToPatchDataset(Dataset):
         self.im_w = image.shape[1]
         self.all_patches, self.coords = extract_patches_from_image(image, self.im_h, self.im_w)
         self.nr_patches = len(self.all_patches)
-        self.max_x_coord = self.coords[-1][-2]  
-        self.max_y_coord = self.coords[-1][-1]
+        self.max_y_coord = max([coord[-2] for coord in self.coords])  
+        self.max_x_coord = max([coord[-1] for coord in self.coords])
 
     def __getitem__(self, index: int) -> Tuple[int, torch.Tensor]:
         """Loads an image for a given instance maps index

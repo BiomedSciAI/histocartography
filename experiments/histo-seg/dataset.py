@@ -281,6 +281,7 @@ class GraphClassificationDataset(BaseDataset):
         std: Optional[torch.Tensor] = None,
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
+        return_names: bool = False,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -329,6 +330,7 @@ class GraphClassificationDataset(BaseDataset):
                 except OSError as e:
                     print(f"Could not open {superpixel_path}")
                     raise e
+
                 if self.downsample != 1:
                     new_size = (
                         annotation.shape[0] // self.downsample,

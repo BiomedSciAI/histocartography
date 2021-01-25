@@ -1,288 +1,435 @@
+import math
+from collections import OrderedDict
+
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F 
+import torch.nn.functional as F
+
+from ...utils.hover import crop_op, crop_to_shape
 
 
-class HoverNet(nn.Module):
+####
+class Net(nn.Module):
+    """ A base class provides a common weight initialisation scheme."""
 
-    def __init__(self, nr_types=6):
-        """
+    def weights_init(self):
+        for m in self.modules():
+            classname = m.__class__.__name__
 
-        """
+            # ! Fixed the type checking
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
 
-        super(HoverNet, self).__init__()
+            if "norm" in classname.lower():
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
-        self.nr_types = nr_types
-
-        # define encoder 
-        self.encode = Encoder()
-
-        # define decoder(s)
-        self.decode_np = Decoder()
-        self.decode_hv = Decoder()
-        self.decode_tp = Decoder()
-
-        # nuclei type pixel (TP)
-        self.conv_out_tp = Conv2dWithActivation(64, self.nr_types, 1, activation=None, padding=1, bias=True)
-        self.preact_out_np = BNReLU(64)
-
-        # nuclei pixels (NP)
-        self.conv_out_np = Conv2dWithActivation(64, 2, 1, activation=None, padding=1, bias=True)
-        self.preact_out_hv = BNReLU(64)
-
-        # horizontal-vertival (HV)
-        self.conv_out_hv = Conv2dWithActivation(64, 2, 1, activation=None, padding=1, bias=True)
-        self.preact_out_tp = BNReLU(64)
- 
-    def forward(self, images):
-        """
-        A batch of images (patches)
-        """
-
-        # 1. encode 
-        d = self.encode(images)
-
-        # 2. crop conv maps output 0 and 1 
-        d[0] = crop_op(d[0], (92, 92))
-        d[1] = crop_op(d[1], (36, 36))
-
-        # 3. decode
-        np_feat = self.decode_np(d)
-        npx = self.preact_out_np(np_feat[-1])
-
-        hv_feat = self.decode_hv(d)
-        hv = self.preact_out_hv(hv_feat[-1])
-
-        tp_feat = self.decode_tp(d)
-        tp = self.preact_out_tp(tp_feat[-1])
-
-        # 4.1 nuclei type pixel (TP)
-        logi_class = self.conv_out_tp(tp)
-        logi_class = logi_class.permute([0, 2, 3, 1])
-        soft_class = F.softmax(logi_class, dim=-1)
-
-        # 4.2 nuclei pixel (NP)
-        logi_np = self.conv_out_np(npx)
-        logi_np = logi_np.permute([0, 2, 3, 1])
-        soft_np = F.softmax(logi_np, dim=-1)
-        prob_np = torch.unsqueeze(soft_np[:, :, :, 1], dim=-1)       
-
-        # 4.3 horizontal vertical (HV)
-        logi_hv = self.conv_out_hv(hv)
-        logi_hv = logi_hv.permute([0, 2, 3, 1])
-        prob_hv = logi_hv
-        pred_hv = prob_hv
-
-        # 5. concat output 
-        predmap_coded = torch.cat([soft_class, prob_np, pred_hv], dim=-1)
-
-        return predmap_coded
-
-class Encoder(nn.Module):
-
-    def __init__(self):
-        """
-
-        """
-        super(Encoder, self).__init__()
-        self.conv0 = Conv2dWithActivation(3, 64, 7, activation='bnrelu', padding=3)  # padding of 3 allows to keep the same dimensions 
-        self.group0 = ResidualBlock(64, [64,  64,  256], [1, 3, 1], 3, strides=1)
-        self.group1 = ResidualBlock(256, [128, 128,  512], [1, 3, 1], 4, strides=2)
-        self.group2 = ResidualBlock(512, [256, 256, 1024], [1, 3, 1], 6, strides=2)
-        self.group3 = ResidualBlock(1024, [512, 512, 2048], [1, 3, 1], 3, strides=2)
-        self.conv_bot = Conv2dWithActivation(2048, 1024, 1, activation=None)   # @TODO: add 'same' padding 
+            if "linear" in classname.lower():
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        x1 = self.conv0(x)
-        x2 = self.group0(x1)
-        x3 = self.group1(x2)
-        x4 = self.group2(x3)
-        x5 = self.group3(x4)
-        x6 = self.conv_bot(x5)
-        return [x2, x3, x4, x6]
-
-
-class ResidualBlock(nn.Module):
-
-    def __init__(self, ch_in, ch, ksize, count, split=1, strides=1):
-        """
-        
-        """
-        super(ResidualBlock, self).__init__()
-        self.count = count 
-        for i in range(0, count):
-            if i != 0:
-                setattr(self, 'block' + str(i) + '_preact', BNReLU(ch[2])) 
-            setattr(self, 'block' + str(i) + '_conv1', Conv2dWithActivation(ch_in if i==0 else ch[-1], ch[0], ksize[0], activation='bnrelu')) 
-            setattr(self, 'block' + str(i) + '_conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation='bnrelu', stride=strides if i == 0 else 1, padding=1)) # padding=''same
-            setattr(self, 'block' + str(i) + '_conv3', Conv2dWithActivation(ch[1], ch[2], ksize[2], activation=None)) 
-            if i == 0:  
-                setattr(self, 'block' + str(i) + '_convshortcut', Conv2dWithActivation(ch_in, ch[2], 1, stride=strides, activation=None)) 
-        self.bnlast = BNReLU(ch[2])  
-
-    def forward(self, l):
-        for i in range(0, self.count):
-
-            # set input 
-            x = l if i == 0 else getattr(self, 'block' + str(i) + '_preact')(l)
-
-            # loop over conv1 & 2 & 3
-            x = getattr(self, 'block' + str(i) + '_conv1')(x)
-            x = getattr(self, 'block' + str(i) + '_conv2')(x)
-            x = getattr(self, 'block' + str(i) + '_conv3')(x)
-
-            # apply shortcut 
-            if hasattr(self, 'block' + str(i) + '_convshortcut'):
-                l = getattr(self, 'block' + str(i) + '_convshortcut')(l)
-            l = l + x
-
-        # end of each group need an extra activation
-        l = self.bnlast(l) 
-        return l
-
-
-class Upsample2x(nn.Module):
-
-    def __init__(self):
-        """
-        
-        """
-        super(Upsample2x, self).__init__()
-        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
-
-    def forward(self, x):
-        x = self.upsample(x)
         return x
 
 
-class Decoder(nn.Module):
+####
+class TFSamepaddingLayer(nn.Module):
+    """To align with tf `same` padding. 
+    
+    Putting this before any conv layer that need padding
+    Assuming kernel has Height == Width for simplicity
+    """
 
-    def __init__(self):
-        """
-        
-        """
-        super(Decoder, self).__init__()
-
-        # variables with name starting by u3
-        self.u3_rz = Upsample2x()   
-        self.u3_conva = Conv2dWithActivation(1024, 256, 3, activation=None)  
-        self.u3_dense = DenseBlock(256, [128, 32], [1, 3], 8, split=4)
-        self.u3_convf = Conv2dWithActivation(512, 512, 1, activation=None, padding=0)  # @TODO: define padding 
-
-        # variables with name starting by u2
-        self.u2_rz = Upsample2x()
-        self.u2_conva = Conv2dWithActivation(512, 128, 3, activation=None)  
-        self.u2_dense = DenseBlock(128, [128, 32], [1, 3], 4, split=4)
-        self.u2_convf = Conv2dWithActivation(256, 256, 1, activation=None, padding=0) 
-     
-        # variables with name starting by u1
-        self.u1_rz = Upsample2x()
-        self.u1_conva = Conv2dWithActivation(256, 64, 3, activation=None)  
+    def __init__(self, ksize, stride):
+        super(TFSamepaddingLayer, self).__init__()
+        self.ksize = ksize
+        self.stride = stride
 
     def forward(self, x):
+        if x.shape[2] % self.stride == 0:
+            pad = max(self.ksize - self.stride, 0)
+        else:
+            pad = max(self.ksize - (x.shape[2] % self.stride), 0)
 
-        # processing u3
-        u3 = self.u3_rz(x[-1])
-        u3_sum = u3 + x[-2]
-        u3 = self.u3_conva(u3_sum)
-        u3 = self.u3_dense(u3)
-        u3 = self.u3_convf(u3)
-
-        # processing u2
-        u2 = self.u2_rz(u3)
-        u2_sum = u2 + x[-3]
-        u2x = self.u2_conva(u2_sum)
-        u2 = self.u2_dense(u2x)
-        u2 = self.u2_convf(u2)
-
-        # processing u1
-        u1 = self.u1_rz(u2)
-        u1_sum = u1 + x[-4]
-        u1 = self.u1_conva(u1_sum)
-
-        return [u3, u2x, u1]
+        if pad % 2 == 0:
+            pad_val = pad // 2
+            padding = (pad_val, pad_val, pad_val, pad_val)
+        else:
+            pad_val_start = pad // 2
+            pad_val_end = pad - pad_val_start
+            padding = (pad_val_start, pad_val_end, pad_val_start, pad_val_end)
+        # print(x.shape, padding)
+        x = F.pad(x, padding, "constant", 0)
+        # print(x.shape)
+        return x
 
 
-class DenseBlock(nn.Module):
+####
+class DenseBlock(Net):
+    """Dense Block as defined in:
 
-    def __init__(self, ch_in, ch, ksize, count, split=1):
-        """
-        
-        """
+    Huang, Gao, Zhuang Liu, Laurens Van Der Maaten, and Kilian Q. Weinberger. 
+    "Densely connected convolutional networks." In Proceedings of the IEEE conference 
+    on computer vision and pattern recognition, pp. 4700-4708. 2017.
+
+    Only performs `valid` convolution.
+
+    """
+
+    def __init__(self, in_ch, unit_ksize, unit_ch, unit_count, split=1):
         super(DenseBlock, self).__init__()
-        self.count = count
-        for i in range(0, count):
-            setattr(self, 'blk_' + str(i) + 'preact_bna', BNReLU(ch_in))
-            setattr(self, 'blk_' + str(i) + 'conv1', Conv2dWithActivation(ch_in, ch[0], ksize[0], activation='bnrelu'))
-            setattr(self, 'blk_' + str(i) + 'conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation=None, split=split)) 
-            ch_in = ch_in + ch[-1]
+        assert len(unit_ksize) == len(unit_ch), "Unbalance Unit Info"
 
-        self.blk_bna = BNReLU(ch_in)
+        self.nr_unit = unit_count
+        self.in_ch = in_ch
+        self.unit_ch = unit_ch
 
-    def forward(self, l):
-        for i in range(0, self.count):
-            x = getattr(self, 'blk_' + str(i) + 'preact_bna')(l)
-            x = getattr(self, 'blk_' + str(i) + 'conv1')(x)
-            x = getattr(self, 'blk_' + str(i) + 'conv2')(x)
-            x_shape = list(x.shape)
-            l_shape = list(l.shape)
-            l = crop_op(l, (l_shape[2] - x_shape[2], 
-                            l_shape[3] - x_shape[3]))
-            l = torch.cat([l, x], dim=1)
-        l = self.blk_bna(l)
-        return l 
+        # ! For inference only so init values for batchnorm may not match tensorflow
+        unit_in_ch = in_ch
+        self.units = nn.ModuleList()
+        for idx in range(unit_count):
+            self.units.append(
+                nn.Sequential(
+                    OrderedDict(
+                        [
+                            ("preact_bna/bn", nn.BatchNorm2d(unit_in_ch, eps=1e-5)),
+                            ("preact_bna/relu", nn.ReLU(inplace=True)),
+                            (
+                                "conv1",
+                                nn.Conv2d(
+                                    unit_in_ch,
+                                    unit_ch[0],
+                                    unit_ksize[0],
+                                    stride=1,
+                                    padding=0,
+                                    bias=False,
+                                ),
+                            ),
+                            ("conv1/bn", nn.BatchNorm2d(unit_ch[0], eps=1e-5)),
+                            ("conv1/relu", nn.ReLU(inplace=True)),
+                            # ('conv2/pool', TFSamepaddingLayer(ksize=unit_ksize[1], stride=1)),
+                            (
+                                "conv2",
+                                nn.Conv2d(
+                                    unit_ch[0],
+                                    unit_ch[1],
+                                    unit_ksize[1],
+                                    groups=split,
+                                    stride=1,
+                                    padding=0,
+                                    bias=False,
+                                ),
+                            ),
+                        ]
+                    )
+                )
+            )
+            unit_in_ch += unit_ch[1]
 
-class BNReLU(nn.Module):
+        self.blk_bna = nn.Sequential(
+            OrderedDict(
+                [
+                    ("bn", nn.BatchNorm2d(unit_in_ch, eps=1e-5)),
+                    ("relu", nn.ReLU(inplace=True)),
+                ]
+            )
+        )
 
-    def __init__(self, num_features):
-        """
-        
-        """
-        super(BNReLU, self).__init__()
-        self.bn =  nn.BatchNorm2d(num_features)
-        self.relu = nn.ReLU()
+    def out_ch(self):
+        return self.in_ch + self.nr_unit * self.unit_ch[-1]
 
-    def forward(self, x):
-        x = self.bn(x)
-        x = self.relu(x)
-        return x
+    def forward(self, prev_feat):
+        for idx in range(self.nr_unit):
+            new_feat = self.units[idx](prev_feat)
+            prev_feat = crop_to_shape(prev_feat, new_feat)
+            prev_feat = torch.cat([prev_feat, new_feat], dim=1)
+        prev_feat = self.blk_bna(prev_feat)
+
+        return prev_feat
 
 
-class Conv2dWithActivation(nn.Module):
+####
+class ResidualBlock(Net):
+    """Residual block as defined in:
 
-    def __init__(self, num_input, num_output, filter_size, stride=1, activation=None, padding=0, bias=False, split=1):
-        """
-        
-        """
-        super(Conv2dWithActivation, self).__init__()
-        self.conv = nn.Conv2d(num_input, num_output, filter_size, stride=stride, padding=padding, bias=bias, groups=split)
-        self.activation = activation
+    He, Kaiming, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. "Deep residual learning 
+    for image recognition." In Proceedings of the IEEE conference on computer vision 
+    and pattern recognition, pp. 770-778. 2016.
 
-        if self.activation is not None:
-            if activation == 'bnrelu':
-                self.act = BNReLU(num_output)
+    """
+
+    def __init__(self, in_ch, unit_ksize, unit_ch, unit_count, stride=1):
+        super(ResidualBlock, self).__init__()
+        assert len(unit_ksize) == len(unit_ch), "Unbalance Unit Info"
+
+        self.nr_unit = unit_count
+        self.in_ch = in_ch
+        self.unit_ch = unit_ch
+
+        # ! For inference only so init values for batchnorm may not match tensorflow
+        unit_in_ch = in_ch
+        self.units = nn.ModuleList()
+        for idx in range(unit_count):
+            unit_layer = [
+                ("preact/bn", nn.BatchNorm2d(unit_in_ch, eps=1e-5)),
+                ("preact/relu", nn.ReLU(inplace=True)),
+                (
+                    "conv1",
+                    nn.Conv2d(
+                        unit_in_ch,
+                        unit_ch[0],
+                        unit_ksize[0],
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
+                ),
+                ("conv1/bn", nn.BatchNorm2d(unit_ch[0], eps=1e-5)),
+                ("conv1/relu", nn.ReLU(inplace=True)),
+                (
+                    "conv2/pad",
+                    TFSamepaddingLayer(
+                        ksize=unit_ksize[1], stride=stride if idx == 0 else 1
+                    ),
+                ),
+                (
+                    "conv2",
+                    nn.Conv2d(
+                        unit_ch[0],
+                        unit_ch[1],
+                        unit_ksize[1],
+                        stride=stride if idx == 0 else 1,
+                        padding=0,
+                        bias=False,
+                    ),
+                ),
+                ("conv2/bn", nn.BatchNorm2d(unit_ch[1], eps=1e-5)),
+                ("conv2/relu", nn.ReLU(inplace=True)),
+                (
+                    "conv3",
+                    nn.Conv2d(
+                        unit_ch[1],
+                        unit_ch[2],
+                        unit_ksize[2],
+                        stride=1,
+                        padding=0,
+                        bias=False,
+                    ),
+                ),
+            ]
+            # * has bna to conclude each previous block so
+            # * must not put preact for the first unit of this block
+            unit_layer = unit_layer if idx != 0 else unit_layer[2:]
+            self.units.append(nn.Sequential(OrderedDict(unit_layer)))
+            unit_in_ch = unit_ch[-1]
+
+        if in_ch != unit_ch[-1] or stride != 1:
+            self.shortcut = nn.Conv2d(in_ch, unit_ch[-1], 1, stride=stride, bias=False)
+        else:
+            self.shortcut = None
+
+        self.blk_bna = nn.Sequential(
+            OrderedDict(
+                [
+                    ("bn", nn.BatchNorm2d(unit_in_ch, eps=1e-5)),
+                    ("relu", nn.ReLU(inplace=True)),
+                ]
+            )
+        )
+
+    def out_ch(self):
+        return self.unit_ch[-1]
+
+    def forward(self, prev_feat, freeze=False):
+        if self.shortcut is None:
+            shortcut = prev_feat
+        else:
+            shortcut = self.shortcut(prev_feat)
+
+        for idx in range(0, len(self.units)):
+            new_feat = prev_feat
+            if self.training:
+                with torch.set_grad_enabled(not freeze):
+                    new_feat = self.units[idx](new_feat)
             else:
-                raise ValueError('Not implemented')
+                new_feat = self.units[idx](new_feat)
+            prev_feat = new_feat + shortcut
+            shortcut = prev_feat
+        feat = self.blk_bna(prev_feat)
+        return feat
+
+
+####
+class UpSample2x(nn.Module):
+    """Upsample input by a factor of 2.
+    
+    Assume input is of NCHW, port FixedUnpooling from TensorPack.
+    """
+
+    def __init__(self):
+        super(UpSample2x, self).__init__()
+        # correct way to create constant within module
+        self.register_buffer(
+            "unpool_mat", torch.from_numpy(np.ones((2, 2), dtype="float32"))
+        )
+        self.unpool_mat.unsqueeze(0)
 
     def forward(self, x):
-        x = self.conv(x)
-        if self.activation is not None:
-            x = self.act(x)
-        return x 
- 
+        input_shape = list(x.shape)
+        # unsqueeze is expand_dims equivalent
+        # permute is transpose equivalent
+        # view is reshape equivalent
+        x = x.unsqueeze(-1)  # bchwx1
+        mat = self.unpool_mat.unsqueeze(0)  # 1xshxsw
+        ret = torch.tensordot(x, mat, dims=1)  # bxcxhxwxshxsw
+        ret = ret.permute(0, 1, 2, 4, 3, 5)
+        ret = ret.reshape((-1, input_shape[1], input_shape[2] * 2, input_shape[3] * 2))
+        return ret
 
-def crop_op(x, cropping, data_format='channels_first'):
-    """
-    Center crop image
-    Args:
-        cropping is the substracted portion
-    """
-    crop_t = cropping[0] // 2
-    crop_b = cropping[0] - crop_t
-    crop_l = cropping[1] // 2
-    crop_r = cropping[1] - crop_l
-    if data_format == 'channels_first':
-        x = x[:,:,crop_t:-crop_b,crop_l:-crop_r]
-    else:
-        x = x[:,crop_t:-crop_b,crop_l:-crop_r]
-    return x   
+
+
+####
+class HoVerNet(Net):
+    """Initialise HoVer-Net."""
+
+    def __init__(self, input_ch=3, nr_types=None, freeze=False, mode='original'):
+        super().__init__()
+        self.mode = mode
+        self.freeze = freeze
+        self.nr_types = nr_types
+        self.output_ch = 3 if nr_types is None else 4
+
+        module_list = [
+            ("/", nn.Conv2d(input_ch, 64, 7, stride=1, padding=0, bias=False)),
+            ("bn", nn.BatchNorm2d(64, eps=1e-5)),
+            ("relu", nn.ReLU(inplace=True)),
+        ]
+        if mode == 'fast': # prepend the padding for `fast` mode
+            module_list = [("pad", TFSamepaddingLayer(ksize=7, stride=1))] + module_list
+
+        self.conv0 = nn.Sequential(OrderedDict(module_list))
+        self.d0 = ResidualBlock(64, [1, 3, 1], [64, 64, 256], 3, stride=1)
+        self.d1 = ResidualBlock(256, [1, 3, 1], [128, 128, 512], 4, stride=2)
+        self.d2 = ResidualBlock(512, [1, 3, 1], [256, 256, 1024], 6, stride=2)
+        self.d3 = ResidualBlock(1024, [1, 3, 1], [512, 512, 2048], 3, stride=2)
+
+        self.conv_bot = nn.Conv2d(2048, 1024, 1, stride=1, padding=0, bias=False)
+
+        def create_decoder_branch(out_ch=2, ksize=5):
+            module_list = [ 
+                ("conva", nn.Conv2d(1024, 256, ksize, stride=1, padding=0, bias=False)),
+                ("dense", DenseBlock(256, [1, ksize], [128, 32], 8, split=4)),
+                ("convf", nn.Conv2d(512, 512, 1, stride=1, padding=0, bias=False),),
+            ]
+            u3 = nn.Sequential(OrderedDict(module_list))
+
+            module_list = [ 
+                ("conva", nn.Conv2d(512, 128, ksize, stride=1, padding=0, bias=False)),
+                ("dense", DenseBlock(128, [1, ksize], [128, 32], 4, split=4)),
+                ("convf", nn.Conv2d(256, 256, 1, stride=1, padding=0, bias=False),),
+            ]
+            u2 = nn.Sequential(OrderedDict(module_list))
+
+            module_list = [ 
+                ("conva/pad", TFSamepaddingLayer(ksize=ksize, stride=1)),
+                ("conva", nn.Conv2d(256, 64, ksize, stride=1, padding=0, bias=False),),
+            ]
+            u1 = nn.Sequential(OrderedDict(module_list))
+
+            module_list = [ 
+                ("bn", nn.BatchNorm2d(64, eps=1e-5)),
+                ("relu", nn.ReLU(inplace=True)),
+                ("conv", nn.Conv2d(64, out_ch, 1, stride=1, padding=0, bias=True),),
+            ]
+            u0 = nn.Sequential(OrderedDict(module_list))
+
+            decoder = nn.Sequential(
+                OrderedDict([("u3", u3), ("u2", u2), ("u1", u1), ("u0", u0),])
+            )
+            return decoder
+
+        ksize = 5 if mode == 'original' else 3
+        if nr_types is None:
+            self.decoder = nn.ModuleDict(
+                OrderedDict(
+                    [
+                        ("np", create_decoder_branch(ksize=ksize,out_ch=2)),
+                        ("hv", create_decoder_branch(ksize=ksize,out_ch=2)),
+                    ]
+                )
+            )
+        else:
+            self.decoder = nn.ModuleDict(
+                OrderedDict(
+                    [
+                        ("tp", create_decoder_branch(ksize=ksize, out_ch=nr_types)),
+                        ("np", create_decoder_branch(ksize=ksize, out_ch=2)),
+                        ("hv", create_decoder_branch(ksize=ksize, out_ch=2)),
+                    ]
+                )
+            )
+
+        self.upsample2x = UpSample2x()
+        # TODO: pytorch still require the channel eventhough its ignored
+        self.weights_init()
+
+    def forward(self, imgs):
+
+        if self.training:
+            d0 = self.conv0(imgs)
+            d0 = self.d0(d0, self.freeze)
+            with torch.set_grad_enabled(not self.freeze):
+                d1 = self.d1(d0)
+                d2 = self.d2(d1)
+                d3 = self.d3(d2)
+            d3 = self.conv_bot(d3)
+            d = [d0, d1, d2, d3]
+        else:
+            d0 = self.conv0(imgs)
+            d0 = self.d0(d0)
+            d1 = self.d1(d0)
+            d2 = self.d2(d1)
+            d3 = self.d3(d2)
+            d3 = self.conv_bot(d3)
+            d = [d0, d1, d2, d3]
+
+        # TODO: switch to `crop_to_shape` ?
+        if self.mode == 'original':
+            d[0] = crop_op(d[0], [184, 184])
+            d[1] = crop_op(d[1], [72, 72])
+        else:
+            d[0] = crop_op(d[0], [92, 92])
+            d[1] = crop_op(d[1], [36, 36])
+
+        out_dict = OrderedDict()
+        for branch_name, branch_desc in self.decoder.items():
+            u3 = self.upsample2x(d[-1]) + d[-2]
+            u3 = branch_desc[0](u3)
+
+            u2 = self.upsample2x(u3) + d[-3]
+            u2 = branch_desc[1](u2)
+
+            u1 = self.upsample2x(u2) + d[-4]
+            u1 = branch_desc[2](u1)
+
+            u0 = branch_desc[3](u1)
+            u0 = u0.permute(0, 2, 3, 1).contiguous()  
+            out_dict[branch_name] = u0
+
+        pred_map = torch.cat(
+            [
+                F.softmax(out_dict["np"], dim=-1)[..., 1].unsqueeze(dim=-1),
+                out_dict['hv']
+            ],
+            dim=-1
+        )
+
+        return pred_map 
+
+
+####
+def create_model(mode=None, **kwargs):
+    if mode not in ['original', 'fast']:
+        assert "Unknown Model Mode %s" % mode
+    return HoVerNet(mode=mode, **kwargs)

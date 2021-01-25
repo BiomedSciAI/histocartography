@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 
 __all__ = ['CAM', 'ScoreCAM', 'SSCAM']
-EPS = 10e-5
+EPS = 10e-7
 
 
 class _CAM(object):
@@ -50,8 +50,8 @@ class _CAM(object):
     @staticmethod
     def _normalize(cams):
         """CAM normalization"""
-        cams -= cams.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1)
-        cams /= (cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1) + EPS)
+        cams -= cams.min(-1).values
+        cams /= (cams.max(-1).values + EPS)
 
         return cams
 
@@ -100,12 +100,13 @@ class _CAM(object):
 
         # set on cpu if too big for GPU RAM
         is_cuda = weights.is_cuda
-        if weights.shape[0] > 3000:
-            weights = weights.cpu()
-            self.hook_a = self.hook_a.cpu()
+        # if weights.shape[0] > 3000:
+        #     weights = weights.cpu()
+        #     self.hook_a = self.hook_a.cpu()
 
         # Perform the weighted combination to get the CAM
-        batch_cams = (weights.unsqueeze(-1).unsqueeze(-1) * self.hook_a.squeeze(0)).sum(dim=0)
+        num_nodes = self.hook_a.squeeze(0).shape[0]
+        batch_cams = (weights.unsqueeze(0).repeat(num_nodes, 1) * self.hook_a.squeeze(0)).sum(dim=1)
 
         if is_cuda:
             batch_cams = batch_cams.cuda()

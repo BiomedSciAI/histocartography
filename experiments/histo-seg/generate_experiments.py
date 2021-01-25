@@ -1032,6 +1032,9 @@ if __name__ == "__main__":
                 ["feature_extraction", "params", "architecture"],
                 "models/19a9b40d174f40c4b217ddf84eb63e3b_best_valid_MultiLabelBalancedAccuracy.pth",
             ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+            Parameter(["graph_builders", "params", "hops"], 2),
+            Parameter(["feature_extraction", "params", "architecture"], "mobilenet_v2"),
         ],
         sequential=[
             [
@@ -1166,6 +1169,9 @@ if __name__ == "__main__":
             Parameter(
                 ["pipeline", "stages", 5, "superpixel", "params", "threshold"], 0.06
             ),
+            Parameter(["feature_extraction", "params", "size"], 672),
+            Parameter(["graph_builders", "params", "hops"], 3),
+            Parameter(["feature_extraction", "params", "architecture"], "mobilenet_v2"),
         ],
         sequential=[
             [
@@ -1204,10 +1210,32 @@ if __name__ == "__main__":
         ],
         sequential=[
             [
+                ParameterList(["superpixel", "params", "nr_superpixels"],
+                [300, 800, 60, 200]),
+                ParameterList(["superpixel", "params", "compactness"], [
+                    1000, 1000, 1000, 1000
+                ]),
+                ParameterList(["feature_extraction", "params", "size"], [224, 224, 448, 448]),
                 ParameterList(
                     ["pipeline", "stages", 3, "superpixel", "params", "nr_superpixels"],
                     [700, 400, 250],
                 ),
+            ]
+        ]
+    )
+    CPUPreprocessingExperiment(name="non_overlapping_graph", base="config/augmented_preprocess.yml").generate(
+        fixed=[Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            )],
+        sequential=[
+            [
+                ParameterList(["superpixel", "params", "nr_superpixels"],
+                [700, 400, 250]),
+                ParameterList(["superpixel", "params", "compactness"], [
+                    30, 30, 30
+                ]),
+                ParameterList(["feature_extraction", "params", "size"], [224, 336, 448]),
                 ParameterList(
                     ["pipeline", "stages", 3, "superpixel", "params", "compactness"],
                     [30, 30, 30],
@@ -1224,6 +1252,16 @@ if __name__ == "__main__":
                     ],
                 ),
             ]
+        ]
+    )
+
+    # ETH
+    GraphClassifierExperiment(name="node_stochasticity").generate(
+        sequential=[
+            ParameterList(
+                ["train", "params", "loss", "node", "params", "drop_probability"],
+                [0.99, 0.95, 0.9, 0.8, 0.6, 0.4, 0.2, 0.1],
+            ),
         ],
     )
     CPUPreprocessingExperiment(
@@ -4409,7 +4447,7 @@ if __name__ == "__main__":
                     ]
                 ],
             )
-        ]
+        ],
     )
     GNNTestingExperiment(name="deep_baseline").generate(
         sequential=[
@@ -4434,6 +4472,9 @@ if __name__ == "__main__":
                 "s3://mlflow/631/3cb5cf60d3e0479a929c4a6ce9aee24b/artifacts/best.valid.segmentation.MeanIoU",
             )
         ],
+        sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
+    )
+    CNNTestingExperiment(name="various").generate(
         sequential=[
             ParameterList(
                 ["test", "params", "threshold"],

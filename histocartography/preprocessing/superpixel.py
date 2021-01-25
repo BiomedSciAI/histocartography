@@ -1,5 +1,6 @@
 """This module handles everything related to superpixels"""
 
+
 import logging
 import math
 import warnings
@@ -25,7 +26,6 @@ class SuperpixelExtractor(PipelineStep):
 
     def __init__(self, downsampling_factor: int = 1, **kwargs) -> None:
         """Abstract class that extracts superpixels from RGB Images
-
         Args:
             nr_superpixels (int): Upper bound of super pixels
             downsampling_factor (int, optional): Downsampling factor from the input image
@@ -36,10 +36,8 @@ class SuperpixelExtractor(PipelineStep):
 
     def process(self, input_image: np.ndarray) -> np.ndarray:
         """Return the superpixels of a given input image
-
         Args:
             input_image (np.array): Input image
-
         Returns:
             np.array: Extracted superpixels
         """
@@ -57,10 +55,8 @@ class SuperpixelExtractor(PipelineStep):
     @abstractmethod
     def _extract_superpixels(self, image: np.ndarray) -> np.ndarray:
         """Perform the superpixel extraction
-
         Args:
             image (np.array): Input tensor
-
         Returns:
             np.array: Output tensor
         """
@@ -68,11 +64,9 @@ class SuperpixelExtractor(PipelineStep):
     @staticmethod
     def _downsample(image: np.ndarray, downsampling_factor: int) -> np.ndarray:
         """Downsample an input image with a given downsampling factor
-
         Args:
             image (np.array): Input tensor
             downsampling_factor (int): Factor to downsample
-
         Returns:
             np.array: Output tensor
         """
@@ -87,12 +81,10 @@ class SuperpixelExtractor(PipelineStep):
     @staticmethod
     def _upsample(image: np.ndarray, new_height: int, new_width: int) -> np.ndarray:
         """Upsample an input image to a speficied new height and width
-
         Args:
             image (np.array): Input tensor
             new_height (int): Target height
             new_width (int): Target width
-
         Returns:
             np.array: Output tensor
         """
@@ -120,7 +112,6 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         **kwargs,
     ) -> None:
         """Extract superpixels with the SLIC algorithm
-
         Args:
             blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.
             max_iter (int, optional): Number of iterations of the slic algorithm. Defaults to 10.
@@ -135,10 +126,8 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
 
     def _extract_superpixels(self, image: np.ndarray) -> np.ndarray:
         """Perform the superpixel extraction
-
         Args:
             image (np.array): Input tensor
-
         Returns:
             np.array: Output tensor
         """
@@ -670,7 +659,6 @@ class EdgeMergedSuperpixelExtractor(MergedSuperpixelExtractor):
         data : dict
             A dictionary with the "weight" and "count" attributes to be
             assigned for the merged node.
-
         """
         default = {"weight": 0.0, "count": 0}
 

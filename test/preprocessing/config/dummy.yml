@@ -16,10 +16,9 @@ stages:
       - image
       outputs:
       - instance_map
-      - instance_labels
       - instance_centroids
       params:
-        model_path: "checkpoints/hovernet_pannuke.pth"
+        model_path: "checkpoints/hovernet_kumar_notype.pth"
   - feature_extraction:
       class: "DeepFeatureExtractor"
       inputs:

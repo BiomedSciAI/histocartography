@@ -2,4 +2,4 @@
 
 LABEL = "label"
 CENTROID = "centroid"
-FEATURES = "gnn_node_feat_in"
+FEATURES = "feat"

@@ -22,3 +22,11 @@ class ImageLoader(FileLoader):
         image_path = Path(path)
         image = load_image(image_path)
         return image
+
+class DGLGraphLoader(FileLoader):
+    def process(self, path: str, *args, **kwargs) -> Any:
+        graph_path = Path(path)
+        graphs, _ = load_image(graph_path)
+        if len(graphs) == 1:
+            return graphs[0]
+        return graphs

@@ -21,6 +21,49 @@ from scipy.ndimage.morphology import (binary_dilation, binary_erosion, binary_cl
 
 
 ####
+def crop_op(x, cropping, data_format="NCHW"):
+    """Center crop image.
+
+    Args:
+        x: input image
+        cropping: the substracted amount
+        data_format: choose either `NCHW` or `NHWC`
+        
+    """
+    crop_t = cropping[0] // 2
+    crop_b = cropping[0] - crop_t
+    crop_l = cropping[1] // 2
+    crop_r = cropping[1] - crop_l
+    if data_format == "NCHW":
+        x = x[:, :, crop_t:-crop_b, crop_l:-crop_r]
+    else:
+        x = x[:, crop_t:-crop_b, crop_l:-crop_r, :]
+    return x
+
+
+####
+def crop_to_shape(x, y, data_format="NCHW"):
+    """Centre crop x so that x has shape of y. y dims must be smaller than x dims.
+
+    Args:
+        x: input array
+        y: array with desired shape.
+
+    """
+    assert (
+        y.shape[0] <= x.shape[0] and y.shape[1] <= x.shape[1]
+    ), "Ensure that y dimensions are smaller than x dimensions!"
+
+    x_shape = x.size()
+    y_shape = y.size()
+    if data_format == "NCHW":
+        crop_shape = (x_shape[2] - y_shape[2], x_shape[3] - y_shape[3])
+    else:
+        crop_shape = (x_shape[1] - y_shape[1], x_shape[2] - y_shape[2])
+    return crop_op(x, crop_shape, data_format)
+
+
+####
 def normalize(mask, dtype=np.uint8):
     return (255 * mask / np.amax(mask)).astype(dtype)
 
@@ -266,55 +309,29 @@ def proc_np_hv(pred, return_coords=False):
         return pred_inst
 
 
-def process_instance(pred_map, nr_types, remap_label=False, output_dtype='uint16'):
+def process_instance(pred_map, remap_label=False, output_dtype='uint16'):
     """
     Post processing script for image tiles
 
     Args:
-        pred_map: commbined output of nc, np and hv branches
-        nr_types: number of types considered at output of nc branch
+        pred_map: commbined output of np and hv branches
         remap_label: whether to map instance labels from 1 to N (N = number of nuclei)
         output_dtype: data type of output
     
     Returns:
         pred_inst:     pixel-wise nuclear instance segmentation prediction
-        pred_type_out: pixel-wise nuclear type prediction 
     """
 
-    pred_inst = pred_map[..., nr_types:]
-    pred_type = pred_map[..., :nr_types]
-
-    pred_inst = np.squeeze(pred_inst)
-    pred_type = np.argmax(pred_type, axis=-1)
-    pred_type = np.squeeze(pred_type)
-    
+    pred_inst = np.squeeze(pred_map)
     pred_inst = proc_np_hv(pred_inst)
 
     # remap label is very slow - only uncomment if necessary to map labels in order
     if remap_label:
         pred_inst = remap_label(pred_inst, by_size=True)
-    
-    pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])               
-    #### * Get class of each instance id, stored at index id-1
-    pred_id_list = list(np.unique(pred_inst))[1:] # exclude background ID
-    pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
-    for idx, inst_id in enumerate(pred_id_list):
-        inst_tmp = pred_inst == inst_id
-        inst_type = pred_type[pred_inst == inst_id]
-        type_list, type_pixels = np.unique(inst_type, return_counts=True)
-        type_list = list(zip(type_list, type_pixels))
-        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
-        inst_type = type_list[0][0]
-        if inst_type == 0: # ! pick the 2nd most dominant if exist
-            if len(type_list) > 1:
-                inst_type = type_list[1][0]
-        pred_type_out += (inst_tmp * inst_type)
-    pred_type_out = pred_type_out.astype(output_dtype)
 
     pred_inst = pred_inst.astype(output_dtype)
-    
-    return pred_inst, pred_type_out
-####
+    return pred_inst
+
 
 def process_instance_wsi(pred_map, nr_types, tile_coords, return_masks, remap_label=False, offset=0, output_dtype='uint16'):
     """

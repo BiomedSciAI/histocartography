@@ -2,7 +2,7 @@ import json
 import os
 import torch
 import numpy as np
-import pandas as pd 
+import pandas as pd
 import PIL
 from PIL import Image
 import io
@@ -14,6 +14,13 @@ from mlflow.pytorch import load_model
 from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES
 from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
 from histocartography.dataloader.constants import get_number_of_classes
+
+
+def get_device(cuda=False):
+    """
+    Get device (cpu or gpu)
+    """
+    return'cuda:0' if cuda else 'cpu'
 
 
 def is_mlflow_url(candidate):
@@ -35,11 +42,11 @@ def plain_model_loading(config):
 
 
 def tentative_model_loading(config):
-    # build model from config 
+    # build model from config
     module = importlib.import_module(MODEL_MODULE.format(config['model_type']))
     model = getattr(module, AVAILABLE_MODEL_TYPES[config['model_type']])(config['model_params'], config['data_params']['input_feature_dims'])
 
-    # buid mlflow model and copy manually the weigths 
+    # buid mlflow model and copy manually the weigths
     num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])
     mlflow_model = load_model(MODEL_TO_MLFLOW_ID[str(num_classes) + '_class_scenario'][config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
 
@@ -90,8 +97,7 @@ def get_device(cuda=False):
     """
     Get device (cpu or gpu)
     """
-    return'cuda:0' if cuda else 'cpu'
-
+    return 'cuda:0' if cuda else 'cpu'
 
 def get_files_in_folder(path, extension, with_ext=True):
     """Returns all the file names in a folder, (Relative to the parent folder)
@@ -183,7 +189,10 @@ def read_txt(dir, fname, extension):
    Reads files from a text file and adds the extension for each file name in the text
     """
     with open(complete_path(dir, fname)) as f:
-        files = f.read().split()
+        print('Fname:', fname, dir, extension)
+        files = f.read()
+        print('Files are:', files)
+        files = files.split()
         files = [x + extension for x in files]
     return files
 
@@ -223,14 +232,14 @@ def save_checkpoint(model, save_path=''):
     """
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model.state_dict(), os.path.join(save_path))
-    
 
-def flatten_dict(d):   
+
+def flatten_dict(d):
     df = pd.io.json.json_normalize(d, sep='_')
     d = df.to_dict(orient='records')[0]
     return d
 
-    
+
 DATATYPE_TO_SAVEFN = {
     dict: write_json,
     np.ndarray: np.savetxt,

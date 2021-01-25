@@ -4,6 +4,7 @@ import numpy as np
 import cv2 
 import torch 
 import yaml
+from dgl.data.utils import save_graphs
 
 from histocartography.preprocessing.pipeline import PipelineRunner
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
@@ -36,7 +37,7 @@ class CellGraphBuildingTestCase(unittest.TestCase):
         cell_graph = output['graph']
         print('Number of nodes:', cell_graph.number_of_nodes())
         print('Number of edges:', cell_graph.number_of_edges())
-        print('Node features:', cell_graph.ndata['gnn_node_feat_in'].shape)
+        print('Node features:', cell_graph.ndata['feat'].shape)
         print('Node centroids:', cell_graph.ndata['centroid'].shape)
 
     def test_cell_graph_building(self):
@@ -45,20 +46,22 @@ class CellGraphBuildingTestCase(unittest.TestCase):
         """
 
         # 1. load an image
-        image = np.array(load_image('../data/1937_benign_4.png'))
+        image = np.array(load_image('../data/1607_adh_10.png'))
 
         # 2. nuclei detection 
         nuclei_detector = NucleiExtractor(
-            model_path='checkpoints/hovernet_pannuke.pth'
+            model_path='checkpoints/hovernet_kumar_notype.pth'
         )
-        instance_map, _, instance_centroids = nuclei_detector.process(image)
+        instance_map, instance_centroids = nuclei_detector.process(image)
 
         # 3. nuclei feature extraction 
         nuclei_feature_extractor = DeepFeatureExtractor(
             architecture='resnet34',
             size=72
         )
-        instance_features = nuclei_feature_extractor.process(image, instance_map)
+        deep_features = nuclei_feature_extractor.process(image, instance_map)
+        position_features = torch.FloatTensor(instance_centroids / image.shape[:-1])
+        instance_features = torch.cat((deep_features, position_features), dim=1)
 
         # 4. build the cell graph
         cell_graph_builder = KNNGraphBuilder(
@@ -74,8 +77,11 @@ class CellGraphBuildingTestCase(unittest.TestCase):
         # 5. print graph properties
         print('Number of nodes:', cell_graph.number_of_nodes())
         print('Number of edges:', cell_graph.number_of_edges())
-        print('Node features:', cell_graph.ndata['gnn_node_feat_in'].shape)
+        print('Node features:', cell_graph.ndata['feat'].shape)
         print('Node centroids:', cell_graph.ndata['centroid'].shape)
+
+        # 6. save DGL graph
+        save_graphs("../data/1607_adh_10.bin", [cell_graph], labels={"glabel": torch.tensor([1])})
 
     def tearDown(self):
         """Tear down the tests."""
@@ -83,5 +89,6 @@ class CellGraphBuildingTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     model = CellGraphBuildingTestCase()
-    model.test_cell_graph_building_with_pipeline_runner()
     model.test_cell_graph_building()
+    model.test_cell_graph_building_with_pipeline_runner()
+

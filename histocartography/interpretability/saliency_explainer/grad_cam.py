@@ -68,13 +68,7 @@ class GradCAM(_GradCAM):
     where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
     position :math:`(x, y)`,
     and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
-    Example::
-        >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import GradCAM
-        >>> model = resnet18(pretrained=True).eval()
-        >>> cam = GradCAM(model, 'layer4')
-        >>> with torch.no_grad(): scores = model(input_tensor)
-        >>> cam(class_idx=100, scores=scores)
+
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer
@@ -119,13 +113,7 @@ class GradCAMpp(_GradCAM):
         \\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2} + \\sum\\limits_{a,b} A_k (a,b) \\cdot
         \\frac{\\partial^3 Y^{(c)}}{(\\partial A_k(i,j))^3}}
     if :math:`\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} = 1` else :math:`0`.
-    Example::
-        >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import GradCAMpp
-        >>> model = resnet18(pretrained=True).eval()
-        >>> cam = GradCAMpp(model, 'layer4')
-        >>> with torch.no_grad(): scores = model(input_tensor)
-        >>> cam(class_idx=100, scores=scores)
+
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer

@@ -9,7 +9,7 @@ import math
 import torch
 import torch.nn.functional as F
 
-__all__ = ['CAM', 'ScoreCAM', 'SSCAM']
+__all__ = ['CAM']
 EPS = 10e-7
 
 

@@ -30,6 +30,9 @@ train:
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
     augmentation_mode: null
+    image_labels_mode: "original_labels"
+    supervision:
+      mode: tissue_level
   model:
     gnn_config:
       activation: "PReLU"

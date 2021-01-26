@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import torch
 from dgl.data.utils import load_graphs
-from dgl.graph import DGLGraph
 from histocartography.preprocessing.utils import fast_histogram
 from torch.utils.data import Dataset
 from torchvision.transforms import (
@@ -190,7 +189,7 @@ class BaseDataset(Dataset):
         self.metadata = metadata
         self.num_classes = num_classes
         self.background_index = background_index
-        self._load()
+        self._load(self.metadata)
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -278,9 +277,11 @@ class BaseDataset(Dataset):
         self._image_sizes = np.array(self._image_sizes)
         self._names = np.array(self._names)
 
-    def _load(self):
+    def _load(self, metadata):
         self._initalize_loading()
-        for i, row in tqdm(self.metadata.iterrows(), total=len(self.metadata)):
+        for i, row in tqdm(
+            metadata.iterrows(), total=len(metadata), desc=f"Dataset Loading"
+        ):
             self._load_datapoint(i, row)
         self._finish_loading()
 
@@ -292,13 +293,15 @@ class BaseDataset(Dataset):
     def image_sizes(self):
         return self._image_sizes
 
+
 class GraphClassificationDataset(BaseDataset):
     """Dataset used for extracted and dumped graphs"""
 
     def __init__(
         self,
-        metadata: pd.DataFrame,
-        patch_size: Optional[Tuple[int, int]],
+        tissue_metadata: Optional[pd.DataFrame] = None,
+        image_metadata: Optional[pd.DataFrame] = None,
+        patch_size: Optional[Tuple[int, int]] = None,
         num_classes: int = 4,
         background_index: int = 4,
         centroid_features: str = "no",
@@ -306,7 +309,7 @@ class GraphClassificationDataset(BaseDataset):
         std: Optional[torch.Tensor] = None,
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
-        image_level_metadata: Optional[pd.DataFrame] = None
+        image_label_mapper: Optional[Dict[str, np.ndarray]] = None,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -314,25 +317,53 @@ class GraphClassificationDataset(BaseDataset):
             "only",
         ], f"centroid_features must be in [no, cat, only] but is {centroid_features}"
         assert (
-            "graph_path" in metadata
-        ), f"Metadata lacks graph path ({metadata.columns})"
+            tissue_metadata is None or "graph_path" in tissue_metadata
+        ), f"Metadata lacks graph path ({tissue_metadata.columns})"
+        assert (
+            image_metadata is None or "graph_path" in image_metadata
+        ), f"Metadata lacks graph path ({image_metadata.columns})"
         # Set fields
         self.return_segmentation_info = return_segmentation_info
-        self.USE_ANNOTATION2 = "annotation2_path" in metadata
+        self.USE_ANNOTATION2 = (
+            tissue_metadata is not None and "annotation2_path" in tissue_metadata
+        )
         self.patch_size = patch_size
         self.mean = mean
         self.std = std
+        if tissue_metadata is not None:
+            self.set_mode("tissue")
+        else:
+            self.set_mode("image")
         self.downsample = segmentation_downsample_ratio
 
         # Dataloading
-        super().__init__(metadata, num_classes, background_index)
+        self._manual_initalize_loading()
+        if tissue_metadata is not None:
+            super().__init__(tissue_metadata, num_classes, background_index)
+            self._tissue_indices = np.arange(0, len(self._graphs))
+            if image_metadata is not None:
+                self._load(image_metadata)
+                self._image_indices = np.arange(0, len(self._graphs))
+            else:
+                self._image_indices = []
+        else:
+            super().__init__(image_metadata, num_classes, background_index)
+            self._tissue_indices = []
+            self._image_indices = np.arange(0, len(self._graphs))
+        self._manual_finish_loading()
 
         # Post processing
         self.name_to_index = dict(zip(self.names, range(len(self.names))))
-        self._graph_labels = self._compute_graph_labels()
         self._select_graph_features(centroid_features)
+        if image_label_mapper is not None:
+            self._graph_labels = self._load_image_level_labels(image_label_mapper)
+        else:
+            self._graph_labels = self._compute_graph_labels()
 
     def _initalize_loading(self):
+        pass
+
+    def _manual_initalize_loading(self):
         super()._initalize_loading()
         self._graphs = list()
         if self.return_segmentation_info:
@@ -343,6 +374,9 @@ class GraphClassificationDataset(BaseDataset):
                 self._annotations2 = list()
 
     def _finish_loading(self):
+        pass
+
+    def _manual_finish_loading(self):
         super()._finish_loading()
         self._graphs = np.array(self._graphs)
         if self.return_segmentation_info:
@@ -396,10 +430,17 @@ class GraphClassificationDataset(BaseDataset):
         self._graphs.append(self._load_graph(i, row))
         if self.return_segmentation_info:
             self._superpixels.append(self._load_h5(row["superpixel_path"]))
-            self._annotations.append(self._load_image(row["annotation_path"]))
+            if "annotation_path" in row:
+                self._annotations.append(self._load_image(row["annotation_path"]))
             self._tissue_masks.append(self._load_image(row["tissue_mask_path"]))
-            if self.USE_ANNOTATION2:
+            if self.USE_ANNOTATION2 and "annotation2_path" in row:
                 self._annotations2.append(self._load_image(row["annotation2_path"]))
+
+    def _load_image_level_labels(self, label_mapper):
+        labels = list()
+        for name in self._names:
+            labels.append((label_mapper[name]))
+        return torch.as_tensor(labels)
 
     @property
     def graphs(self):
@@ -416,14 +457,23 @@ class GraphClassificationDataset(BaseDataset):
     @property
     def tissue_masks(self):
         return self._tissue_masks
-    
+
     @property
     def annotations(self):
         return self._annotations
-    
+
     @property
     def annotations2(self):
         return self._annotations2
+
+    @property
+    def indices(self):
+        if self.mode == "tissue":
+            return self._tissue_indices
+        elif self.mode == "image":
+            return self._image_indices
+        else:
+            raise NotImplementedError
 
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):
@@ -522,24 +572,39 @@ class GraphClassificationDataset(BaseDataset):
         return (x_min, y_min, x_min + patch_size[0], y_min + patch_size[1])
 
     def _build_datapoint(self, graph, node_labels, index):
-        return GraphDatapoint(
-            graph=graph,
-            graph_label=self.graph_labels[index],
-            node_labels=node_labels,
-            name=self.names[index],
-            instance_map=self.superpixels[index]
-            if self.return_segmentation_info
-            else None,
-            segmentation_mask=self.annotations[index]
-            if self.return_segmentation_info
-            else None,
-            tissue_mask=self.tissue_masks[index]
-            if self.return_segmentation_info
-            else None,
-            additional_segmentation_mask=self.annotations2[index]
-            if self.USE_ANNOTATION2
-            else None,
-        )
+        if self.mode == "tissue":
+            return GraphDatapoint(
+                graph=graph,
+                graph_label=self.graph_labels[index],
+                node_labels=node_labels,
+                name=self.names[index],
+                instance_map=self.superpixels[index]
+                if self.return_segmentation_info
+                else None,
+                segmentation_mask=self.annotations[index]
+                if self.return_segmentation_info
+                else None,
+                tissue_mask=self.tissue_masks[index]
+                if self.return_segmentation_info
+                else None,
+                additional_segmentation_mask=self.annotations2[index]
+                if self.USE_ANNOTATION2
+                else None,
+            )
+        else:
+            assert node_labels is None
+            return GraphDatapoint(
+                graph=graph,
+                graph_label=self.graph_labels[index],
+                node_labels=None,
+                name=self.names[index],
+                instance_map=self.superpixels[index]
+                if self.return_segmentation_info
+                else None,
+                tissue_mask=self.tissue_masks[index]
+                if self.return_segmentation_info
+                else None,
+            )
 
     def _get_random_subgraph(self, graph, node_labels, image_size):
         bounding_box = self._get_random_patch(
@@ -549,24 +614,36 @@ class GraphClassificationDataset(BaseDataset):
             graph.ndata[CENTROID], bounding_box
         )
         graph = self._generate_subgraph(graph, relevant_nodes)
-        node_labels = node_labels[relevant_nodes]
+        if node_labels is not None:
+            node_labels = node_labels[relevant_nodes]
         return graph, node_labels
 
-    def __getitem__(
-        self, index: int
-    ) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
+    def set_mode(self, mode):
+        valid_modes = ["image", "tissue"]
+        assert (
+            mode in valid_modes
+        ), f"Dataset mode must be from {valid_modes}, but is {mode}"
+        self.mode = mode
+
+    def __getitem__(self, index: int) -> GraphDatapoint:
         """Returns a sample (patch) of graph i
 
         Args:
             index (int): Index of graph
 
         Returns:
-            Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Subgraph and graph label and the node labels
+            GraphDatapoint: Subgraph and graph label and the node labels
         """
         if isinstance(index, str):
             index = self.name_to_index[index]
+        assert (
+            index in self.indices
+        ), f"Index ({index}) not in range of datapoints ({self.indices}) for this mode ({self.mode})."
         graph = self.graphs[index]
-        node_labels = graph.ndata[LABEL]
+        if self.mode == "tissue":
+            node_labels = graph.ndata[LABEL]
+        else:
+            node_labels = None
 
         # Random patch sampling
         if self.patch_size is not None:
@@ -583,17 +660,19 @@ class GraphClassificationDataset(BaseDataset):
         Returns:
             int: Length of the dataset
         """
-        return len(self.graphs)
+        if self.mode == "tissue":
+            return len(self._tissue_indices)
+        elif self.mode == "image":
+            assert len(self.graphs) == len(self._image_indices)
+            return len(self.graphs)
 
 
 class AugmentedGraphClassificationDataset(GraphClassificationDataset):
     """Dataset variation used for extracted and dumped graphs with augmentations"""
 
-    def __init__(
-        self, metadata: pd.DataFrame, augmentation_mode: Optional[str] = None, **kwargs
-    ) -> None:
+    def __init__(self, augmentation_mode: Optional[str] = None, **kwargs) -> None:
         self.augmentation_mode = augmentation_mode
-        super().__init__(metadata, **kwargs)
+        super().__init__(**kwargs)
 
     def set_augmentation_mode(self, augmentation_mode: Optional[str] = None) -> None:
         """Set a fixed augmentation to be used
@@ -622,12 +701,16 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
         """
         if isinstance(index, str):
             index = self.name_to_index[index]
+        assert (
+            index in self.indices
+        ), f"Index ({index}) not in range of datapoints ({self.indices}) for this mode ({self.mode})."
         image_size = self.image_sizes[index]
         graph = self.graphs[index]
 
         augmented_graph = dgl.DGLGraph(graph_data=graph)
         augmented_graph.ndata[CENTROID] = graph.ndata[CENTROID]
-        augmented_graph.ndata[LABEL] = graph.ndata[LABEL]
+        if self.mode == "tissue":
+            augmented_graph.ndata[LABEL] = graph.ndata[LABEL]
 
         # Get features
         if self.centroid_features == "only":
@@ -671,7 +754,10 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                     dim=1,
                 )
         augmented_graph.ndata[GNN_NODE_FEAT_IN] = features
-        node_labels = augmented_graph.ndata[LABEL]
+        if self.mode == "tissue":
+            node_labels = augmented_graph.ndata[LABEL]
+        else:
+            node_labels = None
 
         # Random patch sampling
         if self.patch_size is not None:

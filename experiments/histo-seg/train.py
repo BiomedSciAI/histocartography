@@ -197,6 +197,12 @@ def train_graph_classifier(
     robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
     robust_mlflow(mlflow.log_param, "supervision", mode)
 
+    # Consistency
+    if mode in ["strong_supervision", "semi_strong_supervision"]:
+        assert training_dataset.mode == "tissue"
+    elif mode in ["weak_supervision"]:
+        assert training_dataset.mode == "image"
+
     # Loss function
     criterion = CombinedCriterion(loss=loss, mode=mode, device=device)
 
@@ -287,9 +293,6 @@ def train_graph_classifier(
             model.eval()
             with torch.no_grad():
                 for graph_batch in validation_loader:
-                    assert (
-                        graph_batch.has_validation_information
-                    ), f"Graph batch does not have information necessary for validation"
 
                     graph = graph_batch.meta_graph.to(device)
                     logits = model(graph)
@@ -306,6 +309,9 @@ def train_graph_classifier(
                     loss = criterion(**loss_information)
 
                     if mode in ["strong_supervision", "semi_strong_supervision"]:
+                        assert (
+                            graph_batch.has_validation_information
+                        ), f"Graph batch does not have information necessary for validation"
                         segmentation_maps = get_segmentation_map(
                             node_logits=loss_information["node_logits"],
                             node_associations=graph.batch_num_nodes,

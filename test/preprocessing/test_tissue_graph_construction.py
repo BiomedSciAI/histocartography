@@ -32,6 +32,8 @@ class TissueGraphBuildingTestCase(unittest.TestCase):
 
         base_path = '../data'
         image_fnames = ['283_dcis_4.png', '1238_adh_10.png', '1286_udh_35.png', '1937_benign_4.png', '311_fea_25.png']
+        os.makedirs(os.path.join(base_path, 'tissue_graphs'), exist_ok=True)
+        os.makedirs(os.path.join(base_path, 'visualization'), exist_ok=True)
 
         for image_name in image_fnames:
             print('*** Testing image {}'.format(image_name))

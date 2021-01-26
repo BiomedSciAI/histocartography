@@ -13,6 +13,7 @@ from histocartography.preprocessing.feature_extraction import DeepFeatureExtract
 from histocartography.preprocessing.graph_builders import KNNGraphBuilder
 from histocartography.utils.io import load_image
 from histocartography.utils.hover import visualize_instances
+from histocartography.visualisation.graph_visualization import GraphVisualization
 
 
 NR_NUCLEI_TYPES = 6
@@ -48,6 +49,8 @@ class CellGraphBuildingTestCase(unittest.TestCase):
 
         base_path = '../data'
         image_fnames = ['1238_adh_10.png', '1286_udh_35.png', '1937_benign_4.png', '283_dcis_4.png', '311_fea_25.png']
+        os.makedirs(os.path.join(base_path, 'cell_graphs'), exist_ok=True)
+        os.makedirs(os.path.join(base_path, 'visualization'), exist_ok=True)
 
         for image_name in image_fnames:
 
@@ -91,6 +94,19 @@ class CellGraphBuildingTestCase(unittest.TestCase):
             # 6. save as DGL graph
             cg_fname = image_name.replace('.png', '_cg.bin')
             save_graphs(os.path.join(base_path, 'cell_graphs', cg_fname), [cell_graph])
+
+            # 7. visualize the graph 
+            visualiser = GraphVisualization(
+                show_centroid=True,
+                show_edges=True
+            )
+            out = visualiser.process(
+                image=image,
+                graph=cell_graph,
+            )
+            cg_fname = image_name.replace('.png', '_cg.png')
+            out.save(os.path.join(base_path, 'visualization', cg_fname))
+
 
     def tearDown(self):
         """Tear down the tests."""

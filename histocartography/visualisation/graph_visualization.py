@@ -244,8 +244,8 @@ class GraphVisualization(PipelineStep):
                 width (int, Optional): Edge stroke width. Default to 2. 
         """
         for edge in edges:
-            src_centroid = [centroids[edge[0]][0].item(), centroids[edge[0]][1].item()]
-            dst_centroid = [centroids[edge[1]][0].item(), centroids[edge[1]][1].item()]
+            src_centroid = [centroids[edge[0]][1].item(), centroids[edge[0]][0].item()]
+            dst_centroid = [centroids[edge[1]][1].item(), centroids[edge[1]][0].item()]
             draw_line(src_centroid, dst_centroid, draw_bd, fill, width)
 
     @staticmethod

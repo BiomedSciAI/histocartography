@@ -34,6 +34,8 @@ class GraphGradCAMTGTestCase(unittest.TestCase):
         base_path = '../data'
         image_fnames = ['283_dcis_4.png', '1238_adh_10.png', '1286_udh_35.png', '1937_benign_4.png', '311_fea_25.png']
         tg_fnames = ['283_dcis_4_tg.bin', '1238_adh_10_tg.bin', '1286_udh_35_tg.bin', '1937_benign_4_tg.bin', '311_fea_25_tg.bin']
+        os.makedirs(os.path.join(base_path, 'visualization'), exist_ok=True)
+        os.makedirs(os.path.join(base_path, 'explainers'), exist_ok=True)
 
         for image_name, tg_name in zip(image_fnames, tg_fnames):
             print('*** Testing tissue graph explainer {}'.format(tg_name))

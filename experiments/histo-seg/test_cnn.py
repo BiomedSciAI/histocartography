@@ -127,8 +127,8 @@ def test_cnn(
     gleason_grade_1 = list()
     gleason_grade_2 = list()
 
-    image_datapoint: ImageDatapoint
-    for i, image_datapoint in enumerate(tqdm(test_dataset)):
+    for i in tqdm(range(len(test_dataset))):
+        image_datapoint: ImageDatapoint = test_dataset[i]
         assert image_datapoint.has_multiple_annotations, f"Datapoint does not have multiple annotations: {image_datapoint}"
 
         time_before = datetime.datetime.now()
@@ -152,7 +152,7 @@ def test_cnn(
                 )
 
         predicted_mask = predicted_mask.detach().cpu().numpy()
-        tissue_mask = tissue_mask.detach().cpu().numpy()
+        tissue_mask = image_datapoint.tissue_mask.detach().cpu().numpy()
         predicted_mask[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
         gleason_score_predictions.append(
             sum_up_gleason(predicted_mask, n_class=NR_CLASSES, thres=threshold)

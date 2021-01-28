@@ -109,8 +109,8 @@ def test_gnn(
     gleason_grade_1 = list()
     gleason_grade_2 = list()
 
-    graph_datapoint: GraphDatapoint
-    for i, graph_datapoint in enumerate(tqdm(test_dataset)):
+    for i in tqdm(range(len(test_dataset))):
+        graph_datapoint: GraphDatapoint = test_dataset[i]
         assert (
             graph_datapoint.has_validation_information
         ), f"Datapoint does not have validation information: {graph_datapoint}"

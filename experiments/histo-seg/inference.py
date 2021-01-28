@@ -63,7 +63,7 @@ class PatchBasedInference(BaseInference):
 
         _, height, width = subject.spatial_shape
         label = tio.Image(
-            tensor=torch.zeros((1, output_channels, height, width))
+            tensor=torch.zeros((1, output_channels, height, width)), type=tio.LabelMap
         )  # Fake tensor to create subject
         output_subject = tio.Subject(label=label)  # Fake subject to create sampler
 
@@ -99,7 +99,7 @@ class PatchBasedInference(BaseInference):
                         .repeat(1, 1, self.patch_size[0], self.patch_size[1])
                     )  # Repeat output to size of image
                 elif operation == "argmax":
-                    hard_predictions = soft_predictions.argmax(dim=1)
+                    hard_predictions = soft_predictions.argmax(dim=1).to(torch.int32)
                     output_tensor = (
                         hard_predictions.unsqueeze(1)
                         .unsqueeze(2)

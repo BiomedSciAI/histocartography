@@ -17,18 +17,8 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from models import SegmentationFromCNN
-
-
-def get_segmentation_map(node_logits, superpixels, NR_CLASSES):
-    node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
-    segmentation_map = np.empty((superpixels.shape), dtype=np.uint8)
-    all_maps = list()
-    for label in range(NR_CLASSES):
-        (spx_indices,) = np.where(node_predictions == label)
-        map_l = np.isin(superpixels, spx_indices) * label
-        all_maps.append(map_l)
-    segmentation_map = np.stack(all_maps).sum(axis=0)
-    return segmentation_map
+from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
+from utils import get_segmentation_map
 
 
 class BaseInference:
@@ -148,13 +138,39 @@ class GraphNodeBasedInference(BaseInference):
         if isinstance(node_logits, tuple):
             node_logits = node_logits[1]
 
+        node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
         segmentation_maps = get_segmentation_map(
-            node_logits=node_logits,
+            node_predictions=node_predictions,
             superpixels=superpixels,
             NR_CLASSES=self.NR_CLASSES,
         )
         segmentation_maps = torch.as_tensor(segmentation_maps)
         return segmentation_maps
+
+
+class GraphGradCAMBasedInference(BaseInference):
+    def __init__(self, NR_CLASSES, model, **kwargs) -> None:
+        super().__init__(model=model, **kwargs)
+        self.NR_CLASSES = NR_CLASSES
+        self.explainer = GraphGradCAMExplainer(model=model)
+    
+    def predict(self, graph, superpixels, operation="argmax"):
+        assert operation == "argmax"
+
+        graph = graph.to(self.device)        
+        importances, logits = self.explainer.process_all(
+            graph, list(range(self.NR_CLASSES))
+        )
+        node_importances = (
+            importances
+            * torch.as_tensor(logits)[0]
+            .sigmoid()
+            .numpy()[:, np.newaxis]
+        ).argmax(0)
+        segmentation_map = torch.as_tensor(get_segmentation_map(
+            node_importances, superpixels, self.NR_CLASSES
+        ))
+        return segmentation_map
 
 
 class ImageInferenceModel(BaseInference):

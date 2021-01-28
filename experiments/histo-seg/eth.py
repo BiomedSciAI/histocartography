@@ -369,8 +369,8 @@ def prepare_graph_datasets(
         precomputed_std = None
 
     if overfit_test:
-        training_metadata = training_metadata.sample(1)
-        validation_metadata = validation_metadata.sample(1)
+        training_metadata = training_metadata.sample(38)
+        validation_metadata = validation_metadata.sample(10)
 
     if patch_size is None:
         patch_size_augmentation = None
@@ -412,8 +412,8 @@ def prepare_graph_datasets(
     elif supervision_mode == "image_level":
         training_arguments["tissue_metadata"] = None
         training_arguments["image_metadata"] = training_metadata
-        validation_arguments["tissue_metadata"] = None
-        validation_arguments["image_metadata"] = validation_metadata
+        validation_arguments["tissue_metadata"] = validation_metadata
+        validation_arguments["image_metadata"] = None
     else:
         raise NotImplementedError
 
@@ -434,12 +434,12 @@ def prepare_graph_datasets(
 def prepare_graph_testset(
     graph_directory: str,
     test: bool = False,
-    tissue_mask_directory: Optional[str] = None,
     centroid_features: str = "no",
     normalize_features: bool = False,
     test_slides: Optional[List[int]] = TEST_SLIDES,
     use_augmentation_dataset: bool = False,
     augmentation_mode: Optional[bool] = False,
+    image_labels_mode: Optional[str] = "original_labels",
     **kwargs,
 ) -> Dataset:
     graph_directory = PREPROCESS_PATH / graph_directory
@@ -496,16 +496,15 @@ def prepare_graph_testset(
         "mean": precomputed_mean,
         "std": precomputed_std,
         "return_segmentation_info": True,
-        "return_names": True,
         "image_label_mapper": label_mapper,
     }
     test_arguments.update(kwargs)
     if use_augmentation_dataset:
         test_dataset = AugmentedGraphClassificationDataset(
-            test_metadata, augmentation_mode=None, **test_arguments
+            tissue_metadata=test_metadata, augmentation_mode=None, **test_arguments
         )
     else:
-        test_dataset = GraphClassificationDataset(test_metadata, **test_arguments)
+        test_dataset = GraphClassificationDataset(tissue_metadata=test_metadata, **test_arguments)
     return test_dataset
 
 

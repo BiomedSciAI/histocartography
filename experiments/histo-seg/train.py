@@ -2,12 +2,14 @@ import datetime
 import logging
 from typing import Dict, List, Optional
 
+import dgl
 import mlflow
 import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
 from dataset import GraphBatch, collate_graphs
+from inference import GraphGradCAMBasedInference
 from logging_helper import (
     GraphClassificationLoggingHelper,
     prepare_experiment,
@@ -19,7 +21,7 @@ from models import (
     SemiSuperPixelTissueClassifier,
     SuperPixelTissueClassifier,
 )
-from utils import dynamic_import_from, get_config, get_segmentation_map
+from utils import dynamic_import_from, get_batched_segmentation_maps, get_config
 
 
 def get_model(
@@ -287,13 +289,14 @@ def train_graph_classifier(
             step=epoch,
         )
 
-        if epoch % validation_frequency == 0:
+        if epoch > 0 and epoch % validation_frequency == 0:
             # Validate model
             time_before_validation = datetime.datetime.now()
             model.eval()
-            with torch.no_grad():
-                for graph_batch in validation_loader:
 
+            for graph_batch in validation_loader:
+
+                with torch.no_grad():
                     graph = graph_batch.meta_graph.to(device)
                     logits = model(graph)
 
@@ -308,29 +311,41 @@ def train_graph_classifier(
                     )
                     loss = criterion(**loss_information)
 
-                    if mode in ["strong_supervision", "semi_strong_supervision"]:
-                        assert (
-                            graph_batch.has_validation_information
-                        ), f"Graph batch does not have information necessary for validation"
-                        segmentation_maps = get_segmentation_map(
-                            node_logits=loss_information["node_logits"],
-                            node_associations=graph.batch_num_nodes,
-                            superpixels=graph_batch.instance_maps,
-                            NR_CLASSES=NR_CLASSES,
-                        )
-                        annotations = torch.as_tensor(graph_batch.segmentation_masks)
-                        segmentation_maps = torch.as_tensor(segmentation_maps)
-                    else:
-                        annotations = None
-                        segmentation_maps = None
-
-                    validation_metric_logger.add_iteration_outputs(
-                        loss=loss.item(),
-                        annotation=annotations,
-                        predicted_segmentation=segmentation_maps,
-                        tissue_masks=graph_batch.tissue_masks,
-                        **loss_information,
+                if mode in ["strong_supervision", "semi_strong_supervision"]:
+                    assert (
+                        graph_batch.has_validation_information
+                    ), f"Graph batch does not have information necessary for validation"
+                    segmentation_maps = get_batched_segmentation_maps(
+                        node_logits=loss_information["node_logits"],
+                        node_associations=graph.batch_num_nodes,
+                        superpixels=graph_batch.instance_maps,
+                        NR_CLASSES=NR_CLASSES,
                     )
+                    annotations = torch.as_tensor(graph_batch.segmentation_masks)
+                    segmentation_maps = torch.as_tensor(segmentation_maps)
+                else:
+                    assert (
+                        graph_batch.segmentation_masks is not None
+                    ), f"Cannot compute segmentation metrics if annotations are not loaded"
+                    annotations = torch.as_tensor(graph_batch.segmentation_masks)
+                    inferencer = GraphGradCAMBasedInference(
+                        NR_CLASSES, model, device=device
+                    )
+                    segmentation_maps = list()
+                    for i, graph in enumerate(dgl.unbatch(graph)):
+                        segmentation_map = inferencer.predict(
+                            graph, graph_batch.instance_maps[i]
+                        )
+                        segmentation_maps.append(segmentation_map)
+                    segmentation_maps = torch.stack(segmentation_maps)
+
+                validation_metric_logger.add_iteration_outputs(
+                    loss=loss.item(),
+                    annotation=annotations,
+                    predicted_segmentation=segmentation_maps,
+                    tissue_masks=graph_batch.tissue_masks,
+                    **loss_information,
+                )
 
             validation_metric_logger.log_and_clear(
                 step=epoch, model=model if not test else None

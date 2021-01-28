@@ -1,5 +1,4 @@
 """Dataloader for precomputed graphs in .bin format"""
-import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -257,6 +256,39 @@ class BaseDataset(Dataset):
         )
         return clean_one_hot_vector.to(torch.int8)
 
+    def _downsample(self, array):
+        if self.downsample != 1:
+            new_size = (
+                int(array.shape[0] // self.downsample),
+                int(array.shape[1] // self.downsample),
+            )
+            array = cv2.resize(
+                array,
+                new_size,
+                interpolation=cv2.INTER_NEAREST,
+            )
+        return array
+
+    def _load_h5(self, path):
+        try:
+            with h5py.File(path, "r") as file:
+                if "default_key_0" in file:
+                    content = file["default_key_0"][()]
+                elif "default_key" in file:
+                    content = file["default_key"][()]
+                else:
+                    raise NotImplementedError(
+                        f"Superpixels not found in keys. Available are: {file.keys()}"
+                    )
+        except OSError as e:
+            print(f"Could not open {path}")
+            raise e
+        return self._downsample(content)
+
+    def _load_image(self, path):
+        image = read_image(path)
+        return self._downsample(image)
+
     @staticmethod
     def _load_name(i, row):
         return i
@@ -391,39 +423,6 @@ class GraphClassificationDataset(BaseDataset):
         graph = load_graphs(str(row["graph_path"]))[0][0]
         graph.readonly()
         return graph
-
-    def _downsample(self, array):
-        if self.downsample != 1:
-            new_size = (
-                array.shape[0] // self.downsample,
-                array.shape[1] // self.downsample,
-            )
-            array = cv2.resize(
-                array,
-                new_size,
-                interpolation=cv2.INTER_NEAREST,
-            )
-        return array
-
-    def _load_h5(self, path):
-        try:
-            with h5py.File(path, "r") as file:
-                if "default_key_0" in file:
-                    content = file["default_key_0"][()]
-                elif "default_key" in file:
-                    content = file["default_key"][()]
-                else:
-                    raise NotImplementedError(
-                        f"Superpixels not found in keys. Available are: {file.keys()}"
-                    )
-        except OSError as e:
-            print(f"Could not open {path}")
-            raise e
-        return self._downsample(content)
-
-    def _load_image(self, path):
-        image = read_image(path)
-        return self._downsample(image)
 
     def _load_datapoint(self, i, row):
         super()._load_datapoint(i, row)
@@ -786,74 +785,50 @@ class ImageDataset(BaseDataset):
         assert (
             "annotation_path" in metadata
         ), f"Metadata lacks annotation path ({metadata.columns})"
-        super().__init__(metadata, num_classes, background_index, **kwargs)
-        self.downsample_factor = downsample_factor
-        self.images, self.annotations = self._load_images()
-        self.tissue_masks = self._load_tissue_masks()
-        self.normalizer = Normalize(mean, std)
+        self.downsample = downsample_factor
         self.additional_annotation = "annotation2_path" in metadata
+        super().__init__(metadata, num_classes, background_index, **kwargs)
+        self.normalizer = Normalize(mean, std)
+
+    def _initalize_loading(self):
+        super()._initalize_loading()
+        self._images = list()
+        self._annotations = list()
+        self._tissue_masks = list()
         if self.additional_annotation:
-            self.annotations2 = self._load_annotation2()
+            self._annotations2 = list()
 
-    def _load_tissue_masks(self):
-        mask_paths = self.metadata["tissue_mask_path"].tolist()
-        tissue_masks = list()
-        for mask_path in mask_paths:
-            tissue_mask = read_image(mask_path)
-            if self.downsample_factor != 1:
-                new_size = (
-                    math.floor(tissue_mask.shape[0] / self.downsample_factor),
-                    math.floor(tissue_mask.shape[1] / self.downsample_factor),
-                )
-                tissue_mask = cv2.resize(
-                    tissue_mask, new_size, interpolation=cv2.INTER_NEAREST
-                )
-            tissue_masks.append(tissue_mask)
-        return torch.from_numpy(np.array(tissue_masks))
+    def _finish_loading(self):
+        super()._finish_loading()
+        self._images = torch.from_numpy(np.array(self._images))
+        self._annotations = torch.from_numpy(np.array(self._annotations))
+        self._tissue_masks = torch.from_numpy(np.array(self._tissue_masks))
+        if self.additional_annotation:
+            self._annotations2 = torch.from_numpy(np.array(self._annotations2))
 
-    def _load_annotation2(self):
-        assert "annotation2_path" in self.metadata
-        annotation_paths = self.metadata["annotation2_path"].tolist()
-        annotations = list()
-        for annotation_path in annotation_paths:
-            annotation = read_image(annotation_path)
-            if self.downsample_factor != 1:
-                new_size = (
-                    math.floor(annotation.shape[0] / self.downsample_factor),
-                    math.floor(annotation.shape[1] / self.downsample_factor),
-                )
-                annotation = cv2.resize(
-                    annotation, new_size, interpolation=cv2.INTER_NEAREST
-                )
-            annotations.append(annotation)
-        return torch.from_numpy(np.array(annotations))
+    def _load_datapoint(self, i, row):
+        super()._load_datapoint(i, row)
+        self._images.append(self._load_image(row["processed_image_path"]))
+        self._annotations.append(self._load_image(row["annotation_path"]))
+        self._tissue_masks.append(self._load_image(row["tissue_mask_path"]))
+        if self.additional_annotation:
+            self._annotations2.append(self._load_image(row["annotation2_path"]))
 
-    def _load_images(self):
-        image_paths = self.metadata["processed_image_path"].tolist()
-        annotation_paths = self.metadata["annotation_path"].tolist()
-        images = list()
-        annotations = list()
-        for image_path, annotation_path in tqdm(
-            zip(image_paths, annotation_paths),
-            total=len(image_paths),
-            desc="dataset_loading",
-        ):
-            image = read_image(image_path)
-            annotation = read_image(annotation_path)
-            if self.downsample_factor != 1:
-                new_size = (
-                    math.floor(image.shape[0] / self.downsample_factor),
-                    math.floor(image.shape[1] / self.downsample_factor),
-                )
-                image = cv2.resize(image, new_size, interpolation=cv2.INTER_NEAREST)
-                annotation = cv2.resize(
-                    annotation, new_size, interpolation=cv2.INTER_NEAREST
-                )
-            images.append(image)
-            annotations.append(annotation)
-        return torch.from_numpy(np.array(images)), torch.from_numpy(
-            np.array(annotations)
-        )
+    @property
+    def images(self):
+        return self._images
+
+    @property
+    def annotations(self):
+        return self._annotations
+
+    @property
+    def tissue_masks(self):
+        return self._tissue_masks
+
+    @property
+    def annotations2(self):
+        return self._annotations2
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         image = self.images[index].permute(2, 0, 1).to(torch.float32) / 255

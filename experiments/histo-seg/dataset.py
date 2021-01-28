@@ -398,7 +398,7 @@ class GraphClassificationDataset(BaseDataset):
                 array.shape[0] // self.downsample,
                 array.shape[1] // self.downsample,
             )
-            content = cv2.resize(
+            array = cv2.resize(
                 array,
                 new_size,
                 interpolation=cv2.INTER_NEAREST,

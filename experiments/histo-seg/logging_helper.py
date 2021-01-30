@@ -4,7 +4,7 @@ import tempfile
 import time
 from http.client import RemoteDisconnected
 from pathlib import Path
-from typing import DefaultDict
+from typing import DefaultDict, Optional
 
 import matplotlib.pyplot as plt
 import mlflow
@@ -110,7 +110,7 @@ def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):
 
 
 def prepare_experiment(
-    model: dict, data: dict, params: dict, config_path: str, **kwargs
+    model: dict, data: dict, params: dict, config_path: Optional[str] = None, **kwargs
 ):
     logging.info(f"Unmatched arguments for MLflow logging: {kwargs}")
 
@@ -124,7 +124,8 @@ def prepare_experiment(
         mlflow.set_tags(experiment_tags)
 
     # Artifacts
-    robust_mlflow(mlflow.log_artifact, config_path, "config")
+    if config_path is not None:
+        robust_mlflow(mlflow.log_artifact, config_path, "config")
     log_sources()
     log_dependencies()
 

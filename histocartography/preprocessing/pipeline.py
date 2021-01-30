@@ -200,12 +200,12 @@ class PipelineRunner:
                 step_output = stage.process(*step_input)
             if not isinstance(step_output, tuple):
                 step_output = tuple([step_output])
-            assert len(step_output) == len(config["outputs"]), (
+            assert len(step_output) == len(config.get("outputs", [])), (
                 f"Number of outputs in config mismatches actual number of outputs in {stage.__class__.__name__}"
                 f"Got {len(step_output)} outputs of type {list(map(type, step_output))},"
-                f"but expected {len(config['outputs'])} outputs"
+                f"but expected {len(config.get('outputs', []))} outputs"
             )
-            for key, value in zip(config["outputs"], step_output):
+            for key, value in zip(config.get("outputs", []), step_output):
                 variables[key] = value
 
         # Handle output
@@ -297,6 +297,7 @@ class BatchPipelineRunner:
         """
         if cores == 1:
             pipeline = self._build_pipeline_runner()
+            self.final_path = pipeline.final_path
             pipeline.precompute()
             for name, row in tqdm(
                 metadata.iterrows(), total=len(metadata), file=sys.stdout

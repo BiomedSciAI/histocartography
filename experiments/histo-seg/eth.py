@@ -340,7 +340,8 @@ def prepare_graph_datasets(
         add_image_sizes=True,
     )
     labels_metadata = pd.read_pickle(LABELS_DF)
-    label_mapper = to_mapper(select_label(labels_metadata, mode=image_labels_mode))
+    training_label_mapper = to_mapper(select_label(labels_metadata, mode=image_labels_mode))
+    validation_label_mapper = to_mapper(select_label(labels_metadata, mode="original_labels"))
     if train_fraction is not None:
         train_indices, validation_indices = train_test_split(
             all_metadata.index.values, train_size=train_fraction
@@ -384,7 +385,7 @@ def prepare_graph_datasets(
         "centroid_features": centroid_features,
         "mean": precomputed_mean,
         "std": precomputed_std,
-        "image_label_mapper": label_mapper,
+        "image_label_mapper": training_label_mapper,
     }
     validation_arguments = {
         "patch_size": patch_size_augmentation if use_patches_for_validation else None,
@@ -395,7 +396,7 @@ def prepare_graph_datasets(
         "std": precomputed_std,
         "return_segmentation_info": True,
         "segmentation_downsample_ratio": downsample_segmentation_maps,
-        "image_label_mapper": label_mapper,
+        "image_label_mapper": validation_label_mapper,
     }
 
     # Handle supervision modes
@@ -464,7 +465,7 @@ def prepare_graph_testset(
         add_image_sizes=True,
     )
     labels_metadata = pd.read_pickle(LABELS_DF)
-    label_mapper = to_mapper(select_label(labels_metadata, mode=image_labels_mode))
+    label_mapper = to_mapper(select_label(labels_metadata, mode="original_labels"))
     test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
     test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
 

@@ -72,6 +72,9 @@ class PipelineStep(ABC):
         """Precompute all necessary information for this step"""
         pass
 
+    def cleanup(self) -> None:
+        pass
+
     @abstractmethod
     def process(self, **kwargs: Any) -> Any:
         """Process an input"""
@@ -165,6 +168,10 @@ class PipelineRunner:
         """Precompute all necessary information for all stages"""
         for stage in self.stages:
             stage.precompute(self.final_path)
+
+    def cleanup(self) -> None:
+        for stage in self.stages:
+            stage.cleanup()
 
     def run(self, name: Optional[str], **inputs: Any) -> Dict[str, Any]:
         """Run the preprocessing pipeline for a given name and input parameters and return the specified outputs
@@ -275,6 +282,10 @@ class BatchPipelineRunner:
         self.final_path = tmp_runner.final_path
         tmp_runner.precompute()
 
+    def _cleanup(self):
+        tmp_runner = self._build_pipeline_runner()
+        tmp_runner.cleanup()
+
     def run(self, metadata: pd.DataFrame, cores: int = 1) -> None:
         """Runs the pipeline for the provided metadata dataframe and a specified
            number of cores for multiprocessing.
@@ -284,14 +295,16 @@ class BatchPipelineRunner:
             metadata (pd.DataFrame): Dataframe with the columns as defined in the config inputs
             cores (int, optional): Number of cores to use for multiprocessing. Defaults to 1.
         """
-        self._precompute()
         if cores == 1:
             pipeline = self._build_pipeline_runner()
+            pipeline.precompute()
             for name, row in tqdm(
                 metadata.iterrows(), total=len(metadata), file=sys.stdout
             ):
                 pipeline.run(name=name, **row)
+            pipeline.cleanup()
         else:
+            self._precompute()
             worker_pool = multiprocessing.Pool(cores)
             for _ in tqdm(
                 worker_pool.imap_unordered(
@@ -304,3 +317,4 @@ class BatchPipelineRunner:
                 pass
             worker_pool.close()
             worker_pool.join()
+            self._cleanup()

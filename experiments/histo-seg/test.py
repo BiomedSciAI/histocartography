@@ -39,6 +39,10 @@ def fill_missing_information(model_config, data_config):
         df = mlflow.search_runs(experiment_id)
         df = df.set_index("run_id")
 
+        if "use_augmentation_dataset" not in data_config:
+            data_config["use_augmentation_dataset"] = (
+                df.loc[run_id, "params.data.use_augmentation_dataset"] == "True"
+            )
         if "graph_directory" not in data_config:
             data_config["graph_directory"] = df.loc[
                 run_id, "params.data.graph_directory"

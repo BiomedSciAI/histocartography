@@ -23,7 +23,6 @@ train:
       - 76
     patch_size: null
     graph_directory:  "outputs/v10_mobilenet_med_20x_no_overlap"
-    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
@@ -50,6 +49,7 @@ train:
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 32
+      input_dropout: 0.0
     node_classifier_config:
       n_layers: 1
       hidden_dim: 32
@@ -97,10 +97,9 @@ train:
     dataset: "eth"
     seed: null
     validation_frequency: 5
+    autotest: True
 test:
-  data:
-    use_augmentation_dataset: True
-    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
+  data: {}
   model:
     architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
   params:

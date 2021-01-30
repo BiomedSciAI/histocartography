@@ -21,6 +21,7 @@ from models import (
     SemiSuperPixelTissueClassifier,
     SuperPixelTissueClassifier,
 )
+from test_gnn import fill_missing_information, test_gnn
 from utils import dynamic_import_from, get_batched_segmentation_maps, get_config
 
 
@@ -377,3 +378,30 @@ if __name__ == "__main__":
         test=test,
         **config["params"],
     )
+
+    # Automatically run testing code
+    if not test and config["params"].get("autotest", False):
+        # End training run
+        run_id = robust_mlflow(mlflow.active_run).info.run_id
+        experiment_id = robust_mlflow(mlflow.active_run).info.experiment_id
+        model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/best.valid.segmentation.MeanIoU"
+        tags = config["params"].get("experiment_tags", None)
+        robust_mlflow(mlflow.end_run)
+
+        # Start testing run
+        logging.info("Start testing")
+        test_config, test_config_path, test = get_config(
+            name="test",
+            default="config/default.yml",
+            required=("model", "data"),
+        )
+        test_config["params"]["experiment_tags"] = tags  # Use same tags as for training
+        test_config["model"]["architecture"] = model_uri  # Use best model from training
+        fill_missing_information(test_config["model"], test_config["data"])
+        prepare_experiment(config_path=test_config_path, **test_config)
+        test_gnn(
+            model_config=test_config["model"],
+            data_config=test_config["data"],
+            test=test,
+            **test_config["params"],
+        )

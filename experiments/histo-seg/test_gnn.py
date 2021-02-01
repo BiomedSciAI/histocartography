@@ -106,7 +106,7 @@ def test_gnn(
         mode == "semi_strong_supervision" and use_grad_cam
     ):
         inferencer = GraphGradCAMBasedInference(
-            model=mode, device=device, NR_CLASSES=NR_CLASSES, **kwargs
+            model=model, device=device, NR_CLASSES=NR_CLASSES, **kwargs
         )
     else:
         inferencer = GraphNodeBasedInference(

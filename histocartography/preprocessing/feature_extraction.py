@@ -1112,14 +1112,33 @@ class GridFeatureMerger(PipelineStep):
             merged_features[region.label - 1] = reshaped_features[indices].mean(axis=0)
         return merged_features
 
+    @staticmethod
     def _merge_augmented_features(
-        self, features: torch.Tensor, superpixels: np.ndarray
+        features: torch.Tensor, superpixels: np.ndarray
     ) -> torch.Tensor:
         nr_augmentations = features.shape[0]
-        merged_features = list()
-        for i in range(nr_augmentations):
-            merged_features.append(self._merge_features(features[i], superpixels))
-        return torch.stack(merged_features, dim=1)
+        latent_dim = features.shape[-1]
+        regions = regionprops(superpixels)
+        merged_features = torch.empty((len(regions), nr_augmentations, latent_dim))
+        factor_x = features.shape[1]
+        factor_y = features.shape[2]
+        reshaped_features = features.reshape(
+            (nr_augmentations, factor_x * factor_y, -1)
+        )
+        for region in regions:
+            coords = np.unique(
+                np.floor((region.coords / superpixels.shape) * (factor_x, factor_y)),
+                axis=0,
+            ).astype(int)
+            indices = list()
+            for x, y in coords:
+                if x >= factor_x or y >= factor_y:
+                    continue
+                indices.append(int(x * factor_y + y))
+            merged_features[region.label - 1] = reshaped_features[:, indices].mean(
+                axis=1
+            )
+        return merged_features
 
     def precompute(self, final_path) -> None:
         """Precompute all necessary information"""

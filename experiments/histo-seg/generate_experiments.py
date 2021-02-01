@@ -176,6 +176,7 @@ class Experiment:
             Iterable[ParameterList], Iterable[Iterable[ParameterList]]
         ] = (ParameterList(list(), [None]),),
         grid: Iterable[ParameterList] = (),
+        repetitions: int = 1,
     ):
         with open(self.base) as file:
             config: dict = yaml.load(file, Loader=yaml.FullLoader)
@@ -184,29 +185,30 @@ class Experiment:
             self._update_config(config, parameter.path, parameter.value)
 
         job_id = 0
-        for parameter_combo in sequential:
-            if not isinstance(parameter_combo, Iterable):
-                parameter_combo = (parameter_combo,)
-            for parameters in self.zip(*parameter_combo):
-                sequential_config = copy.deepcopy(config)
-                for parameter in parameters:
-                    self._update_config(
-                        sequential_config, parameter.path, parameter.value
-                    )
-                if grid:
-                    for grid_parameters in self.grid_product(grid):
-                        job_config = copy.deepcopy(sequential_config)
-                        for grid_parameter in grid_parameters:
-                            self._update_config(
-                                job_config,
-                                grid_parameter.path,
-                                grid_parameter.value,
-                            )
-                        self.create_job(job_id, job_config)
+        for _ in range(repetitions):
+            for parameter_combo in sequential:
+                if not isinstance(parameter_combo, Iterable):
+                    parameter_combo = (parameter_combo,)
+                for parameters in self.zip(*parameter_combo):
+                    sequential_config = copy.deepcopy(config)
+                    for parameter in parameters:
+                        self._update_config(
+                            sequential_config, parameter.path, parameter.value
+                        )
+                    if grid:
+                        for grid_parameters in self.grid_product(grid):
+                            job_config = copy.deepcopy(sequential_config)
+                            for grid_parameter in grid_parameters:
+                                self._update_config(
+                                    job_config,
+                                    grid_parameter.path,
+                                    grid_parameter.value,
+                                )
+                            self.create_job(job_id, job_config)
+                            job_id += 1
+                    else:
+                        self.create_job(job_id, sequential_config)
                         job_id += 1
-                else:
-                    self.create_job(job_id, sequential_config)
-                    job_id += 1
 
 
 class PretrainingExperiment(Experiment):
@@ -957,7 +959,9 @@ if __name__ == "__main__":
             ]
         ],
     )
-    GPUPreprocessingExperiment(name="v10_no", base="config/augmented_preprocess.yml").generate(
+    GPUPreprocessingExperiment(
+        name="v10_no", base="config/augmented_preprocess.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -988,7 +992,9 @@ if __name__ == "__main__":
             ]
         ],
     )
-    GPUPreprocessingExperiment(name="v11_standard", base="config/new_feature.yml").generate(
+    GPUPreprocessingExperiment(
+        name="v11_standard", base="config/new_feature.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1008,9 +1014,11 @@ if __name__ == "__main__":
                 ["feature_extraction", "params", "downsample_factor"],
                 [1, 2, 3, 4],
             ),
-        ]
+        ],
     )
-    GPUPreprocessingExperiment(name="v11_less_context", base="config/new_feature.yml").generate(
+    GPUPreprocessingExperiment(
+        name="v11_less_context", base="config/new_feature.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1030,9 +1038,11 @@ if __name__ == "__main__":
                 ["feature_extraction", "params", "downsample_factor"],
                 [1, 2, 3, 4],
             ),
-        ]
+        ],
     )
-    GPUPreprocessingExperiment(name="v11_more_finegrained", base="config/new_feature.yml", queue="prod.long").generate(
+    GPUPreprocessingExperiment(
+        name="v11_more_finegrained", base="config/new_feature.yml", queue="prod.long"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1052,9 +1062,11 @@ if __name__ == "__main__":
                 ["feature_extraction", "params", "downsample_factor"],
                 [2, 3, 4],
             ),
-        ]
+        ],
     )
-    CPUPreprocessingExperiment(name="v11_standard_low", base="config/new_preprocess.yml").generate(
+    CPUPreprocessingExperiment(
+        name="v11_standard_low", base="config/new_preprocess.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1086,15 +1098,14 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [
-                        f"v11_mobilenet_low_{s}"
-                        for s in ["20x", "13x", "10x"]
-                    ],
+                    [f"v11_mobilenet_low_{s}" for s in ["20x", "13x", "10x"]],
                 ),
             ]
         ],
     )
-    CPUPreprocessingExperiment(name="v11_standard_med", base="config/new_preprocess.yml").generate(
+    CPUPreprocessingExperiment(
+        name="v11_standard_med", base="config/new_preprocess.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1126,15 +1137,14 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [
-                        f"v11_mobilenet_med_{s}"
-                        for s in ["20x", "13x", "10x"]
-                    ],
+                    [f"v11_mobilenet_med_{s}" for s in ["20x", "13x", "10x"]],
                 ),
             ]
         ],
     )
-    CPUPreprocessingExperiment(name="v11_standard_high", base="config/new_preprocess.yml").generate(
+    CPUPreprocessingExperiment(
+        name="v11_standard_high", base="config/new_preprocess.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1166,15 +1176,14 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [
-                        f"v11_mobilenet_high_{s}"
-                        for s in ["20x", "13x", "10x"]
-                    ],
+                    [f"v11_mobilenet_high_{s}" for s in ["20x", "13x", "10x"]],
                 ),
             ]
         ],
     )
-    CPUPreprocessingExperiment(name="v11_standard_very_high", base="config/new_preprocess.yml").generate(
+    CPUPreprocessingExperiment(
+        name="v11_standard_very_high", base="config/new_preprocess.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1206,15 +1215,14 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [
-                        f"v11_mobilenet_very_high_{s}"
-                        for s in ["20x", "13x", "10x"]
-                    ],
+                    [f"v11_mobilenet_very_high_{s}" for s in ["20x", "13x", "10x"]],
                 ),
             ]
         ],
     )
-    CPUPreprocessingExperiment(name="v11_standard_no", base="config/new_preprocess_no_merge.yml").generate(
+    CPUPreprocessingExperiment(
+        name="v11_standard_no", base="config/new_preprocess_no_merge.yml"
+    ).generate(
         fixed=[
             Parameter(
                 ["stain_normalizers", "params", "target"],
@@ -1245,10 +1253,7 @@ if __name__ == "__main__":
                 ),
                 ParameterList(
                     ["params", "link_directory"],
-                    [
-                        f"v11_mobilenet_no_{s}"
-                        for s in ["20x", "13x", "10x"]
-                    ],
+                    [f"v11_mobilenet_no_{s}" for s in ["20x", "13x", "10x"]],
                 ),
             ]
         ],
@@ -1445,7 +1450,7 @@ if __name__ == "__main__":
                 {"class": "ExponentialLR", "params": {"gamma": 0.99}},
             ),
             Parameter(["train", "data", "image_labels_mode"], "original_labels"),
-            Parameter(["train", "data", "supervision", "mode"], "image_level")
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
         ],
         grid=[
             ParameterList(
@@ -1489,7 +1494,7 @@ if __name__ == "__main__":
                 {"class": "ExponentialLR", "params": {"gamma": 0.99}},
             ),
             Parameter(["train", "data", "image_labels_mode"], "new_labels"),
-            Parameter(["train", "data", "supervision", "mode"], "image_level")
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
         ],
         grid=[
             ParameterList(
@@ -1533,10 +1538,13 @@ if __name__ == "__main__":
                 {"class": "ExponentialLR", "params": {"gamma": 0.99}},
             ),
             Parameter(["train", "data", "image_labels_mode"], "new_labels"),
-            Parameter(["train", "data", "supervision", "mode"], "image_level")
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
         ],
         sequential=[
-            ParameterList(["train", "model", "graph_classifier_config", "input_dropout"], [0.0, 0.3, 0.5, 0.7])
+            ParameterList(
+                ["train", "model", "graph_classifier_config", "input_dropout"],
+                [0.0, 0.3, 0.5, 0.7],
+            )
         ],
         grid=[
             ParameterList(
@@ -1567,7 +1575,9 @@ if __name__ == "__main__":
                 ["train", "model", "gnn_config", "output_dim"],
                 32,
             ),
-            Parameter(["train", "model", "graph_classifier_config", "input_dropout"], 0.3),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.3
+            ),
             Parameter(["train", "data", "augmentation_mode"], "graph"),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
             Parameter(
@@ -1575,7 +1585,7 @@ if __name__ == "__main__":
                 {"class": "ExponentialLR", "params": {"gamma": 0.99}},
             ),
             Parameter(["train", "data", "image_labels_mode"], "new_labels"),
-            Parameter(["train", "data", "supervision", "mode"], "image_level")
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
         ],
         sequential=[
             ParameterList(
@@ -1614,7 +1624,9 @@ if __name__ == "__main__":
                 ["train", "model", "gnn_config", "output_dim"],
                 32,
             ),
-            Parameter(["train", "model", "graph_classifier_config", "input_dropout"], 0.3),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.3
+            ),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
             Parameter(
                 ["train", "params", "optimizer", "scheduler"],
@@ -1628,7 +1640,9 @@ if __name__ == "__main__":
             ),
         ],
         sequential=[
-            ParameterList(["train", "data", "augmentation_mode"], [None, "graph", "node"]),
+            ParameterList(
+                ["train", "data", "augmentation_mode"], [None, "graph", "node"]
+            ),
         ],
         grid=[
             ParameterList(
@@ -1661,7 +1675,9 @@ if __name__ == "__main__":
                 ["train", "model", "gnn_config", "output_dim"],
                 32,
             ),
-            Parameter(["train", "model", "graph_classifier_config", "input_dropout"], 0.3),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.3
+            ),
             Parameter(["train", "data", "image_labels_mode"], "new_labels"),
             Parameter(["train", "data", "supervision", "mode"], "image_level"),
             Parameter(
@@ -1671,7 +1687,9 @@ if __name__ == "__main__":
             Parameter(["train", "data", "augmentation_mode"], "graph"),
         ],
         sequential=[
-            ParameterList(["train", "params", "optimizer", "params", "lr"], [1e-3, 1e-4, 1e-5]),
+            ParameterList(
+                ["train", "params", "optimizer", "params", "lr"], [1e-3, 1e-4, 1e-5]
+            ),
         ],
         grid=[
             ParameterList(
@@ -1715,7 +1733,60 @@ if __name__ == "__main__":
                 {"class": "ExponentialLR", "params": {"gamma": 0.99}},
             ),
             Parameter(["train", "data", "image_labels_mode"], "original_labels"),
-            Parameter(["train", "data", "supervision", "mode"], "image_level")
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_pixel_level").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.99}},
+            ),
         ],
         grid=[
             ParameterList(

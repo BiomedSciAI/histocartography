@@ -64,6 +64,10 @@ class SegmentationMetric:
     def is_better(value: Any, comparison: Any) -> bool:
         raise NotImplementedError
 
+    @property
+    def logs_model(self):
+        return True
+
 
 class IoU(SegmentationMetric):
     """Compute the class IoU"""
@@ -129,6 +133,10 @@ class ClassIoU(IoU):
         mask = torch.isnan(class_iou)   
         class_iou[mask] = 0
         return torch.sum(class_iou) / torch.sum(~mask)
+
+    @property
+    def logs_model(self):
+        return False
 
 
 class BenignIoU(ClassIoU):
@@ -318,6 +326,10 @@ class ClassificationMetric:
         """Higher is better"""
         return value >= comparison
 
+    @property
+    def logs_model(self):
+        return True
+
 
 class MultiLabelClassificationMetric(ClassificationMetric):
     def __init__(self, **kwargs) -> None:
@@ -373,22 +385,28 @@ class MultiLabelAUCROC(MultiLabelClassificationMetric):
         )
 
 
-class MultiLabelBenignAccuracy(MultiLabelBalancedAccuracy):
+class MultiLabelClassAccuracy(MultiLabelBalancedAccuracy):
+    @property
+    def logs_model(self):
+        return False
+
+
+class MultiLabelBenignAccuracy(MultiLabelClassAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 0], labels[:, 0], **kwargs)
 
 
-class MultiLabelGleason3Accuracy(MultiLabelBalancedAccuracy):
+class MultiLabelGleason3Accuracy(MultiLabelClassAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 1], labels[:, 1], **kwargs)
 
 
-class MultiLabelGleason4Accuracy(MultiLabelBalancedAccuracy):
+class MultiLabelGleason4Accuracy(MultiLabelClassAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 2], labels[:, 2], **kwargs)
 
 
-class MultiLabelGleason5Accuracy(MultiLabelBalancedAccuracy):
+class MultiLabelGleason5Accuracy(MultiLabelClassAccuracy):
     def _compare(self, predictions, labels, **kwargs) -> float:
         return super()._compare(predictions[:, 3], labels[:, 3], **kwargs)
 
@@ -433,123 +451,6 @@ class NodeClassificationAccuracy(NodeClassificationMetric):
         return np.mean(accuracies[accuracies == accuracies])
 
     
-class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
-    def _compare(
-        self,
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
-        node_associations: List[int],
-        **kwargs,
-    ) -> float:
-        accuracies = np.empty(len(node_associations))
-        start = 0
-        for i, node_association in enumerate(node_associations):
-            y_pred = np.argmax(
-                predictions[start : start + node_association, ...].numpy(), axis=1
-            )
-            y_true = labels[start : start + node_association].numpy()
-            mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.balanced_accuracy_score(
-                y_pred=y_pred[mask], y_true=y_true[mask]
-            )
-            start += node_association
-        return np.mean(accuracies[accuracies == accuracies])
-
-
-class NodeClassificationF1Score(NodeClassificationMetric):
-    def _compare(
-        self,
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
-        node_associations: List[int],
-        **kwargs,
-    ) -> float:
-        accuracies = np.empty(len(node_associations))
-        start = 0
-        for i, node_association in enumerate(node_associations):
-            y_pred = np.argmax(
-                predictions[start : start + node_association, ...].numpy(), axis=1
-            )
-            y_true = labels[start : start + node_association].numpy()
-            mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.f1_score(
-                y_pred=y_pred[mask], y_true=y_true[mask], average="weighted"
-            )
-            start += node_association
-        return np.mean(accuracies[accuracies == accuracies])
-
-
-class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
-    def _compare(
-        self,
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
-        node_associations: List[int],
-        **kwargs,
-    ) -> float:
-        accuracies = np.empty(len(node_associations))
-        start = 0
-        for i, node_association in enumerate(node_associations):
-            y_pred = np.argmax(
-                predictions[start : start + node_association, ...].numpy(), axis=1
-            )
-            y_true = labels[start : start + node_association].numpy()
-            mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.balanced_accuracy_score(
-                y_pred=y_pred[mask], y_true=y_true[mask]
-            )
-            start += node_association
-        return np.mean(accuracies[accuracies == accuracies])
-
-
-class NodeClassificationF1Score(NodeClassificationMetric):
-    def _compare(
-        self,
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
-        node_associations: List[int],
-        **kwargs,
-    ) -> float:
-        accuracies = np.empty(len(node_associations))
-        start = 0
-        for i, node_association in enumerate(node_associations):
-            y_pred = np.argmax(
-                predictions[start : start + node_association, ...].numpy(), axis=1
-            )
-            y_true = labels[start : start + node_association].numpy()
-            mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.f1_score(
-                y_pred=y_pred[mask], y_true=y_true[mask], average="weighted"
-            )
-            start += node_association
-        return np.mean(accuracies[accuracies == accuracies])
-
-
-def sum_up_gleason(annotation, n_class=4, thres=0):
-    # read the mask and count the grades
-    grade_count = fast_histogram(annotation.flatten(), n_class)
-    grade_count = grade_count / grade_count.sum()
-    grade_count[grade_count < thres] = 0
-
-    # get the max and second max scores and write them to file
-    idx = np.argsort(grade_count)
-    primary_score = idx[-1]
-    secondary_score = idx[-2]
-
-    if np.sum(grade_count == 0) == n_class - 1:
-        secondary_score = primary_score
-    if secondary_score == 0:
-        secondary_score = primary_score
-    if primary_score == 0:
-        primary_score = secondary_score
-
-    # Fix scores
-    if primary_score + secondary_score == 0:
-        return 0
-    else:
-        return primary_score + secondary_score - 1
-
-
 class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
     def _compare(
         self,

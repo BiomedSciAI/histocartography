@@ -93,7 +93,9 @@ def log_preprocessing_parameters(graph_path: Path):
                         robust_mlflow(mlflow.log_param, f"{i}_{stage_name}", v["class"])
                         robust_mlflow(
                             mlflow.log_params,
-                            flatten(v.get("params", {}), parent_key=f"{i}_{stage_name}"),
+                            flatten(
+                                v.get("params", {}), parent_key=f"{i}_{stage_name}"
+                            ),
                         )
 
 
@@ -214,7 +216,7 @@ class LoggingHelper:
             ):
                 if metric.is_better(current_value, best_value):
                     self._log(f"best.{name}", current_value, step)
-                    if model is not None:
+                    if metric.logs_model and model is not None:
                         robust_mlflow(
                             mlflow.pytorch.log_model,
                             model,

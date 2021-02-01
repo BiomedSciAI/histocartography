@@ -11,9 +11,14 @@ from sklearn.metrics import cohen_kappa_score
 from tqdm.auto import tqdm
 
 from dataset import GraphDatapoint
-from inference import GraphNodeBasedInference
+from inference import GraphGradCAMBasedInference, GraphNodeBasedInference
 from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
 from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU, sum_up_gleason
+from models import (
+    ImageTissueClassifier,
+    SemiSuperPixelTissueClassifier,
+    SuperPixelTissueClassifier,
+)
 from utils import dynamic_import_from, get_config
 
 
@@ -66,6 +71,7 @@ def test_gnn(
     threshold: float,
     local_save_path,
     mlflow_save_path,
+    use_grad_cam: False,
     **kwargs,
 ):
     logging.info(f"Unmatched arguments for testing: {kwargs}")
@@ -87,12 +93,28 @@ def test_gnn(
     model = get_model(**model_config)
     model = model.to(device)
 
-    inferencer = GraphNodeBasedInference(
-        model=model,
-        device=device,
-        NR_CLASSES=NR_CLASSES,
-        **kwargs,
-    )
+    if isinstance(model, ImageTissueClassifier):
+        mode = "weak_supervision"
+    elif isinstance(model, SemiSuperPixelTissueClassifier):
+        mode = "semi_strong_supervision"
+    elif isinstance(model, SuperPixelTissueClassifier):
+        mode = "strong_supervision"
+    else:
+        raise NotImplementedError
+
+    if mode == "weak_supervision" or (
+        mode == "semi_strong_supervision" and use_grad_cam
+    ):
+        inferencer = GraphGradCAMBasedInference(
+            model=mode, device=device, NR_CLASSES=NR_CLASSES, **kwargs
+        )
+    else:
+        inferencer = GraphNodeBasedInference(
+            model=model,
+            device=device,
+            NR_CLASSES=NR_CLASSES,
+            **kwargs,
+        )
 
     run_id = robust_mlflow(mlflow.active_run).info.run_id
 

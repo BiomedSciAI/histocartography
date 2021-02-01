@@ -110,3 +110,4 @@ test:
     local_save_path: '/dataP/anv/data/ETH/gnn_test_masks'
     mlflow_save_path: 'gnn_test_masks'
     threshold: 0.25
+    use_grad_cam: False

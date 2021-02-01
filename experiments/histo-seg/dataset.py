@@ -85,7 +85,7 @@ class GraphBatch:
 
     @property
     def is_strongly_supervised(self):
-        return self.node_labels is not None and self.graph_labels is None
+        return self.node_labels is not None
 
     @property
     def can_output_segmentation(self):

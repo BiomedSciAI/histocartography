@@ -1,6 +1,5 @@
 import argparse
 import logging
-from os import pipe
 from pathlib import Path
 from typing import Optional
 
@@ -33,7 +32,6 @@ def preprocessing(
     if test:
         metadata = metadata.iloc[[0]]
         cores = 1
-        config["stages"][3]["superpixel"]["params"]["nr_superpixels"] = 300
         config["stages"][1]["stain_normalizers"]["params"][
             "target_path"
         ] = str(metadata.iloc[0].path)

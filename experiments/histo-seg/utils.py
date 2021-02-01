@@ -340,7 +340,7 @@ def get_batched_segmentation_maps(node_logits, superpixels, node_associations, N
     start = 0
     for i, end in enumerate(node_associations):
         node_predictions = batch_node_predictions[start : start + end]
-        segmentation_maps[i] = get_segmentation_map(NR_CLASSES, node_predictions, superpixels[i])
+        segmentation_maps[i] = get_segmentation_map(node_predictions, superpixels[i], NR_CLASSES)
         start += end
     return segmentation_maps
 

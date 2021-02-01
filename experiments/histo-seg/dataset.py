@@ -25,7 +25,7 @@ from torchvision.transforms import (
 )
 from tqdm.auto import tqdm
 
-from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
+from constants import CENTROID,  FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
 
 
@@ -476,16 +476,17 @@ class GraphClassificationDataset(BaseDataset):
 
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):
+            feature_key = FEATURES if FEATURES in graph.ndata else FEATURES2
             assert (
-                len(graph.ndata[FEATURES].shape) == 2
+                len(graph.ndata[feature_key].shape) == 2
             ), f"Cannot use GraphClassificationDataset when the preprocessing was run with augmentations"
             if centroid_features == "only":
                 features = (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(
                     torch.float32
                 )
-                graph.ndata.pop(FEATURES)
+                graph.ndata.pop(feature_key)
             else:
-                features = graph.ndata.pop(FEATURES).to(torch.float32)
+                features = graph.ndata.pop(feature_key).to(torch.float32)
                 if self.mean is not None and self.std is not None:
                     features = (features - self.mean) / self.std
 
@@ -717,10 +718,11 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                 torch.float32
             )
         else:
+            feature_key = FEATURES if FEATURES in graph.ndata else FEATURES2
             assert (
-                len(graph.ndata[FEATURES].shape) == 3
+                len(graph.ndata[feature_key].shape) == 3
             ), f"Cannot use AugmentedDataset when the preprocessing was not run with augmentations"
-            nr_nodes, nr_augmentations, _ = graph.ndata[FEATURES].shape
+            nr_nodes, nr_augmentations, _ = graph.ndata[feature_key].shape
 
             # Sample based on augmentation mode
             if self.augmentation_mode == "graph":
@@ -735,7 +737,7 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                 sample = torch.zeros(size=(nr_nodes,), dtype=torch.long)
 
             # Select features to use
-            features = graph.ndata[FEATURES][torch.arange(nr_nodes), sample].to(
+            features = graph.ndata[feature_key][torch.arange(nr_nodes), sample].to(
                 torch.float32
             )
 

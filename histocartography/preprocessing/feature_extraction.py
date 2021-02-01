@@ -1,11 +1,11 @@
 """Extract features from images for a given structure"""
 
 import math
-from pathlib import Path
 import warnings
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -15,11 +15,11 @@ from histocartography.utils import dynamic_import_from
 from PIL import Image
 from scipy.stats import skew
 from skimage.feature import greycomatrix, greycoprops
-from sklearn.metrics.pairwise import euclidean_distances
 from skimage.filters.rank import entropy as Entropy
 from skimage.measure import regionprops
 from skimage.measure._regionprops import _RegionProperties
 from skimage.morphology import disk
+from sklearn.metrics.pairwise import euclidean_distances
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
@@ -58,6 +58,22 @@ class FeatureExtractor(PipelineStep):
         """Precompute all necessary information"""
         if self.base_path is not None:
             self._link_to_path(Path(final_path) / "features")
+
+    @staticmethod
+    def _preprocess_architecture(architecture: str) -> str:
+        """Preprocess the architecture string to avoid characters that are not allowed as paths
+        Args:
+            architecture (str): Unprocessed architecture name
+        Returns:
+            str: Architecture name to use for the save path
+        """
+        if architecture.startswith("s3://mlflow"):
+            _, experiment_id, run_id, _, metric = architecture[5:].split("/")
+            return f"MLflow({experiment_id},{run_id},{metric})"
+        elif architecture.endswith(".pth"):
+            return f"Local({architecture.replace('/', '_')})"
+        else:
+            return architecture
 
 
 class HandcraftedFeatureExtractor(FeatureExtractor):
@@ -136,11 +152,13 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             orientation = region["orientation"]
             perimeter = region["perimeter"]
             solidity = region["solidity"]
-            convex_hull_perimeter = self._compute_convex_hull_perimeter(sp_mask, instance_map)
+            convex_hull_perimeter = self._compute_convex_hull_perimeter(
+                sp_mask, instance_map
+            )
             roughness = convex_hull_perimeter / perimeter
-            shape_factor = 4 * np.pi * area / convex_hull_perimeter**2
+            shape_factor = 4 * np.pi * area / convex_hull_perimeter ** 2
             ellipticity = minor_axis_length / major_axis_length
-            roundness = (4 * np.pi * area)/ (perimeter ** 2)
+            roundness = (4 * np.pi * area) / (perimeter ** 2)
 
             feats_shape = [
                 area,
@@ -158,7 +176,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 roughness,
                 shape_factor,
                 ellipticity,
-                roundness
+                roundness,
             ]
 
             # (rgb color space) [13 x 3 features]
@@ -203,10 +221,13 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 glcm_energy,
                 glcm_ASM,
                 glcm_dispersion,
-                glcm_entropy
+                glcm_entropy,
             ]
 
-            feats_crowdedness = [all_mean_crowdedness[region_id], all_std_crowdedness[region_id]]
+            feats_crowdedness = [
+                all_mean_crowdedness[region_id],
+                all_std_crowdedness[region_id],
+            ]
 
             sp_feats = feats_shape + feats_color + feats_texture + feats_crowdedness
 
@@ -219,8 +240,8 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
     @staticmethod
     def _compute_crowdedness(centroids, k=10):
         dist = euclidean_distances(centroids, centroids)
-        idx = np.argpartition(dist, kth=k+1, axis=-1)
-        x = np.take_along_axis(dist, idx, axis=-1)[:, :k+1]
+        idx = np.argpartition(dist, kth=k + 1, axis=-1)
+        x = np.take_along_axis(dist, idx, axis=-1)[:, : k + 1]
         std_crowd = np.reshape(np.std(x, axis=1), newshape=(-1, 1))
         mean_crow = np.reshape(np.mean(x, axis=1), newshape=(-1, 1))
         return mean_crow, std_crowd
@@ -244,7 +265,9 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         x2 = x2 + 2 if x2 + 2 <= instance_map.shape[1] - 1 else x2
         y2 = y2 + 2 if y2 + 2 <= instance_map.shape[0] - 1 else y2
         nuclei_map = sp_mask[y1:y2, x1:x2]
-        _, contours, _ = cv2.findContours(nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, _ = cv2.findContours(
+            nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
         hull = cv2.convexHull(contours[0])
         convex_hull_perimeter = cv2.arcLength(hull, True)
 
@@ -520,22 +543,6 @@ class DeepFeatureExtractor(FeatureExtractor):
         if self.num_workers in [0, 1]:
             torch.set_num_threads(1)
 
-    @staticmethod
-    def _preprocess_architecture(architecture: str) -> str:
-        """Preprocess the architecture string to avoid characters that are not allowed as paths
-        Args:
-            architecture (str): Unprocessed architecture name
-        Returns:
-            str: Architecture name to use for the save path
-        """
-        if architecture.startswith("s3://mlflow"):
-            _, experiment_id, run_id, _, metric = architecture[5:].split("/")
-            return f"MLflow({experiment_id},{run_id},{metric})"
-        elif architecture.endswith(".pth"):
-            return f"Local({architecture.replace('/', '_')})"
-        else:
-            return architecture
-
     def _extract_features(
         self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
@@ -604,6 +611,29 @@ class AugmentedInstanceMapPatchDataset(InstanceMapPatchDataset):
         self.dataset_transform = transforms.Compose(basic_transforms)
 
 
+def build_augmentations(
+    rotations: Optional[List[int]] = None, flips: Optional[List[Any]] = None
+) -> List[Callable]:
+    if rotations is None:
+        rotations = [0]
+    if flips is None:
+        flips = ["n"]
+    augmentaions = list()
+    for angle in rotations:
+        for flip in flips:
+            t = [
+                transforms.Lambda(
+                    lambda x, a=angle: transforms.functional.rotate(x, angle=a)
+                )
+            ]
+            if flip == "h":
+                t.append(transforms.Lambda(lambda x: transforms.functional.hflip(x)))
+            if flip == "v":
+                t.append(transforms.Lambda(lambda x: transforms.functional.vflip(x)))
+            augmentaions.append(transforms.Compose(t))
+    return augmentaions
+
+
 class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
     """Helper class to extract deep features from instance maps with different augmentations"""
 
@@ -622,27 +652,7 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
         self.rotations = rotations
         self.flips = flips
         super().__init__(**kwargs)
-        if rotations is None:
-            rotations = [0]
-        if flips is None:
-            flips = ["n"]
-        self.transforms = []
-        for angle in rotations:
-            for flip in flips:
-                t = [
-                    transforms.Lambda(
-                        lambda x, a=angle: transforms.functional.rotate(x, angle=a)
-                    )
-                ]
-                if flip == "h":
-                    t.append(
-                        transforms.Lambda(lambda x: transforms.functional.hflip(x))
-                    )
-                if flip == "v":
-                    t.append(
-                        transforms.Lambda(lambda x: transforms.functional.vflip(x))
-                    )
-                self.transforms.append(transforms.Compose(t))
+        self.transforms = build_augmentations(rotations, flips)
 
     def _extract_features(
         self, input_image: np.ndarray, instance_map: np.ndarray
@@ -898,70 +908,289 @@ class AverageFeatureMerger(PipelineStep):
         if self.base_path is not None:
             self._link_to_path(Path(final_path) / "features")
 
+
+class GridPatchDataset(Dataset):
+    def __init__(
+        self,
+        image: np.ndarray,
+        patch_size: int,
+        stride: int,
+        downsample_factor: int,
+        mean: Optional[List[float]] = None,
+        std: Optional[List[float]] = None,
+    ) -> None:
+        super().__init__()
+        if downsample_factor != 1:
+            new_size = (
+                int(image.shape[0] // downsample_factor),
+                int(image.shape[1] // downsample_factor),
+            )
+            image = cv2.resize(
+                image,
+                new_size,
+                interpolation=cv2.INTER_CUBIC,
+            )
+        basic_transforms = [
+            transforms.Pad(patch_size // 2 - stride, fill=(255, 255, 255)),
+            transforms.ToTensor(),
+        ]
+        if mean is not None and std is not None:
+            basic_transforms.append(transforms.Normalize(mean, std))
+        self.dataset_transform = transforms.Compose(basic_transforms)
+        self.image = self.dataset_transform(Image.fromarray(image))
+        self.patch_size = patch_size
+        self.stride = stride
+        self.patches = self._generate_patches()
+
+    def _generate_patches(self):
+        patches = self.image.unfold(1, self.patch_size, self.stride).unfold(
+            2, self.patch_size, self.stride
+        )
+        patches = patches.permute([1, 2, 0, 3, 4])
+        self.outshape = (patches.shape[0], patches.shape[1])
+        patches = patches.reshape([-1, 3, self.patch_size, self.patch_size])
+        return patches
+
+    def __getitem__(self, index: int):
+        return index, self.patches[index]
+
+    def __len__(self) -> int:
+        return len(self.patches)
+
+
+class GridDeepFeatureExtractor(FeatureExtractor):
+    def __init__(
+        self,
+        architecture: str,
+        patch_size: int = 224,
+        stride: int = 32,
+        downsample_factor: int = 1,
+        normalizer: Optional[dict] = None,
+        batch_size: int = 32,
+        num_workers: int = 0,
+        **kwargs,
+    ) -> None:
+        self.architecture = self._preprocess_architecture(architecture)
+        self.patch_size = patch_size
+        self.stride = stride
+        self.downsample_factor = downsample_factor
+        if normalizer is not None:
+            self.normalizer = normalizer.get("type", "unknown")
+        else:
+            self.normalizer = None
+        super().__init__(**kwargs)
+
+        # Handle GPU
+        cuda = torch.cuda.is_available()
+        self.device = torch.device("cuda:0" if cuda else "cpu")
+
+        if normalizer is not None:
+            self.normalizer_mean = normalizer.get("mean", [0, 0, 0])
+            self.normalizer_std = normalizer.get("std", [1, 1, 1])
+        else:
+            self.normalizer_mean = None
+            self.normalizer_std = None
+        self.patch_feature_extractor = PatchFeatureExtractor(
+            architecture, device=self.device
+        )
+        self.batch_size = batch_size
+        self.architecture_unprocessed = architecture
+        self.num_workers = num_workers
+        if self.num_workers in [0, 1]:
+            torch.set_num_threads(1)
+
+    def process(self, input_image: np.ndarray) -> torch.Tensor:
+        return self._extract_features(input_image)
+
+    def _extract_features(self, input_image: np.ndarray) -> torch.Tensor:
+        """Extract features for a given RGB image in patches
+        Args:
+            input_image (np.ndarray): RGB input image
+        Returns:
+            torch.Tensor: Extracted features of shape [image.shape[0] // size * image.shape[1] // size, nr_features]
+        """
+        patch_dataset = GridPatchDataset(
+            image=input_image,
+            patch_size=self.patch_size,
+            stride=self.stride,
+            downsample_factor=self.downsample_factor,
+            mean=self.normalizer_mean,
+            std=self.normalizer_std,
+        )
+        patch_loader = DataLoader(
+            patch_dataset,
+            shuffle=False,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+        )
+        features = torch.empty(
+            size=(len(patch_dataset), self.patch_feature_extractor.num_features),
+            dtype=torch.float32,
+            device=self.device,
+        )
+        for i, patch_batch in patch_loader:
+            embeddings = self.patch_feature_extractor(patch_batch)
+            features[i, :] = embeddings
+        return (
+            features.cpu()
+            .detach()
+            .reshape(patch_dataset.outshape[0], patch_dataset.outshape[1], -1)
+        )
+
+
+class AugmentedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
+    def __init__(
+        self,
+        rotations: Optional[List[int]] = None,
+        flips: Optional[List[int]] = None,
+        **kwargs,
+    ) -> None:
+        """Creates a feature extractor that extracts feature for all of the given augmentations. Otherwise works the same as the DeepFeatureExtractor
+
+        Args:
+            rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.
+            flips (Optional[List[int]], optional): List of flips to use, in {'n', 'h', 'v'}. Defaults to None.
+        """
+        self.rotations = rotations
+        self.flips = flips
+        super().__init__(**kwargs)
+        self.transforms = build_augmentations(rotations, flips)
+
+    def _extract_features(self, input_image: np.ndarray) -> torch.Tensor:
+        """Extract features for a given RGB image and its extracted instance_map for all augmentations
+
+        Args:
+            input_image (np.ndarray): RGB input image
+            instance_map (np.ndarray): Extracted instance_map
+
+        Returns:
+            torch.Tensor: Extracted features of shape [nr_instances, nr_augmentations, nr_features]
+        """
+        all_features = list()
+        for transform in self.transforms:
+            augmented_input_image = np.array(transform(Image.fromarray(input_image)))
+            features = super()._extract_features(augmented_input_image)
+            all_features.append(features)
+        return torch.stack(all_features)
+
+
+class GridFeatureMerger(PipelineStep):
+    def __init__(self, *args, **kwargs) -> None:
+        """Merge features from an initial instance map to a merged instance map by averaging the features."""
+        super().__init__(*args, **kwargs)
+
+    def process(self, features, superpixels):
+        if not isinstance(features, torch.Tensor):
+            features = torch.as_tensor(features)
+        if len(features.shape) == 3:
+            return self._merge_features(features, superpixels)
+        elif len(features.shape) == 4:
+            return self._merge_augmented_features(features, superpixels)
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def _merge_features(
+        features: torch.Tensor, superpixels: np.ndarray
+    ) -> torch.Tensor:
+        latent_dim = features.shape[-1]
+        regions = regionprops(superpixels)
+        merged_features = torch.empty((len(regions), latent_dim))
+        factor_x = features.shape[0]
+        factor_y = features.shape[1]
+        reshaped_features = features.reshape((factor_x * factor_y, -1))
+        for region in regions:
+            coords = np.unique(
+                np.floor((region.coords / superpixels.shape) * (factor_x, factor_y)),
+                axis=0,
+            ).astype(int)
+            indices = list()
+            for x, y in coords:
+                if x >= factor_x or y >= factor_y:
+                    continue
+                indices.append(int(x * factor_y + y))
+            merged_features[region.label - 1] = reshaped_features[indices].mean(axis=0)
+        return merged_features
+
+    def _merge_augmented_features(
+        self, features: torch.Tensor, superpixels: np.ndarray
+    ) -> torch.Tensor:
+        nr_augmentations = features.shape[0]
+        merged_features = list()
+        for i in range(nr_augmentations):
+            merged_features.append(self._merge_features(features[i], superpixels))
+        return torch.stack(merged_features, dim=1)
+
+    def precompute(self, final_path) -> None:
+        """Precompute all necessary information"""
+        if self.base_path is not None:
+            self._link_to_path(Path(final_path) / "features")
+
+
 HANDCRAFTED_FEATURES_NAMES = {
-    'area': 0,
-    'convex_area': 1,
-    'eccentricity': 2,
-    'equivalent_diameter': 3,
-    'euler_number': 4,
-    'extent': 5,
-    'filled_area': 6,
-    'major_axis_length': 7,
-    'minor_axis_length': 8,
-    'orientation': 9,
-    'perimeter': 10,
-    'solidity': 11,
-    'roughness': 12,
-    'shape_factor': 13,
-    'ellipticity': 14,
-    'roundness': 15,
-    'feats_r_hist_bin1': 16,
-    'feats_r_hist_bin2': 17,
-    'feats_r_hist_bin3': 18,
-    'feats_r_hist_bin4': 19,
-    'feats_r_hist_bin5': 20,
-    'feats_r_hist_bin6': 21,
-    'feats_r_hist_bin7': 22,
-    'feats_r_hist_bin8': 23,
-    'feats_r_color_mean': 24,
-    'feats_r_color_std': 25,
-    'feats_r_color_median': 26,
-    'feats_r_color_skewness': 27,
-    'feats_r_color_energy': 28,
-    'feats_g_hist_bin1': 29,
-    'feats_g_hist_bin2': 30,
-    'feats_g_hist_bin3': 31,
-    'feats_g_hist_bin4': 32,
-    'feats_g_hist_bin5': 33,
-    'feats_g_hist_bin6': 34,
-    'feats_g_hist_bin7': 35,
-    'feats_g_hist_bin8': 36,
-    'feats_g_color_mean': 37,
-    'feats_g_color_std': 38,
-    'feats_g_color_median': 39,
-    'feats_g_color_skewness': 40,
-    'feats_g_color_energy': 41,
-    'feats_b_hist_bin1': 42,
-    'feats_b_hist_bin2': 43,
-    'feats_b_hist_bin3': 44,
-    'feats_b_hist_bin4': 45,
-    'feats_b_hist_bin5': 46,
-    'feats_b_hist_bin6': 47,
-    'feats_b_hist_bin7': 48,
-    'feats_b_hist_bin8': 49,
-    'feats_b_color_mean': 50,
-    'feats_b_color_std': 51,
-    'feats_b_color_median': 52,
-    'feats_b_color_skewness': 53,
-    'feats_b_color_energy': 54,
-    'entropy': 55,
-    'glcm_contrast': 56,
-    'glcm_dissimilarity': 57,
-    'glcm_homogeneity': 58,
-    'glcm_energy': 59,
-    'glcm_ASM': 60,
-    'glcm_dispersion': 61,
-    'glcm_entropy': 62,
-    'mean_crowdedness': 63,
-    'std_crowdedness': 64
+    "area": 0,
+    "convex_area": 1,
+    "eccentricity": 2,
+    "equivalent_diameter": 3,
+    "euler_number": 4,
+    "extent": 5,
+    "filled_area": 6,
+    "major_axis_length": 7,
+    "minor_axis_length": 8,
+    "orientation": 9,
+    "perimeter": 10,
+    "solidity": 11,
+    "roughness": 12,
+    "shape_factor": 13,
+    "ellipticity": 14,
+    "roundness": 15,
+    "feats_r_hist_bin1": 16,
+    "feats_r_hist_bin2": 17,
+    "feats_r_hist_bin3": 18,
+    "feats_r_hist_bin4": 19,
+    "feats_r_hist_bin5": 20,
+    "feats_r_hist_bin6": 21,
+    "feats_r_hist_bin7": 22,
+    "feats_r_hist_bin8": 23,
+    "feats_r_color_mean": 24,
+    "feats_r_color_std": 25,
+    "feats_r_color_median": 26,
+    "feats_r_color_skewness": 27,
+    "feats_r_color_energy": 28,
+    "feats_g_hist_bin1": 29,
+    "feats_g_hist_bin2": 30,
+    "feats_g_hist_bin3": 31,
+    "feats_g_hist_bin4": 32,
+    "feats_g_hist_bin5": 33,
+    "feats_g_hist_bin6": 34,
+    "feats_g_hist_bin7": 35,
+    "feats_g_hist_bin8": 36,
+    "feats_g_color_mean": 37,
+    "feats_g_color_std": 38,
+    "feats_g_color_median": 39,
+    "feats_g_color_skewness": 40,
+    "feats_g_color_energy": 41,
+    "feats_b_hist_bin1": 42,
+    "feats_b_hist_bin2": 43,
+    "feats_b_hist_bin3": 44,
+    "feats_b_hist_bin4": 45,
+    "feats_b_hist_bin5": 46,
+    "feats_b_hist_bin6": 47,
+    "feats_b_hist_bin7": 48,
+    "feats_b_hist_bin8": 49,
+    "feats_b_color_mean": 50,
+    "feats_b_color_std": 51,
+    "feats_b_color_median": 52,
+    "feats_b_color_skewness": 53,
+    "feats_b_color_energy": 54,
+    "entropy": 55,
+    "glcm_contrast": 56,
+    "glcm_dissimilarity": 57,
+    "glcm_homogeneity": 58,
+    "glcm_energy": 59,
+    "glcm_ASM": 60,
+    "glcm_dispersion": 61,
+    "glcm_entropy": 62,
+    "mean_crowdedness": 63,
+    "std_crowdedness": 64,
 }

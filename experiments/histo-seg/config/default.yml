@@ -71,6 +71,10 @@ train:
       - "NodeClassificationF1Score"
     segmentation:
       - "MeanIoU"
+      - "BenignIoU"
+      - "Grade3IoU"
+      - "Grade4IoU"
+      - "Grade5IoU"
       - "fIoU"
       - "MeanF1Score"
   params:

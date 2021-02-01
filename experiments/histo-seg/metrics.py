@@ -118,6 +118,39 @@ class IoU(SegmentationMetric):
         return value >= comparison
 
 
+class ClassIoU(IoU):
+    def __init__(self, index: int, nr_classes: int, background_label: int, **kwargs) -> None:
+        self.index = index
+        super().__init__(nr_classes, background_label, **kwargs)
+
+    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
+        all_iou = super()._compute_metric(ground_truth, prediction)
+        class_iou = all_iou[:, self.index]
+        mask = torch.isnan(class_iou)   
+        class_iou[mask] = 0
+        return torch.sum(class_iou) / torch.sum(~mask)
+
+
+class BenignIoU(ClassIoU):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        super().__init__(0, nr_classes, background_label, **kwargs)
+
+
+class Grade3IoU(ClassIoU):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        super().__init__(1, nr_classes, background_label, **kwargs)
+
+    
+class Grade4IoU(ClassIoU):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        super().__init__(2, nr_classes, background_label, **kwargs)
+
+
+class Grade5IoU(ClassIoU):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        super().__init__(3, nr_classes, background_label, **kwargs)
+
+
 class MeanIoU(IoU):
     """Mean class IoU"""
 

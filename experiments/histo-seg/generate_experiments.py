@@ -212,7 +212,7 @@ class Experiment:
 
 
 class PretrainingExperiment(Experiment):
-    def __init__(self, name, queue="prod.med", cores=3) -> None:
+    def __init__(self, name, queue="prod.med", cores=3, base="config/pretrain.yml") -> None:
         super().__init__(
             "pretraining_" + name,
             cores=cores,
@@ -223,7 +223,7 @@ class PretrainingExperiment(Experiment):
             queue=queue,
             disable_multithreading=False,
             no_save=False,
-            base="config/pretrain.yml",
+            base=base,
         )
         self.name = name
         self.cores = cores
@@ -402,7 +402,7 @@ class CPUPreprocessingExperiment(PreprocessingExperiment):
 
 
 class GraphClassifierExperiment(Experiment):
-    def __init__(self, name, queue="prod.med") -> None:
+    def __init__(self, name, queue="prod.med", base="config/default.yml") -> None:
         super().__init__(
             "graph_" + name,
             cores=1,
@@ -413,7 +413,7 @@ class GraphClassifierExperiment(Experiment):
             queue=queue,
             disable_multithreading=False,
             no_save=False,
-            base="config/default.yml",
+            base=base,
         )
         self.name = name
 
@@ -1258,6 +1258,281 @@ if __name__ == "__main__":
             ]
         ],
     )
+    CPUPreprocessingExperiment(
+        name="v11_standard_40x", base="config/new_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(
+                ["superpixel", "params", "nr_superpixels"],
+                1200,
+            ),
+            Parameter(
+                ["superpixel", "params", "compactness"],
+                30,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "downsample_factor"],
+                1,
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["superpixel", "params", "threshold"], [0.01, 0.02, 0.03, 0.04]
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v11_mobilenet_{s}_40x"
+                        for s in ["low", "med", "high", "very_high"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        name="v11_standard_no_40x", base="config/new_preprocess_no_merge.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(
+                ["superpixel", "params", "nr_superpixels"],
+                1200,
+            ),
+            Parameter(
+                ["superpixel", "params", "compactness"],
+                30,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "downsample_factor"],
+                1,
+            ),
+            Parameter(
+                ["params", "link_directory"],
+                "v11_mobilenet_no_40x",
+            ),
+        ],
+    )
+    CPUPreprocessingExperiment(
+        name="v12_standard_low", base="config/new_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(["superpixel", "params", "threshold"], 0.01),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250, 150],
+                ),
+                ParameterList(
+                    ["superpixel", "params", "compactness"],
+                    [30, 30, 30, 30],
+                ),
+                ParameterList(
+                    ["feature_extraction", "params", "downsample_factor"],
+                    [1, 2, 3, 4],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v12_mobilenet_low_{s}" for s in ["40x", "20x", "13x", "10x"]],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        name="v12_standard_med", base="config/new_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(["superpixel", "params", "threshold"], 0.02),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250, 150],
+                ),
+                ParameterList(
+                    ["superpixel", "params", "compactness"],
+                    [30, 30, 30, 30],
+                ),
+                ParameterList(
+                    ["feature_extraction", "params", "downsample_factor"],
+                    [1, 2, 3, 4],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v12_mobilenet_med_{s}" for s in ["40x", "20x", "13x", "10x"]],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        name="v12_standard_high", base="config/new_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(["superpixel", "params", "threshold"], 0.03),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250, 150],
+                ),
+                ParameterList(
+                    ["superpixel", "params", "compactness"],
+                    [30, 30, 30, 30],
+                ),
+                ParameterList(
+                    ["feature_extraction", "params", "downsample_factor"],
+                    [1, 2, 3, 4],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v12_mobilenet_high_{s}" for s in ["40x", "20x", "13x", "10x"]],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        name="v12_standard_very_high", base="config/new_preprocess.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(["superpixel", "params", "threshold"], 0.04),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250, 150],
+                ),
+                ParameterList(
+                    ["superpixel", "params", "compactness"],
+                    [30, 30, 30, 30],
+                ),
+                ParameterList(
+                    ["feature_extraction", "params", "downsample_factor"],
+                    [1, 2, 3, 4],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [
+                        f"v12_mobilenet_very_high_{s}"
+                        for s in ["40x", "20x", "13x", "10x"]
+                    ],
+                ),
+            ]
+        ],
+    )
+    CPUPreprocessingExperiment(
+        name="v12_standard_no", base="config/new_preprocess_no_merge.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["superpixel", "params", "nr_superpixels"],
+                    [700, 400, 250, 150],
+                ),
+                ParameterList(
+                    ["superpixel", "params", "compactness"],
+                    [30, 30, 30, 30],
+                ),
+                ParameterList(
+                    ["feature_extraction", "params", "downsample_factor"],
+                    [1, 2, 3, 4],
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v12_mobilenet_no_{s}" for s in ["40x", "20x", "13x", "10x"]],
+                ),
+            ]
+        ],
+    )
 
     # ETH
     GraphClassifierExperiment(name="multihop").generate(
@@ -1803,6 +2078,582 @@ if __name__ == "__main__":
             )
         ],
     )
+    GraphClassifierExperiment(name="v11_no_old_image_level").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.99}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_no_pixel_level").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.99}},
+            ),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_old_image_level_longer").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_no_old_image_level_longer").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_new_image_level_longer").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "new_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_old_image_level_max").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "gnn_config", "neighbor_pooling_type"], ["max"]
+            )
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_old_image_level_gnn").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"],
+                    [16, 64],
+                ),
+                Parameter(
+                    ["train", "model", "gnn_config", "output_dim"],
+                    [16, 64],
+                ),
+            ]
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_old_image_level_longer").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v12_old_image_level_longer").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v12_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "40x",
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["very_high", "high", "med", "low", "no"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v12_new_image_level_longer").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "new_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v12_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "40x",
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["very_high", "high", "med", "low", "no"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v11_previous_pixel_level").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 3e-5),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v11_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "40x",
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v12_previous_pixel_level").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 3e-5),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v12_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "40x",
+                        "20x",
+                        "13x",
+                        "10x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
 
     # Pretraining
     PretrainingExperiment(name="baseline", queue="prod.long").generate(
@@ -2239,4 +3090,72 @@ if __name__ == "__main__":
                 ],
             )
         ]
+    )
+
+    
+    # FINAL WEAKLY SUPERVISED RESULTS
+    GraphClassifierExperiment(name="rep_ws_v11_1", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_40x")
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_ws_v11_2", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_20x")
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_ws_v11_3", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_13x")
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_ws_v11_4", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_10x")
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_ws_v12_1", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_40x")
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_ws_v12_2", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_20x")
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_ws_v12_3", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_13x")
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_ws_v12_4", base="config/final_weak.yml").generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_10x")
+        ],
+        repetitions=3
+    )
+
+    # FINAL CNN (ETH Parameters)
+    PretrainingExperiment(name="rep_eth", base="config/final_cnn_eth.yml", queue="prod.long").generate(
+        repetitions=3
+    )
+    PretrainingExperiment(name="rep_best_meaniou", base="config/final_cnn.yml", queue="prod.long").generate(
+        repetitions=3
+    )
+    PretrainingExperiment(name="rep_good_meaniou", base="config/final_cnn2.yml", queue="prod.long").generate(
+        repetitions=3
+    )
+    PretrainingExperiment(name="rep_best_kappa1", base="config/final_cnn3.yml", queue="prod.long").generate(
+        repetitions=3
+    )
+    PretrainingExperiment(name="rep_best_kappa2", base="config/final_cnn4.yml", queue="prod.long").generate(
+        repetitions=3
     )

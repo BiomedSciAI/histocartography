@@ -195,6 +195,8 @@ def train_patch_classifier(
                 validation_epoch_duration,
                 step=epoch,
             )
+    
+    mlflow.pytorch.log_model(model, "latest")
 
 
 if __name__ == "__main__":

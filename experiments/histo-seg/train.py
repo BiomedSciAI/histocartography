@@ -362,6 +362,7 @@ def train_graph_classifier(
                 step=epoch,
             )
 
+    mlflow.pytorch.log_model(model, "latest")
 
 if __name__ == "__main__":
     config, config_path, test = get_config(

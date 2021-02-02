@@ -14,6 +14,7 @@ from logging_helper import (
     GraphClassificationLoggingHelper,
     prepare_experiment,
     robust_mlflow,
+    log_parameters,
 )
 from losses import get_loss, get_lr
 from models import (
@@ -369,6 +370,7 @@ if __name__ == "__main__":
         required=("model", "data", "metrics", "params"),
     )
     logging.info("Start training")
+    tags = config["params"].get("experiment_tags", None)
     prepare_experiment(config_path=config_path, **config)
     train_graph_classifier(
         model_config=config["model"],
@@ -385,7 +387,6 @@ if __name__ == "__main__":
         run_id = robust_mlflow(mlflow.active_run).info.run_id
         experiment_id = robust_mlflow(mlflow.active_run).info.experiment_id
         model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/best.valid.segmentation.MeanIoU"
-        tags = config["params"].get("experiment_tags", None)
         robust_mlflow(mlflow.end_run)
 
         # Start testing run
@@ -395,10 +396,14 @@ if __name__ == "__main__":
             default="config/default.yml",
             required=("model", "data"),
         )
+
         test_config["params"]["experiment_tags"] = tags  # Use same tags as for training
         test_config["model"]["architecture"] = model_uri  # Use best model from training
         fill_missing_information(test_config["model"], test_config["data"])
         prepare_experiment(config_path=test_config_path, **test_config)
+        log_parameters(
+            data=config["data"], model=config["model"], params=config["params"]
+        )
         test_gnn(
             model_config=test_config["model"],
             data_config=test_config["data"],

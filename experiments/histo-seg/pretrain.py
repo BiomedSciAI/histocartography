@@ -1,16 +1,23 @@
 import datetime
 import logging
 from typing import Dict, Optional
+from copy import deepcopy
 
 import mlflow
 import torch
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm.auto import tqdm, trange
 
-from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
+from logging_helper import (
+    LoggingHelper,
+    prepare_experiment,
+    robust_mlflow,
+    log_parameters,
+)
 from losses import get_loss, get_lr
 from models import PatchTissueClassifier
 from utils import dynamic_import_from, get_config
+from test_cnn import test_cnn, fill_missing_information
 
 
 def train_patch_classifier(
@@ -195,8 +202,32 @@ def train_patch_classifier(
                 validation_epoch_duration,
                 step=epoch,
             )
-    
+
     mlflow.pytorch.log_model(model, "latest")
+
+
+def run_test(inference_mode="patch_based"):
+    train_config = deepcopy(config)
+    test_config_ = deepcopy(test_config)
+    test_config_["params"]["inference_mode"] = inference_mode
+    prepare_experiment(
+        config_path=test_config_path,
+        data={},
+        model=test_config_["model"],
+        params=test_config_["params"],
+    )
+    log_parameters(
+        data=train_config["data"],
+        model=train_config["model"],
+        params=train_config["params"],
+    )
+    test_cnn(
+        model_config=test_config_["model"],
+        data_config=test_config_["data"],
+        test=test,
+        **test_config_["params"],
+    )
+    robust_mlflow(mlflow.end_run)
 
 
 if __name__ == "__main__":
@@ -206,6 +237,7 @@ if __name__ == "__main__":
         required=("model", "data", "metrics", "params"),
     )
     logging.info("Start pre-training")
+    tags = config["params"].get("experiment_tags", None)
     if test:
         config["data"]["overfit_test"] = True
         config["params"]["num_workers"] = 0
@@ -218,3 +250,26 @@ if __name__ == "__main__":
         test=test,
         **config["params"],
     )
+
+    # Automatically run testing code
+    if config["params"].get("autotest", False):
+        # End training run
+        run_id = robust_mlflow(mlflow.active_run).info.run_id
+        experiment_id = robust_mlflow(mlflow.active_run).info.experiment_id
+        model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/best.valid.segmentation.MeanIoU"
+        robust_mlflow(mlflow.end_run)
+
+        # Start testing run
+        logging.info("Start testing")
+        test_config, test_config_path, test = get_config(
+            name="test",
+            default=config_path,
+            required=("model", "data"),
+        )
+        config["model"].pop("architecture")
+        test_config["params"]["experiment_tags"] = tags  # Use same tags as for training
+        test_config["model"]["architecture"] = model_uri  # Use best model from training
+        fill_missing_information(test_config["model"], test_config["data"])
+
+        run_test(inference_mode="patch_based")
+        run_test(inference_mode="hacky")

@@ -2654,6 +2654,145 @@ if __name__ == "__main__":
             )
         ],
     )
+    GraphClassifierExperiment(name="v10_image_level_new").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "new_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v10_mobilenet_{level}_{magnification}_no_overlap"
+                    for magnification in [
+                        "40x",
+                        "30x",
+                        "20x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v10_image_level_old").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "node_classifier_config"], None),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                12,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "original_labels"),
+            Parameter(["train", "data", "supervision", "mode"], "image_level"),
+            Parameter(["train", "params", "nr_epochs"], 1000),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v10_mobilenet_{level}_{magnification}_no_overlap"
+                    for magnification in [
+                        "40x",
+                        "30x",
+                        "20x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    GraphClassifierExperiment(name="v10_pixel_level").generate(
+        fixed=[
+            Parameter(["train", "data", "use_augmentation_dataset"], True),
+            Parameter(["train", "model", "graph_classifier_config"], None),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], False
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "dropout"],
+                0.5,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "hidden_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "gnn_config", "output_dim"],
+                32,
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "n_layers"],
+                2,
+            ),
+            Parameter(["train", "model", "node_classifier_config", "hidden_dim"], 32),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(
+                ["train", "model", "gnn_config", "n_layers"],
+                6,
+            ),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 3e-5),
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v10_mobilenet_{level}_{magnification}_no_overlap"
+                    for magnification in [
+                        "40x",
+                        "30x",
+                        "20x",
+                    ]
+                    for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
 
     # Pretraining
     PretrainingExperiment(name="baseline", queue="prod.long").generate(
@@ -3157,5 +3296,73 @@ if __name__ == "__main__":
         repetitions=3
     )
     PretrainingExperiment(name="rep_best_kappa2", base="config/final_cnn4.yml", queue="prod.long").generate(
+        repetitions=3
+    )
+
+    # FINAL PIXEL LEVEL
+    GraphClassifierExperiment(name="rep_pixel_best_meaniou", base="config/final_pixel.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            )
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_pixel_good_meaniou", base="config/final_pixel.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_very_high_10x",
+            )
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_pixel_best_kappa", base="config/final_pixel.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_low_20x",
+            )
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_pixel_good_kappa", base="config/final_pixel.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_no_13x",
+            )
+        ],
+        repetitions=3
+    )
+
+    # FINAL TMA LEVEL
+    GraphClassifierExperiment(name="rep_tma_best_meaniou", base="config/final_weak.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v10_mobilenet_med_30x_no_overlap",
+            )
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_tma_good_meaniou", base="config/final_weak.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            )
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_tma_best_kappa", base="config/final_weak.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_low_13x",
+            )
+        ],
+        repetitions=3
+    )
+    GraphClassifierExperiment(name="rep_tma_good_kappa", base="config/final_weak.yml").generate(
+        fixed = [Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            )
+        ],
         repetitions=3
     )

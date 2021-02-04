@@ -177,7 +177,7 @@ class MeanIoU(IoU):
         class_iou = super()._compute_metric(ground_truth, prediction)
         mask = torch.isnan(class_iou)
         class_iou[mask] = 0
-        batch_mean_iou = torch.sum(class_iou, axis=1) / torch.sum(~mask, axis=1)
+        batch_mean_iou = torch.sum(class_iou, axis=0) / torch.sum(~mask, axis=0)
         return batch_mean_iou.mean()
 
 
@@ -291,7 +291,7 @@ class MeanF1Score(F1Score):
         class_f1 = super()._compute_metric(ground_truth, prediction)
         mask = torch.isnan(class_f1)
         class_f1[mask] = 0
-        batch_f1 = torch.sum(class_f1, axis=1) / torch.sum(~mask, axis=1)
+        batch_f1 = torch.sum(class_f1, axis=0) / torch.sum(~mask, axis=0)
         return batch_f1.mean()
 
 

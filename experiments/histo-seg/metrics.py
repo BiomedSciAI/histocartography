@@ -129,10 +129,8 @@ class ClassIoU(IoU):
 
     def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
         all_iou = super()._compute_metric(ground_truth, prediction)
-        class_iou = all_iou[:, self.index]
-        mask = torch.isnan(class_iou)   
-        class_iou[mask] = 0
-        return torch.sum(class_iou) / torch.sum(~mask)
+        class_iou = all_iou[:, self.index].detach().cpu().numpy()
+        return np.nanmean(class_iou)
 
     @property
     def logs_model(self):
@@ -174,11 +172,9 @@ class MeanIoU(IoU):
         Returns:
             torch.Tensor: The computed mean IoU per class
         """
-        class_iou = super()._compute_metric(ground_truth, prediction)
-        mask = torch.isnan(class_iou)
-        class_iou[mask] = 0
-        batch_mean_iou = torch.sum(class_iou, axis=0) / torch.sum(~mask, axis=0)
-        return batch_mean_iou.mean()
+        class_iou = super()._compute_metric(ground_truth, prediction).detach().cpu().numpy()
+        class_mean_iou = np.nanmean(class_iou, axis=0)
+        return class_mean_iou.mean()
 
 
 class fIoU(IoU):
@@ -273,6 +269,41 @@ class F1Score(SegmentationMetric):
         return value >= comparison
 
 
+class ClassF1Score(F1Score):
+    def __init__(self, index: int, **kwargs) -> None:
+        self.index = index
+        super().__init__(**kwargs)
+
+    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
+        all_f1 = super()._compute_metric(ground_truth, prediction)
+        class_f1 = all_f1[:, self.index].detach().cpu().numpy()
+        return np.nanmean(class_f1)
+
+    @property
+    def logs_model(self):
+        return False
+
+
+class BenignF1Score(ClassF1Score):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(0, **kwargs)
+
+
+class Grade3F1Score(ClassF1Score):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(1, **kwargs)
+
+    
+class Grade4F1Score(ClassF1Score):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(2, **kwargs)
+
+
+class Grade5F1Score(ClassF1Score):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(3, **kwargs)
+
+
 class MeanF1Score(F1Score):
     """Mean class F1 score"""
 
@@ -288,11 +319,9 @@ class MeanF1Score(F1Score):
         Returns:
             torch.Tensor: The computed mean f1 score per class
         """
-        class_f1 = super()._compute_metric(ground_truth, prediction)
-        mask = torch.isnan(class_f1)
-        class_f1[mask] = 0
-        batch_f1 = torch.sum(class_f1, axis=0) / torch.sum(~mask, axis=0)
-        return batch_f1.mean()
+        class_f1 = super()._compute_metric(ground_truth, prediction).detach().cpu().numpy()
+        class_mean_f1 = np.nanmean(class_f1, axis=0)
+        return class_mean_f1.mean()
 
 
 class ClassificationMetric:

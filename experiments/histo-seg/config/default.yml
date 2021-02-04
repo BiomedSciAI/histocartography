@@ -77,6 +77,10 @@ train:
       - "Grade5IoU"
       - "fIoU"
       - "MeanF1Score"
+      - "BenignF1Score"
+      - "Grade3F1Score"
+      - "Grade4F1Score"
+      - "Grade5F1Score"
   params:
     experiment_name: "anv_wsss_train_classifier"
     experiment_tags: null

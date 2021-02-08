@@ -72,8 +72,8 @@ def test_gnn(
     threshold: float,
     local_save_path,
     mlflow_save_path,
-    use_grad_cam: False,
-    use_tta: False,
+    use_grad_cam: bool = False,
+    use_tta: bool = False,
     **kwargs,
 ):
     logging.info(f"Unmatched arguments for testing: {kwargs}")

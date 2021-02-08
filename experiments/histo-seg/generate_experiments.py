@@ -3203,186 +3203,6 @@ if __name__ == "__main__":
         ],
     )
 
-    GNNTestingExperiment(name="gnn_deep").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "08d570cf39eb435281679a3754c21dce",
-                        "3cb5cf60d3e0479a929c4a6ce9aee24b",
-                        "b8df33ef727c43bfb3212b1905d1ed48",
-                        "38a6507ca9014b99bf0b43978ea248cf",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(name="deep_baseline").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "029a0ad7cb2043afbb66be6af32a7ddc",
-                        "eab6a4e236e74563938ea992a685289c",
-                        "0da677d6412f449db8d1e5bade323cbc",
-                        "fa451fd2a6014fed87c53fff40d2beab",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(name="thresholds").generate(
-        fixed=[
-            Parameter(
-                ["test", "model", "architecture"],
-                "s3://mlflow/631/3cb5cf60d3e0479a929c4a6ce9aee24b/artifacts/best.valid.segmentation.MeanIoU",
-            )
-        ],
-        sequential=[
-            ParameterList(
-                ["test", "params", "threshold"],
-                [0.0, 0.1, 0.15, 0.2, 0.225, 0.25, 0.275, 0.3, 0.323, 0.35],
-            )
-        ],
-    )
-    GNNTestingExperiment(name="deep_gnns").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "05466db6787b474099b7c3c675929e80",
-                        "bbc33034429b423da734ff0e5d5b8c15",
-                        "1ca94f631e8d4cb9b1f45e4030f57c89",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(name="magnification_no_overlap").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "8fa60ec176b94c4a8c1bbbf2f3b4b393",
-                        "7d6a6336892a4741bf2ef63331b36656",
-                        "8a29f56a30924e43bedae3a998a7cbfd",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(name="grid_graph").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "f8c2c2772e6c4f7daf717ab792c87560",
-                        "2e0990b4560442b78af804816945d5c2",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(name="exponential_lr").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "6ac7eccc11c848738a747270db669584",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(name="one_vs_two_hop_300").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "d6cf9a9f69d9414c8528bc142b19d364",
-                        "f10989d99f4448ae8b1eb93bff8e2032",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(name="color_merged").generate(
-        sequential=[
-            ParameterList(
-                ["test", "model", "architecture"],
-                [
-                    f"s3://mlflow/631/{run}/artifacts/best.valid.segmentation.MeanIoU"
-                    for run in [
-                        "4128202202f04ccaa7727b6d6627feaa",
-                        "a9f0461d451d4f5bb28edd0a9ec672a2",
-                        "15c6b2681a504572b89b30b16ac9ea38",
-                        "32e6c6a331534f3f9fa251a47b88fc8d",
-                        "a27b3e2078f04ef39f8add1028d4575c",
-                        "4fefe6e1b4104f038edd509a7f1cecb5",
-                        "19211a3e4e2043e888cc6ad65ddabb77",
-                        "a93c55d7a825431e8c03db8849401cfb",
-                        "910e4bc1b7d84c299b676eed8e443f3c",
-                        "a48e8fb2496f47c78a7b7b2edbb12dd5",
-                        "615b85e22bff492387226a16326604f0",
-                    ]
-                ],
-            )
-        ]
-    )
-    GNNTestingExperiment(
-        name="rerun_all_pixel", base="config/default_strong.yml"
-    ).generate(
-        sequential=[
-            [
-                ParameterList(
-                    ["test", "params", "experiment_tags"],
-                    [
-                        {"grid_search": x}
-                        for x in [
-                            "tissue_rep_best_meaniou",
-                            "tissue_rep_best_meaniou",
-                            "tissue_rep_best_meaniou",
-                            "tissue_rep_best_kappa",
-                            "tissue_rep_best_kappa",
-                            "tissue_rep_best_kappa",
-                            "tissue_rep_good_meaniou",
-                            "tissue_rep_good_meaniou",
-                            "tissue_rep_good_meaniou",
-                            "tissue_rep_good_kappa",
-                            "tissue_rep_good_kappa",
-                            "tissue_rep_good_kappa",
-                        ]
-                    ],
-                ),
-                ParameterList(
-                    ["test", "model", "architecture"],
-                    [
-                        f"s3://mlflow/633/{run}/artifacts/best.valid.MultiLabelBalancedAccuracy"
-                        for run in [
-                            "ec28ee48fe7a4ba0b9e773381d537b23",
-                            "8b33525d35844cdd911f63fa95d0d3e7",
-                            "beaa152d431c49309cb74c96c41779cd",
-                        ]
-                    ],
-                ),
-            ]
-        ],
-    )
-
     # FINAL WEAKLY SUPERVISED RESULTS
     GraphClassifierExperiment(
         name="rep_ws_v11_1", base="config/final_weak.yml"
@@ -3484,7 +3304,7 @@ if __name__ == "__main__":
 
     # FINAL PIXEL LEVEL
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_pixel_best_meaniou", base="config/final_pixel.yml"
+        name="rep_best_meaniou", base="config/final_pixel.yml"
     ).generate(
         fixed=[
             Parameter(
@@ -3495,7 +3315,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_pixel_good_meaniou", base="config/final_pixel.yml"
+        name="rep_good_meaniou", base="config/final_pixel.yml"
     ).generate(
         fixed=[
             Parameter(
@@ -3506,7 +3326,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_pixel_best_kappa", base="config/final_pixel.yml"
+        name="rep_best_kappa", base="config/final_pixel.yml"
     ).generate(
         fixed=[
             Parameter(
@@ -3517,7 +3337,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_pixel_good_kappa", base="config/final_pixel.yml"
+        name="rep_good_kappa", base="config/final_pixel.yml"
     ).generate(
         fixed=[
             Parameter(
@@ -3530,7 +3350,7 @@ if __name__ == "__main__":
 
     # FINAL TMA LEVEL
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_tma_best_meaniou", base="config/final_weak.yml"
+        name="rep_best_meaniou", base="config/final_weak.yml"
     ).generate(
         fixed=[
             Parameter(
@@ -3541,7 +3361,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_tma_good_meaniou", base="config/final_weak.yml"
+        name="rep_good_meaniou", base="config/final_weak.yml"
     ).generate(
         fixed=[
             Parameter(
@@ -3552,7 +3372,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_tma_best_kappa", base="config/final_weak.yml"
+        name="rep_best_kappa", base="config/final_weak.yml"
     ).generate(
         fixed=[
             Parameter(
@@ -3563,7 +3383,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_tma_good_kappa", base="config/final_weak.yml"
+        name="rep_good_kappa", base="config/final_weak.yml"
     ).generate(
         fixed=[
             Parameter(

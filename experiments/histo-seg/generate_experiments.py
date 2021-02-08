@@ -212,7 +212,9 @@ class Experiment:
 
 
 class PretrainingExperiment(Experiment):
-    def __init__(self, name, queue="prod.med", cores=3, base="config/pretrain.yml") -> None:
+    def __init__(
+        self, name, queue="prod.med", cores=3, base="config/pretrain.yml"
+    ) -> None:
         super().__init__(
             "pretraining_" + name,
             cores=cores,
@@ -402,14 +404,16 @@ class CPUPreprocessingExperiment(PreprocessingExperiment):
 
 
 class GraphClassifierExperiment(Experiment):
-    def __init__(self, name, queue="prod.med", base="config/default.yml") -> None:
+    def __init__(
+        self, name, queue="prod.med", base="config/default.yml", main_file="train"
+    ) -> None:
         super().__init__(
             "graph_" + name,
             cores=1,
             core_multiplier=6,
             gpus=1,
             subsample=None,
-            main_file="train",
+            main_file=main_file,
             queue=queue,
             disable_multithreading=False,
             no_save=False,
@@ -431,6 +435,38 @@ class GraphClassifierExperiment(Experiment):
             ]
             + fixed,
             **kwargs,
+        )
+
+
+class WeaklySupervisedGraphClassificationExperiment(GraphClassifierExperiment):
+    def __init__(self, name, queue="prod.med", base="config/default_weak.yml") -> None:
+        super().__init__(
+            "image_" + name,
+            queue=queue,
+            base=base,
+            main_file="train_weak",
+        )
+
+
+class StronglySupervisedGraphClassificationExperiment(GraphClassifierExperiment):
+    def __init__(
+        self, name, queue="prod.med", base="config/default_strong.yml"
+    ) -> None:
+        super().__init__(
+            "tissue_" + name,
+            queue=queue,
+            base=base,
+            main_file="train_strong",
+        )
+
+
+class SemiSupervisedGraphClassificationExperiment(GraphClassifierExperiment):
+    def __init__(self, name, queue="prod.med", base="config/default_semi.yml") -> None:
+        super().__init__(
+            "semi_" + name,
+            queue=queue,
+            base=base,
+            main_file="train_semi",
         )
 
 
@@ -469,7 +505,9 @@ class CNNTestingExperiment(Experiment):
 
 
 class GNNTestingExperiment(Experiment):
-    def __init__(self, name, queue="prod.short", cores=1) -> None:
+    def __init__(
+        self, name, queue="prod.short", cores=1, base="config/default.yml"
+    ) -> None:
         super().__init__(
             "test_gnn_" + name,
             cores=cores,
@@ -480,7 +518,7 @@ class GNNTestingExperiment(Experiment):
             queue=queue,
             disable_multithreading=False,
             no_save=False,
-            base="config/default.yml",
+            base=base,
         )
         self.name = name
         self.cores = cores
@@ -1535,10 +1573,9 @@ if __name__ == "__main__":
     )
 
     # ETH
-    GraphClassifierExperiment(name="multihop").generate(
+    StronglySupervisedGraphClassificationExperiment(name="multihop").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -1592,10 +1629,9 @@ if __name__ == "__main__":
             ]
         ],
     )
-    GraphClassifierExperiment(name="v9_color_merged").generate(
+    StronglySupervisedGraphClassificationExperiment(name="v9_color_merged").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -1645,10 +1681,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v8_edge_merged").generate(
+    StronglySupervisedGraphClassificationExperiment(name="v8_edge_merged").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -1698,10 +1733,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_old_image_level").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_old_image_level").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -1742,10 +1776,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_new_image_level").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_new_image_level").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -1786,10 +1819,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_image_level_dropout").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v10_image_level_dropout"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -1834,10 +1868,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_gnn_layers").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_gnn_layers").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -1883,10 +1916,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_augmentation").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_augmentation").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -1934,10 +1966,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_lr").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_lr").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -1981,10 +2012,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_old_image_level").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v11_old_image_level").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2025,10 +2055,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(name="v11_pixel_level").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -2078,10 +2107,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_no_old_image_level").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_no_old_image_level"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2122,10 +2152,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_no_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(name="v11_no_pixel_level").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -2175,10 +2204,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_old_image_level_longer").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_old_image_level_longer"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2220,10 +2250,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_no_old_image_level_longer").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_no_old_image_level_longer"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2265,10 +2296,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_new_image_level_longer").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_new_image_level_longer"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2310,10 +2342,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_old_image_level_max").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_old_image_level_max"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2360,10 +2393,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_old_image_level_gnn").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_old_image_level_gnn"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2417,10 +2451,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_old_image_level_longer").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_old_image_level_longer"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2462,10 +2497,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v12_old_image_level_longer").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v12_old_image_level_longer"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2508,10 +2544,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v12_new_image_level_longer").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v12_new_image_level_longer"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2554,10 +2591,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v11_previous_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="v11_previous_pixel_level"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -2604,10 +2642,11 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v12_previous_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="v12_previous_pixel_level"
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -2654,10 +2693,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_image_level_new").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_image_level_new").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2699,10 +2737,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_image_level_old").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_image_level_old").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "node_classifier_config"], None),
             Parameter(
                 ["train", "model", "gnn_config", "dropout"],
                 0.5,
@@ -2744,10 +2781,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GraphClassifierExperiment(name="v10_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(name="v10_pixel_level").generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
-            Parameter(["train", "model", "graph_classifier_config"], None),
             Parameter(
                 ["train", "model", "node_classifier_config", "seperate_heads"], False
             ),
@@ -2789,6 +2825,26 @@ if __name__ == "__main__":
                         "20x",
                     ]
                     for level in ["no", "low", "med", "high", "very_high"]
+                ],
+            )
+        ],
+    )
+    SemiSupervisedGraphClassificationExperiment(name="v12_combine_13x").generate(
+        fixed=[
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+        ],
+        sequential=[
+            ParameterList(["train", "params", "loss", "node_weight"], [0.2, 0.5, 0.8])
+        ],
+        grid=[
+            ParameterList(
+                ["train", "data", "graph_directory"],
+                [
+                    f"outputs/v12_mobilenet_{level}_{magnification}"
+                    for magnification in [
+                        "13x",
+                    ]
+                    for level in ["med", "high"]
                 ],
             )
         ],
@@ -3089,6 +3145,63 @@ if __name__ == "__main__":
             )
         ],
     )
+    CNNTestingExperiment(name="rerun_all").generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "rep_eth",
+                            "rep_eth",
+                            "rep_eth",
+                            "rep_best_mean_iou",
+                            "rep_best_mean_iou",
+                            "rep_best_mean_iou",
+                            "rep_good_mean_iou",
+                            "rep_good_mean_iou",
+                            "rep_good_mean_iou",
+                            "rep_best_kappa1",
+                            "rep_best_kappa1",
+                            "rep_best_kappa1",
+                            "rep_best_kappa2",
+                            "rep_best_kappa2",
+                            "rep_best_kappa2",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        f"s3://mlflow/633/{run}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+                        for run in [
+                            "f3847e42206246eba25d818fae0f7135",
+                            "652cde8de3c34da4b4ba3eaaa90e37a4",
+                            "d06cc995335d4c4f9153f390080e8249",
+                            "2d1a8a2150be4aa4b1db35198f63326c",
+                            "8c25ef33f3b84a4f8b5dfb27a02b2b53",
+                            "cc9e1b7a8efb4ff2954e5302393e1cde",
+                            "96a174efeab3459f8f7b944fe304fdb4",
+                            "271a7d5fd31a4ea3a657d747db65d924",
+                            "0c7c1b4389d84daf8086ad4c6afde5ea",
+                            "74366b6f8ec949108ae5ecd185be18f6",
+                            "a11e92754bfa45a3b0fd288ece0f7c93",
+                            "a1a4d4ea838e49e99312c0cb536652a2",
+                            "734fc44a6db048f5a081c33d0ba07428",
+                            "b717a2fe84394895b77e43e032ee0168",
+                            "fd4be6f152384f55a34dbfd088936f38",
+                        ]
+                    ],
+                ),
+            ]
+        ],
+        grid=[
+            ParameterList(
+                ["test", "params", "inference_mode"], ["patch_based", "hacky"]
+            )
+        ],
+    )
 
     GNNTestingExperiment(name="gnn_deep").generate(
         sequential=[
@@ -3230,139 +3343,233 @@ if __name__ == "__main__":
             )
         ]
     )
+    GNNTestingExperiment(
+        name="rerun_all_pixel", base="config/default_strong.yml"
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "tissue_rep_best_meaniou",
+                            "tissue_rep_best_meaniou",
+                            "tissue_rep_best_meaniou",
+                            "tissue_rep_best_kappa",
+                            "tissue_rep_best_kappa",
+                            "tissue_rep_best_kappa",
+                            "tissue_rep_good_meaniou",
+                            "tissue_rep_good_meaniou",
+                            "tissue_rep_good_meaniou",
+                            "tissue_rep_good_kappa",
+                            "tissue_rep_good_kappa",
+                            "tissue_rep_good_kappa",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        f"s3://mlflow/633/{run}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+                        for run in [
+                            "ec28ee48fe7a4ba0b9e773381d537b23",
+                            "8b33525d35844cdd911f63fa95d0d3e7",
+                            "beaa152d431c49309cb74c96c41779cd",
+                        ]
+                    ],
+                ),
+            ]
+        ],
+    )
 
-    
     # FINAL WEAKLY SUPERVISED RESULTS
-    GraphClassifierExperiment(name="rep_ws_v11_1", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v11_1", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_40x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_40x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_ws_v11_2", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v11_2", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_20x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_20x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_ws_v11_3", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v11_3", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_13x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_13x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_ws_v11_4", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v11_4", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_10x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v11_mobilenet_high_10x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_ws_v12_1", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v12_1", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_40x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_40x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_ws_v12_2", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v12_2", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_20x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_20x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_ws_v12_3", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v12_3", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_13x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_13x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_ws_v12_4", base="config/final_weak.yml").generate(
+    GraphClassifierExperiment(
+        name="rep_ws_v12_4", base="config/final_weak.yml"
+    ).generate(
         fixed=[
-            Parameter(["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_10x")
+            Parameter(
+                ["train", "data", "graph_directory"], f"outputs/v12_mobilenet_high_10x"
+            )
         ],
-        repetitions=3
+        repetitions=3,
     )
 
     # FINAL CNN (ETH Parameters)
-    PretrainingExperiment(name="rep_eth", base="config/final_cnn_eth.yml", queue="prod.long").generate(
-        repetitions=3
-    )
-    PretrainingExperiment(name="rep_best_meaniou", base="config/final_cnn.yml", queue="prod.long").generate(
-        repetitions=3
-    )
-    PretrainingExperiment(name="rep_good_meaniou", base="config/final_cnn2.yml", queue="prod.long").generate(
-        repetitions=3
-    )
-    PretrainingExperiment(name="rep_best_kappa1", base="config/final_cnn3.yml", queue="prod.long").generate(
-        repetitions=3
-    )
-    PretrainingExperiment(name="rep_best_kappa2", base="config/final_cnn4.yml", queue="prod.long").generate(
-        repetitions=3
-    )
+    PretrainingExperiment(
+        name="rep_eth", base="config/final_cnn_eth.yml", queue="prod.long"
+    ).generate(repetitions=3)
+    PretrainingExperiment(
+        name="rep_best_meaniou", base="config/final_cnn.yml", queue="prod.long"
+    ).generate(repetitions=3)
+    PretrainingExperiment(
+        name="rep_good_meaniou", base="config/final_cnn2.yml", queue="prod.long"
+    ).generate(repetitions=3)
+    PretrainingExperiment(
+        name="rep_best_kappa1", base="config/final_cnn3.yml", queue="prod.long"
+    ).generate(repetitions=3)
+    PretrainingExperiment(
+        name="rep_best_kappa2", base="config/final_cnn4.yml", queue="prod.long"
+    ).generate(repetitions=3)
 
     # FINAL PIXEL LEVEL
-    GraphClassifierExperiment(name="rep_pixel_best_meaniou", base="config/final_pixel.yml").generate(
-        fixed = [Parameter(
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_pixel_best_meaniou", base="config/final_pixel.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_med_13x",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_pixel_good_meaniou", base="config/final_pixel.yml").generate(
-        fixed = [Parameter(
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_pixel_good_meaniou", base="config/final_pixel.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_very_high_10x",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_pixel_best_kappa", base="config/final_pixel.yml").generate(
-        fixed = [Parameter(
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_pixel_best_kappa", base="config/final_pixel.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_low_20x",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_pixel_good_kappa", base="config/final_pixel.yml").generate(
-        fixed = [Parameter(
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_pixel_good_kappa", base="config/final_pixel.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_no_13x",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )
 
     # FINAL TMA LEVEL
-    GraphClassifierExperiment(name="rep_tma_best_meaniou", base="config/final_weak.yml").generate(
-        fixed = [Parameter(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_tma_best_meaniou", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v10_mobilenet_med_30x_no_overlap",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_tma_good_meaniou", base="config/final_weak.yml").generate(
-        fixed = [Parameter(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_tma_good_meaniou", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_no_10x",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_tma_best_kappa", base="config/final_weak.yml").generate(
-        fixed = [Parameter(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_tma_best_kappa", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_low_13x",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )
-    GraphClassifierExperiment(name="rep_tma_good_kappa", base="config/final_weak.yml").generate(
-        fixed = [Parameter(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_tma_good_kappa", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_no_10x",
             )
         ],
-        repetitions=3
+        repetitions=3,
     )

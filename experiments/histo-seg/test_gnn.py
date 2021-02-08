@@ -154,8 +154,6 @@ def test_gnn(
             inferencer.predict(
                 graph_datapoint.graph, graph_datapoint.instance_map, operation=operation
             )
-            .cpu()
-            .numpy()
         )
 
         logger_pathologist_1.add_iteration_outputs(

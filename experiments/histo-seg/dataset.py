@@ -170,6 +170,14 @@ class ImageDatapoint:
     name: Optional[str] = None
 
     @property
+    def can_output_segmentation(self):
+        return self.tissue_mask is not None
+
+    @property
+    def has_validation_information(self):
+        return self.can_output_segmentation and self.segmentation_mask is not None
+
+    @property
     def has_multiple_annotations(self):
         return (
             self.segmentation_mask is not None
@@ -673,6 +681,12 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
     def __init__(self, augmentation_mode: Optional[str] = None, **kwargs) -> None:
         self.augmentation_mode = augmentation_mode
         super().__init__(**kwargs)
+
+    @property
+    def nr_augmentations(self):
+        graph = self.graphs[0]
+        feature_key = FEATURES if FEATURES in graph.ndata else FEATURES2
+        return graph.ndata[feature_key].shape[1]
 
     def set_augmentation_mode(self, augmentation_mode: Optional[str] = None) -> None:
         """Set a fixed augmentation to be used

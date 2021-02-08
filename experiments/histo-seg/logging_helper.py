@@ -1,5 +1,5 @@
+import datetime
 import logging
-from metrics import Metric
 import os
 import tempfile
 import time
@@ -14,6 +14,7 @@ import torch
 import yaml
 from matplotlib.colors import ListedColormap
 
+from metrics import Metric
 from utils import dynamic_import_from, fix_seeds
 
 with os.popen("hostname") as subprocess:
@@ -366,3 +367,22 @@ class GraphLoggingHelper:
     def log_and_clear(self, step, model=None):
         self.classification_helper.log_and_clear(step, model)
         self.segmentation_helper.log_and_clear(step, model)
+
+
+class MLflowTimer:
+    def __init__(self, name, step) -> None:
+        self.name = name
+        self.step = step
+
+    def __enter__(self):
+        self.time_before = datetime.datetime.now()
+        return self
+
+    def __exit__(self, *exc_info):
+        duration = (datetime.datetime.now() - self.time_before).total_seconds()
+        robust_mlflow(
+            mlflow.log_metric,
+            self.name,
+            duration,
+            step=self.step,
+        )

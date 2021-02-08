@@ -1,16 +1,14 @@
-import datetime
 import logging
 from pathlib import Path
 from typing import Dict
 
 import matplotlib.pyplot as plt
 import mlflow
-import torch
 import numpy as np
-from tqdm.auto import tqdm
+import torch
 
 from dataset import ImageDatapoint
-from inference import ImageInferenceModel, PatchBasedInference
+from inference import ImageDatasetInference, ImageInferenceModel, PatchBasedInference
 from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
 from utils import dynamic_import_from, get_config
 
@@ -127,44 +125,27 @@ def test_cnn(
         background_label=BACKGROUND_CLASS,
     )
 
-    for i in tqdm(range(len(test_dataset))):
-        image_datapoint: ImageDatapoint = test_dataset[i]
-        assert (
-            image_datapoint.has_multiple_annotations
-        ), f"Datapoint does not have multiple annotations: {image_datapoint}"
-
-        time_before = datetime.datetime.now()
-
-        predicted_mask = inferencer.predict(image_datapoint.image, operation=operation)
-
-        logger_pathologist_1.add_iteration_outputs(
-            logits=predicted_mask.copy()[np.newaxis, :, :],
-            labels=image_datapoint.segmentation_mask[np.newaxis, :, :],
-            tissue_mask=image_datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
-        )
-        logger_pathologist_2.add_iteration_outputs(
-            logits=predicted_mask.copy()[np.newaxis, :, :],
-            labels=image_datapoint.additional_segmentation_mask[np.newaxis, :, :],
-            tissue_mask=image_datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
-        )
-
-        tissue_mask = image_datapoint.tissue_mask
-        predicted_mask[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+    def log_segmentation_mask(
+        prediction: np.ndarray,
+        datapoint: ImageDatapoint,
+    ):
+        tissue_mask = datapoint.tissue_mask
+        prediction[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
 
         # Save figure
         if operation == "per_class":
-            fig = show_class_acivation(predicted_mask)
+            fig = show_class_acivation(prediction)
         elif operation == "argmax":
             fig = show_segmentation_masks(
-                predicted_mask,
-                annotation=image_datapoint.segmentation_mask,
-                annotation2=image_datapoint.additional_segmentation_mask,
+                prediction,
+                annotation=datapoint.segmentation_mask,
+                annotation2=datapoint.additional_segmentation_mask,
             )
         else:
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
             )
-        file_name = save_path / f"{image_datapoint.name}.png"
+        file_name = save_path / f"{datapoint.name}.png"
         fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
         if mlflow_save_path is not None:
             robust_mlflow(
@@ -174,17 +155,15 @@ def test_cnn(
             )
         plt.close(fig=fig)
 
-        # Log duration
-        duration = (datetime.datetime.now() - time_before).total_seconds()
-        robust_mlflow(
-            mlflow.log_metric,
-            "seconds_per_image",
-            duration,
-            step=i,
-        )
-
-    logger_pathologist_1.log_and_clear()
-    logger_pathologist_2.log_and_clear()
+    inference_runner = ImageDatasetInference(
+        inferencer=inferencer, callbacks=[log_segmentation_mask]
+    )
+    inference_runner(
+        dataset=test_dataset,
+        logger=logger_pathologist_1,
+        additional_logger=logger_pathologist_2,
+        operation=operation,
+    )
 
 
 if __name__ == "__main__":

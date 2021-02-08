@@ -1,3 +1,5 @@
+from typing import Any, Callable, List, Optional
+from dataset import AugmentedGraphClassificationDataset, GraphDatapoint, ImageDatapoint
 import sys
 
 
@@ -15,13 +17,16 @@ import torch
 import torchio as tio
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+from abc import abstractmethod
 
 from models import SegmentationFromCNN
 from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import (
     GraphGradCAMExplainer,
 )
-from utils import get_segmentation_map
+from logging_helper import LoggingHelper, MLflowTimer
+from utils import get_segmentation_map, fast_mode
 import dgl
+from torch.utils.data import Dataset
 
 
 class BaseInference:
@@ -33,6 +38,13 @@ class BaseInference:
         else:
             self.device = next(model.parameters()).device
         self.model = self.model.to(self.device)
+
+    @abstractmethod
+    def predict(*args, **kwargs):
+        pass
+
+
+# CNN Inference
 
 
 class PatchBasedInference(BaseInference):
@@ -128,6 +140,37 @@ class PatchBasedInference(BaseInference):
         return self._predict(subject, operation)
 
 
+class ImageInferenceModel(BaseInference):
+    def __init__(self, model, device, final_shape) -> None:
+        segmentation_model = SegmentationFromCNN(model)
+        super().__init__(segmentation_model, device=device)
+        self.final_shape = final_shape
+
+    def predict(self, input_tensor, operation: str):
+        input_tensor = input_tensor.to(self.device)
+        logits = self.model(input_tensor.unsqueeze(0))
+        soft_predictions = logits.sigmoid()
+        if operation == "per_class":
+            predictions = soft_predictions[0].detach().cpu()
+        elif operation == "argmax":
+            hard_predictions = soft_predictions.argmax(dim=1)
+            predictions = hard_predictions[0].detach().cpu()
+        else:
+            raise NotImplementedError(
+                f"Only support operation [per_class, argmax], but got {operation}"
+            )
+        if self.final_shape is None:
+            return predictions.numpy()
+        return cv2.resize(
+            predictions.numpy(),
+            dsize=self.final_shape,
+            interpolation=cv2.INTER_NEAREST,
+        )
+
+
+# GNN Inference
+
+
 class GraphNodeBasedInference(BaseInference):
     def __init__(self, model, device, NR_CLASSES) -> None:
         super().__init__(model, device=device)
@@ -176,29 +219,205 @@ class GraphGradCAMBasedInference(BaseInference):
         return np.stack(segmentation_maps)
 
 
-class ImageInferenceModel(BaseInference):
-    def __init__(self, model, device, final_shape) -> None:
-        segmentation_model = SegmentationFromCNN(model)
-        super().__init__(segmentation_model, device=device)
-        self.final_shape = final_shape
+# Dataset Inferencer
 
-    def predict(self, input_tensor, operation: str):
-        input_tensor = input_tensor.to(self.device)
-        logits = self.model(input_tensor.unsqueeze(0))
-        soft_predictions = logits.sigmoid()
-        if operation == "per_class":
-            predictions = soft_predictions[0].detach().cpu()
-        elif operation == "argmax":
-            hard_predictions = soft_predictions.argmax(dim=1)
-            predictions = hard_predictions[0].detach().cpu()
-        else:
-            raise NotImplementedError(
-                f"Only support operation [per_class, argmax], but got {operation}"
+
+class DatasetBaseInference:
+    def __init__(
+        self, inferencer: BaseInference, callbacks: Optional[Callable]
+    ) -> None:
+        self.inferencer = inferencer
+        self.callbacks = callbacks
+
+    def _check_integrity(self, datapoint, logger, additional_logger):
+        pass
+
+    @abstractmethod
+    def _handle_datapoint(
+        self,
+        datapoint: Any,
+        operation: str,
+        logger: Optional[LoggingHelper] = None,
+        additional_logger: Optional[LoggingHelper] = None,
+    ):
+        pass
+
+    def __call__(
+        self,
+        dataset: Dataset,
+        logger: Optional[LoggingHelper] = None,
+        additional_logger: Optional[LoggingHelper] = None,
+        **kwargs,
+    ):
+        for i in tqdm(range(len(dataset))):
+            datapoint = dataset[i]
+            self._check_integrity(
+                datapoint=datapoint,
+                logger=logger,
+                additional_logger=additional_logger,
             )
-        if self.final_shape is None:
-            return predictions.numpy()
-        return cv2.resize(
-            predictions.numpy(),
-            dsize=self.final_shape,
-            interpolation=cv2.INTER_NEAREST,
+            with MLflowTimer("seconds_per_image", i):
+                prediction = self._handle_datapoint(
+                    datapoint=datapoint,
+                    logger=logger,
+                    additional_logger=additional_logger,
+                    **kwargs,
+                )
+                for callback in self.callbacks:
+                    callback(prediction=prediction, datapoint=datapoint)
+
+        if logger is not None:
+            logger.log_and_clear()
+        if additional_logger is not None:
+            additional_logger.log_and_clear()
+
+
+class GraphDatasetInference(DatasetBaseInference):
+    def _check_integrity(
+        self,
+        datapoint: GraphDatapoint,
+        logger: Optional[LoggingHelper] = None,
+        additional_logger: Optional[LoggingHelper] = None,
+    ):
+        assert datapoint.name is not None, f"Cannot test unnamed datapoint: {datapoint}"
+        if logger is not None:
+            assert (
+                datapoint.has_validation_information
+            ), f"Datapoint does not have validation information: {datapoint}"
+        if additional_logger is not None:
+            assert logger is not None, f"Can only use second logger if first is used"
+            assert (
+                datapoint.has_multiple_annotations
+            ), f"Datapoint does not have multiple annotations: {datapoint}"
+
+    def _handle_datapoint(
+        self,
+        datapoint: GraphDatapoint,
+        operation: str,
+        logger: Optional[LoggingHelper] = None,
+        additional_logger: Optional[LoggingHelper] = None,
+    ):
+        prediction = self.inferencer.predict(
+            datapoint.graph,
+            datapoint.instance_map,
+            operation=operation,
         )
+        if logger is not None:
+            logger.add_iteration_outputs(
+                logits=prediction.copy()[np.newaxis, :, :],
+                labels=datapoint.segmentation_mask[np.newaxis, :, :],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+            )
+        if additional_logger is not None:
+            additional_logger.add_iteration_outputs(
+                logits=prediction.copy()[np.newaxis, :, :],
+                labels=datapoint.additional_segmentation_mask[np.newaxis, :, :],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+            )
+        return prediction
+
+
+class ImageDatasetInference(DatasetBaseInference):
+    def _check_integrity(
+        self,
+        datapoint: ImageDatapoint,
+        logger: Optional[LoggingHelper] = None,
+        additional_logger: Optional[LoggingHelper] = None,
+    ):
+        assert datapoint.name is not None, f"Cannot test unnamed datapoint: {datapoint}"
+        if logger is not None:
+            assert (
+                datapoint.has_validation_information
+            ), f"Datapoint does not have validation information: {datapoint}"
+        if additional_logger is not None:
+            assert (
+                datapoint.has_multiple_annotations
+            ), f"Datapoint does not have multiple annotations: {datapoint}"
+
+    def _handle_datapoint(
+        self,
+        datapoint: ImageDatapoint,
+        operation: str,
+        logger: Optional[LoggingHelper],
+        additional_logger: Optional[LoggingHelper],
+    ):
+        prediction = self.inferencer.predict(datapoint.image, operation=operation)
+        if logger is not None:
+            logger.add_iteration_outputs(
+                logits=prediction.copy()[np.newaxis, :, :],
+                labels=datapoint.segmentation_mask[np.newaxis, :, :],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+            )
+        if additional_logger is not None:
+            additional_logger.add_iteration_outputs(
+                logits=prediction.copy()[np.newaxis, :, :],
+                labels=datapoint.additional_segmentation_mask[np.newaxis, :, :],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+            )
+        return prediction
+
+
+class TTAGraphInference(DatasetBaseInference):
+    def __init__(
+        self, inferencer: BaseInference, callbacks: Optional[Callable], nr_classes: int
+    ) -> None:
+        self.nr_classes = nr_classes
+        super().__init__(inferencer, callbacks)
+
+    def _aggregate(self, predictions: List[np.ndarray]) -> np.ndarray:
+        return fast_mode(
+            np.stack(predictions, axis=0), nr_values=self.nr_classes, axis=0
+        )
+
+    def __call__(
+        self,
+        dataset: AugmentedGraphClassificationDataset,
+        operation: str,
+        logger: Optional[LoggingHelper] = None,
+        additional_logger: Optional[LoggingHelper] = None,
+    ):
+        nr_augmentations = dataset.nr_augmentations
+        for i in tqdm(range(len(dataset))):
+            with MLflowTimer("seconds_per_image", i):
+                predictions = list()
+                for augmentation in range(nr_augmentations):
+                    dataset.set_augmentation_mode(str(augmentation))
+                    datapoint: GraphDatapoint = dataset[i]
+                    self._check_integrity(
+                        datapoint=datapoint,
+                        logger=logger,
+                        additional_logger=additional_logger,
+                    )
+                    prediction = self.inferencer.predict(
+                        datapoint.graph,
+                        datapoint.instance_map,
+                        operation=operation,
+                    )
+                    predictions.append(prediction)
+
+                dataset.set_augmentation_mode(None)
+                datapoint: GraphDatapoint = dataset[i]
+                aggregated_prediction = self._aggregate(predictions)
+                if logger is not None:
+                    logger.add_iteration_outputs(
+                        logits=aggregated_prediction.copy()[np.newaxis, :, :],
+                        labels=datapoint.segmentation_mask[np.newaxis, :, :],
+                        tissue_mask=datapoint.tissue_mask.astype(bool)[
+                            np.newaxis, :, :
+                        ],
+                    )
+                if additional_logger is not None:
+                    additional_logger.add_iteration_outputs(
+                        logits=aggregated_prediction.copy()[np.newaxis, :, :],
+                        labels=datapoint.additional_segmentation_mask[np.newaxis, :, :],
+                        tissue_mask=datapoint.tissue_mask.astype(bool)[
+                            np.newaxis, :, :
+                        ],
+                    )
+                for callback in self.callbacks:
+                    callback(prediction=aggregated_prediction, datapoint=datapoint)
+
+        if logger is not None:
+            logger.log_and_clear()
+        if additional_logger is not None:
+            additional_logger.log_and_clear()

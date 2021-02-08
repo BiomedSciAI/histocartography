@@ -114,9 +114,9 @@ class PatchBasedInference(BaseInference):
                     )
                 aggregator.add_batch(output_tensor.unsqueeze(1), locations)
         if operation == "per_class":
-            return aggregator.get_output_tensor()[0].cpu()
+            return aggregator.get_output_tensor()[0].detach().cpu().numpy()
         elif operation == "argmax":
-            return aggregator.get_output_tensor()[0][0].cpu()
+            return aggregator.get_output_tensor()[0][0].cpu().cpu().numpy()
         else:
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
@@ -147,7 +147,6 @@ class GraphNodeBasedInference(BaseInference):
             superpixels=superpixels,
             NR_CLASSES=self.NR_CLASSES,
         )
-        segmentation_maps = torch.as_tensor(segmentation_maps)
         return segmentation_maps
 
 
@@ -167,17 +166,14 @@ class GraphGradCAMBasedInference(BaseInference):
         node_importances = (
             importances * torch.as_tensor(logits)[0].sigmoid().numpy()[:, np.newaxis]
         ).argmax(0)
-        segmentation_map = torch.as_tensor(
-            get_segmentation_map(node_importances, superpixels, self.NR_CLASSES)
-        )
-        return segmentation_map
+        return get_segmentation_map(node_importances, superpixels, self.NR_CLASSES)
 
     def predict_batch(self, graph, superpixels, operation="argmax"):
         segmentation_maps = list()
         for i, graph in enumerate(dgl.unbatch(graph)):
             segmentation_map = self.predict(graph, superpixels[i], operation)
             segmentation_maps.append(segmentation_map)
-        return torch.stack(segmentation_maps)
+        return np.stack(segmentation_maps)
 
 
 class ImageInferenceModel(BaseInference):

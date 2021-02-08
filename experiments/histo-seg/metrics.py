@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod
-from typing import Any, List
+from typing import Any, List, Union
 
 import numpy as np
 import sklearn.metrics
@@ -8,11 +8,30 @@ import torch
 from histocartography.preprocessing.utils import fast_histogram
 
 
-class SegmentationMetric:
+class Metric:
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        raise NotImplementedError
+
+    @property
+    def logs_model(self):
+        return True
+
+    @property
+    def is_per_class(self):
+        return False
+
+
+class SegmentationMetric(Metric):
     """Base class for segmentation metrics"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, background_label, **kwargs):
         """Constructor of Metric"""
+        self.background_label = background_label
+        super().__init__(**kwargs)
 
     @abstractmethod
     def _compute_metric(
@@ -25,48 +44,43 @@ class SegmentationMetric:
             prediction (torch.Tensor): Prediction tensor. Shape: (B x H x W)
 
             Returns:
-               torch.Tensor: Computed metric. Shape: (1 or B)
+               torch.Tensor: Computed metric. Shape: (B)
         """
 
     def __call__(
-        self, prediction: torch.Tensor, ground_truth: torch.Tensor
+        self,
+        prediction: Union[torch.Tensor, np.ndarray],
+        ground_truth: Union[torch.Tensor, np.ndarray],
+        **kwargs,
     ) -> torch.Tensor:
-        """From either a batched, unbatched or batched with additional empty dimension calculate the metric accordingly
+        """From either a batched, unbatched calculate the metric accordingly and take the average over the samples
 
         Args:
-            ground_truth (torch.Tensor): Ground truth tensor. Shape: (H x W, B x H x W, or B x 1 x H x W)
-            prediction (torch.Tensor): Prediction tensor. Shape: (same shape as ground truth)
+            ground_truth (Union[torch.Tensor, np.ndarray]): Ground truth tensor. Shape: (H x W, B x H x W)
+            prediction (Union[torch.Tensor, np.ndarray]): Prediction tensor. Shape: (same shape as ground truth)
 
         Returns:
-            torch.Tensor: Computed metric. Shape: (1 or B)
+            torch.Tensor: Computed metric
         """
-        if isinstance(ground_truth, np.ndarray):
-            ground_truth = torch.Tensor(ground_truth)
-        if isinstance(prediction, np.ndarray):
-            prediction = torch.Tensor(prediction)
+        if isinstance(ground_truth, torch.Tensor):
+            ground_truth = ground_truth.detach().cpu().numpy()
+        if isinstance(prediction, torch.Tensor):
+            prediction = prediction.detach().cpu().numpy()
         assert ground_truth.shape == prediction.shape
-        unbatched = False
-        if len(ground_truth.shape) == 4:  # For shape BATCH x 1 x H x W
-            assert ground_truth.shape[1] == 1
-            prediction = prediction.squeeze(1)
-            ground_truth = ground_truth.squeeze(1)
-        if len(prediction.shape) == 2:  # For shape H x W
-            unbatched = True
-            prediction = prediction.unsqueeze(0)
-            ground_truth = ground_truth.unsqueeze(0)
+
+        if len(prediction.shape) == 2:
+            prediction = prediction[np.newaxis, :, :]
+            ground_truth = ground_truth[np.newaxis, :, :]
         # Now we have shape BATCH x H x W
-        metric = self._compute_metric(ground_truth=ground_truth, prediction=prediction)
-        if unbatched:
-            return metric[0]
-        return metric
 
-    @staticmethod
-    def is_better(value: Any, comparison: Any) -> bool:
-        raise NotImplementedError
+        # Discard background class
+        prediction_copy = prediction.copy()
+        prediction_copy[ground_truth == self.background_label] = self.background_label
 
-    @property
-    def logs_model(self):
-        return True
+        metric = self._compute_metric(
+            ground_truth=ground_truth, prediction=prediction_copy
+        )
+        return np.nanmean(metric, axis=0)
 
 
 class IoU(SegmentationMetric):
@@ -80,8 +94,33 @@ class IoU(SegmentationMetric):
         """
         self.nr_classes = nr_classes
         self.smooth = 1e-12
-        self.background_label = background_label
-        super().__init__(**kwargs)
+        super().__init__(background_label=background_label, **kwargs)
+
+    def _compute_sample_metric(
+        self,
+        ground_truth: np.ndarray,
+        prediction: np.ndarray,
+        nan: float = float("nan"),
+    ):
+        assert (
+            ground_truth.shape == prediction.shape
+        ), f"Prediction and ground truth must have same shape, but is {ground_truth.shape}, {prediction.shape}"
+        assert (
+            len(ground_truth.shape) == 2
+        ), f"Expected 2D tensor but got {ground_truth.shape}"
+        class_iou = np.empty(self.nr_classes)
+        for class_label in range(self.nr_classes):
+            class_ground_truth = ground_truth == class_label
+            if not class_ground_truth.any():
+                class_iou[class_label] = nan
+                continue
+            class_prediction = prediction == class_label
+            class_intersection = (class_ground_truth & class_prediction).sum(
+                axis=(0, 1)
+            )
+            class_union = (class_ground_truth | class_prediction).sum(axis=(0, 1))
+            class_iou[class_label] = class_intersection / (class_union + self.smooth)
+        return class_iou
 
     def _compute_metric(
         self,
@@ -99,82 +138,34 @@ class IoU(SegmentationMetric):
         Returns:
             torch.Tensor: Computed IoU
         """
-        class_iou = torch.empty((ground_truth.shape[0], self.nr_classes))
-        for class_label in range(self.nr_classes):
-            class_ground_truth = ground_truth == class_label
-            if class_label == self.background_label:
-                class_iou[:, class_label] = nan
-                continue
-            if not class_ground_truth.any():
-                class_iou[:, class_label] = nan
-                continue
-            class_prediction = prediction == class_label
-            class_intersection = (class_ground_truth & class_prediction).sum(
-                axis=(1, 2)
+        class_ious = list()
+        for i in range(ground_truth.shape[0]):
+            class_ious.append(
+                self._compute_sample_metric(
+                    prediction=prediction[i], ground_truth=ground_truth[i], nan=nan
+                )
             )
-            class_union = (class_ground_truth | class_prediction).sum(axis=(1, 2))
-            class_iou[:, class_label] = class_intersection / (class_union + self.smooth)
-        return class_iou
+        return np.stack(class_ious)
 
     @staticmethod
     def is_better(value: Any, comparison: Any) -> bool:
         """Higher is better"""
         return value >= comparison
 
-
-class ClassIoU(IoU):
-    def __init__(self, index: int, nr_classes: int, background_label: int, **kwargs) -> None:
-        self.index = index
-        super().__init__(nr_classes, background_label, **kwargs)
-
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
-        all_iou = super()._compute_metric(ground_truth, prediction)
-        class_iou = all_iou[:, self.index].detach().cpu().numpy()
-        return np.nanmean(class_iou)
-
     @property
-    def logs_model(self):
-        return False
-
-
-class BenignIoU(ClassIoU):
-    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
-        super().__init__(0, nr_classes, background_label, **kwargs)
-
-
-class Grade3IoU(ClassIoU):
-    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
-        super().__init__(1, nr_classes, background_label, **kwargs)
-
-    
-class Grade4IoU(ClassIoU):
-    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
-        super().__init__(2, nr_classes, background_label, **kwargs)
-
-
-class Grade5IoU(ClassIoU):
-    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
-        super().__init__(3, nr_classes, background_label, **kwargs)
+    def is_per_class(self):
+        return True
 
 
 class MeanIoU(IoU):
     """Mean class IoU"""
 
-    def _compute_metric(
-        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+    def __call__(
+        self,
+        prediction: Union[torch.Tensor, np.ndarray],
+        ground_truth: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
-        """Computes the average iou over the existing classes in the ground truth
-           Same as sklearn.metric.jaccard_score with average='macro', but faster
-        Args:
-            ground_truth (torch.Tensor): Ground truth tensor
-            prediction (torch.Tensor): Prediction tensor
-
-        Returns:
-            torch.Tensor: The computed mean IoU per class
-        """
-        class_iou = super()._compute_metric(ground_truth, prediction).detach().cpu().numpy()
-        class_mean_iou = np.nanmean(class_iou, axis=0)
-        return class_mean_iou.mean()
+        return np.nanmean(super().__call__(prediction, ground_truth))
 
 
 class fIoU(IoU):
@@ -223,10 +214,39 @@ class F1Score(SegmentationMetric):
         self.smooth = 1e-12
         super().__init__(**kwargs)
 
+    def _compute_sample_metric(
+        self,
+        ground_truth: np.ndarray,
+        prediction: np.ndarray,
+        nan: float = float("nan"),
+    ):
+        class_f1 = np.empty(self.nr_classes)
+        for class_label in range(self.nr_classes):
+            class_ground_truth = ground_truth == class_label
+            if not class_ground_truth.any():
+                class_f1[class_label] = nan
+                continue
+            class_prediction = prediction == class_label
+            true_positives = (class_ground_truth & class_prediction).sum(axis=(0, 1))
+            false_positives = (
+                np.logical_not(class_ground_truth) & class_prediction
+            ).sum(axis=(0, 1))
+            false_negatives = (
+                class_ground_truth & np.logical_not(class_prediction)
+            ).sum(axis=(0, 1))
+            precision = true_positives / (
+                true_positives + false_positives + self.smooth
+            )
+            recall = true_positives / (true_positives + false_negatives + self.smooth)
+            class_f1[class_label] = (2.0 * precision * recall) / (
+                precision + recall + self.smooth
+            )
+        return class_f1
+
     def _compute_metric(
         self,
-        ground_truth: torch.Tensor,
-        prediction: torch.Tensor,
+        ground_truth: np.ndarray,
+        prediction: np.ndarray,
         nan: float = float("nan"),
     ) -> torch.Tensor:
         """Computes the f1 score per class
@@ -239,97 +259,43 @@ class F1Score(SegmentationMetric):
         Returns:
             torch.Tensor: Computed F1 scores
         """
-        class_f1 = torch.empty((ground_truth.shape[0], self.nr_classes))
-        for class_label in range(self.nr_classes):
-            class_ground_truth = ground_truth == class_label
-            if not class_ground_truth.any():
-                class_f1[:, class_label] = nan
-                continue
-            class_prediction = prediction == class_label
-            true_positives = (class_ground_truth & class_prediction).sum(axis=(1, 2))
-            false_positives = (
-                torch.logical_not(class_ground_truth) & class_prediction
-            ).sum(axis=(1, 2))
-            false_negatives = (
-                class_ground_truth & torch.logical_not(class_prediction)
-            ).sum(axis=(1, 2))
-            precision = true_positives / (
-                true_positives + false_positives + self.smooth
+        class_f1s = list()
+        for i in range(ground_truth.shape[0]):
+            class_f1s.append(
+                self._compute_sample_metric(
+                    prediction=prediction[i], ground_truth=ground_truth[i], nan=nan
+                )
             )
-            recall = true_positives / (true_positives + false_negatives + self.smooth)
-            class_f1[:, class_label] = (2.0 * precision * recall) / (
-                precision + recall + self.smooth
-            )
-
-        return class_f1
+        return np.stack(class_f1s)
 
     @staticmethod
     def is_better(value: Any, comparison: Any) -> bool:
         """Higher is better"""
         return value >= comparison
 
-
-class ClassF1Score(F1Score):
-    def __init__(self, index: int, **kwargs) -> None:
-        self.index = index
-        super().__init__(**kwargs)
-
-    def _compute_metric(self, ground_truth: torch.Tensor, prediction: torch.Tensor) -> torch.Tensor:
-        all_f1 = super()._compute_metric(ground_truth, prediction)
-        class_f1 = all_f1[:, self.index].detach().cpu().numpy()
-        return np.nanmean(class_f1)
-
     @property
-    def logs_model(self):
-        return False
-
-
-class BenignF1Score(ClassF1Score):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(0, **kwargs)
-
-
-class Grade3F1Score(ClassF1Score):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(1, **kwargs)
-
-    
-class Grade4F1Score(ClassF1Score):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(2, **kwargs)
-
-
-class Grade5F1Score(ClassF1Score):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(3, **kwargs)
+    def is_per_class(self):
+        return True
 
 
 class MeanF1Score(F1Score):
     """Mean class F1 score"""
 
-    def _compute_metric(
-        self, ground_truth: torch.Tensor, prediction: torch.Tensor
+    def __call__(
+        self,
+        prediction: Union[torch.Tensor, np.ndarray],
+        ground_truth: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
-        """Computes the average f1 score over the existing classes in the ground truth
-           Same as sklearn.metric.f1_score with average='macro', but faster
-        Args:
-            ground_truth (torch.Tensor): Ground truth tensor
-            prediction (torch.Tensor): Prediction tensor
-
-        Returns:
-            torch.Tensor: The computed mean f1 score per class
-        """
-        class_f1 = super()._compute_metric(ground_truth, prediction).detach().cpu().numpy()
-        class_mean_f1 = np.nanmean(class_f1, axis=0)
-        return class_mean_f1.mean()
+        return np.nanmean(super().__call__(prediction, ground_truth))
 
 
-class ClassificationMetric:
+class ClassificationMetric(Metric):
     """Base class for classification metrics"""
 
     def __init__(self, *args, **kwargs):
         """Constructor of Metric"""
         logging.info(f"Unmatched keyword arguments for metric: {kwargs}")
+        super().__init__(*args, **kwargs)
 
     @abstractmethod
     def _compute_metric(
@@ -352,17 +318,13 @@ class ClassificationMetric:
 
     @staticmethod
     def is_better(value: Any, comparison: Any) -> bool:
-        """Higher is better"""
         return value >= comparison
-
-    @property
-    def logs_model(self):
-        return True
 
 
 class MultiLabelClassificationMetric(ClassificationMetric):
-    def __init__(self, **kwargs) -> None:
-        logging.info(f"Unmatched keyword arguments for metric: {kwargs}")
+    def __init__(self, nr_classes: int, **kwargs) -> None:
+        self.nr_classes = nr_classes
+        super().__init__(**kwargs)
 
     @abstractmethod
     def _compare(self, predictions, labels, **kwargs) -> float:
@@ -381,63 +343,62 @@ class MultiLabelClassificationMetric(ClassificationMetric):
             float: Graph loss
         """
         predictions = torch.sigmoid(graph_logits)
+        assert (
+            predictions.shape == graph_labels.shape
+        ), f"Must be same shape, but got: {predictions.shape}, {graph_labels.shape}"
         return self._compare(predictions, graph_labels, **kwargs)
 
 
-class MultiLabelAccuracy(MultiLabelClassificationMetric):
+class MultiLabelSklearnMetric(MultiLabelClassificationMetric):
+    def __init__(self, f, threshold, nr_classes: int, **kwargs) -> None:
+        super().__init__(nr_classes, **kwargs)
+        self.f = f
+        self.threshold = threshold
+
     def _compare(self, predictions, labels, **kwargs):
-        y_pred = np.ravel(predictions.numpy()) > 0.5
-        y_true = np.ravel(labels.numpy())
-        return sklearn.metrics.accuracy_score(y_pred=y_pred, y_true=y_true)
+        assert (
+            len(predictions.shape) == 2
+        ), f"Must be 2D tensor, but got: {predictions.shape}"
+        class_metric = np.empty(self.nr_classes)
+        for i in range(self.nr_classes):
+            y_pred = predictions.numpy()[:, i]
+            y_true = labels[:, i].numpy()
+            if self.threshold:
+                class_metric[i] = self.f(y_pred=y_pred > 0.5, y_true=y_true)
+            else:
+                class_metric[i] = self.f(y_score=y_pred, y_true=y_true)
+        return class_metric
+
+    @property
+    def is_per_class(self):
+        return True
 
 
-class MultiLabelBalancedAccuracy(MultiLabelClassificationMetric):
-    def _compare(self, predictions, labels, **kwargs):
-        y_pred = np.ravel(predictions.numpy()) > 0.5
-        y_true = np.ravel(labels.numpy())
-        return sklearn.metrics.balanced_accuracy_score(y_pred=y_pred, y_true=y_true)
-
-
-class MultiLabelF1Score(MultiLabelClassificationMetric):
-    def _compare(self, predictions, labels, **kwargs):
-        y_pred = np.ravel(predictions.numpy()) > 0.5
-        y_true = np.ravel(labels.numpy())
-        return sklearn.metrics.f1_score(y_pred=y_pred, y_true=y_true, average="macro")
-
-
-class MultiLabelAUCROC(MultiLabelClassificationMetric):
-    def _compare(self, predictions, labels, **kwargs):
-        y_pred = np.ravel(predictions.numpy())
-        y_true = np.ravel(labels.numpy())
-        return sklearn.metrics.roc_auc_score(
-            y_score=y_pred, y_true=y_true, average="macro"
+class MultiLabelAccuracy(MultiLabelSklearnMetric):
+    def __init__(self, nr_classes: int, **kwargs) -> None:
+        super().__init__(
+            f=sklearn.metrics.accuracy_score,
+            threshold=True,
+            nr_classes=nr_classes,
+            **kwargs,
         )
 
 
-class MultiLabelClassAccuracy(MultiLabelBalancedAccuracy):
-    @property
-    def logs_model(self):
-        return False
+class MultiLabelBalancedAccuracy(MultiLabelSklearnMetric):
+    def __init__(self, nr_classes: int, **kwargs) -> None:
+        super().__init__(
+            f=sklearn.metrics.balanced_accuracy_score,
+            threshold=True,
+            nr_classes=nr_classes,
+            **kwargs,
+        )
 
 
-class MultiLabelBenignAccuracy(MultiLabelClassAccuracy):
-    def _compare(self, predictions, labels, **kwargs) -> float:
-        return super()._compare(predictions[:, 0], labels[:, 0], **kwargs)
-
-
-class MultiLabelGleason3Accuracy(MultiLabelClassAccuracy):
-    def _compare(self, predictions, labels, **kwargs) -> float:
-        return super()._compare(predictions[:, 1], labels[:, 1], **kwargs)
-
-
-class MultiLabelGleason4Accuracy(MultiLabelClassAccuracy):
-    def _compare(self, predictions, labels, **kwargs) -> float:
-        return super()._compare(predictions[:, 2], labels[:, 2], **kwargs)
-
-
-class MultiLabelGleason5Accuracy(MultiLabelClassAccuracy):
-    def _compare(self, predictions, labels, **kwargs) -> float:
-        return super()._compare(predictions[:, 3], labels[:, 3], **kwargs)
+class MultiLabelF1Score(MultiLabelSklearnMetric):
+    def __init__(self, nr_classes: int, **kwargs) -> None:
+        super().__init__(
+            f=sklearn.metrics.f1_score, threshold=True, nr_classes=nr_classes, **kwargs
+        )
 
 
 class NodeClassificationMetric(ClassificationMetric):
@@ -447,83 +408,57 @@ class NodeClassificationMetric(ClassificationMetric):
         super().__init__(*args, **kwargs)
 
     @abstractmethod
-    def _compare(self, logits: torch.Tensor, labels: torch.Tensor, **kwargs) -> float:
+    def _compare(self, prediction, ground_truth):
         pass
 
     def _compute_metric(
-        self, node_logits: torch.Tensor, node_labels: torch.Tensor, **kwargs
+        self,
+        node_logits: torch.Tensor,
+        node_labels: torch.Tensor,
+        node_associations: List[int],
     ) -> float:
         predictions = torch.softmax(node_logits, dim=1)
-        return self._compare(predictions, node_labels, **kwargs)
-
-
-class NodeClassificationAccuracy(NodeClassificationMetric):
-    def _compare(
-        self,
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
-        node_associations: List[int],
-        **kwargs,
-    ) -> float:
-        accuracies = np.empty(len(node_associations))
+        metrics = np.empty(len(node_associations))
         start = 0
         for i, node_association in enumerate(node_associations):
-            y_pred = np.argmax(
-                predictions[start : start + node_association, ...].numpy(), axis=1
-            )
-            y_true = labels[start : start + node_association].numpy()
-            mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.accuracy_score(
-                y_pred=y_pred[mask], y_true=y_true[mask]
+            metrics[i] = self._compare(
+                prediction=predictions[start : start + node_association, ...].numpy(),
+                ground_truth=node_labels[start : start + node_association].numpy(),
             )
             start += node_association
-        return np.mean(accuracies[accuracies == accuracies])
-
-    
-class NodeClassificationBalancedAccuracy(NodeClassificationMetric):
-    def _compare(
-        self,
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
-        node_associations: List[int],
-        **kwargs,
-    ) -> float:
-        accuracies = np.empty(len(node_associations))
-        start = 0
-        for i, node_association in enumerate(node_associations):
-            y_pred = np.argmax(
-                predictions[start : start + node_association, ...].numpy(), axis=1
-            )
-            y_true = labels[start : start + node_association].numpy()
-            mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.balanced_accuracy_score(
-                y_pred=y_pred[mask], y_true=y_true[mask]
-            )
-            start += node_association
-        return np.mean(accuracies[accuracies == accuracies])
+        return np.nanmean(metrics)
 
 
-class NodeClassificationF1Score(NodeClassificationMetric):
-    def _compare(
-        self,
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
-        node_associations: List[int],
-        **kwargs,
-    ) -> float:
-        accuracies = np.empty(len(node_associations))
-        start = 0
-        for i, node_association in enumerate(node_associations):
-            y_pred = np.argmax(
-                predictions[start : start + node_association, ...].numpy(), axis=1
+class NodeClassificationsSklearnMetric(NodeClassificationMetric):
+    def __init__(self, f, background_label, nr_classes, average=None, **kwargs) -> None:
+        super().__init__(background_label, nr_classes, **kwargs)
+        self.f = f
+        self.average = average
+
+    def _compare(self, prediction, ground_truth):
+        y_pred = np.argmax(prediction, axis=1)
+        mask = ground_truth != self.background_label
+        if self.average is not None:
+            return self.f(
+                y_pred=y_pred[mask], y_true=ground_truth[mask], average=self.average
             )
-            y_true = labels[start : start + node_association].numpy()
-            mask = y_true != self.background_label
-            accuracies[i] = sklearn.metrics.f1_score(
-                y_pred=y_pred[mask], y_true=y_true[mask], average="weighted"
-            )
-            start += node_association
-        return np.mean(accuracies[accuracies == accuracies])
+        else:
+            return self.f(y_pred=y_pred[mask], y_true=ground_truth[mask])
+
+
+class NodeClassificationAccuracy(NodeClassificationsSklearnMetric):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(sklearn.metrics.accuracy_score, *args, **kwargs)
+
+
+class NodeClassificationBalancedAccuracy(NodeClassificationsSklearnMetric):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(sklearn.metrics.balanced_accuracy_score, *args, **kwargs)
+
+
+class NodeClassificationF1Score(NodeClassificationsSklearnMetric):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(sklearn.metrics.f1_score, average="weighted", **kwargs)
 
 
 def sum_up_gleason(annotation, n_class=4, thres=0):
@@ -551,12 +486,46 @@ def sum_up_gleason(annotation, n_class=4, thres=0):
         return primary_score + secondary_score - 1
 
 
-# Legacy compatibility (remove in the future)
-GraphClassificationAccuracy = MultiLabelAccuracy
-GraphClassificationBalancedAccuracy = MultiLabelBalancedAccuracy
-GraphClassificationF1Score = MultiLabelF1Score
-GraphClassificationAUCROC = MultiLabelAUCROC
-GraphClassificationBenignAccuracy = MultiLabelBenignAccuracy
-GraphClassificationGleason3Accuracy = MultiLabelGleason3Accuracy
-GraphClassificationGleason4Accuracy = MultiLabelGleason4Accuracy
-GraphClassificationGleason5Accuracy = MultiLabelGleason5Accuracy
+class GleasonScoreKappa(Metric):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        """Create a IoU calculator for a certain number of classes
+
+        Args:
+            nr_classes (int, optional): Number of classes to use
+        """
+        self.nr_classes = nr_classes
+        self.background_label = background_label
+        super().__init__()
+
+    def __call__(
+        self,
+        prediction: torch.Tensor,
+        ground_truth: torch.Tensor,
+        tissue_mask=None,
+        **kwargs,
+    ) -> Any:
+        assert prediction.shape == ground_truth.shape
+        assert len(prediction.shape) == 3
+        assert tissue_mask is None or len(tissue_mask) == prediction.shape[0]
+
+        gleason_grade_ground_truth = list()
+        gleason_grade_prediction = list()
+        for i, (logits, labels) in enumerate(zip(prediction, ground_truth)):
+            if tissue_mask is not None:
+                logits[~tissue_mask[i]] = self.background_label
+
+            gleason_grade_ground_truth.append(
+                sum_up_gleason(labels, n_class=self.nr_classes)
+            )
+            gleason_grade_prediction.append(
+                sum_up_gleason(logits, n_class=self.nr_classes, thres=0.25)
+            )
+        return sklearn.metrics.cohen_kappa_score(
+            gleason_grade_ground_truth,
+            gleason_grade_prediction,
+            weights="quadratic",
+        )
+
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        return value >= comparison

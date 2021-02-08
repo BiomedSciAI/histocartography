@@ -33,7 +33,6 @@ train:
       with_rlp: False
       edge_dim: null
       dropout: 0.5
-    graph_classifier_config: null
     node_classifier_config:
       n_layers: 2
       hidden_dim: 32
@@ -42,29 +41,15 @@ train:
       seperate_heads: True
   metrics:
     graph:
-      - "GraphClassificationBalancedAccuracy"
-      - "GraphClassificationF1Score"
-      - "GraphClassificationAUCROC"
-      - "GraphClassificationBenignAccuracy"
-      - "GraphClassificationGleason3Accuracy"
-      - "GraphClassificationGleason4Accuracy"
-      - "GraphClassificationGleason5Accuracy"
+      - "MultiLabelBalancedAccuracy"
+      - "MultiLabelF1Score"
     node:
-      - "NodeClassificationAccuracy"
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
     segmentation:
-      - "MeanIoU"
-      - "BenignIoU"
-      - "Grade3IoU"
-      - "Grade4IoU"
-      - "Grade5IoU"
-      - "fIoU"
-      - "MeanF1Score"
-      - "BenignF1Score"
-      - "Grade3F1Score"
-      - "Grade4F1Score"
-      - "Grade5F1Score"
+      - "GleasonScoreKappa"
+      - "F1Score"
+      - "IoU"
   params:
     experiment_name: "anv_wsss_train_classifier"
     experiment_tags: null

@@ -57,6 +57,8 @@ class GraphGradCAMExplainer(BaseExplainer):
             getattr(self.model, self.gnn_layer_name).layers, self.gnn_layer_ids
         )
         original_logits = self.model(graph_copy)
+        if isinstance(original_logits, tuple):
+            original_logits = original_logits[0]
         if classes[0] is None:
             classes = [original_logits.argmax().item()]
         all_class_importances = list()

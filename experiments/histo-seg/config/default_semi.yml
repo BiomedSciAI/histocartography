@@ -1,3 +1,16 @@
+upper_bound:
+  stages:
+    stain_normalizer:
+      class: "VahadaneStainNormalizer"
+      params:
+        target: "ZT111_4_C_7_1"
+    superpixel_extractor:
+      class: "SLICSuperpixelExtractor"
+      params:
+        nr_superpixels: 2000
+        color_space: "rgb"
+  params:
+    cores: 16
 train:
   data:
     overfit_test: False
@@ -9,16 +22,16 @@ train:
     validation_slides:
       - 76
     patch_size: null
-    graph_directory:  "outputs/v11_mobilenet_high_13x"
+    graph_directory:  "outputs/v10_mobilenet_med_20x_no_overlap"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
-    augmentation_mode: "graph"
-    image_labels_mode: "new_labels"
+    augmentation_mode: null
+    image_labels_mode: "original_labels"
     supervision:
-      mode: image_level
+      mode: tissue_level
   model:
     gnn_config:
       activation: "PReLU"
@@ -32,11 +45,17 @@ train:
       graph_norm: False
       with_rlp: False
       edge_dim: null
-      dropout: 0.5
+      dropout: 0.0
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 32
-      input_dropout: 0.0
+      input_dropout: 0.5
+    node_classifier_config:
+      n_layers: 1
+      hidden_dim: 32
+      activation: "PReLU"
+      input_dropout: 0.5
+      seperate_heads: False
   metrics:
     graph:
       - "MultiLabelBalancedAccuracy"
@@ -49,16 +68,13 @@ train:
       - "F1Score"
       - "IoU"
   params:
-    experiment_name: "anv_wsss_train_classifier"
+    experiment_name: "anv_wsss_gnn_semi_supervised"
     experiment_tags: null
     optimizer:
       class: "Adam"
       params:
-        lr: 0.0001
-      scheduler: 
-        class: ExponentialLR
-        params:
-          gamma: 0.995
+        lr: 0.00003
+      scheduler: null
     loss:
       graph:
         class: "GraphBCELoss"
@@ -69,7 +85,7 @@ train:
           drop_probability: 0.0
       node_weight: 0.5
     batch_size: 8
-    nr_epochs: 1000
+    nr_epochs: 10
     num_workers: 8
     clip_gradient_norm: null
     dataset: "eth"
@@ -79,7 +95,7 @@ train:
 test:
   data: {}
   model:
-    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
+    architecture: s3://mlflow/631/b7cecc7a7988472482be6544c661384f/artifacts/best.valid.segmentation.MeanIoU
   params:
     experiment_name: "anv_wsss_test_gnn"
     experiment_tags: null
@@ -88,4 +104,4 @@ test:
     local_save_path: '/dataP/anv/data/ETH/gnn_test_masks'
     mlflow_save_path: 'gnn_test_masks'
     threshold: 0.25
-    use_grad_cam: False
+    use_grad_cam: True

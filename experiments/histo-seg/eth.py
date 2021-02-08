@@ -340,8 +340,12 @@ def prepare_graph_datasets(
         add_image_sizes=True,
     )
     labels_metadata = pd.read_pickle(LABELS_DF)
-    training_label_mapper = to_mapper(select_label(labels_metadata, mode=image_labels_mode))
-    validation_label_mapper = to_mapper(select_label(labels_metadata, mode="original_labels"))
+    training_label_mapper = to_mapper(
+        select_label(labels_metadata, mode=image_labels_mode)
+    )
+    validation_label_mapper = to_mapper(
+        select_label(labels_metadata, mode="original_labels")
+    )
     if train_fraction is not None:
         train_indices, validation_indices = train_test_split(
             all_metadata.index.values, train_size=train_fraction
@@ -505,7 +509,9 @@ def prepare_graph_testset(
             tissue_metadata=test_metadata, augmentation_mode=None, **test_arguments
         )
     else:
-        test_dataset = GraphClassificationDataset(tissue_metadata=test_metadata, **test_arguments)
+        test_dataset = GraphClassificationDataset(
+            tissue_metadata=test_metadata, **test_arguments
+        )
     return test_dataset
 
 
@@ -625,11 +631,11 @@ def prepare_patch_testset(
         test_metadata = test_metadata.sample(1)
 
     if normalizer is not None:
-        mean = torch.Tensor(normalizer["mean"])
-        std = torch.Tensor(normalizer["std"])
+        mean = normalizer["mean"]
+        std = normalizer["std"]
     else:
-        mean = torch.Tensor([0, 0, 0])
-        std = torch.Tensor([1, 1, 1])
+        mean = [0, 0, 0]
+        std = [1, 1, 1]
 
     return ImageDataset(
         metadata=test_metadata,

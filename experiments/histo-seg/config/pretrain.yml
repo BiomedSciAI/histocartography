@@ -43,13 +43,8 @@ train:
     dropout: 0.6
     freeze: 17
   metrics:
-    - MultiLabelBalancedAccuracy
-    - MultiLabelF1Score
-    - MultiLabelAUCROC
-    - MultiLabelBenignAccuracy
-    - MultiLabelGleason3Accuracy
-    - MultiLabelGleason4Accuracy
-    - MultiLabelGleason5Accuracy
+    - "MultiLabelBalancedAccuracy"
+    - "MultiLabelF1Score"
   params:
     experiment_name: "anv_wsss_pretrain"
     experiment_tags: null
@@ -84,7 +79,7 @@ test:
         - 0.026320
         - 0.017309
   model:
-    architecture: 's3://mlflow/633/19a9b40d174f40c4b217ddf84eb63e3b/artifacts/best.valid.MultiLabelBalancedAccuracy'
+    architecture: "s3://mlflow/633/734fc44a6db048f5a081c33d0ba07428/artifacts/best.valid.MultiLabelBalancedAccuracy"
   params:
     experiment_name: "anv_wsss_test_cnn"
     experiment_tags: null
@@ -95,6 +90,6 @@ test:
     num_workers: 8
     overlap: 200
     operation: argmax
-    inference_mode: patch_based
+    inference_mode: hacky
     local_save_path: '/dataP/anv/data/ETH/cnn_test_masks'
     mlflow_save_path: 'cnn_test_masks'

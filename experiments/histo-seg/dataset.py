@@ -25,7 +25,7 @@ from torchvision.transforms import (
 )
 from tqdm.auto import tqdm
 
-from constants import CENTROID,  FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
+from constants import CENTROID, FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
 
 
@@ -733,6 +733,13 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                 sample = torch.randint(
                     low=0, high=nr_augmentations, size=(nr_nodes,), dtype=torch.long
                 )
+            elif (
+                isinstance(self.augmentation_mode, str)
+                and self.augmentation_mode.isnumeric()
+            ):
+                sample = torch.ones(size=(nr_nodes,), dtype=torch.long) * int(
+                    self.augmentation_mode
+                )
             else:
                 sample = torch.zeros(size=(nr_nodes,), dtype=torch.long)
 
@@ -803,10 +810,10 @@ class ImageDataset(BaseDataset):
     def _finish_loading(self):
         super()._finish_loading()
         self._images = torch.from_numpy(np.array(self._images))
-        self._annotations = torch.from_numpy(np.array(self._annotations))
-        self._tissue_masks = torch.from_numpy(np.array(self._tissue_masks))
+        self._annotations = np.array(self._annotations)
+        self._tissue_masks = np.array(self._tissue_masks)
         if self.additional_annotation:
-            self._annotations2 = torch.from_numpy(np.array(self._annotations2))
+            self._annotations2 = np.array(self._annotations2)
 
     def _load_datapoint(self, i, row):
         super()._load_datapoint(i, row)
@@ -833,7 +840,7 @@ class ImageDataset(BaseDataset):
         return self._annotations2
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        image = self.images[index].permute(2, 0, 1).to(torch.float32) / 255
+        image = self.images[index].to(torch.float32).permute(2, 1, 0) / 255
         normalized_image = self.normalizer(image)
 
         return ImageDatapoint(

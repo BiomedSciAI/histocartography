@@ -17,8 +17,11 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from models import SegmentationFromCNN
-from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
+from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import (
+    GraphGradCAMExplainer,
+)
 from utils import get_segmentation_map
+import dgl
 
 
 class BaseInference:
@@ -153,24 +156,28 @@ class GraphGradCAMBasedInference(BaseInference):
         super().__init__(model=model, **kwargs)
         self.NR_CLASSES = NR_CLASSES
         self.explainer = GraphGradCAMExplainer(model=model)
-    
+
     def predict(self, graph, superpixels, operation="argmax"):
         assert operation == "argmax"
 
-        graph = graph.to(self.device)        
+        graph = graph.to(self.device)
         importances, logits = self.explainer.process_all(
             graph, list(range(self.NR_CLASSES))
         )
         node_importances = (
-            importances
-            * torch.as_tensor(logits)[0]
-            .sigmoid()
-            .numpy()[:, np.newaxis]
+            importances * torch.as_tensor(logits)[0].sigmoid().numpy()[:, np.newaxis]
         ).argmax(0)
-        segmentation_map = torch.as_tensor(get_segmentation_map(
-            node_importances, superpixels, self.NR_CLASSES
-        ))
+        segmentation_map = torch.as_tensor(
+            get_segmentation_map(node_importances, superpixels, self.NR_CLASSES)
+        )
         return segmentation_map
+
+    def predict_batch(self, graph, superpixels, operation="argmax"):
+        segmentation_maps = list()
+        for i, graph in enumerate(dgl.unbatch(graph)):
+            segmentation_map = self.predict(graph, superpixels[i], operation)
+            segmentation_maps.append(segmentation_map)
+        return torch.stack(segmentation_maps)
 
 
 class ImageInferenceModel(BaseInference):
@@ -192,10 +199,10 @@ class ImageInferenceModel(BaseInference):
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
             )
-        return torch.as_tensor(
-            cv2.resize(
-                predictions.numpy(),
-                dsize=self.final_shape,
-                interpolation=cv2.INTER_NEAREST,
-            )
+        if self.final_shape is None:
+            return predictions.numpy()
+        return cv2.resize(
+            predictions.numpy(),
+            dsize=self.final_shape,
+            interpolation=cv2.INTER_NEAREST,
         )

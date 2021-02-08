@@ -1,19 +1,17 @@
 import datetime
 import logging
-from collections import defaultdict
 from pathlib import Path
 from typing import Dict
 
 import matplotlib.pyplot as plt
 import mlflow
 import torch
-from sklearn.metrics import cohen_kappa_score
+import numpy as np
 from tqdm.auto import tqdm
 
 from dataset import ImageDatapoint
 from inference import ImageInferenceModel, PatchBasedInference
-from logging_helper import log_segmentation_results, prepare_experiment, robust_mlflow
-from metrics import F1Score, IoU, MeanF1Score, MeanIoU, fIoU, sum_up_gleason
+from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
 from utils import dynamic_import_from, get_config
 
 
@@ -80,7 +78,6 @@ def test_cnn(
     show_class_acivation = dynamic_import_from(dataset, "show_class_acivation")
     show_segmentation_masks = dynamic_import_from(dataset, "show_segmentation_masks")
 
-    fill_missing_information(model_config, data_config)
     test_dataset = prepare_patch_testset(test=test, **data_config)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -117,74 +114,42 @@ def test_cnn(
     if not save_path.exists():
         save_path.mkdir()
 
-    metrics = [
-        c(nr_classes=NR_CLASSES, background_label=BACKGROUND_CLASS)
-        for c in [IoU, F1Score, MeanF1Score, MeanIoU, fIoU]
-    ]
-    results = defaultdict(list)
-
-    gleason_score_predictions = list()
-    gleason_grade_1 = list()
-    gleason_grade_2 = list()
+    logger_pathologist_1 = LoggingHelper(
+        ["IoU", "F1Score", "GleasonScoreKappa"],
+        prefix="pathologist1",
+        nr_classes=NR_CLASSES,
+        background_label=BACKGROUND_CLASS,
+    )
+    logger_pathologist_2 = LoggingHelper(
+        ["IoU", "F1Score", "GleasonScoreKappa"],
+        prefix="pathologist2",
+        nr_classes=NR_CLASSES,
+        background_label=BACKGROUND_CLASS,
+    )
 
     for i in tqdm(range(len(test_dataset))):
         image_datapoint: ImageDatapoint = test_dataset[i]
-        assert image_datapoint.has_multiple_annotations, f"Datapoint does not have multiple annotations: {image_datapoint}"
+        assert (
+            image_datapoint.has_multiple_annotations
+        ), f"Datapoint does not have multiple annotations: {image_datapoint}"
 
         time_before = datetime.datetime.now()
+
         predicted_mask = inferencer.predict(image_datapoint.image, operation=operation)
 
-        for metric in metrics:
-            for pathologist, ground_truth in zip(
-                [1, 2],
-                [
-                    image_datapoint.segmentation_mask,
-                    image_datapoint.additional_segmentation_mask,
-                ],
-            ):
-                results[f"{metric.__class__.__name__}_{pathologist}"].append(
-                    metric(
-                        prediction=predicted_mask.unsqueeze(0),
-                        ground_truth=ground_truth.unsqueeze(0),
-                    )
-                    .squeeze(0)
-                    .tolist()
-                )
+        logger_pathologist_1.add_iteration_outputs(
+            logits=predicted_mask.copy()[np.newaxis, :, :],
+            labels=image_datapoint.segmentation_mask[np.newaxis, :, :],
+            tissue_mask=image_datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+        )
+        logger_pathologist_2.add_iteration_outputs(
+            logits=predicted_mask.copy()[np.newaxis, :, :],
+            labels=image_datapoint.additional_segmentation_mask[np.newaxis, :, :],
+            tissue_mask=image_datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+        )
 
-        predicted_mask = predicted_mask.detach().cpu().numpy()
-        tissue_mask = image_datapoint.tissue_mask.detach().cpu().numpy()
+        tissue_mask = image_datapoint.tissue_mask
         predicted_mask[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
-        gleason_score_predictions.append(
-            sum_up_gleason(predicted_mask, n_class=NR_CLASSES, thres=threshold)
-        )
-        gleason_grade_1.append(
-            sum_up_gleason(
-                image_datapoint.segmentation_mask.numpy(), n_class=NR_CLASSES, thres=0
-            )
-        )
-        gleason_grade_2.append(
-            sum_up_gleason(
-                image_datapoint.additional_segmentation_mask.numpy(),
-                n_class=NR_CLASSES,
-                thres=0,
-            )
-        )
-
-        if i > 0 and i % 10 == 0:
-            results["GleasonScoreKappa_1"] = [
-                cohen_kappa_score(
-                    gleason_grade_1, gleason_score_predictions, weights="quadratic"
-                )
-            ]
-            results["GleasonScoreKappa_2"] = [
-                cohen_kappa_score(
-                    gleason_grade_2, gleason_score_predictions, weights="quadratic"
-                )
-            ]
-            results["GleasonScoreKappa_inter"] = [
-                cohen_kappa_score(gleason_grade_1, gleason_grade_2, weights="quadratic")
-            ]
-            log_segmentation_results(results, step=i)
 
         # Save figure
         if operation == "per_class":
@@ -218,20 +183,8 @@ def test_cnn(
             step=i,
         )
 
-    results["GleasonScoreKappa_1"] = [
-        cohen_kappa_score(
-            gleason_grade_1, gleason_score_predictions, weights="quadratic"
-        )
-    ]
-    results["GleasonScoreKappa_2"] = [
-        cohen_kappa_score(
-            gleason_grade_2, gleason_score_predictions, weights="quadratic"
-        )
-    ]
-    results["GleasonScoreKappa_inter"] = [
-        cohen_kappa_score(gleason_grade_1, gleason_grade_2, weights="quadratic")
-    ]
-    log_segmentation_results(results, step=len(test_dataset))
+    logger_pathologist_1.log_and_clear()
+    logger_pathologist_2.log_and_clear()
 
 
 if __name__ == "__main__":
@@ -240,6 +193,7 @@ if __name__ == "__main__":
         default="config/pretrain.yml",
         required=("model", "data"),
     )
+    fill_missing_information(config["model"], config["data"])
     prepare_experiment(config_path=config_path, **config)
     test_cnn(
         model_config=config["model"],

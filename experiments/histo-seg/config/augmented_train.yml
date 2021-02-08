@@ -42,21 +42,15 @@ train:
       seperate_heads: False
   metrics:
     graph:
-      - "GraphClassificationBalancedAccuracy"
-      - "GraphClassificationF1Score"
-      - "GraphClassificationAUCROC"
-      - "GraphClassificationBenignAccuracy"
-      - "GraphClassificationGleason3Accuracy"
-      - "GraphClassificationGleason4Accuracy"
-      - "GraphClassificationGleason5Accuracy"
+      - "MultiLabelBalancedAccuracy"
+      - "MultiLabelF1Score"
     node:
-      - "NodeClassificationAccuracy"
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
     segmentation:
-      - "MeanIoU"
-      - "fIoU"
-      - "MeanF1Score"
+      - "GleasonScoreKappa"
+      - "F1Score"
+      - "IoU"
   params:
     experiment_name: "anv_wsss_train_classifier"
     experiment_tags: null

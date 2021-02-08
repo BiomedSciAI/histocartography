@@ -6,7 +6,7 @@ from copy import deepcopy
 import mlflow
 import torch
 from torch.utils.data import DataLoader, WeightedRandomSampler
-from tqdm.auto import tqdm, trange
+from tqdm.auto import trange
 
 from logging_helper import (
     LoggingHelper,
@@ -18,6 +18,7 @@ from losses import get_loss, get_lr
 from models import PatchTissueClassifier
 from utils import dynamic_import_from, get_config
 from test_cnn import test_cnn, fill_missing_information
+from train_utils import log_device, log_nr_parameters
 
 
 def train_patch_classifier(
@@ -77,19 +78,12 @@ def train_patch_classifier(
     )
 
     # Compute device
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    if torch.cuda.is_available():
-        robust_mlflow(mlflow.log_param, "device", torch.cuda.get_device_name(0))
-    else:
-        robust_mlflow(mlflow.log_param, "device", "CPU")
+    device = log_device
 
     # Model
     model = PatchTissueClassifier(num_classes=NR_CLASSES, **model_config)
     model = model.to(device)
-    nr_trainable_total_params = sum(
-        p.numel() for p in model.parameters() if p.requires_grad
-    )
-    robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
+    log_nr_parameters(model)
 
     # Loss function
     criterion = get_loss(loss, device=device)
@@ -130,9 +124,7 @@ def train_patch_classifier(
         if pretrain_epochs is not None and epoch == pretrain_epochs:
             model.unfreeze_encoder()
 
-        for patches, labels in tqdm(
-            training_loader, desc="train", total=len(training_loader)
-        ):
+        for patches, labels in training_loader:
             patches = patches.to(device)
             labels = labels.to(device)
 
@@ -175,9 +167,7 @@ def train_patch_classifier(
             time_before_validation = datetime.datetime.now()
             model.eval()
             with torch.no_grad():
-                for patches, labels in tqdm(
-                    validation_loader, desc="valid", total=len(validation_loader)
-                ):
+                for patches, labels in validation_loader:
                     patches = patches.to(device)
                     labels = labels.to(device)
 

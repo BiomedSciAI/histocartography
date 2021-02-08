@@ -1,16 +1,3 @@
-upper_bound:
-  stages:
-    stain_normalizer:
-      class: "VahadaneStainNormalizer"
-      params:
-        target: "ZT111_4_C_7_1"
-    superpixel_extractor:
-      class: "SLICSuperpixelExtractor"
-      params:
-        nr_superpixels: 2000
-        color_space: "rgb"
-  params:
-    cores: 16
 train:
   data:
     overfit_test: False
@@ -29,9 +16,9 @@ train:
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
     augmentation_mode: null
-    image_labels_mode: "original_labels"
+    image_labels_mode: "new_labels"
     supervision:
-      mode: tissue_level
+      mode: image_level
   model:
     gnn_config:
       activation: "PReLU"
@@ -50,39 +37,16 @@ train:
       n_layers: 2
       hidden_dim: 32
       input_dropout: 0.0
-    node_classifier_config:
-      n_layers: 1
-      hidden_dim: 32
-      activation: "PReLU"
-      input_dropout: 0.0
-      seperate_heads: True
   metrics:
     graph:
-      - "GraphClassificationBalancedAccuracy"
-      - "GraphClassificationF1Score"
-      - "GraphClassificationAUCROC"
-      - "GraphClassificationBenignAccuracy"
-      - "GraphClassificationGleason3Accuracy"
-      - "GraphClassificationGleason4Accuracy"
-      - "GraphClassificationGleason5Accuracy"
-    node:
-      - "NodeClassificationAccuracy"
-      - "NodeClassificationBalancedAccuracy"
-      - "NodeClassificationF1Score"
+      - "MultiLabelBalancedAccuracy"
+      - "MultiLabelF1Score"
     segmentation:
-      - "MeanIoU"
-      - "BenignIoU"
-      - "Grade3IoU"
-      - "Grade4IoU"
-      - "Grade5IoU"
-      - "fIoU"
-      - "MeanF1Score"
-      - "BenignF1Score"
-      - "Grade3F1Score"
-      - "Grade4F1Score"
-      - "Grade5F1Score"
+      - "GleasonScoreKappa"
+      - "F1Score"
+      - "IoU"
   params:
-    experiment_name: "anv_wsss_train_classifier"
+    experiment_name: "anv_wsss_gnn_weakly_supervised"
     experiment_tags: null
     optimizer:
       class: "Adam"
@@ -92,14 +56,8 @@ train:
     loss:
       graph:
         class: "GraphBCELoss"
-      node:
-        class: "NodeStochasticCrossEntropy"
-        params:
-          background_label: 4
-          drop_probability: 0.0
-      node_weight: 0.5
     batch_size: 8
-    nr_epochs: 500
+    nr_epochs: 10
     num_workers: 8
     clip_gradient_norm: null
     dataset: "eth"
@@ -118,4 +76,4 @@ test:
     local_save_path: '/dataP/anv/data/ETH/gnn_test_masks'
     mlflow_save_path: 'gnn_test_masks'
     threshold: 0.25
-    use_grad_cam: False
+    use_grad_cam: True

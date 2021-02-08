@@ -9,16 +9,16 @@ train:
     validation_slides:
       - 76
     patch_size: null
-    graph_directory:  "outputs/v11_mobilenet_high_13x"
+    graph_directory:  "outputs/v10_mobilenet_med_20x_no_overlap"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
-    augmentation_mode: "graph"
-    image_labels_mode: "new_labels"
+    augmentation_mode: null
+    image_labels_mode: "original_labels"
     supervision:
-      mode: image_level
+      mode: tissue_level
   model:
     gnn_config:
       activation: "PReLU"
@@ -32,15 +32,14 @@ train:
       graph_norm: False
       with_rlp: False
       edge_dim: null
-      dropout: 0.5
-    graph_classifier_config:
-      n_layers: 2
+      dropout: 0.0
+    node_classifier_config:
+      n_layers: 1
       hidden_dim: 32
+      activation: "PReLU"
       input_dropout: 0.0
+      seperate_heads: True
   metrics:
-    graph:
-      - "MultiLabelBalancedAccuracy"
-      - "MultiLabelF1Score"
     node:
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
@@ -49,27 +48,21 @@ train:
       - "F1Score"
       - "IoU"
   params:
-    experiment_name: "anv_wsss_train_classifier"
+    experiment_name: "anv_wsss_gnn_strongly_supervised"
     experiment_tags: null
     optimizer:
       class: "Adam"
       params:
-        lr: 0.0001
-      scheduler: 
-        class: ExponentialLR
-        params:
-          gamma: 0.995
+        lr: 0.00003
+      scheduler: null
     loss:
-      graph:
-        class: "GraphBCELoss"
       node:
         class: "NodeStochasticCrossEntropy"
         params:
           background_label: 4
           drop_probability: 0.0
-      node_weight: 0.5
     batch_size: 8
-    nr_epochs: 1000
+    nr_epochs: 10
     num_workers: 8
     clip_gradient_norm: null
     dataset: "eth"

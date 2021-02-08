@@ -43,13 +43,8 @@ train:
     dropout: 0.2
     freeze: 0
   metrics:
-    - MultiLabelBalancedAccuracy
-    - MultiLabelF1Score
-    - MultiLabelAUCROC
-    - MultiLabelBenignAccuracy
-    - MultiLabelGleason3Accuracy
-    - MultiLabelGleason4Accuracy
-    - MultiLabelGleason5Accuracy
+    - "MultiLabelBalancedAccuracy"
+    - "MultiLabelF1Score"
   params:
     experiment_name: "anv_wsss_pretrain"
     experiment_tags: null

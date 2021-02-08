@@ -18,7 +18,7 @@ from losses import get_loss, get_lr
 from models import PatchTissueClassifier
 from utils import dynamic_import_from, get_config
 from test_cnn import test_cnn, fill_missing_information
-from train_utils import log_device, log_nr_parameters
+from train_utils import log_device, log_nr_parameters, get_optimizer
 
 
 def train_patch_classifier(
@@ -102,16 +102,7 @@ def train_patch_classifier(
     )
 
     # Optimizer
-    optimizer_class = dynamic_import_from("torch.optim", optimizer["class"])
-    optim = optimizer_class(model.parameters(), **optimizer["params"])
-
-    # Learning rate scheduler
-    scheduler_config = optimizer.get("scheduler", None)
-    if scheduler_config is not None:
-        scheduler_class = dynamic_import_from(
-            "torch.optim.lr_scheduler", scheduler_config["class"]
-        )
-        scheduler = scheduler_class(optim, **scheduler_config.get("params", {}))
+    optim, scheduler = get_optimizer(optimizer, model)
 
     if pretrain_epochs is not None:
         model.freeze_encoder()
@@ -147,7 +138,7 @@ def train_patch_classifier(
                 labels=labels.cpu(),
             )
 
-        if scheduler_config is not None:
+        if scheduler is not None:
             robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
             scheduler.step()
 

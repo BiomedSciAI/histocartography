@@ -49,7 +49,7 @@ train:
       - "F1Score"
       - "IoU"
   params:
-    experiment_name: "anv_wsss_train_classifier"
+    experiment_name: "anv_wsss_gnn_weakly_supervised"
     experiment_tags: null
     optimizer:
       class: "Adam"

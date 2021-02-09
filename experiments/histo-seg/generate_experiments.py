@@ -2849,6 +2849,41 @@ if __name__ == "__main__":
             )
         ],
     )
+    SemiSupervisedGraphClassificationExperiment(name="v11_med_13x_best_pixel").generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(["train", "model", "node_classifier_config", "seperate_heads"], True),
+        ],
+        sequential=[
+            ParameterList(["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9])
+        ],
+    )
+    SemiSupervisedGraphClassificationExperiment(name="v10_med_13x_best_image").generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v10_mobilenet_med_30x_no_overlap",
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(["train", "model", "graph_classifier_config", "input_dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "seperate_heads"], True),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 0.0001),
+            Parameter(["train", "params", "optimizer", "scheduler"], {"class": "ExponentialLR", "params": {"gamma": 0.995}}),
+            Parameter(["train", "params", "nr_epochs"], 1000)
+        ],
+        sequential=[
+            ParameterList(["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9])
+        ],
+    )
 
     # Pretraining
     PretrainingExperiment(name="baseline", queue="prod.long").generate(
@@ -3202,6 +3237,46 @@ if __name__ == "__main__":
             )
         ],
     )
+    GNNTestingExperiment(name="rerun_failed", base="config/final_pixel.yml").generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "tissue_rep_good_meaniou",
+                            "tissue_rep_good_meaniou",
+                            "tissue_rep_good_meaniou",
+                            "tissue_rep_best_kappa",
+                            "tissue_rep_best_kappa",
+                            "tissue_rep_best_kappa",
+                            "tissue_rep_good_kappa",
+                            "tissue_rep_good_kappa",
+                            "tissue_rep_good_kappa",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        f"s3://mlflow/645/{run}/artifacts/best.valid.node.segmentation.MeanIoU"
+                        for run in [
+                            "22ea6ccf4853411bbaba3de668a65cff",
+                            "7f1f177907144e0d891633f553fe5927",
+                            "3a3523d8ef8e4227acffc32618b90f2f",
+                            "525aca9ccf3c4cd69b7eee34ad636319",
+                            "0a5d9ae21d5b4363a49edb7853d4c272",
+                            "4f55632690cc411794f6c1c2d6d1bbbf",
+                            "a0f9dd09b47f4a0caa5ac5801a98a480",
+                            "46d614ab20744e3f97f9f68be7d89a99",
+                            "819a33e7136440cb934ba406cc4cd318",
+                        ]
+                    ],
+                ),
+            ]
+        ],
+    )
 
     # FINAL WEAKLY SUPERVISED RESULTS
     GraphClassifierExperiment(
@@ -3389,6 +3464,62 @@ if __name__ == "__main__":
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_no_10x",
+            )
+        ],
+        repetitions=3,
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_ps_best_meaniou", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v10_mobilenet_med_30x_no_overlap",
+            ),
+            Parameter(
+                ["train", "data", "image_labels_mode"], "p+s"
+            )
+        ],
+        repetitions=3,
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_ps_good_meaniou", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            ),
+            Parameter(
+                ["train", "data", "image_labels_mode"], "p+s"
+            )
+        ],
+        repetitions=3,
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_ps_best_kappa", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_low_13x",
+            ),
+            Parameter(
+                ["train", "data", "image_labels_mode"], "p+s"
+            )
+        ],
+        repetitions=3,
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_ps_good_kappa", base="config/final_weak.yml"
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            ),
+            Parameter(
+                ["train", "data", "image_labels_mode"], "p+s"
             )
         ],
         repetitions=3,

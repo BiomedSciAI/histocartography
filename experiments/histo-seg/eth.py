@@ -70,6 +70,10 @@ IMAGE_PREFIX = "ZT"
 
 TRAINING_SLIDES = [111, 199, 204, 76]
 TEST_SLIDES = [80]
+PS_LABEL_PATHS = [
+    BASE_PATH / "tma_info" / x
+    for x in [f"ZT{x}_gleason_scores.csv" for x in TRAINING_SLIDES + TEST_SLIDES]
+]
 
 
 def generate_image_folder_structure(delete: bool = False) -> None:
@@ -244,6 +248,44 @@ def generate_labels() -> None:
         df["gleason_grade"] = grades
         return df
 
+    def primary_secondary_to_onehot(df, pathologist=4):
+        new_df = list()
+        if "class_primary" in df:
+            key1 = "class_primary"
+            key2 = "class_secondary"
+            use = "train"
+        else:
+            key1 = "patho1_class_primary"
+            key2 = "patho1_class_secondary"
+            use = "test"
+        for name, row in df.iterrows():
+            b, g3, g4, g5 = to_onehot_with_ignore(
+                np.unique([row[key1], row[key2]])
+            ).tolist()
+            new_df.append((name, pathologist, use, b, g3, g4, g5))
+        return pd.DataFrame(
+            new_df,
+            columns=[
+                "name",
+                "pathologist",
+                "use",
+                "benign",
+                "grade3",
+                "grade4",
+                "grade5",
+            ],
+        )
+
+    def read_ps_labels(paths=PS_LABEL_PATHS):
+        df = None
+        for path in paths:
+            tmp = pd.read_csv(path, sep="\t").set_index("TMA_spot")
+            if df is None:
+                df = primary_secondary_to_onehot(tmp)
+            else:
+                df = df.append(primary_secondary_to_onehot(tmp))
+        return df
+
     image_df = pd.read_pickle(ANNOTATIONS_DF)
     image_level_df = list()
     for _, row in tqdm(image_df.iterrows(), total=len(image_df)):
@@ -261,7 +303,11 @@ def generate_labels() -> None:
     additional_df = read_image_level_annotations()
     additional_df = add_gleason_score(additional_df)
 
+    ps_df = read_ps_labels()
+    ps_df = add_gleason_score(ps_df)
+
     combined_df = original_df.append(additional_df, ignore_index=True)
+    combined_df = combined_df.append(ps_df, ignore_index=True)
     combined_df.to_pickle(BASE_PATH / "image_level_annotations.pickle")
 
 
@@ -277,6 +323,10 @@ def select_label(df, mode="new_labels"):
         df = df.append(missing_df)
     elif mode == "original_labels":
         df = df[df["pathologist"] == 1].set_index("name").copy()
+    elif mode == "p+s":
+        df = df[df["pathologist"] == 4].set_index("name").copy()
+    else:
+        raise NotImplementedError
     return df
 
 
@@ -344,7 +394,7 @@ def prepare_graph_datasets(
         select_label(labels_metadata, mode=image_labels_mode)
     )
     validation_label_mapper = to_mapper(
-        select_label(labels_metadata, mode="original_labels")
+        select_label(labels_metadata, mode=image_labels_mode)
     )
     if train_fraction is not None:
         train_indices, validation_indices = train_test_split(

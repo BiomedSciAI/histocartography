@@ -29,7 +29,7 @@ train:
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
     augmentation_mode: null
-    image_labels_mode: "original_labels"
+    image_labels_mode: "new_labels"
     supervision:
       mode: tissue_level
   model:
@@ -45,17 +45,17 @@ train:
       graph_norm: False
       with_rlp: False
       edge_dim: null
-      dropout: 0.0
+      dropout: 0.5
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 32
       input_dropout: 0.5
     node_classifier_config:
-      n_layers: 1
+      n_layers: 2
       hidden_dim: 32
       activation: "PReLU"
       input_dropout: 0.5
-      seperate_heads: False
+      seperate_heads: True
   metrics:
     graph:
       - "MultiLabelBalancedAccuracy"
@@ -65,6 +65,7 @@ train:
       - "NodeClassificationF1Score"
     segmentation:
       - "GleasonScoreKappa"
+      - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
   params:
@@ -85,7 +86,7 @@ train:
           drop_probability: 0.0
       node_weight: 0.5
     batch_size: 8
-    nr_epochs: 10
+    nr_epochs: 500
     num_workers: 8
     clip_gradient_norm: null
     dataset: "eth"

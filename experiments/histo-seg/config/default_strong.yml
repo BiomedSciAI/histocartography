@@ -45,6 +45,7 @@ train:
       - "NodeClassificationF1Score"
     segmentation:
       - "GleasonScoreKappa"
+      - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
   params:

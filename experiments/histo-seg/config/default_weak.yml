@@ -43,6 +43,7 @@ train:
       - "MultiLabelF1Score"
     segmentation:
       - "GleasonScoreKappa"
+      - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
   params:
@@ -67,7 +68,7 @@ train:
 test:
   data: {}
   model:
-    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
+    architecture: s3://mlflow/631/b7cecc7a7988472482be6544c661384f/artifacts/best.valid.segmentation.MeanIoU
   params:
     experiment_name: "anv_wsss_test_gnn"
     experiment_tags: null

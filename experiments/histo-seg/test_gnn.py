@@ -128,13 +128,13 @@ def test_gnn(
         save_path.mkdir()
 
     logger_pathologist_1 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa"],
+        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
         prefix="pathologist1",
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
     )
     logger_pathologist_2 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa"],
+        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
         prefix="pathologist2",
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,

@@ -486,8 +486,8 @@ def sum_up_gleason(annotation, n_class=4, thres=0):
         return primary_score + secondary_score - 1
 
 
-class GleasonScoreKappa(Metric):
-    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+class GleasonScoreMetric(Metric):
+    def __init__(self, f, nr_classes: int, background_label: int, **kwargs) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -495,6 +495,8 @@ class GleasonScoreKappa(Metric):
         """
         self.nr_classes = nr_classes
         self.background_label = background_label
+        self.f = f
+        self.kwargs = kwargs
         super().__init__()
 
     def __call__(
@@ -520,12 +522,22 @@ class GleasonScoreKappa(Metric):
             gleason_grade_prediction.append(
                 sum_up_gleason(logits, n_class=self.nr_classes, thres=0.25)
             )
-        return sklearn.metrics.cohen_kappa_score(
+        return self.f(
             gleason_grade_ground_truth,
             gleason_grade_prediction,
-            weights="quadratic",
+            **self.kwargs,
         )
 
     @staticmethod
     def is_better(value: Any, comparison: Any) -> bool:
         return value >= comparison
+
+
+class GleasonScoreKappa(GleasonScoreMetric):
+    def __init__(self, nr_classes: int, background_label: int) -> None:
+        super().__init__(f=sklearn.metrics.cohen_kappa_score, nr_classes=nr_classes, background_label=background_label, weights="quadratic")
+
+
+class GleasonScoreF1(GleasonScoreMetric):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        super().__init__(f=sklearn.metrics.f1_score, nr_classes=nr_classes, background_label=background_label, average="weighted")

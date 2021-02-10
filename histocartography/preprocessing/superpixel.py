@@ -7,8 +7,7 @@ import warnings
 from abc import abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict
-from matplotlib import pyplot as plt
+from typing import Any, Dict, Union
 
 import cv2
 import h5py
@@ -35,11 +34,11 @@ class SuperpixelExtractor(PipelineStep):
         self.downsampling_factor = downsampling_factor
         super().__init__(**kwargs)
 
-    def process(self, input_image: np.ndarray, tissue_mask: np.ndarray) -> np.ndarray:
+    def process(self, input_image: np.ndarray, tissue_mask: Union[None, np.ndarray]) -> np.ndarray:
         """Return the superpixels of a given input image
         Args:
             input_image (np.array): Input image
-            tissue_mask (np.array): Input tissue mask
+            tissue_mask (None, np.array): Input tissue mask
         Returns:
             np.array: Extracted superpixels
         """
@@ -55,7 +54,7 @@ class SuperpixelExtractor(PipelineStep):
         return superpixels
 
     @abstractmethod
-    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray) -> np.ndarray:
+    def _extract_superpixels(self, image: np.ndarray, tissue_mask: Union[None, np.ndarray]) -> np.ndarray:
         """Perform the superpixel extraction
         Args:
             image (np.array): Input tensor
@@ -471,29 +470,30 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         return superpixels
 
     def _merge_superpixels(
-        self, input_image: np.ndarray, initial_superpixels: np.ndarray, tissue_mask: np.ndarray
+        self, input_image: np.ndarray, initial_superpixels: np.ndarray, tissue_mask: Union[None, np.ndarray]
     ) -> np.ndarray:
-        # Remove superpixels belonging to background or having < 10% tissue content
-        ids_initial = np.unique(initial_superpixels, return_counts=True)
-        ids_masked = np.unique(tissue_mask * initial_superpixels, return_counts=True)
+        if tissue_mask is not None:
+            # Remove superpixels belonging to background or having < 10% tissue content
+            ids_initial = np.unique(initial_superpixels, return_counts=True)
+            ids_masked = np.unique(tissue_mask * initial_superpixels, return_counts=True)
 
-        ctr = 1
-        superpixels = np.zeros_like(initial_superpixels)
-        for i in range(len(ids_initial[0])):
-            id = ids_initial[0][i]
-            if id in ids_masked[0]:
-                idx = np.where(id == ids_masked[0])[0]
-                ratio = ids_masked[1][idx] / ids_initial[1][i]
-                if ratio >= 0.1:
-                    superpixels[initial_superpixels == id] = ctr
-                    ctr += 1
-        mask = np.zeros_like(superpixels)
-        mask[superpixels > 0] = 1
+            ctr = 1
+            superpixels = np.zeros_like(initial_superpixels)
+            for i in range(len(ids_initial[0])):
+                id = ids_initial[0][i]
+                if id in ids_masked[0]:
+                    idx = np.where(id == ids_masked[0])[0]
+                    ratio = ids_masked[1][idx] / ids_initial[1][i]
+                    if ratio >= 0.1:
+                        superpixels[initial_superpixels == id] = ctr
+                        ctr += 1
+
+            initial_superpixels = superpixels
 
         # Merge superpixels within tissue region
-        g = self._generate_graph(input_image, superpixels)
+        g = self._generate_graph(input_image, initial_superpixels)
         merged_superpixels = graph.merge_hierarchical(
-            superpixels,
+            initial_superpixels,
             g,
             thresh=self.threshold,
             rag_copy=False,
@@ -502,6 +502,8 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             weight_func=self._weighting_function,
         )
         merged_superpixels += 1  # Handle regionprops that ignores all values of 0
+        mask = np.zeros_like(initial_superpixels)
+        mask[initial_superpixels != 0] = 1
         merged_superpixels = merged_superpixels * mask
         return merged_superpixels
 
@@ -570,7 +572,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         )
         return {k: np.array(v) for k, v in translator.items()}
 
-    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray) -> np.ndarray:
+    def _extract_superpixels(self, image: np.ndarray, tissue_mask: Union[None, np.ndarray]) -> np.ndarray:
         initial_superpixels = self._extract_initial_superpixels(image)
         merged_superpixels = self._merge_superpixels(image, initial_superpixels, tissue_mask)
         translator = self._get_translator(initial_superpixels, merged_superpixels)
@@ -579,12 +581,12 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         )
         return merged_superpixels, initial_superpixels, translator
 
-    def process(self, input_image: np.ndarray, tissue_mask: np.ndarray) -> np.ndarray:
+    def process(self, input_image: np.ndarray, tissue_mask=None) -> np.ndarray:
         """Return the superpixels of a given input image
 
         Args:
             input_image (np.array): Input image
-
+            tissue_mask (None, np.array): Tissue mask
         Returns:
             np.array: Extracted superpixels
         """

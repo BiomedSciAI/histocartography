@@ -7,6 +7,8 @@ from PIL import Image
 import logging
 import numpy as np
 import cv2
+import copy
+from histomicstk.saliency.tissue_detection import get_tissue_mask
 
 
 class TissueMask(PipelineStep):
@@ -90,3 +92,67 @@ class BrightnessThresholdTissueMask(TissueMask):
         # crop to restore original image
         ws = np.array(img)[bb:-bb, bb:-bb]
         return ws
+
+class HistomicstkTissueMask(TissueMask):
+    def __init__(
+        self,
+        base_path: Union[None, str, Path],
+        n_thresholding_steps=1,
+        sigma=20,
+        min_size=10,
+        kernel_size=20,
+        dilation_steps=1,
+        background_gray_value=228,
+        deconvolve_first=False
+    ) -> None:
+        self.n_thresholding_steps = n_thresholding_steps
+        self.sigma = sigma
+        self.min_size = min_size
+        self.kernel_size = kernel_size
+        self.dilation_steps = dilation_steps
+        self.background_gray_value = background_gray_value
+        self.deconvolve_first = deconvolve_first
+        super().__init__(base_path=base_path)
+        self.kernel = np.ones((self.kernel_size, self.kernel_size), "uint8")
+
+    def process(self, image, superpixels) -> Any:
+        mask = np.zeros(shape=(image.shape[0], image.shape[1]))
+        image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        image = copy.deepcopy(image)
+
+        # detect tissue region
+        while True:
+            _, mask_ = get_tissue_mask(image,
+                                       deconvolve_first=self.deconvolve_first,
+                                       n_thresholding_steps=self.n_thresholding_steps,
+                                       sigma=self.sigma,
+                                       min_size=self.min_size)
+            mask_ = cv2.dilate(mask_.astype(np.uint8),
+                               self.kernel,
+                               iterations=self.dilation_steps)
+            image_masked = mask_ * image_gray
+
+            if image_masked[image_masked > 0].mean() < self.background_gray_value:
+                mask[mask_ != 0] = 1
+                image[mask_ != 0] = (255, 255, 255)
+            else:
+                break
+        mask = mask.astype(np.uint8)
+
+        # remove superpixels belonging to background or having < 10% tissue content
+        superpixels_masked = mask * superpixels
+        ids_before = np.unique(superpixels, return_counts=True)
+        ids_after = np.unique(superpixels_masked, return_counts=True)
+
+        ctr = 1
+        bg_merged_superpixels = np.zeros_like(superpixels)
+        for i in range(len(ids_before[0])):
+            id = ids_before[0][i]
+            if id in ids_after[0]:
+                idx = np.where(id == ids_after[0])[0]
+                ratio = ids_after[1][idx] / ids_before[1][i]
+                if ratio >= 0.1:
+                    bg_merged_superpixels[superpixels == id] = ctr
+                    ctr += 1
+
+        return bg_merged_superpixels

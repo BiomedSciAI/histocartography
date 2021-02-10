@@ -8,6 +8,9 @@ from abc import abstractmethod
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict
+import copy
+from matplotlib import pyplot as plt
+from histocartography.preprocessing.tissue_mask import HistomicstkTissueMask
 
 import cv2
 import h5py
@@ -467,12 +470,27 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         superpixels += 1  # Handle regionprops that ignores all values of 0
         return superpixels
 
+    def plot(self, img, cmap=''):
+        if cmap != '':
+            plt.imshow(img, cmap=cmap)
+        else:
+            plt.imshow(img)
+        plt.show()
+
     def _merge_superpixels(
         self, input_image: np.ndarray, initial_superpixels: np.ndarray
     ) -> np.ndarray:
-        g = self._generate_graph(input_image, initial_superpixels)
+        # Get tissue region masked superpixels
+        obj = HistomicstkTissueMask(base_path=None)
+        superpixels = obj.process(image=input_image,
+                                  superpixels=initial_superpixels)
+        mask = np.zeros_like(superpixels)
+        mask[superpixels > 0] = 1
+
+        # Merge superpixels within tissue region
+        g = self._generate_graph(input_image, superpixels)
         merged_superpixels = graph.merge_hierarchical(
-            initial_superpixels,
+            superpixels,
             g,
             thresh=self.threshold,
             rag_copy=False,
@@ -481,6 +499,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             weight_func=self._weighting_function,
         )
         merged_superpixels += 1  # Handle regionprops that ignores all values of 0
+        merged_superpixels = merged_superpixels * mask
         return merged_superpixels
 
     @abstractmethod
@@ -711,6 +730,8 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
         self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> np.ndarray:
         g = graph.RAG(superpixels, connectivity=self.connectivity)
+        if 0 in g.nodes:
+            g.remove_node(n=0)      # remove background node
 
         for n in g:
             g.nodes[n].update(
@@ -727,6 +748,8 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
 
         for index in np.ndindex(superpixels.shape):
             current = superpixels[index]
+            if current == 0:
+                continue
             g.nodes[current]["N"] += 1
             g.nodes[current]["x"] += input_image[index]
             g.nodes[current]["y"] = np.vstack(

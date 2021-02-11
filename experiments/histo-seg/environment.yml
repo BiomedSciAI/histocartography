@@ -25,7 +25,6 @@ dependencies:
     - tqdm==4.50.2
     - torch-lr-finder==0.2.1
     - nibabel==3.2.1
-    - histomicstk
     # Optional
     - pylint
     - black

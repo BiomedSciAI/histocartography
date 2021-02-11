@@ -63,6 +63,7 @@ DATASET_PATH = BASE_PATH / "datasets"
 
 IMAGES_DF = BASE_PATH / "images.pickle"
 ANNOTATIONS_DF = BASE_PATH / "annotations.pickle"
+LABELS_DF = BASE_PATH / "image_level_annotations.pickle"
 
 MASK_PREFIX = "mask_"
 IMAGE_PREFIX = "ZT"
@@ -264,12 +265,36 @@ def generate_labels() -> None:
     combined_df.to_pickle(BASE_PATH / "image_level_annotations.pickle")
 
 
+def select_label(df, mode="new_labels"):
+    all_names = pd.unique(df.name)
+    if mode == "new_labels":
+        new_df = df[df["pathologist"] == 3].set_index("name")
+        old_df = df[df["pathologist"] == 1].set_index("name")
+        new_names = pd.unique(new_df.index)
+        missing_names = set(all_names) - set(new_names)
+        missing_df = old_df.loc[missing_names]
+        df = new_df.copy()
+        df = df.append(missing_df)
+    elif mode == "original_labels":
+        df = df[df["pathologist"] == 1].set_index("name").copy()
+    return df
+
+
+def to_mapper(df):
+    mapper = dict()
+    for name, row in df.iterrows():
+        mapper[name] = np.array(
+            [row["benign"], row["grade3"], row["grade4"], row["grade5"]]
+        )
+    return mapper
+
+
 def prepare_graph_datasets(
     graph_directory: str,
-    patch_size: int,
-    use_patches_for_validation: bool,
-    training_slides: Optional[List[int]] = None,
-    validation_slides: Optional[List[int]] = None,
+    patch_size: Optional[int] = None,
+    use_patches_for_validation: bool = False,
+    training_slides: Optional[List[int]] = (111, 199, 204),
+    validation_slides: Optional[List[int]] = (76,),
     train_fraction: Optional[float] = None,
     overfit_test: bool = False,
     centroid_features: str = "no",
@@ -278,6 +303,8 @@ def prepare_graph_datasets(
     tissue_mask_directory: Optional[str] = None,
     use_augmentation_dataset: bool = False,
     augmentation_mode: Optional[bool] = False,
+    image_labels_mode: Optional[str] = "original_labels",
+    supervision: Optional[dict] = None,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -296,15 +323,28 @@ def prepare_graph_datasets(
 
     graph_directory = PREPROCESS_PATH / graph_directory
     superpixel_directory = graph_directory / "superpixels"
-    tissue_mask_directory = graph_directory / "tissue_masks"
+    if not superpixel_directory.exists():
+        superpixel_directory = graph_directory / ".." / ".."
+    new_tissue_mask_directory = graph_directory / "tissue_masks"
+    if not new_tissue_mask_directory.exists():
+        new_tissue_mask_directory = find_superpath(
+            graph_directory, tissue_mask_directory
+        )
     log_preprocessing_parameters(graph_directory)
     all_metadata = merge_metadata(
         pd.read_pickle(IMAGES_DF),
         pd.read_pickle(ANNOTATIONS_DF),
         graph_directory=graph_directory,
         superpixel_directory=superpixel_directory,
-        tissue_mask_directory=tissue_mask_directory,
+        tissue_mask_directory=new_tissue_mask_directory,
         add_image_sizes=True,
+    )
+    labels_metadata = pd.read_pickle(LABELS_DF)
+    training_label_mapper = to_mapper(
+        select_label(labels_metadata, mode=image_labels_mode)
+    )
+    validation_label_mapper = to_mapper(
+        select_label(labels_metadata, mode="original_labels")
     )
     if train_fraction is not None:
         train_indices, validation_indices = train_test_split(
@@ -334,8 +374,8 @@ def prepare_graph_datasets(
         precomputed_std = None
 
     if overfit_test:
-        training_metadata = training_metadata.sample(1)
-        validation_metadata = validation_metadata.sample(1)
+        training_metadata = training_metadata.sample(38)
+        validation_metadata = validation_metadata.sample(10)
 
     if patch_size is None:
         patch_size_augmentation = None
@@ -349,6 +389,7 @@ def prepare_graph_datasets(
         "centroid_features": centroid_features,
         "mean": precomputed_mean,
         "std": precomputed_std,
+        "image_label_mapper": training_label_mapper,
     }
     validation_arguments = {
         "patch_size": patch_size_augmentation if use_patches_for_validation else None,
@@ -359,22 +400,38 @@ def prepare_graph_datasets(
         "std": precomputed_std,
         "return_segmentation_info": True,
         "segmentation_downsample_ratio": downsample_segmentation_maps,
+        "image_label_mapper": validation_label_mapper,
     }
+
+    # Handle supervision modes
+    supervision_mode = (
+        supervision.get("mode", "tissue_level")
+        if supervision is not None
+        else "tissue_level"
+    )
+    if supervision_mode == "tissue_level":
+        training_arguments["tissue_metadata"] = training_metadata
+        training_arguments["image_metadata"] = None
+        validation_arguments["tissue_metadata"] = validation_metadata
+        validation_arguments["image_metadata"] = None
+    elif supervision_mode == "image_level":
+        training_arguments["tissue_metadata"] = None
+        training_arguments["image_metadata"] = training_metadata
+        validation_arguments["tissue_metadata"] = validation_metadata
+        validation_arguments["image_metadata"] = None
+    else:
+        raise NotImplementedError
 
     if use_augmentation_dataset:
         training_dataset = AugmentedGraphClassificationDataset(
-            training_metadata, augmentation_mode=augmentation_mode, **training_arguments
+            augmentation_mode=augmentation_mode, **training_arguments
         )
         validation_dataset = AugmentedGraphClassificationDataset(
-            validation_metadata, augmentation_mode=None, **validation_arguments
+            augmentation_mode=None, **validation_arguments
         )
     else:
-        training_dataset = GraphClassificationDataset(
-            training_metadata, **training_arguments
-        )
-        validation_dataset = GraphClassificationDataset(
-            validation_metadata, **validation_arguments
-        )
+        training_dataset = GraphClassificationDataset(**training_arguments)
+        validation_dataset = GraphClassificationDataset(**validation_arguments)
 
     return training_dataset, validation_dataset
 
@@ -382,12 +439,12 @@ def prepare_graph_datasets(
 def prepare_graph_testset(
     graph_directory: str,
     test: bool = False,
-    tissue_mask_directory: Optional[str] = None,
     centroid_features: str = "no",
     normalize_features: bool = False,
     test_slides: Optional[List[int]] = TEST_SLIDES,
     use_augmentation_dataset: bool = False,
     augmentation_mode: Optional[bool] = False,
+    image_labels_mode: Optional[str] = "original_labels",
     **kwargs,
 ) -> Dataset:
     graph_directory = PREPROCESS_PATH / graph_directory
@@ -411,6 +468,8 @@ def prepare_graph_testset(
         tissue_mask_directory=tissue_mask_directory,
         add_image_sizes=True,
     )
+    labels_metadata = pd.read_pickle(LABELS_DF)
+    label_mapper = to_mapper(select_label(labels_metadata, mode="original_labels"))
     test_metadata = all_metadata[all_metadata.slide.isin(test_slides)]
     test_metadata = test_metadata.join(pathologist2_metadata[["annotation2_path"]])
 
@@ -442,15 +501,17 @@ def prepare_graph_testset(
         "mean": precomputed_mean,
         "std": precomputed_std,
         "return_segmentation_info": True,
-        "return_names": True,
+        "image_label_mapper": label_mapper,
     }
     test_arguments.update(kwargs)
     if use_augmentation_dataset:
         test_dataset = AugmentedGraphClassificationDataset(
-            test_metadata, augmentation_mode=None, **test_arguments
+            tissue_metadata=test_metadata, augmentation_mode=None, **test_arguments
         )
     else:
-        test_dataset = GraphClassificationDataset(test_metadata, **test_arguments)
+        test_dataset = GraphClassificationDataset(
+            tissue_metadata=test_metadata, **test_arguments
+        )
     return test_dataset
 
 
@@ -570,11 +631,11 @@ def prepare_patch_testset(
         test_metadata = test_metadata.sample(1)
 
     if normalizer is not None:
-        mean = torch.Tensor(normalizer["mean"])
-        std = torch.Tensor(normalizer["std"])
+        mean = normalizer["mean"]
+        std = normalizer["std"]
     else:
-        mean = torch.Tensor([0, 0, 0])
-        std = torch.Tensor([1, 1, 1])
+        mean = [0, 0, 0]
+        std = [1, 1, 1]
 
     return ImageDataset(
         metadata=test_metadata,

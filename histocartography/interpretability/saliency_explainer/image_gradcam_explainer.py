@@ -9,11 +9,10 @@ from torchvision.transforms.functional import resize, to_tensor, to_pil_image
 from matplotlib import cm
 import cv2
 
-from histocartography.interpretability.saliency_explainer.grad_cam import GradCAM
+from histocartography.interpretability.saliency_explainer.grad_cam import LegacyGradCAM
 from histocartography.interpretability.explanation import ImageExplanation
 from histocartography.utils.torch import torch_to_list, torch_to_numpy
 from histocartography.interpretability.constants import PATCH_SIZE, PATCH_SCALE, STRIDE, PATCH_RESIZE, data_transformation
-
 
 
 class ImageGradCAMExplainer(BaseExplainer):
@@ -75,7 +74,7 @@ class ImageGradCAMExplainer(BaseExplainer):
                 patch = cv2.resize(patch, (PATCH_RESIZE, PATCH_RESIZE), interpolation=cv2.INTER_NEAREST)
 
                 # Hook the corresponding layer in the model
-                extractor = GradCAM(self.model, self.conv_layer)
+                extractor = LegacyGradCAM(self.model, self.conv_layer)
 
                 # Preprocess image
                 patch_pil = data_transformation(Image.fromarray(patch), self.device)

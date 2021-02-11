@@ -172,7 +172,6 @@ class HistomicstkTissueMask(TissueMask):
         kernel_size=20,
         dilation_steps=1,
         background_gray_value=228,
-        deconvolve_first=False,
         downsampling_factor=4,
     ) -> None:
         """
@@ -191,7 +190,6 @@ class HistomicstkTissueMask(TissueMask):
                                                  resolution. Defaults to 1.
         """
         self.n_thresholding_steps = n_thresholding_steps
-        self.deconvolve_first = deconvolve_first
         self.sigma = sigma
         self.min_size = min_size
         self.kernel_size = kernel_size
@@ -236,7 +234,6 @@ class HistomicstkTissueMask(TissueMask):
         while True:
             _, mask_ = get_tissue_mask(
                 image,
-                deconvolve_first=self.deconvolve_first,
                 n_thresholding_steps=self.n_thresholding_steps,
                 sigma=self.sigma,
                 min_size=self.min_size,

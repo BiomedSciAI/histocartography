@@ -1,0 +1,68 @@
+pipeline:
+  inputs:
+  - path
+  - annotation_path
+  stages:
+    - io:
+        class: ImageLoader
+        inputs:
+        - path
+        outputs:
+        - image
+    - stain_normalizers:
+        class: VahadaneStainNormalizer
+        inputs:
+        - image
+        outputs:
+        - normalized_image
+        params:
+          target: 18B0003896D
+    - tissue_mask:
+        class: BrightnessThresholdTissueMask
+        inputs:
+        - normalized_image
+        outputs:
+        - tissue_mask
+        params:
+          blur_size: 25
+          dilation_steps: 5
+          erosion_steps: 10
+          kernel_size: 20
+    - feature_extraction:
+        class: AugmentedGridDeepFeatureExtractor
+        inputs:
+        - normalized_image
+        outputs:
+        - raw_features
+        params:
+          architecture: mobilenet_v2
+          num_workers: 16
+          batch_size: 512
+          rotations:
+            - 0
+            - 90
+            - 180
+            - 270
+          flips:
+            - 'n'
+            - 'h'
+          normalizer:
+            type: imagenet
+            mean:
+              - 0.485
+              - 0.456
+              - 0.406
+            std:
+              - 0.229
+              - 0.224
+              - 0.225
+          patch_size: 224
+          stride: 32
+          downsample_factor: 1
+          verbose: True
+params:
+  dataset: sicapv2_wsi
+  save: True
+  cores: 4
+  labels: True
+  link_directory: null

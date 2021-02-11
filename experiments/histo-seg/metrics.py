@@ -62,24 +62,43 @@ class SegmentationMetric(Metric):
         Returns:
             torch.Tensor: Computed metric
         """
-        if isinstance(ground_truth, torch.Tensor):
-            ground_truth = ground_truth.detach().cpu().numpy()
-        if isinstance(prediction, torch.Tensor):
-            prediction = prediction.detach().cpu().numpy()
-        assert ground_truth.shape == prediction.shape
+        if isinstance(ground_truth, list):
+            assert len(ground_truth) == len(prediction)
+            prediction_copy = list()
+            ground_truth_copy = list()
+            for sample_gt, sample_pred in zip(ground_truth, prediction):
+                if isinstance(sample_gt, torch.Tensor):
+                    sample_gt = sample_gt.detach().cpu().numpy()
+                if isinstance(sample_pred, torch.Tensor):
+                    sample_pred = sample_pred.detach().cpu().numpy()
+                sample_pred = sample_pred.copy()
+                sample_pred[sample_gt == self.background_label] = self.background_label
+                prediction_copy.append(sample_pred)
+                ground_truth_copy.append(sample_gt)
+            assert len(prediction) == len(prediction_copy)
+            assert len(ground_truth) == len(ground_truth_copy)
+            metric = self._compute_metric(
+                ground_truth=ground_truth_copy, prediction=prediction_copy
+            )
+        else:
+            if isinstance(ground_truth, torch.Tensor):
+                ground_truth = ground_truth.detach().cpu().numpy()
+            if isinstance(prediction, torch.Tensor):
+                prediction = prediction.detach().cpu().numpy()
+            assert ground_truth.shape == prediction.shape
 
-        if len(prediction.shape) == 2:
-            prediction = prediction[np.newaxis, :, :]
-            ground_truth = ground_truth[np.newaxis, :, :]
-        # Now we have shape BATCH x H x W
+            if len(prediction.shape) == 2:
+                prediction = prediction[np.newaxis, :, :]
+                ground_truth = ground_truth[np.newaxis, :, :]
+            # Now we have shape BATCH x H x W
 
-        # Discard background class
-        prediction_copy = prediction.copy()
-        prediction_copy[ground_truth == self.background_label] = self.background_label
+            # Discard background class
+            prediction_copy = prediction.copy()
+            prediction_copy[ground_truth == self.background_label] = self.background_label
 
-        metric = self._compute_metric(
-            ground_truth=ground_truth, prediction=prediction_copy
-        )
+            metric = self._compute_metric(
+                ground_truth=ground_truth, prediction=prediction_copy
+            )
         return np.nanmean(metric, axis=0)
 
 
@@ -139,10 +158,10 @@ class IoU(SegmentationMetric):
             torch.Tensor: Computed IoU
         """
         class_ious = list()
-        for i in range(ground_truth.shape[0]):
+        for pred, gt in zip(prediction, ground_truth):
             class_ious.append(
                 self._compute_sample_metric(
-                    prediction=prediction[i], ground_truth=ground_truth[i], nan=nan
+                    prediction=pred, ground_truth=gt, nan=nan
                 )
             )
         return np.stack(class_ious)
@@ -260,10 +279,10 @@ class F1Score(SegmentationMetric):
             torch.Tensor: Computed F1 scores
         """
         class_f1s = list()
-        for i in range(ground_truth.shape[0]):
+        for pred, gt in zip(prediction, ground_truth):
             class_f1s.append(
                 self._compute_sample_metric(
-                    prediction=prediction[i], ground_truth=ground_truth[i], nan=nan
+                    prediction=pred, ground_truth=gt, nan=nan
                 )
             )
         return np.stack(class_f1s)
@@ -506,9 +525,9 @@ class GleasonScoreMetric(Metric):
         tissue_mask=None,
         **kwargs,
     ) -> Any:
-        assert prediction.shape == ground_truth.shape
-        assert len(prediction.shape) == 3
-        assert tissue_mask is None or len(tissue_mask) == prediction.shape[0]
+        assert len(prediction) == len(ground_truth)
+        assert len(prediction[0].shape) == 2, f"Expected 2D predictions, but got {len(prediction[0].shape)}: {prediction}"
+        assert tissue_mask is None or len(tissue_mask) == len(prediction)
 
         gleason_grade_ground_truth = list()
         gleason_grade_prediction = list()

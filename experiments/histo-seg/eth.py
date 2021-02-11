@@ -46,6 +46,7 @@ MASK_VALUE_TO_TEXT = {
 MASK_VALUE_TO_COLOR = {0: "green", 1: "blue", 2: "yellow", 3: "red", 4: "white"}
 NR_CLASSES = 4
 BACKGROUND_CLASS = 4
+VARIABLE_SIZE = False
 
 TMA_IMAGE_PATH = BASE_PATH / "TMA_Images"
 TRAIN_ANNOTATION_PATH = BASE_PATH / "Gleason_masks_train"

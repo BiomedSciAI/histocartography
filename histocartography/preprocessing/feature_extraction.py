@@ -7,6 +7,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from tqdm.auto import tqdm
 import cv2
 import numpy as np
 import torch
@@ -968,11 +969,13 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         normalizer: Optional[dict] = None,
         batch_size: int = 32,
         num_workers: int = 0,
+        verbose: bool = False,
         **kwargs,
     ) -> None:
         self.architecture = self._preprocess_architecture(architecture)
         self.patch_size = patch_size
         self.stride = stride
+        self.verbose = verbose
         self.downsample_factor = downsample_factor
         if normalizer is not None:
             self.normalizer = normalizer.get("type", "unknown")
@@ -1028,7 +1031,7 @@ class GridDeepFeatureExtractor(FeatureExtractor):
             dtype=torch.float32,
             device=self.device,
         )
-        for i, patch_batch in patch_loader:
+        for i, patch_batch in tqdm(patch_loader, total=len(patch_loader), disable=not self.verbose):
             embeddings = self.patch_feature_extractor(patch_batch)
             features[i, :] = embeddings
         return (

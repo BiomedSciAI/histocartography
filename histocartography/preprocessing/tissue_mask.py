@@ -90,3 +90,24 @@ class BrightnessThresholdTissueMask(TissueMask):
         # crop to restore original image
         ws = np.array(img)[bb:-bb, bb:-bb]
         return ws
+
+
+class AnnotationPostProcessor(PipelineStep):
+    def __init__(self, base_path: Union[None, str, Path], background_index) -> None:
+        self.background_index = background_index
+        super().__init__(base_path=base_path)
+
+    def mkdir(self) -> Path:
+        """Create path to output files"""
+        assert (
+            self.base_path is not None
+        ), "Can only create directory if base_path was not None when constructing the object"
+        return self.base_path
+
+    def process(self, annotation, tissue_mask) -> Any:
+        annotation = annotation.copy()
+        annotation[~tissue_mask.astype(bool)] = self.background_index
+        return annotation
+
+    def process_and_save(self, output_name, *args, **kwargs: Any) -> Any:
+        return self.process(*args, **kwargs)

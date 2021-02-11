@@ -105,6 +105,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
     def __init__(
         self,
         nr_superpixels: int,
+        dynamic_superpixels: bool = False,
         blur_kernel_size: float = 0,
         max_iter: int = 10,
         compactness: int = 30,
@@ -118,6 +119,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             compactness (int, optional): Compactness of the superpixels. Defaults to 30.
         """
         self.nr_superpixels = nr_superpixels
+        self.dynamic_superpixels = dynamic_superpixels
         self.blur_kernel_size = blur_kernel_size
         self.max_iter = max_iter
         self.compactness = compactness
@@ -133,10 +135,19 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         """
         if self.color_space == "hed":
             image = rgb2hed(image)
+        if self.dynamic_superpixels:
+            nr_superpixels = (
+                image.shape[0]
+                * image.shape[1]
+                * self.downsampling_factor
+                * self.downsampling_factor
+            ) // self.nr_superpixels
+        else:
+            nr_superpixels = self.nr_superpixels
         superpixels = slic(
             image,
             sigma=self.blur_kernel_size,
-            n_segments=self.nr_superpixels,
+            n_segments=nr_superpixels,
             max_iter=self.max_iter,
             compactness=self.compactness,
         )
@@ -435,6 +446,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
     def __init__(
         self,
         nr_superpixels: int,
+        dynamic_superpixels: bool = False,
         blur_kernel_size: float = 0,
         compactness: int = 30,
         threshold: float = 0.06,
@@ -451,6 +463,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             connectivity (int, optional): Connectivity for merging graph. Defaults to 2.
         """
         self.nr_superpixels = nr_superpixels
+        self.dynamic_superpixels = dynamic_superpixels
         self.blur_kernel_size = blur_kernel_size
         self.compactness = compactness
         self.threshold = threshold
@@ -458,10 +471,19 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         super().__init__(**kwargs)
 
     def _extract_initial_superpixels(self, image: np.ndarray) -> np.ndarray:
+        if self.dynamic_superpixels:
+            nr_superpixels = (
+                image.shape[0]
+                * image.shape[1]
+                * self.downsampling_factor
+                * self.downsampling_factor
+            ) // self.nr_superpixels
+        else:
+            nr_superpixels = self.nr_superpixels
         superpixels = slic(
             image,
             sigma=self.blur_kernel_size,
-            n_segments=self.nr_superpixels,
+            n_segments=nr_superpixels,
             compactness=self.compactness,
         )
         superpixels += 1  # Handle regionprops that ignores all values of 0

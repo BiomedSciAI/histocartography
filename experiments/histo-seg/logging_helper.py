@@ -138,6 +138,7 @@ def prepare_experiment(
 class LoggingHelper:
     def __init__(self, metrics_config, prefix="", **kwargs) -> None:
         self.metrics_config = metrics_config
+        self.variable_size = False
         self.prefix = prefix
         self._reset_epoch_stats()
         self.best_loss = float("inf")
@@ -190,10 +191,13 @@ class LoggingHelper:
     def _log_metrics(self, step):
         if len(self.logits) == 0 or len(self.labels) == 0:
             return list()
-        logits = torch.cat(self.logits)
-        labels = torch.cat(self.labels)
+        if not self.variable_size:
+            logits = torch.cat(self.logits)
+            labels = torch.cat(self.labels)
+        else:
+            logits = [item for sublist in self.logits for item in sublist]
+            labels = [item for sublist in self.labels for item in sublist]
         metric_values = list()
-
         name: str
         metric: Metric
         for name, metric in zip(self.metric_names, self.metrics):
@@ -260,6 +264,7 @@ class SegmentationLoggingHelper(LoggingHelper):
         self.cmap = ListedColormap(["green", "blue", "yellow", "red", "white"])
         self.leading_zeros = leading_zeros
         self.background_label = background_label
+        self.variable_size = True
 
     def _reset_epoch_stats(self):
         self.masks = list()
@@ -303,7 +308,10 @@ class SegmentationLoggingHelper(LoggingHelper):
                 segmentation_maps[
                     torch.as_tensor(~(self.masks[random_batch].astype(bool)))
                 ] = self.background_label
-            batch_leading_zeros = (annotations.shape[0] // 10) + 1
+            if self.variable_size:
+                batch_leading_zeros = 1
+            else:
+                batch_leading_zeros = (annotations.shape[0] // 10) + 1
             run_id = robust_mlflow(mlflow.active_run).info.run_id
             with tempfile.TemporaryDirectory(
                 prefix=run_id, dir=str(SCRATCH_PATH)

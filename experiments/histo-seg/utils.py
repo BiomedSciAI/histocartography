@@ -142,9 +142,12 @@ def merge_metadata(
     add_image_sizes: bool = False,
 ):
     # Prepare annotation paths
-    annot = annotation_metadata[annotation_metadata.pathologist == 1][
-        ["path", "name"]
-    ].set_index("name")
+    if "pathologist" in annotation_metadata:
+        annot = annotation_metadata[annotation_metadata.pathologist == 1][
+            ["path", "name"]
+        ].set_index("name")
+    else:
+        annot = annotation_metadata
     annot = annot.rename(columns={"path": "annotation_path"})
 
     # Join with image metadata

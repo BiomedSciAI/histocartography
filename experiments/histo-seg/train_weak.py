@@ -54,6 +54,7 @@ def train_graph_classifier(
 
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
+    VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE")
     prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
 
     # Data loaders
@@ -68,7 +69,7 @@ def train_graph_classifier(
     )
     validation_loader = DataLoader(
         validation_dataset,
-        batch_size=batch_size,
+        batch_size=1 if VARIABLE_SIZE else batch_size,
         collate_fn=collate_graphs,
         num_workers=num_workers,
     )

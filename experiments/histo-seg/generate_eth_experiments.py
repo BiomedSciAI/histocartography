@@ -19,6 +19,7 @@ if __name__ == "__main__":
         name="augmented_new_pretrained",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -63,6 +64,7 @@ if __name__ == "__main__":
         name="augmented_new_baseline",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -101,6 +103,7 @@ if __name__ == "__main__":
         name="two_hop_augmented_new_pretrained",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -146,6 +149,7 @@ if __name__ == "__main__":
         name="two_hop_augmented_new_baseline",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -185,6 +189,7 @@ if __name__ == "__main__":
         name="three_hop_augmented_new_pretrained",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -230,6 +235,7 @@ if __name__ == "__main__":
         name="three_hop_augmented_new_baseline",
         queue="prod.med",
         base="config/augmented_preprocess.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -266,7 +272,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="grid_graph", base="config/augmented_preprocess.yml"
+        name="grid_graph", base="config/augmented_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -301,7 +307,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="non_overlapping_graph", base="config/augmented_preprocess.yml"
+        name="non_overlapping_graph", base="config/augmented_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -329,7 +335,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        "color_merged_low_no_overlap", base="config/merged_preprocess.yml"
+        "color_merged_low_no_overlap", base="config/merged_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -363,7 +369,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        "color_merged_med_no_overlap", base="config/merged_preprocess.yml"
+        "color_merged_med_no_overlap", base="config/merged_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -397,7 +403,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        "color_merged_high_no_overlap", base="config/merged_preprocess.yml"
+        "color_merged_high_no_overlap", base="config/merged_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -431,7 +437,9 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        "color_merged_very_high_no_overlap", base="config/merged_preprocess.yml"
+        "color_merged_very_high_no_overlap",
+        base="config/merged_preprocess.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -465,7 +473,7 @@ if __name__ == "__main__":
         ],
     )
     GPUPreprocessingExperiment(
-        name="v10_no", base="config/augmented_preprocess.yml"
+        name="v10_no", base="config/augmented_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -498,7 +506,7 @@ if __name__ == "__main__":
         ],
     )
     GPUPreprocessingExperiment(
-        name="v11_standard", base="config/new_feature.yml"
+        name="v11_standard", base="config/new_feature.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -522,7 +530,7 @@ if __name__ == "__main__":
         ],
     )
     GPUPreprocessingExperiment(
-        name="v11_less_context", base="config/new_feature.yml"
+        name="v11_less_context", base="config/new_feature.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -546,7 +554,10 @@ if __name__ == "__main__":
         ],
     )
     GPUPreprocessingExperiment(
-        name="v11_more_finegrained", base="config/new_feature.yml", queue="prod.long"
+        name="v11_more_finegrained",
+        base="config/new_feature.yml",
+        queue="prod.long",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -570,7 +581,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v11_standard_low", base="config/new_preprocess.yml"
+        name="v11_standard_low", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -609,7 +620,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v11_standard_med", base="config/new_preprocess.yml"
+        name="v11_standard_med", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -648,7 +659,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v11_standard_high", base="config/new_preprocess.yml"
+        name="v11_standard_high", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -687,7 +698,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v11_standard_very_high", base="config/new_preprocess.yml"
+        name="v11_standard_very_high", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -726,7 +737,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v11_standard_no", base="config/new_preprocess_no_merge.yml"
+        name="v11_standard_no", base="config/new_preprocess_no_merge.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -764,7 +775,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v11_standard_40x", base="config/new_preprocess.yml"
+        name="v11_standard_40x", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -808,7 +819,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v11_standard_no_40x", base="config/new_preprocess_no_merge.yml"
+        name="v11_standard_no_40x", base="config/new_preprocess_no_merge.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -842,7 +853,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v12_standard_low", base="config/new_preprocess.yml"
+        name="v12_standard_low", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -881,7 +892,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v12_standard_med", base="config/new_preprocess.yml"
+        name="v12_standard_med", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -920,7 +931,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v12_standard_high", base="config/new_preprocess.yml"
+        name="v12_standard_high", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -959,7 +970,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v12_standard_very_high", base="config/new_preprocess.yml"
+        name="v12_standard_very_high", base="config/new_preprocess.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -1001,7 +1012,7 @@ if __name__ == "__main__":
         ],
     )
     CPUPreprocessingExperiment(
-        name="v12_standard_no", base="config/new_preprocess_no_merge.yml"
+        name="v12_standard_no", base="config/new_preprocess_no_merge.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -1040,7 +1051,9 @@ if __name__ == "__main__":
     )
 
     # ETH
-    StronglySupervisedGraphClassificationExperiment(name="multihop").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="multihop", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1096,7 +1109,9 @@ if __name__ == "__main__":
             ]
         ],
     )
-    StronglySupervisedGraphClassificationExperiment(name="v9_color_merged").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="v9_color_merged", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1148,7 +1163,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    StronglySupervisedGraphClassificationExperiment(name="v8_edge_merged").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="v8_edge_merged", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1200,7 +1217,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v10_old_image_level").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v10_old_image_level", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1243,7 +1262,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v10_new_image_level").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v10_new_image_level", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1287,7 +1308,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v10_image_level_dropout"
+        name="v10_image_level_dropout", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1335,7 +1356,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v10_gnn_layers").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v10_gnn_layers", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1383,7 +1406,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v10_augmentation").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v10_augmentation", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1433,7 +1458,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v10_lr").generate(
+    WeaklySupervisedGraphClassificationExperiment(name="v10_lr", path=PATH).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1479,7 +1504,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v11_old_image_level").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v11_old_image_level", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1522,7 +1549,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    StronglySupervisedGraphClassificationExperiment(name="v11_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="v11_pixel_level", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1575,7 +1604,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v11_no_old_image_level"
+        name="v11_no_old_image_level", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1619,7 +1648,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    StronglySupervisedGraphClassificationExperiment(name="v11_no_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="v11_no_pixel_level", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -1672,7 +1703,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v11_old_image_level_longer"
+        name="v11_old_image_level_longer", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1718,7 +1749,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v11_no_old_image_level_longer"
+        name="v11_no_old_image_level_longer", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1764,7 +1795,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v11_new_image_level_longer"
+        name="v11_new_image_level_longer", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1810,7 +1841,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v11_old_image_level_max"
+        name="v11_old_image_level_max", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1861,7 +1892,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v11_old_image_level_gnn"
+        name="v11_old_image_level_gnn", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1919,7 +1950,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v11_old_image_level_longer"
+        name="v11_old_image_level_longer", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -1965,7 +1996,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v12_old_image_level_longer"
+        name="v12_old_image_level_longer", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -2012,7 +2043,7 @@ if __name__ == "__main__":
         ],
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="v12_new_image_level_longer"
+        name="v12_new_image_level_longer", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -2059,7 +2090,7 @@ if __name__ == "__main__":
         ],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="v11_previous_pixel_level"
+        name="v11_previous_pixel_level", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -2110,7 +2141,7 @@ if __name__ == "__main__":
         ],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="v12_previous_pixel_level"
+        name="v12_previous_pixel_level", path=PATH
     ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
@@ -2160,7 +2191,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v10_image_level_new").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v10_image_level_new", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -2204,7 +2237,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    WeaklySupervisedGraphClassificationExperiment(name="v10_image_level_old").generate(
+    WeaklySupervisedGraphClassificationExperiment(
+        name="v10_image_level_old", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -2248,7 +2283,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    StronglySupervisedGraphClassificationExperiment(name="v10_pixel_level").generate(
+    StronglySupervisedGraphClassificationExperiment(
+        name="v10_pixel_level", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "use_augmentation_dataset"], True),
             Parameter(
@@ -2296,7 +2333,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    SemiSupervisedGraphClassificationExperiment(name="v12_combine_13x").generate(
+    SemiSupervisedGraphClassificationExperiment(
+        name="v12_combine_13x", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "augmentation_mode"], "graph"),
         ],
@@ -2316,7 +2355,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    SemiSupervisedGraphClassificationExperiment(name="v11_med_13x_best_pixel").generate(
+    SemiSupervisedGraphClassificationExperiment(
+        name="v11_med_13x_best_pixel", path=PATH
+    ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
@@ -2326,13 +2367,19 @@ if __name__ == "__main__":
             Parameter(["train", "model", "gnn_config", "n_layers"], 6),
             Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
             Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
-            Parameter(["train", "model", "node_classifier_config", "seperate_heads"], True),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
         ],
         sequential=[
-            ParameterList(["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9])
+            ParameterList(
+                ["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9]
+            )
         ],
     )
-    SemiSupervisedGraphClassificationExperiment(name="v10_med_13x_best_image").generate(
+    SemiSupervisedGraphClassificationExperiment(
+        name="v10_med_13x_best_image", path=PATH
+    ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
@@ -2341,22 +2388,31 @@ if __name__ == "__main__":
             Parameter(["train", "data", "augmentation_mode"], "graph"),
             Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
             Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
-            Parameter(["train", "model", "graph_classifier_config", "input_dropout"], 0.5),
-            Parameter(["train", "model", "node_classifier_config", "seperate_heads"], True),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
             Parameter(["train", "params", "optimizer", "params", "lr"], 0.0001),
-            Parameter(["train", "params", "optimizer", "scheduler"], {"class": "ExponentialLR", "params": {"gamma": 0.995}}),
-            Parameter(["train", "params", "nr_epochs"], 1000)
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "params", "nr_epochs"], 1000),
         ],
         sequential=[
-            ParameterList(["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9])
+            ParameterList(
+                ["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9]
+            )
         ],
     )
-    SemiSupervisedGraphClassificationExperiment(name="v12_ps_combine_13x").generate(
+    SemiSupervisedGraphClassificationExperiment(
+        name="v12_ps_combine_13x", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "data", "augmentation_mode"], "graph"),
-            Parameter(
-                ["train", "data", "image_labels_mode"], "p+s"
-            )
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
         ],
         sequential=[
             ParameterList(["train", "params", "loss", "node_weight"], [0.2, 0.5, 0.8])
@@ -2374,50 +2430,63 @@ if __name__ == "__main__":
             )
         ],
     )
-    SemiSupervisedGraphClassificationExperiment(name="v11_ps_med_13x_best_pixel").generate(
+    SemiSupervisedGraphClassificationExperiment(
+        name="v11_ps_med_13x_best_pixel", path=PATH
+    ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_med_13x",
             ),
-            Parameter(
-                ["train", "data", "image_labels_mode"], "p+s"
-            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
             Parameter(["train", "data", "augmentation_mode"], "graph"),
             Parameter(["train", "model", "gnn_config", "n_layers"], 6),
             Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
             Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
-            Parameter(["train", "model", "node_classifier_config", "seperate_heads"], True),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
         ],
         sequential=[
-            ParameterList(["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9])
+            ParameterList(
+                ["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9]
+            )
         ],
     )
-    SemiSupervisedGraphClassificationExperiment(name="v10_ps_med_13x_best_image").generate(
+    SemiSupervisedGraphClassificationExperiment(
+        name="v10_ps_med_13x_best_image", path=PATH
+    ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v10_mobilenet_med_30x_no_overlap",
             ),
-            Parameter(
-                ["train", "data", "image_labels_mode"], "p+s"
-            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
             Parameter(["train", "data", "augmentation_mode"], "graph"),
             Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
             Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
-            Parameter(["train", "model", "graph_classifier_config", "input_dropout"], 0.5),
-            Parameter(["train", "model", "node_classifier_config", "seperate_heads"], True),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.5
+            ),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
             Parameter(["train", "params", "optimizer", "params", "lr"], 0.0001),
-            Parameter(["train", "params", "optimizer", "scheduler"], {"class": "ExponentialLR", "params": {"gamma": 0.995}}),
-            Parameter(["train", "params", "nr_epochs"], 1000)
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {"class": "ExponentialLR", "params": {"gamma": 0.995}},
+            ),
+            Parameter(["train", "params", "nr_epochs"], 1000),
         ],
         sequential=[
-            ParameterList(["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9])
+            ParameterList(
+                ["train", "params", "loss", "node_weight"], [0.1, 0.3, 0.5, 0.7, 0.9]
+            )
         ],
     )
 
     # Pretraining
-    PretrainingExperiment(name="baseline", queue="prod.long").generate(
+    PretrainingExperiment(name="baseline", queue="prod.long", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 2000),
         ],
@@ -2428,7 +2497,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="optimizer_long", queue="prod.long").generate(
+    PretrainingExperiment(name="optimizer_long", queue="prod.long", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 2000),
         ],
@@ -2446,7 +2515,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    PretrainingExperiment(name="batch_sizes_long", queue="prod.long").generate(
+    PretrainingExperiment(
+        name="batch_sizes_long", queue="prod.long", path=PATH
+    ).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 2000),
         ],
@@ -2457,7 +2528,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="step_lr").generate(
+    PretrainingExperiment(name="step_lr", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
         ],
@@ -2478,7 +2549,7 @@ if __name__ == "__main__":
             ]
         ],
     )
-    PretrainingExperiment(name="exponential_lr").generate(
+    PretrainingExperiment(name="exponential_lr", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-4),
         ],
@@ -2495,7 +2566,7 @@ if __name__ == "__main__":
             ]
         ],
     )
-    PretrainingExperiment(name="drop_patches").generate(
+    PretrainingExperiment(name="drop_patches", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
@@ -2515,7 +2586,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="drop_patches_on_val").generate(
+    PretrainingExperiment(name="drop_patches_on_val", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
@@ -2536,7 +2607,7 @@ if __name__ == "__main__":
             ),
         ],
     )
-    PretrainingExperiment(name="drop_unlabelled").generate(
+    PretrainingExperiment(name="drop_unlabelled", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
@@ -2556,7 +2627,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    PretrainingExperiment(name="balanced_batches").generate(
+    PretrainingExperiment(name="balanced_batches", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
@@ -2577,7 +2648,7 @@ if __name__ == "__main__":
             ParameterList(["train", "data", "drop_multiclass_patches"], [True, False]),
         ],
     )
-    PretrainingExperiment(name="encoder_pretraining").generate(
+    PretrainingExperiment(name="encoder_pretraining", path=PATH).generate(
         fixed=[
             Parameter(["train", "params", "nr_epochs"], 500),
             Parameter(["train", "params", "optimizer", "params", "lr"], 1e-3),
@@ -2601,7 +2672,7 @@ if __name__ == "__main__":
         ],
     )
 
-    CNNTestingExperiment(name="exponential_lr_decay").generate(
+    CNNTestingExperiment(name="exponential_lr_decay", path=PATH).generate(
         fixed=[
             Parameter(
                 ["test", "model", "architecture"],
@@ -2610,7 +2681,7 @@ if __name__ == "__main__":
         ],
         sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
     )
-    CNNTestingExperiment(name="step_lr_decay").generate(
+    CNNTestingExperiment(name="step_lr_decay", path=PATH).generate(
         fixed=[
             Parameter(
                 ["test", "model", "architecture"],
@@ -2619,7 +2690,7 @@ if __name__ == "__main__":
         ],
         sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
     )
-    CNNTestingExperiment(name="batch_size_and_sgd").generate(
+    CNNTestingExperiment(name="batch_size_and_sgd", path=PATH).generate(
         fixed=[
             Parameter(
                 ["test", "model", "architecture"],
@@ -2628,7 +2699,7 @@ if __name__ == "__main__":
         ],
         sequential=[ParameterList(["test", "params", "overlap"], [150, 175, 200, 210])],
     )
-    CNNTestingExperiment(name="various").generate(
+    CNNTestingExperiment(name="various", path=PATH).generate(
         sequential=[
             ParameterList(
                 ["test", "model", "architecture"],
@@ -2643,7 +2714,7 @@ if __name__ == "__main__":
             )
         ]
     )
-    CNNTestingExperiment(name="thresholds").generate(
+    CNNTestingExperiment(name="thresholds", path=PATH).generate(
         fixed=[
             Parameter(
                 ["test", "model", "architecture"],
@@ -2657,7 +2728,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    CNNTestingExperiment(name="normal_loader").generate(
+    CNNTestingExperiment(name="normal_loader", path=PATH).generate(
         sequential=[
             ParameterList(
                 ["test", "model", "architecture"],
@@ -2675,7 +2746,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    CNNTestingExperiment(name="balanced_loader").generate(
+    CNNTestingExperiment(name="balanced_loader", path=PATH).generate(
         sequential=[
             ParameterList(
                 ["test", "model", "architecture"],
@@ -2693,7 +2764,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    CNNTestingExperiment(name="classifier_pretrain").generate(
+    CNNTestingExperiment(name="classifier_pretrain", path=PATH).generate(
         sequential=[
             ParameterList(
                 ["test", "model", "architecture"],
@@ -2711,7 +2782,7 @@ if __name__ == "__main__":
             )
         ],
     )
-    CNNTestingExperiment(name="rerun_all").generate(
+    CNNTestingExperiment(name="rerun_all", path=PATH).generate(
         sequential=[
             [
                 ParameterList(
@@ -2768,7 +2839,9 @@ if __name__ == "__main__":
             )
         ],
     )
-    GNNTestingExperiment(name="rerun_failed", base="config/final_pixel.yml").generate(
+    GNNTestingExperiment(
+        name="rerun_failed", base="config/final_pixel.yml", path=PATH
+    ).generate(
         sequential=[
             [
                 ParameterList(
@@ -2817,7 +2890,7 @@ if __name__ == "__main__":
 
     # FINAL WEAKLY SUPERVISED RESULTS
     GraphClassifierExperiment(
-        name="rep_ws_v11_1", base="config/final_weak.yml"
+        name="rep_ws_v11_1", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2827,7 +2900,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     GraphClassifierExperiment(
-        name="rep_ws_v11_2", base="config/final_weak.yml"
+        name="rep_ws_v11_2", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2837,7 +2910,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     GraphClassifierExperiment(
-        name="rep_ws_v11_3", base="config/final_weak.yml"
+        name="rep_ws_v11_3", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2847,7 +2920,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     GraphClassifierExperiment(
-        name="rep_ws_v11_4", base="config/final_weak.yml"
+        name="rep_ws_v11_4", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2857,7 +2930,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     GraphClassifierExperiment(
-        name="rep_ws_v12_1", base="config/final_weak.yml"
+        name="rep_ws_v12_1", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2867,7 +2940,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     GraphClassifierExperiment(
-        name="rep_ws_v12_2", base="config/final_weak.yml"
+        name="rep_ws_v12_2", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2877,7 +2950,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     GraphClassifierExperiment(
-        name="rep_ws_v12_3", base="config/final_weak.yml"
+        name="rep_ws_v12_3", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2887,7 +2960,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     GraphClassifierExperiment(
-        name="rep_ws_v12_4", base="config/final_weak.yml"
+        name="rep_ws_v12_4", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2899,24 +2972,36 @@ if __name__ == "__main__":
 
     # FINAL CNN (ETH Parameters)
     PretrainingExperiment(
-        name="rep_eth", base="config/final_cnn_eth.yml", queue="prod.long"
+        name="rep_eth", base="config/final_cnn_eth.yml", queue="prod.long", path=PATH
     ).generate(repetitions=3)
     PretrainingExperiment(
-        name="rep_best_meaniou", base="config/final_cnn.yml", queue="prod.long"
+        name="rep_best_meaniou",
+        base="config/final_cnn.yml",
+        queue="prod.long",
+        path=PATH,
     ).generate(repetitions=3)
     PretrainingExperiment(
-        name="rep_good_meaniou", base="config/final_cnn2.yml", queue="prod.long"
+        name="rep_good_meaniou",
+        base="config/final_cnn2.yml",
+        queue="prod.long",
+        path=PATH,
     ).generate(repetitions=3)
     PretrainingExperiment(
-        name="rep_best_kappa1", base="config/final_cnn3.yml", queue="prod.long"
+        name="rep_best_kappa1",
+        base="config/final_cnn3.yml",
+        queue="prod.long",
+        path=PATH,
     ).generate(repetitions=3)
     PretrainingExperiment(
-        name="rep_best_kappa2", base="config/final_cnn4.yml", queue="prod.long"
+        name="rep_best_kappa2",
+        base="config/final_cnn4.yml",
+        queue="prod.long",
+        path=PATH,
     ).generate(repetitions=3)
 
     # FINAL PIXEL LEVEL
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_best_meaniou", base="config/final_pixel.yml"
+        name="rep_best_meaniou", base="config/final_pixel.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2927,7 +3012,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_good_meaniou", base="config/final_pixel.yml"
+        name="rep_good_meaniou", base="config/final_pixel.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2938,7 +3023,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_best_kappa", base="config/final_pixel.yml"
+        name="rep_best_kappa", base="config/final_pixel.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2949,7 +3034,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="rep_good_kappa", base="config/final_pixel.yml"
+        name="rep_good_kappa", base="config/final_pixel.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2962,7 +3047,7 @@ if __name__ == "__main__":
 
     # FINAL TMA LEVEL
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_best_meaniou", base="config/final_weak.yml"
+        name="rep_best_meaniou", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2973,7 +3058,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_good_meaniou", base="config/final_weak.yml"
+        name="rep_good_meaniou", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2984,7 +3069,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_best_kappa", base="config/final_weak.yml"
+        name="rep_best_kappa", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -2995,7 +3080,7 @@ if __name__ == "__main__":
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_good_kappa", base="config/final_weak.yml"
+        name="rep_good_kappa", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
@@ -3006,58 +3091,50 @@ if __name__ == "__main__":
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_ps_best_meaniou", base="config/final_weak.yml"
+        name="rep_ps_best_meaniou", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v10_mobilenet_med_30x_no_overlap",
             ),
-            Parameter(
-                ["train", "data", "image_labels_mode"], "p+s"
-            )
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
         ],
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_ps_good_meaniou", base="config/final_weak.yml"
+        name="rep_ps_good_meaniou", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_no_10x",
             ),
-            Parameter(
-                ["train", "data", "image_labels_mode"], "p+s"
-            )
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
         ],
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_ps_best_kappa", base="config/final_weak.yml"
+        name="rep_ps_best_kappa", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_low_13x",
             ),
-            Parameter(
-                ["train", "data", "image_labels_mode"], "p+s"
-            )
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
         ],
         repetitions=3,
     )
     WeaklySupervisedGraphClassificationExperiment(
-        name="rep_ps_good_kappa", base="config/final_weak.yml"
+        name="rep_ps_good_kappa", base="config/final_weak.yml", path=PATH
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_no_10x",
             ),
-            Parameter(
-                ["train", "data", "image_labels_mode"], "p+s"
-            )
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
         ],
         repetitions=3,
     )

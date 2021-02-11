@@ -58,7 +58,7 @@ train:
       graph:
         class: "GraphBCELoss"
     batch_size: 8
-    nr_epochs: 10
+    nr_epochs: 500
     num_workers: 8
     clip_gradient_norm: null
     dataset: "eth"

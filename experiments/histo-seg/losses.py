@@ -68,7 +68,7 @@ class NodeStochasticCrossEntropy(nn.Module):
         self.cross_entropy = nn.CrossEntropyLoss(ignore_index=background_label)
 
     def forward(
-        self, logits: torch.Tensor, targets: torch.Tensor, graph_associations: List[int]
+        self, logits: torch.Tensor, targets: torch.Tensor, node_associations: List[int]
     ) -> torch.Tensor:
         """Compute the loss of the given logits and target labels
 

@@ -9,14 +9,16 @@ train:
     validation_slides:
       - 76
     patch_size: null
-    graph_directory:  "outputs/v4_mobilenet_300"
-    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
+    graph_directory:  "outputs/v11_mobilenet_high_13x"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
-    augmentation_mode: node
+    augmentation_mode: "graph"
+    image_labels_mode: "new_labels"
+    supervision:
+      mode: image_level
   model:
     gnn_config:
       activation: "PReLU"
@@ -24,22 +26,17 @@ train:
       input_dim: 1282
       hidden_dim: 32
       layer_type: "gin_layer"
-      n_layers: 4
+      n_layers: 12
       output_dim: 32
       neighbor_pooling_type: "mean"
       graph_norm: False
       with_rlp: False
       edge_dim: null
-      dropout: 0.0
+      dropout: 0.5
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 32
-    node_classifier_config:
-      n_layers: 1
-      hidden_dim: 32
-      activation: "PReLU"
       input_dropout: 0.0
-      seperate_heads: False
   metrics:
     graph:
       - "MultiLabelBalancedAccuracy"
@@ -49,15 +46,20 @@ train:
       - "NodeClassificationF1Score"
     segmentation:
       - "GleasonScoreKappa"
+      - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
   params:
-    experiment_name: "anv_wsss_train_classifier"
+    experiment_name: "anv_wsss_gnn_weakly_supervised"
     experiment_tags: null
     optimizer:
       class: "Adam"
       params:
-        lr: 0.00003
+        lr: 0.0001
+      scheduler: 
+        class: ExponentialLR
+        params:
+          gamma: 0.995
     loss:
       graph:
         class: "GraphBCELoss"
@@ -68,9 +70,23 @@ train:
           drop_probability: 0.0
       node_weight: 0.5
     batch_size: 8
-    nr_epochs: 2000
+    nr_epochs: 1000
     num_workers: 8
-    clip_gradient_norm: 5.0
+    clip_gradient_norm: null
     dataset: "eth"
     seed: null
     validation_frequency: 5
+    autotest: True
+test:
+  data: {}
+  model:
+    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
+  params:
+    experiment_name: "anv_wsss_test_gnn"
+    experiment_tags: null
+    dataset: eth
+    operation: argmax
+    local_save_path: '/dataP/anv/data/ETH/gnn_test_masks'
+    mlflow_save_path: 'gnn_test_masks'
+    threshold: 0.25
+    use_grad_cam: False

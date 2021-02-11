@@ -28,26 +28,23 @@ pipeline:
           dilation_steps: 5
           erosion_steps: 10
           kernel_size: 20
-    - superpixel:
-        class: SLICSuperpixelExtractor
-        inputs:
-        - normalized_image
-        outputs:
-        - superpixels
-        params:
-          compactness: 30
-          nr_superpixels: 500
-          color_space: rgb
     - feature_extraction:
-        class: DeepFeatureExtractor
+        class: AugmentedGridDeepFeatureExtractor
         inputs:
         - normalized_image
-        - superpixels
         outputs:
-        - features
+        - raw_features
         params:
           architecture: mobilenet_v2
-          num_workers: 0
+          num_workers: 8
+          rotations:
+            - 0
+            - 90
+            - 180
+            - 270
+          flips:
+            - 'n'
+            - 'h'
           normalizer:
             type: imagenet
             mean:
@@ -58,38 +55,9 @@ pipeline:
               - 0.229
               - 0.224
               - 0.225
-          mask: False
-          size: 224
+          patch_size: 224
+          stride: 32
           downsample_factor: 1
-    - io:
-        class: ImageLoader
-        inputs:
-        - annotation_path
-        outputs:
-        - annotation
-    - graph_builders:
-        class: RAGGraphBuilder
-        inputs:
-        - superpixels
-        - features
-        - annotation
-        outputs:
-        - graph
-        params:
-          nr_classes: 5
-          hops: 1
-    - stats:
-        class: GraphDiameter
-        inputs:
-        - graph
-        outputs:
-        - graph_diameter
-    - stats:
-        class: SuperpixelCounter
-        inputs:
-        - superpixels
-        outputs:
-        - nr_superpixels
 params:
   dataset: eth
   save: True

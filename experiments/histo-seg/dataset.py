@@ -1,5 +1,4 @@
 """Dataloader for precomputed graphs in .bin format"""
-import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -11,7 +10,6 @@ import numpy as np
 import pandas as pd
 import torch
 from dgl.data.utils import load_graphs
-from dgl.graph import DGLGraph
 from histocartography.preprocessing.utils import fast_histogram
 from torch.utils.data import Dataset
 from torchvision.transforms import (
@@ -27,7 +25,7 @@ from torchvision.transforms import (
 )
 from tqdm.auto import tqdm
 
-from constants import CENTROID, FEATURES, GNN_NODE_FEAT_IN, LABEL
+from constants import CENTROID, FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
 
 
@@ -87,7 +85,7 @@ class GraphBatch:
 
     @property
     def is_strongly_supervised(self):
-        return self.node_labels is not None and self.graph_labels is None
+        return self.node_labels is not None
 
     @property
     def can_output_segmentation(self):
@@ -172,6 +170,14 @@ class ImageDatapoint:
     name: Optional[str] = None
 
     @property
+    def can_output_segmentation(self):
+        return self.tissue_mask is not None
+
+    @property
+    def has_validation_information(self):
+        return self.can_output_segmentation and self.segmentation_mask is not None
+
+    @property
     def has_multiple_annotations(self):
         return (
             self.segmentation_mask is not None
@@ -188,10 +194,9 @@ class BaseDataset(Dataset):
     ) -> None:
         self._check_metadata(metadata)
         self.metadata = metadata
-        self.image_sizes = self._load_image_sizes(metadata)
         self.num_classes = num_classes
         self.background_index = background_index
-        self.names = np.array(metadata.index.tolist())
+        self._load(self.metadata)
 
     @staticmethod
     def _check_metadata(metadata: pd.DataFrame) -> None:
@@ -227,13 +232,6 @@ class BaseDataset(Dataset):
                     row.processed_image_path.exists()
                 ), f"Processed Image {name} referenced in metadata does not exist: {row.processed_image_path}"
 
-    @staticmethod
-    def _load_image_sizes(metadata: pd.DataFrame) -> List[Tuple[int, int]]:
-        image_sizes = list()
-        for _, row in metadata.iterrows():
-            image_sizes.append((row.height, row.width))
-        return image_sizes
-
     def _to_onehot_with_ignore(
         self, input_vector: Union[np.ndarray, torch.Tensor]
     ) -> torch.Tensor:
@@ -266,14 +264,84 @@ class BaseDataset(Dataset):
         )
         return clean_one_hot_vector.to(torch.int8)
 
+    def _downsample(self, array):
+        if self.downsample != 1:
+            new_size = (
+                int(array.shape[0] // self.downsample),
+                int(array.shape[1] // self.downsample),
+            )
+            array = cv2.resize(
+                array,
+                new_size,
+                interpolation=cv2.INTER_NEAREST,
+            )
+        return array
+
+    def _load_h5(self, path):
+        try:
+            with h5py.File(path, "r") as file:
+                if "default_key_0" in file:
+                    content = file["default_key_0"][()]
+                elif "default_key" in file:
+                    content = file["default_key"][()]
+                else:
+                    raise NotImplementedError(
+                        f"Superpixels not found in keys. Available are: {file.keys()}"
+                    )
+        except OSError as e:
+            print(f"Could not open {path}")
+            raise e
+        return self._downsample(content)
+
+    def _load_image(self, path):
+        image = read_image(path)
+        return self._downsample(image)
+
+    @staticmethod
+    def _load_name(i, row):
+        return i
+
+    @staticmethod
+    def _load_image_size(i, row):
+        return (row.height, row.width)
+
+    def _load_datapoint(self, i, row):
+        self._image_sizes.append(self._load_image_size(i, row))
+        self._names.append(self._load_name(i, row))
+
+    def _initalize_loading(self):
+        self._image_sizes = list()
+        self._names = list()
+
+    def _finish_loading(self):
+        self._image_sizes = np.array(self._image_sizes)
+        self._names = np.array(self._names)
+
+    def _load(self, metadata):
+        self._initalize_loading()
+        for i, row in tqdm(
+            metadata.iterrows(), total=len(metadata), desc=f"Dataset Loading"
+        ):
+            self._load_datapoint(i, row)
+        self._finish_loading()
+
+    @property
+    def names(self):
+        return self._names
+
+    @property
+    def image_sizes(self):
+        return self._image_sizes
+
 
 class GraphClassificationDataset(BaseDataset):
     """Dataset used for extracted and dumped graphs"""
 
     def __init__(
         self,
-        metadata: pd.DataFrame,
-        patch_size: Optional[Tuple[int, int]],
+        tissue_metadata: Optional[pd.DataFrame] = None,
+        image_metadata: Optional[pd.DataFrame] = None,
+        patch_size: Optional[Tuple[int, int]] = None,
         num_classes: int = 4,
         background_index: int = 4,
         centroid_features: str = "no",
@@ -281,7 +349,7 @@ class GraphClassificationDataset(BaseDataset):
         std: Optional[torch.Tensor] = None,
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
-        return_names: bool = False,
+        image_label_mapper: Optional[Dict[str, np.ndarray]] = None,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -289,110 +357,144 @@ class GraphClassificationDataset(BaseDataset):
             "only",
         ], f"centroid_features must be in [no, cat, only] but is {centroid_features}"
         assert (
-            "graph_path" in metadata
-        ), f"Metadata lacks graph path ({metadata.columns})"
-        super().__init__(metadata, num_classes, background_index)
+            tissue_metadata is None or "graph_path" in tissue_metadata
+        ), f"Metadata lacks graph path ({tissue_metadata.columns})"
+        assert (
+            image_metadata is None or "graph_path" in image_metadata
+        ), f"Metadata lacks graph path ({image_metadata.columns})"
+        # Set fields
+        self.return_segmentation_info = return_segmentation_info
+        self.USE_ANNOTATION2 = (
+            tissue_metadata is not None and "annotation2_path" in tissue_metadata
+        )
         self.patch_size = patch_size
         self.mean = mean
         self.std = std
-        self.names, self.graphs = self._load_graphs(metadata)
-        self.name_to_index = dict(zip(self.names, range(len(self.names))))
-        self.graph_labels = self._compute_graph_labels()
-        self._select_graph_features(centroid_features)
-        self.return_segmentation_info = return_segmentation_info
-        self.USE_ANNOTATION2 = "annotation2_path" in metadata
+        if tissue_metadata is not None:
+            self.set_mode("tissue")
+        else:
+            self.set_mode("image")
         self.downsample = segmentation_downsample_ratio
-        if return_segmentation_info:
-            self.superpixels = list()
-            self.annotations = list()
-            self.tissue_masks = list()
-            if self.USE_ANNOTATION2:
-                self.annotations2 = list()
-            for i, row in self.metadata.iterrows():
-                tissue_mask_path = row["tissue_mask_path"]
-                annotation_path = row["annotation_path"]
-                superpixel_path = row["superpixel_path"]
-                if self.USE_ANNOTATION2:
-                    annotation2_path = row["annotation2_path"]
-                    annotation2 = read_image(annotation2_path)
-                annotation = read_image(annotation_path)
-                tissue_mask = read_image(tissue_mask_path)
-                try:
-                    with h5py.File(superpixel_path, "r") as file:
-                        if "default_key_0" in file:
-                            superpixel = file["default_key_0"][()]
-                        elif "default_key" in file:
-                            superpixel = file["default_key"][()]
-                        else:
-                            raise NotImplementedError(
-                                f"Superpixels not found in keys. Available are: {file.keys()}"
-                            )
-                except OSError as e:
-                    print(f"Could not open {superpixel_path}")
-                    raise e
 
-                if self.downsample != 1:
-                    new_size = (
-                        annotation.shape[0] // self.downsample,
-                        annotation.shape[1] // self.downsample,
-                    )
-                    annotation = cv2.resize(
-                        annotation,
-                        new_size,
-                        interpolation=cv2.INTER_NEAREST,
-                    )
-                    superpixel = cv2.resize(
-                        superpixel,
-                        new_size,
-                        interpolation=cv2.INTER_NEAREST,
-                    )
-                    tissue_mask = cv2.resize(
-                        tissue_mask,
-                        new_size,
-                        interpolation=cv2.INTER_NEAREST,
-                    )
-                    if self.USE_ANNOTATION2:
-                        annotation2 = cv2.resize(
-                            annotation2,
-                            new_size,
-                            interpolation=cv2.INTER_NEAREST,
-                        )
-                self.superpixels.append(superpixel)
-                self.annotations.append(annotation)
-                self.tissue_masks.append(tissue_mask)
-                if self.USE_ANNOTATION2:
-                    self.annotations2.append(annotation2)
+        # Dataloading
+        self._manual_initalize_loading()
+        if tissue_metadata is not None:
+            super().__init__(tissue_metadata, num_classes, background_index)
+            self._tissue_indices = np.arange(0, len(self._graphs))
+            if image_metadata is not None:
+                self._load(image_metadata)
+                self._image_indices = np.arange(0, len(self._graphs))
+            else:
+                self._image_indices = []
+        else:
+            super().__init__(image_metadata, num_classes, background_index)
+            self._tissue_indices = []
+            self._image_indices = np.arange(0, len(self._graphs))
+        self._manual_finish_loading()
+
+        # Post processing
+        self.name_to_index = dict(zip(self.names, range(len(self.names))))
+        self._select_graph_features(centroid_features)
+        if image_label_mapper is not None:
+            self._graph_labels = self._load_image_level_labels(image_label_mapper)
+        else:
+            self._graph_labels = self._compute_graph_labels()
+
+    def _initalize_loading(self):
+        pass
+
+    def _manual_initalize_loading(self):
+        super()._initalize_loading()
+        self._graphs = list()
+        if self.return_segmentation_info:
+            self._superpixels = list()
+            self._annotations = list()
+            self._tissue_masks = list()
+            if self.USE_ANNOTATION2:
+                self._annotations2 = list()
+
+    def _finish_loading(self):
+        pass
+
+    def _manual_finish_loading(self):
+        super()._finish_loading()
+        self._graphs = np.array(self._graphs)
+        if self.return_segmentation_info:
+            self._superpixels = np.array(self._superpixels)
+            self._annotations = np.array(self._annotations)
+            self._tissue_masks = np.array(self._tissue_masks)
+            if self.USE_ANNOTATION2:
+                self._annotations2 = np.array(self._annotations2)
 
     @staticmethod
-    def _load_graphs(metadata: pd.DataFrame) -> Tuple[List[str], List[DGLGraph]]:
-        """Loads all graphs from disk into memory
+    def _load_graph(i, row):
+        graph = load_graphs(str(row["graph_path"]))[0][0]
+        graph.readonly()
+        return graph
 
-        Args:
-            metadata (pd.DataFrame): Metadata dataframe
+    def _load_datapoint(self, i, row):
+        super()._load_datapoint(i, row)
+        self._graphs.append(self._load_graph(i, row))
+        if self.return_segmentation_info:
+            self._superpixels.append(self._load_h5(row["superpixel_path"]))
+            if "annotation_path" in row:
+                self._annotations.append(self._load_image(row["annotation_path"]))
+            self._tissue_masks.append(self._load_image(row["tissue_mask_path"]))
+            if self.USE_ANNOTATION2 and "annotation2_path" in row:
+                self._annotations2.append(self._load_image(row["annotation2_path"]))
 
-        Returns:
-            Tuple[List[str], List[DGLGraph]]: A list of names and a list of graphs
-        """
-        names, graphs = list(), list()
-        for name, row in metadata.iterrows():
-            names.append(name)
-            graph = load_graphs(str(row["graph_path"]))[0][0]
-            graph.readonly()
-            graphs.append(graph)
-        return names, graphs
+    def _load_image_level_labels(self, label_mapper):
+        labels = list()
+        for name in self._names:
+            labels.append((label_mapper[name]))
+        return torch.as_tensor(labels)
+
+    @property
+    def graphs(self):
+        return self._graphs
+
+    @property
+    def graph_labels(self):
+        return self._graph_labels
+
+    @property
+    def superpixels(self):
+        return self._superpixels
+
+    @property
+    def tissue_masks(self):
+        return self._tissue_masks
+
+    @property
+    def annotations(self):
+        return self._annotations
+
+    @property
+    def annotations2(self):
+        return self._annotations2
+
+    @property
+    def indices(self):
+        if self.mode == "tissue":
+            return self._tissue_indices
+        elif self.mode == "image":
+            return self._image_indices
+        else:
+            raise NotImplementedError
 
     def _select_graph_features(self, centroid_features):
         for graph, image_size in zip(self.graphs, self.image_sizes):
+            feature_key = FEATURES if FEATURES in graph.ndata else FEATURES2
             assert (
-                len(graph.ndata[FEATURES].shape) == 2
+                len(graph.ndata[feature_key].shape) == 2
             ), f"Cannot use GraphClassificationDataset when the preprocessing was run with augmentations"
             if centroid_features == "only":
                 features = (graph.ndata[CENTROID] / torch.Tensor(image_size)).to(
                     torch.float32
                 )
-                graph.ndata.pop(FEATURES)
+                graph.ndata.pop(feature_key)
             else:
-                features = graph.ndata.pop(FEATURES).to(torch.float32)
+                features = graph.ndata.pop(feature_key).to(torch.float32)
                 if self.mean is not None and self.std is not None:
                     features = (features - self.mean) / self.std
 
@@ -407,6 +509,15 @@ class GraphClassificationDataset(BaseDataset):
                         dim=1,
                     )
             graph.ndata[GNN_NODE_FEAT_IN] = features
+
+    def _compute_graph_labels(self):
+        graph_labels = list()
+        for graph in self.graphs:
+            node_labels = graph.ndata[LABEL]
+            graph_label = self._to_onehot_with_ignore(pd.unique(node_labels.numpy()))
+            graph_label = graph_label.sum(axis=0)
+            graph_labels.append(graph_label)
+        return graph_labels
 
     @staticmethod
     def _get_indices_in_bounding_box(
@@ -468,34 +579,40 @@ class GraphClassificationDataset(BaseDataset):
         y_min = np.random.randint(full_size[1] - patch_size[1])
         return (x_min, y_min, x_min + patch_size[0], y_min + patch_size[1])
 
-    def _compute_graph_labels(self):
-        graph_labels = list()
-        for graph in self.graphs:
-            node_labels = graph.ndata[LABEL]
-            graph_label = self._to_onehot_with_ignore(pd.unique(node_labels.numpy()))
-            graph_label = graph_label.sum(axis=0)
-            graph_labels.append(graph_label)
-        return graph_labels
-
     def _build_datapoint(self, graph, node_labels, index):
-        return GraphDatapoint(
-            graph=graph,
-            graph_label=self.graph_labels[index],
-            node_labels=node_labels,
-            name=self.names[index],
-            instance_map=self.superpixels[index]
-            if self.return_segmentation_info
-            else None,
-            segmentation_mask=self.annotations[index]
-            if self.return_segmentation_info
-            else None,
-            tissue_mask=self.tissue_masks[index]
-            if self.return_segmentation_info
-            else None,
-            additional_segmentation_mask=self.annotations2[index]
-            if self.USE_ANNOTATION2
-            else None,
-        )
+        if self.mode == "tissue":
+            return GraphDatapoint(
+                graph=graph,
+                graph_label=self.graph_labels[index],
+                node_labels=node_labels,
+                name=self.names[index],
+                instance_map=self.superpixels[index]
+                if self.return_segmentation_info
+                else None,
+                segmentation_mask=self.annotations[index]
+                if self.return_segmentation_info
+                else None,
+                tissue_mask=self.tissue_masks[index]
+                if self.return_segmentation_info
+                else None,
+                additional_segmentation_mask=self.annotations2[index]
+                if self.USE_ANNOTATION2
+                else None,
+            )
+        else:
+            assert node_labels is None
+            return GraphDatapoint(
+                graph=graph,
+                graph_label=self.graph_labels[index],
+                node_labels=None,
+                name=self.names[index],
+                instance_map=self.superpixels[index]
+                if self.return_segmentation_info
+                else None,
+                tissue_mask=self.tissue_masks[index]
+                if self.return_segmentation_info
+                else None,
+            )
 
     def _get_random_subgraph(self, graph, node_labels, image_size):
         bounding_box = self._get_random_patch(
@@ -505,24 +622,36 @@ class GraphClassificationDataset(BaseDataset):
             graph.ndata[CENTROID], bounding_box
         )
         graph = self._generate_subgraph(graph, relevant_nodes)
-        node_labels = node_labels[relevant_nodes]
+        if node_labels is not None:
+            node_labels = node_labels[relevant_nodes]
         return graph, node_labels
 
-    def __getitem__(
-        self, index: int
-    ) -> Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]:
+    def set_mode(self, mode):
+        valid_modes = ["image", "tissue"]
+        assert (
+            mode in valid_modes
+        ), f"Dataset mode must be from {valid_modes}, but is {mode}"
+        self.mode = mode
+
+    def __getitem__(self, index: int) -> GraphDatapoint:
         """Returns a sample (patch) of graph i
 
         Args:
             index (int): Index of graph
 
         Returns:
-            Tuple[dgl.DGLGraph, torch.Tensor, torch.Tensor]: Subgraph and graph label and the node labels
+            GraphDatapoint: Subgraph and graph label and the node labels
         """
         if isinstance(index, str):
             index = self.name_to_index[index]
+        assert (
+            index in self.indices
+        ), f"Index ({index}) not in range of datapoints ({self.indices}) for this mode ({self.mode})."
         graph = self.graphs[index]
-        node_labels = graph.ndata[LABEL]
+        if self.mode == "tissue":
+            node_labels = graph.ndata[LABEL]
+        else:
+            node_labels = None
 
         # Random patch sampling
         if self.patch_size is not None:
@@ -539,17 +668,25 @@ class GraphClassificationDataset(BaseDataset):
         Returns:
             int: Length of the dataset
         """
-        return len(self.graphs)
+        if self.mode == "tissue":
+            return len(self._tissue_indices)
+        elif self.mode == "image":
+            assert len(self.graphs) == len(self._image_indices)
+            return len(self.graphs)
 
 
 class AugmentedGraphClassificationDataset(GraphClassificationDataset):
     """Dataset variation used for extracted and dumped graphs with augmentations"""
 
-    def __init__(
-        self, metadata: pd.DataFrame, augmentation_mode: Optional[str] = None, **kwargs
-    ) -> None:
+    def __init__(self, augmentation_mode: Optional[str] = None, **kwargs) -> None:
         self.augmentation_mode = augmentation_mode
-        super().__init__(metadata, **kwargs)
+        super().__init__(**kwargs)
+
+    @property
+    def nr_augmentations(self):
+        graph = self.graphs[0]
+        feature_key = FEATURES if FEATURES in graph.ndata else FEATURES2
+        return graph.ndata[feature_key].shape[1]
 
     def set_augmentation_mode(self, augmentation_mode: Optional[str] = None) -> None:
         """Set a fixed augmentation to be used
@@ -578,12 +715,16 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
         """
         if isinstance(index, str):
             index = self.name_to_index[index]
+        assert (
+            index in self.indices
+        ), f"Index ({index}) not in range of datapoints ({self.indices}) for this mode ({self.mode})."
         image_size = self.image_sizes[index]
         graph = self.graphs[index]
 
         augmented_graph = dgl.DGLGraph(graph_data=graph)
         augmented_graph.ndata[CENTROID] = graph.ndata[CENTROID]
-        augmented_graph.ndata[LABEL] = graph.ndata[LABEL]
+        if self.mode == "tissue":
+            augmented_graph.ndata[LABEL] = graph.ndata[LABEL]
 
         # Get features
         if self.centroid_features == "only":
@@ -591,10 +732,11 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                 torch.float32
             )
         else:
+            feature_key = FEATURES if FEATURES in graph.ndata else FEATURES2
             assert (
-                len(graph.ndata[FEATURES].shape) == 3
+                len(graph.ndata[feature_key].shape) == 3
             ), f"Cannot use AugmentedDataset when the preprocessing was not run with augmentations"
-            nr_nodes, nr_augmentations, _ = graph.ndata[FEATURES].shape
+            nr_nodes, nr_augmentations, _ = graph.ndata[feature_key].shape
 
             # Sample based on augmentation mode
             if self.augmentation_mode == "graph":
@@ -605,11 +747,18 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                 sample = torch.randint(
                     low=0, high=nr_augmentations, size=(nr_nodes,), dtype=torch.long
                 )
+            elif (
+                isinstance(self.augmentation_mode, str)
+                and self.augmentation_mode.isnumeric()
+            ):
+                sample = torch.ones(size=(nr_nodes,), dtype=torch.long) * int(
+                    self.augmentation_mode
+                )
             else:
                 sample = torch.zeros(size=(nr_nodes,), dtype=torch.long)
 
             # Select features to use
-            features = graph.ndata[FEATURES][torch.arange(nr_nodes), sample].to(
+            features = graph.ndata[feature_key][torch.arange(nr_nodes), sample].to(
                 torch.float32
             )
 
@@ -627,7 +776,10 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
                     dim=1,
                 )
         augmented_graph.ndata[GNN_NODE_FEAT_IN] = features
-        node_labels = augmented_graph.ndata[LABEL]
+        if self.mode == "tissue":
+            node_labels = augmented_graph.ndata[LABEL]
+        else:
+            node_labels = None
 
         # Random patch sampling
         if self.patch_size is not None:
@@ -656,77 +808,53 @@ class ImageDataset(BaseDataset):
         assert (
             "annotation_path" in metadata
         ), f"Metadata lacks annotation path ({metadata.columns})"
-        super().__init__(metadata, num_classes, background_index, **kwargs)
-        self.downsample_factor = downsample_factor
-        self.images, self.annotations = self._load_images()
-        self.tissue_masks = self._load_tissue_masks()
-        self.normalizer = Normalize(mean, std)
+        self.downsample = downsample_factor
         self.additional_annotation = "annotation2_path" in metadata
+        super().__init__(metadata, num_classes, background_index, **kwargs)
+        self.normalizer = Normalize(mean, std)
+
+    def _initalize_loading(self):
+        super()._initalize_loading()
+        self._images = list()
+        self._annotations = list()
+        self._tissue_masks = list()
         if self.additional_annotation:
-            self.annotations2 = self._load_annotation2()
+            self._annotations2 = list()
 
-    def _load_tissue_masks(self):
-        mask_paths = self.metadata["tissue_mask_path"].tolist()
-        tissue_masks = list()
-        for mask_path in mask_paths:
-            tissue_mask = read_image(mask_path)
-            if self.downsample_factor != 1:
-                new_size = (
-                    math.floor(tissue_mask.shape[0] / self.downsample_factor),
-                    math.floor(tissue_mask.shape[1] / self.downsample_factor),
-                )
-                tissue_mask = cv2.resize(
-                    tissue_mask, new_size, interpolation=cv2.INTER_NEAREST
-                )
-            tissue_masks.append(tissue_mask)
-        return torch.from_numpy(np.array(tissue_masks))
+    def _finish_loading(self):
+        super()._finish_loading()
+        self._images = torch.from_numpy(np.array(self._images))
+        self._annotations = np.array(self._annotations)
+        self._tissue_masks = np.array(self._tissue_masks)
+        if self.additional_annotation:
+            self._annotations2 = np.array(self._annotations2)
 
-    def _load_annotation2(self):
-        assert "annotation2_path" in self.metadata
-        annotation_paths = self.metadata["annotation2_path"].tolist()
-        annotations = list()
-        for annotation_path in annotation_paths:
-            annotation = read_image(annotation_path)
-            if self.downsample_factor != 1:
-                new_size = (
-                    math.floor(annotation.shape[0] / self.downsample_factor),
-                    math.floor(annotation.shape[1] / self.downsample_factor),
-                )
-                annotation = cv2.resize(
-                    annotation, new_size, interpolation=cv2.INTER_NEAREST
-                )
-            annotations.append(annotation)
-        return torch.from_numpy(np.array(annotations))
+    def _load_datapoint(self, i, row):
+        super()._load_datapoint(i, row)
+        self._images.append(self._load_image(row["processed_image_path"]))
+        self._annotations.append(self._load_image(row["annotation_path"]))
+        self._tissue_masks.append(self._load_image(row["tissue_mask_path"]))
+        if self.additional_annotation:
+            self._annotations2.append(self._load_image(row["annotation2_path"]))
 
-    def _load_images(self):
-        image_paths = self.metadata["processed_image_path"].tolist()
-        annotation_paths = self.metadata["annotation_path"].tolist()
-        images = list()
-        annotations = list()
-        for image_path, annotation_path in tqdm(
-            zip(image_paths, annotation_paths),
-            total=len(image_paths),
-            desc="dataset_loading",
-        ):
-            image = read_image(image_path)
-            annotation = read_image(annotation_path)
-            if self.downsample_factor != 1:
-                new_size = (
-                    math.floor(image.shape[0] / self.downsample_factor),
-                    math.floor(image.shape[1] / self.downsample_factor),
-                )
-                image = cv2.resize(image, new_size, interpolation=cv2.INTER_NEAREST)
-                annotation = cv2.resize(
-                    annotation, new_size, interpolation=cv2.INTER_NEAREST
-                )
-            images.append(image)
-            annotations.append(annotation)
-        return torch.from_numpy(np.array(images)), torch.from_numpy(
-            np.array(annotations)
-        )
+    @property
+    def images(self):
+        return self._images
+
+    @property
+    def annotations(self):
+        return self._annotations
+
+    @property
+    def tissue_masks(self):
+        return self._tissue_masks
+
+    @property
+    def annotations2(self):
+        return self._annotations2
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        image = self.images[index].permute(2, 0, 1).to(torch.float32) / 255
+        image = self.images[index].to(torch.float32).permute(2, 1, 0) / 255
         normalized_image = self.normalizer(image)
 
         return ImageDatapoint(

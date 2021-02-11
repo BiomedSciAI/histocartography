@@ -8,40 +8,40 @@ train:
     validation_slides:
       - 76
     train_fraction: null
-    patch_size: 317
-    stride: 112
-    downsample_factor: 3
+    patch_size: 250
+    stride: 375
+    downsample_factor: 4
     image_path: "VahadaneStainNormalizer(lambda_c=0.01,lambda_s=0.1,target=ZT111_4_C_7_1,thres=0.8)"
     tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     normalizer:
-      type: train
+      type: imagenet
       mean:
-        - 0.86489
-        - 0.63272
-        - 0.85928
+        - 0.485
+        - 0.456
+        - 0.406
       std:
-        - 0.020820
-        - 0.026320
-        - 0.017309
+        - 0.229
+        - 0.224
+        - 0.225
     augmentations:
       rotation:
-        degrees: 180
+        degrees: 30
         crop: 224
       flip:
       color_jitter:
-        saturation: 0.6
-        contrast: 0.5
-        brightness: 0.5
-        hue: 0.4
-    drop_multiclass_patches: False
+        saturation: 0.08
+        contrast: 0.08
+        brightness: 0.08
+        hue: 0.08
+    drop_multiclass_patches: True
     drop_tissue_patches: 0.0
     drop_validation_patches: False
-    drop_unlabelled_patches: False
+    drop_unlabelled_patches: True
   model:
     architecture: "mobilenet_v2"
     pretrained: True
-    dropout: 0.6
-    freeze: 17
+    dropout: 0.2
+    freeze: 0
   metrics:
     - "MultiLabelBalancedAccuracy"
     - "MultiLabelF1Score"
@@ -49,21 +49,23 @@ train:
     experiment_name: "anv_wsss_pretrain"
     experiment_tags: null
     optimizer:
-      class: "Adam"
+      class: "SGD"
       params:
         lr: 0.0001
+        momentum: 0.9
+        nesterov: True
       scheduler: null
     loss:
       class: "MultiLabelBCELoss"
     batch_size: 32
-    nr_epochs: 2000
+    nr_epochs: 505
     num_workers: 24
     clip_gradient_norm: null
     dataset: "eth"
     seed: null
     validation_frequency: 2
-    balanced_batches: False
-    pretrain_epochs: null
+    balanced_batches: True
+    pretrain_epochs: 5
     autotest: True
 test:
   data:
@@ -79,7 +81,7 @@ test:
         - 0.026320
         - 0.017309
   model:
-    architecture: "s3://mlflow/633/734fc44a6db048f5a081c33d0ba07428/artifacts/best.valid.MultiLabelBalancedAccuracy"
+    architecture: 's3://mlflow/633/19a9b40d174f40c4b217ddf84eb63e3b/artifacts/best.valid.MultiLabelBalancedAccuracy'
   params:
     experiment_name: "anv_wsss_test_cnn"
     experiment_tags: null
@@ -90,6 +92,6 @@ test:
     num_workers: 8
     overlap: 200
     operation: argmax
-    inference_mode: hacky
+    inference_mode: patch_based
     local_save_path: '/dataP/anv/data/ETH/cnn_test_masks'
     mlflow_save_path: 'cnn_test_masks'

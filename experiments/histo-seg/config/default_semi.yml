@@ -23,13 +23,15 @@ train:
       - 76
     patch_size: null
     graph_directory:  "outputs/v10_mobilenet_med_20x_no_overlap"
-    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
     augmentation_mode: null
+    image_labels_mode: "new_labels"
+    supervision:
+      mode: tissue_level
   model:
     gnn_config:
       activation: "PReLU"
@@ -43,35 +45,31 @@ train:
       graph_norm: False
       with_rlp: False
       edge_dim: null
-      dropout: 0.0
+      dropout: 0.5
     graph_classifier_config:
       n_layers: 2
       hidden_dim: 32
+      input_dropout: 0.5
     node_classifier_config:
-      n_layers: 1
+      n_layers: 2
       hidden_dim: 32
       activation: "PReLU"
-      input_dropout: 0.0
+      input_dropout: 0.5
       seperate_heads: True
   metrics:
     graph:
-      - "GraphClassificationBalancedAccuracy"
-      - "GraphClassificationF1Score"
-      - "GraphClassificationAUCROC"
-      - "GraphClassificationBenignAccuracy"
-      - "GraphClassificationGleason3Accuracy"
-      - "GraphClassificationGleason4Accuracy"
-      - "GraphClassificationGleason5Accuracy"
+      - "MultiLabelBalancedAccuracy"
+      - "MultiLabelF1Score"
     node:
-      - "NodeClassificationAccuracy"
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
     segmentation:
-      - "MeanIoU"
-      - "fIoU"
-      - "MeanF1Score"
+      - "GleasonScoreKappa"
+      - "GleasonScoreF1"
+      - "F1Score"
+      - "IoU"
   params:
-    experiment_name: "anv_wsss_train_classifier"
+    experiment_name: "anv_wsss_gnn_semi_supervised"
     experiment_tags: null
     optimizer:
       class: "Adam"
@@ -94,12 +92,11 @@ train:
     dataset: "eth"
     seed: null
     validation_frequency: 5
+    autotest: True
 test:
-  data:
-    use_augmentation_dataset: True
-    tissue_mask_directory: "BrightnessThresholdTissueMask(blur_size=25,dilation_steps=5,erosion_steps=10,kernel_size=20)"
+  data: {}
   model:
-    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
+    architecture: s3://mlflow/631/b7cecc7a7988472482be6544c661384f/artifacts/best.valid.segmentation.MeanIoU
   params:
     experiment_name: "anv_wsss_test_gnn"
     experiment_tags: null
@@ -108,3 +105,4 @@ test:
     local_save_path: '/dataP/anv/data/ETH/gnn_test_masks'
     mlflow_save_path: 'gnn_test_masks'
     threshold: 0.25
+    use_grad_cam: True

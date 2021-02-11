@@ -77,6 +77,9 @@ class PipelineStep(ABC):
         """Precompute all necessary information for this step"""
         pass
 
+    def cleanup(self) -> None:
+        pass
+
     @abstractmethod
     def process(self, **kwargs: Any) -> Any:
         """Process an input"""
@@ -171,6 +174,10 @@ class PipelineRunner:
         for stage in self.stages:
             stage.precompute(self.final_path)
 
+    def cleanup(self) -> None:
+        for stage in self.stages:
+            stage.cleanup()
+
     def run(self, name: Optional[str], **inputs: Any) -> Dict[str, Any]:
         """Run the preprocessing pipeline for a given name and input parameters and return the specified outputs
 
@@ -198,12 +205,12 @@ class PipelineRunner:
                 step_output = stage.process(*step_input)
             if not isinstance(step_output, tuple):
                 step_output = tuple([step_output])
-            assert len(step_output) == len(config["outputs"]), (
+            assert len(step_output) == len(config.get("outputs", [])), (
                 f"Number of outputs in config mismatches actual number of outputs in {stage.__class__.__name__}"
                 f"Got {len(step_output)} outputs of type {list(map(type, step_output))},"
-                f"but expected {len(config['outputs'])} outputs"
+                f"but expected {len(config.get('outputs', []))} outputs"
             )
-            for key, value in zip(config["outputs"], step_output):
+            for key, value in zip(config.get("outputs", []), step_output):
                 variables[key] = value
 
         # Handle output
@@ -280,6 +287,10 @@ class BatchPipelineRunner:
         self.final_path = tmp_runner.final_path
         tmp_runner.precompute()
 
+    def _cleanup(self):
+        tmp_runner = self._build_pipeline_runner()
+        tmp_runner.cleanup()
+
     def run(self, metadata: pd.DataFrame, cores: int = 1) -> None:
         """Runs the pipeline for the provided metadata dataframe and a specified
            number of cores for multiprocessing.
@@ -289,14 +300,17 @@ class BatchPipelineRunner:
             metadata (pd.DataFrame): Dataframe with the columns as defined in the config inputs
             cores (int, optional): Number of cores to use for multiprocessing. Defaults to 1.
         """
-        self._precompute()
         if cores == 1:
             pipeline = self._build_pipeline_runner()
+            self.final_path = pipeline.final_path
+            pipeline.precompute()
             for name, row in tqdm(
                 metadata.iterrows(), total=len(metadata), file=sys.stdout
             ):
                 pipeline.run(name=name, **row)
+            pipeline.cleanup()
         else:
+            self._precompute()
             worker_pool = multiprocessing.Pool(cores)
             for _ in tqdm(
                 worker_pool.imap_unordered(
@@ -309,3 +323,4 @@ class BatchPipelineRunner:
                 pass
             worker_pool.close()
             worker_pool.join()
+            self._cleanup()

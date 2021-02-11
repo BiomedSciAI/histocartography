@@ -1,14 +1,13 @@
 #!/bin/bash
 
-#BSUB -q prod.med
+#BSUB -q dev
 #BSUB -n 4
+#BSUB -Is
 
-module purge
 module load Miniconda3
 source activate histocartography
 
-#BSUB -J "/dataT/anv/logs/preprocessing"
-#BSUB -o "/dataT/anv/logs/preprocessing"
-#BSUB -e "/dataT/anv/logs/preprocessing.stderr"
+export PYTHONPATH="$PWD/../../:{$PYTHONPATH}"
 
-OMP_NUM_THREADS=1 python preprocess.py --config default.yml
+which python
+OMP_NUM_THREADS=1 python preprocess.py --config config/preprocess.yml

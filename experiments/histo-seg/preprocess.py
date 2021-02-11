@@ -1,6 +1,5 @@
 import argparse
 import logging
-from os import pipe
 from pathlib import Path
 from typing import Optional
 
@@ -33,7 +32,6 @@ def preprocessing(
     if test:
         metadata = metadata.iloc[[0]]
         cores = 1
-        config["stages"][3]["superpixel"]["params"]["nr_superpixels"] = 300
         config["stages"][1]["stain_normalizers"]["params"][
             "target_path"
         ] = str(metadata.iloc[0].path)
@@ -48,7 +46,10 @@ def preprocessing(
     )
     pipeline.run(metadata=metadata, cores=cores)
     if link_directory is not None:
-        pipeline.link_output(str(PREPROCESS_PATH / "outputs" / link_directory))
+        OUTPUTS_PATH = PREPROCESS_PATH / "outputs"
+        if not OUTPUTS_PATH.exists():
+            OUTPUTS_PATH.mkdir()
+        pipeline.link_output(str(OUTPUTS_PATH / link_directory))
     with open(Path(pipeline.final_path) / "config.yml", 'w') as config_file:
         yaml.dump(config, config_file, indent=2)
 

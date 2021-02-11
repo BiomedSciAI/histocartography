@@ -24,7 +24,17 @@ def get_device(cuda=False):
 
 
 def is_mlflow_url(candidate):
+    # is it stored on s3 ?
     if candidate.find('s3://mlflow/') != -1:
+        return True
+    # is it a remote mlflow run ?
+    if candidate.find('runs:/') != -1:
+        return True
+    # is it a remote mlflow model ?
+    if candidate.find('models:/') != -1:
+        return True
+    # is it a local run
+    if os.path.exists(os.path.join(candidate,'MLmodel')):
         return True
     return False
 

@@ -107,7 +107,7 @@ class HistomicstkTissueMask(TissueMask):
         deconvolve_first=False,
         downsampling_factor=4
     ) -> None:
-        """Abstract class that extracts superpixels from RGB Images
+        """
         Args:
             n_thresholding_steps (int): Number of gaussian smoothing steps
             deconvolve_first (bool): Use hematoxylin channel to find cellular areas?

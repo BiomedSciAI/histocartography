@@ -7,7 +7,7 @@ import warnings
 from abc import abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
 import cv2
 import h5py
@@ -34,7 +34,7 @@ class SuperpixelExtractor(PipelineStep):
         self.downsampling_factor = downsampling_factor
         super().__init__(**kwargs)
 
-    def process(self, input_image: np.ndarray, tissue_mask: Union[None, np.ndarray]) -> np.ndarray:
+    def process(self, input_image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
         """Return the superpixels of a given input image
         Args:
             input_image (np.array): Input image
@@ -54,7 +54,7 @@ class SuperpixelExtractor(PipelineStep):
         return superpixels
 
     @abstractmethod
-    def _extract_superpixels(self, image: np.ndarray, tissue_mask: Union[None, np.ndarray]) -> np.ndarray:
+    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
         """Perform the superpixel extraction
         Args:
             image (np.array): Input tensor
@@ -470,7 +470,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         return superpixels
 
     def _merge_superpixels(
-        self, input_image: np.ndarray, initial_superpixels: np.ndarray, tissue_mask: Union[None, np.ndarray]
+        self, input_image: np.ndarray, initial_superpixels: np.ndarray, tissue_mask: np.ndarray=None
     ) -> np.ndarray:
         if tissue_mask is not None:
             # Remove superpixels belonging to background or having < 10% tissue content
@@ -572,7 +572,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         )
         return {k: np.array(v) for k, v in translator.items()}
 
-    def _extract_superpixels(self, image: np.ndarray, tissue_mask: Union[None, np.ndarray]) -> np.ndarray:
+    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
         initial_superpixels = self._extract_initial_superpixels(image)
         merged_superpixels = self._merge_superpixels(image, initial_superpixels, tissue_mask)
         translator = self._get_translator(initial_superpixels, merged_superpixels)

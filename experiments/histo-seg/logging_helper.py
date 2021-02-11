@@ -308,7 +308,12 @@ class SegmentationLoggingHelper(LoggingHelper):
             annotations = self.labels[random_batch]
             segmentation_maps = self.logits[random_batch]
             if len(self.masks) > 0:
+                annotations = annotations.clone()
+                segmentation_maps = segmentation_maps.clone()
                 segmentation_maps[
+                    torch.as_tensor(~(self.masks[random_batch].astype(bool)))
+                ] = self.background_label
+                annotations[
                     torch.as_tensor(~(self.masks[random_batch].astype(bool)))
                 ] = self.background_label
             if self.variable_size:

@@ -18,16 +18,11 @@ pipeline:
         params:
           target: 18B0003896D
     - tissue_mask:
-        class: BrightnessThresholdTissueMask
+        class: HistomicstkTissueMask
         inputs:
         - normalized_image
         outputs:
         - tissue_mask
-        params:
-          blur_size: 25
-          dilation_steps: 5
-          erosion_steps: 10
-          kernel_size: 20
     - feature_extraction:
         class: AugmentedGridDeepFeatureExtractor
         inputs:
@@ -96,7 +91,7 @@ pipeline:
         outputs:
         - processed_annotation
         params:
-        - background_label: 4
+          background_index: 4
     - graph_builders:
         class: RAGGraphBuilder
         inputs:
@@ -125,4 +120,4 @@ params:
   save: True
   cores: 4
   labels: True
-  link_directory: null
+  link_directory: v0_low_4000

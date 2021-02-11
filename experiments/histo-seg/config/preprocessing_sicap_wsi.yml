@@ -24,7 +24,7 @@ pipeline:
         outputs:
         - tissue_mask
         params:
-        - downsampling_factor: 2
+          downsampling_factor: 2
     - feature_extraction:
         class: AugmentedGridDeepFeatureExtractor
         inputs:

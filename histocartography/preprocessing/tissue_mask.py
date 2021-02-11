@@ -216,6 +216,21 @@ class HistomicstkTissueMask(TissueMask):
         )
         return downsampled_image
 
+    @staticmethod
+    def _upsample(image: np.ndarray, new_height: int, new_width: int) -> np.ndarray:
+        """Upsample an input image to a speficied new height and width
+        Args:
+            image (np.array): Input tensor
+            new_height (int): Target height
+            new_width (int): Target width
+        Returns:
+            np.array: Output tensor
+        """
+        upsampled_image = cv2.resize(
+            image, (new_width, new_height), interpolation=cv2.INTER_NEAREST
+        )
+        return upsampled_image
+
     def process(self, image) -> Any:
         """Return the superpixels of a given input image
         Args:
@@ -224,6 +239,7 @@ class HistomicstkTissueMask(TissueMask):
             np.array: Extracted superpixels
         """
         # Downsample image
+        original_height, original_width = image.shape[0], image.shape[1]
         if self.downsampling_factor != 1:
             image = self._downsample(image, self.downsampling_factor)
 
@@ -249,6 +265,8 @@ class HistomicstkTissueMask(TissueMask):
             else:
                 break
         tissue_mask = tissue_mask.astype(np.uint8)
+
+        tissue_mask = self._upsample(tissue_mask, original_height, original_width)
         return tissue_mask
 
 

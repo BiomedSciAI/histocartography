@@ -57,15 +57,20 @@ class PipelineStep(ABC):
         if Path(link_directory).parent.resolve() == Path(self.output_dir):
             logging.info("Link to self skipped")
             return
-        if os.path.exists(link_directory):
-            if os.path.islink(link_directory):
+        if os.path.islink(link_directory):
+            if os.path.exists(link_directory):
                 logging.info("Link already exists: overwriting...")
                 os.remove(link_directory)
             else:
                 logging.critical(
-                    "Link path already exists, but it is something else than a link. Ignoring..."
+                    "Link exists, but points nowhere. Ignoring..."
                 )
                 return
+        else:
+            logging.critical(
+                    "Link does not exist, but there is a file. Ignoring..."
+                )
+            return
         os.symlink(self.output_dir, link_directory, target_is_directory=True)
 
     def precompute(self, final_path) -> None:

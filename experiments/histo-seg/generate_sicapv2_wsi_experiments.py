@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from experiment import (
-    CPUPreprocessingExperiment,
+    CPUPreprocessingExperiment, GNNTestingExperiment,
     GPUPreprocessingExperiment,
     Parameter,
     ParameterList,
@@ -12,7 +12,6 @@ from experiment import (
     StronglySupervisedGraphClassificationExperiment,
     WeaklySupervisedGraphClassificationExperiment,
     PATH,
-    BASE
 )
 
 if __name__ == "__main__":
@@ -32,10 +31,13 @@ if __name__ == "__main__":
         base="config/feat_sicap_wsi.yml",
         queue="prod.p9",
         workers=24,
-        path=PATH
+        path=PATH,
     ).generate()
     CPUPreprocessingExperiment(
-        name="sicapv2_wsi", base="config/preprocessing_sicap_wsi.yml", cores=4, path=PATH
+        name="sicapv2_wsi",
+        base="config/preprocessing_sicap_wsi.yml",
+        cores=4,
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
@@ -52,3 +54,91 @@ if __name__ == "__main__":
     WeaklySupervisedGraphClassificationExperiment(
         name="best_weak", base="config/sicapv2_wsi_weak.yml", path=PATH
     ).generate(grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])])
+    StronglySupervisedGraphClassificationExperiment(
+        name="best_strong_node_aug", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="best_weak_node_aug", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="best_strong_no_location", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="best_weak_no_location", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="best_weak_more_dropout", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        sequential=[
+            ParameterList(
+                ["train", "model", "graph_classifier_config", "input_dropout"],
+                [0.1, 0.3, 0.5, 0.7],
+            ),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    GNNTestingExperiment(name="tissue_failed", base="config/sicapv2_wsi_strong.yml", path=PATH).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "tissue_best_strong",
+                            "tissue_best_strong",
+                            "tissue_best_strong",
+                            "tissue_best_strong",
+                            "tissue_best_strong_node_aug",
+                            "tissue_best_strong_node_aug",
+                            "tissue_best_strong_node_aug",
+                            "tissue_best_strong_node_aug",
+                            "tissue_best_strong_no_location",
+                            "tissue_best_strong_no_location",
+                            "tissue_best_strong_no_location",
+                            "tissue_best_strong_no_location",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        f"s3://mlflow/650/{run}/artifacts/best.valid.node.segmentation.MeanIoU"
+                        for run in [
+                            "4b7e18f29d3a49b398213640c8c09237",
+                            "bc8558fca31846129bd51d560ba094a3",
+                            "fc3f866e4dfa49469c0f730fec970c5a",
+                            "fca69870629d47acba7ef31218f78fbe",
+                            "26a9a973906c454b8a757c5266e0c0ff",
+                            "b3be7493ae4d486e911e9b25154508f8",
+                            "61a97fc20e8a48a68b4e6c4a0550f8bf",
+                            "6a6fa62c8a37484aa655517c1b8862cd",
+                            "bfb3fc22dce3424ba88614d6d7bcecbd",
+                            "ae849c966b8743e4bfcd3a332f9656cf",
+                            "0678ff999d7b442da03165865adb9add",
+                            "c4499129b23144af96ba62f21fa27dd6",
+                        ]
+                    ],
+                ),
+            ]
+        ],
+    )

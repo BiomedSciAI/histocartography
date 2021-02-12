@@ -350,6 +350,7 @@ class GraphClassificationDataset(BaseDataset):
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
         image_label_mapper: Optional[Dict[str, np.ndarray]] = None,
+        **kwargs
     ) -> None:
         assert centroid_features in [
             "no",

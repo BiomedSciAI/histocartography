@@ -37,6 +37,7 @@ MASK_VALUE_TO_COLOR = {0: "green", 1: "blue", 2: "yellow", 3: "red", 4: "white"}
 NR_CLASSES = 4
 BACKGROUND_CLASS = 4
 VARIABLE_SIZE = True
+ADDITIONAL_ANNOTATION = False
 
 IMAGE_PATH = BASE_PATH / "wsi"
 ANNOTATION_PATH = BASE_PATH / "wsi_masks"
@@ -165,10 +166,10 @@ def prepare_graph_datasets(
 ) -> Tuple[Dataset, Dataset]:
     assert fold in VALID_FOLDS, f"Fold must be in {VALID_FOLDS} but is {fold}"
     all_metadata, label_mapper = get_metadata(graph_directory)
-    training_names = pd.read_csv(TRAIN_SPLIT_PATHS[fold], index_col=0)[
+    training_names = pd.read_csv(TRAIN_SPLIT_PATHS[fold-1], index_col=0)[
         "wsi_name"
     ].values
-    validation_names = pd.read_csv(VALID_SPLIT_PATHS[fold], index_col=0)[
+    validation_names = pd.read_csv(VALID_SPLIT_PATHS[fold-1], index_col=0)[
         "wsi_name"
     ].values
     assert set(training_names).isdisjoint(
@@ -264,7 +265,7 @@ def show_class_acivation(per_class_output):
     return fig
 
 
-def show_segmentation_masks(output, annotation=None):
+def show_segmentation_masks(output, annotation=None, **kwargs):
     height = 4
     width = 5
     ncols = 1

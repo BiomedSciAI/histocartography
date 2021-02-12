@@ -45,7 +45,7 @@ def fill_missing_information(model_config, data_config):
         df = mlflow.search_runs(experiment_id)
         df = df.set_index("run_id")
 
-        if "use_augmentation_dataset" not in data_config:
+        if "use_augmentation_dataset" not in data_config and "params.data.use_augmentation_dataset" in df:
             data_config["use_augmentation_dataset"] = (
                 df.loc[run_id, "params.data.use_augmentation_dataset"] == "True"
             )
@@ -57,9 +57,13 @@ def fill_missing_information(model_config, data_config):
             data_config["centroid_features"] = df.loc[
                 run_id, "params.data.centroid_features"
             ]
-        if "normalize_features" not in data_config:
+        if "normalize_features" not in data_config and "params.data.normalize_features" in df:
             data_config["normalize_features"] = (
                 df.loc[run_id, "params.data.normalize_features"] == "True"
+            )
+        if "fold" not in data_config and "params.data.fold" in df:
+            data_config["fold"] = (
+                int(df.loc[run_id, "params.data.fold"])
             )
 
 
@@ -80,6 +84,7 @@ def test_gnn(
 
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
+    ADDITIONAL_ANNOTATION = dynamic_import_from(dataset, "ADDITIONAL_ANNOTATION")
     prepare_graph_testset = dynamic_import_from(dataset, "prepare_graph_testset")
     show_class_acivation = dynamic_import_from(dataset, "show_class_acivation")
     show_segmentation_masks = dynamic_import_from(dataset, "show_segmentation_masks")
@@ -133,12 +138,15 @@ def test_gnn(
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
     )
-    logger_pathologist_2 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
-        prefix="pathologist2",
-        nr_classes=NR_CLASSES,
-        background_label=BACKGROUND_CLASS,
-    )
+    if ADDITIONAL_ANNOTATION:
+        logger_pathologist_2 = LoggingHelper(
+            ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
+            prefix="pathologist2",
+            nr_classes=NR_CLASSES,
+            background_label=BACKGROUND_CLASS,
+        )
+    else:
+        logger_pathologist_2 = None
 
     def log_segmentation_mask(
         prediction: np.ndarray,

@@ -3138,3 +3138,151 @@ if __name__ == "__main__":
         ],
         repetitions=3,
     )
+
+    # Pixel Final Fold
+    folds = [
+        ParameterList(
+            ["train", "data", "training_slides"],
+            [[111, 199, 204], [76, 111, 199], [204, 76, 111], [199, 204, 76]],
+        ),
+        ParameterList(
+            ["train", "data", "validation_slides"], [[76], [204], [199], [111]]
+        ),
+    ]
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_fold_best_meaniou", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_fold_good_meaniou", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_very_high_10x",
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_fold_best_kappa", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_low_20x",
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_fold_good_kappa", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_no_13x",
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_ps_best_meaniou", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v10_mobilenet_med_30x_no_overlap",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_ps_good_meaniou", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_ps_best_kappa", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_low_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_ps_good_kappa", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_best_meaniou", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v10_mobilenet_med_30x_no_overlap",
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_good_meaniou", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_best_kappa", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_low_13x",
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_fold_good_kappa", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            )
+        ],
+        sequential=[folds],
+    )
+    

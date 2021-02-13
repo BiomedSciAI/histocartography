@@ -8,6 +8,30 @@ import torch
 from histocartography.preprocessing.utils import fast_histogram
 
 
+def inverse_log_frequency(class_counts: np.ndarray) -> np.ndarray:
+    """Converts class counts into normalized inverse log frequency weights per datapoint
+
+    Args:
+        class_counts (np.ndarray): Class counts of shape B x C
+
+    Returns:
+        np.ndarray: Class weights of shape B x C
+    """
+    log_class_counts = np.log(
+        class_counts,
+        out=np.zeros_like(class_counts),
+        where=class_counts != 0,
+    )
+    y = np.divide(
+        log_class_counts.sum(axis=1)[:, np.newaxis],
+        log_class_counts,
+        out=np.zeros_like(log_class_counts),
+        where=log_class_counts != 0,
+    )
+    class_weights = y / y.sum(axis=1)[:, np.newaxis]
+    return class_weights
+
+
 class Metric:
     def __init__(self, *args, **kwargs) -> None:
         pass
@@ -103,6 +127,34 @@ class SegmentationMetric(Metric):
             )
         return np.nanmean(metric, axis=0)
 
+    def _get_class_counts(self, ground_truth: Union[np.ndarray, List[np.ndarray]]) -> np.ndarray:
+        """Computed class counts for each class and datapoint
+
+        Args:
+            ground_truth (Union[np.ndarray, List[np.ndarray]]):
+                Ground truth tensor of shape B x H x W
+                or list of length B of tensors of shape H x W
+
+        Returns:
+            np.ndarray: Class weights of shape: B x C
+        """
+        if isinstance(ground_truth, np.ndarray):
+            class_counts = np.empty((ground_truth.shape[0], self.nr_classes))
+            for class_label in range(self.nr_classes):
+                class_ground_truth = ground_truth == class_label
+                class_counts[:, class_label] = class_ground_truth.sum(axis=(1, 2))
+
+        else:  # Iterative version to support jagged tensors
+            class_counts = list()
+            for gt in ground_truth:
+                sample_class_counts = np.empty(self.nr_classes)
+                for class_label in range(self.nr_classes):
+                    class_ground_truth = gt == class_label
+                    sample_class_counts[class_label] = class_ground_truth.sum()
+                class_counts.append(sample_class_counts)
+            class_counts = np.stack(class_counts)
+        return class_counts
+
 
 class IoU(SegmentationMetric):
     """Compute the class IoU"""
@@ -186,6 +238,10 @@ class MeanIoU(IoU):
     ) -> torch.Tensor:
         return np.nanmean(super().__call__(prediction, ground_truth))
 
+    @property
+    def is_per_class(self):
+        return False
+
 
 class fIoU(IoU):
     """Inverse Log Frequency Weighted IoU as defined in the paper:
@@ -209,38 +265,13 @@ class fIoU(IoU):
             float: Inverse Log Frequency Weighted IoU
         """
         class_ious = super()._compute_metric(ground_truth, prediction, np.NaN)
-        if isinstance(ground_truth, np.ndarray):
-            class_counts = np.empty((ground_truth.shape[0], self.nr_classes))
-            for class_label in range(self.nr_classes):
-                class_ground_truth = ground_truth == class_label
-                class_counts[:, class_label] = class_ground_truth.sum(axis=(1, 2))
-
-        else:  # Iterative version to support jagged tensors
-            class_counts = list()
-            for gt in ground_truth:
-                sample_class_counts = np.empty(self.nr_classes)
-                for class_label in range(self.nr_classes):
-                    class_ground_truth = gt == class_label
-                    sample_class_counts[class_label] = class_ground_truth.sum()
-                class_counts.append(sample_class_counts)
-            class_counts = np.stack(class_counts)
-
-        # Convert to inverse log frequency
-        log_class_counts = np.log(
-            class_counts,
-            out=np.zeros_like(class_counts),
-            where=class_counts != 0,
-        )
-        y = np.divide(
-            log_class_counts.sum(axis=1)[:, np.newaxis],
-            log_class_counts,
-            out=np.zeros_like(log_class_counts),
-            where=log_class_counts != 0,
-        )
-        class_weights = y / y.sum(axis=1)[:, np.newaxis]
-
-        # Compute per-sample weighted metric
+        class_counts = self._get_class_counts(ground_truth)
+        class_weights = inverse_log_frequency(class_counts)
         return np.nansum(class_weights * class_ious, axis=1)
+
+    @property
+    def is_per_class(self):
+        return False
 
 
 class F1Score(SegmentationMetric):
@@ -327,6 +358,29 @@ class MeanF1Score(F1Score):
         ground_truth: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
         return np.nanmean(super().__call__(prediction, ground_truth))
+
+    @property
+    def is_per_class(self):
+        return False
+
+
+class fF1Score(F1Score):
+    """Inverse Log Frequency Weighted Dice Score
+       Conceptually the same as the fIoU
+    """
+    def _compute_metric(
+        self,
+        ground_truth: Union[np.ndarray, List[np.ndarray]],
+        prediction: Union[np.ndarray, List[np.ndarray]],
+    ) -> float:
+        class_f1s = super()._compute_metric(ground_truth, prediction, np.NaN)
+        class_counts = self._get_class_counts(ground_truth)
+        class_weights = inverse_log_frequency(class_counts)
+        return np.nansum(class_weights * class_f1s, axis=1)
+
+    @property
+    def is_per_class(self):
+        return False
 
 
 class ClassificationMetric(Metric):

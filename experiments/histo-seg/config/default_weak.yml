@@ -46,6 +46,8 @@ train:
       - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
+      - "fIoU"
+      - "fF1Score"
   params:
     experiment_name: "anv_wsss_gnn_weakly_supervised"
     experiment_tags: null

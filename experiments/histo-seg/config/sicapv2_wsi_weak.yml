@@ -35,6 +35,8 @@ train:
       - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
+      - "fIoU"
+      - "fF1Score"
   params:
     experiment_name: "anv_wsss_sicap_wsi_gnn_weak"
     experiment_tags: null
@@ -45,7 +47,7 @@ train:
       scheduler: 
         class: ExponentialLR
         params:
-          gamma: 0.995
+          gamma: 0.997
     loss:
       graph:
         class: "GraphBCELoss"

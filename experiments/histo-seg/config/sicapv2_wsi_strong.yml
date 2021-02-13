@@ -37,6 +37,8 @@ train:
       - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
+      - "fIoU"
+      - "fF1Score"
   params:
     experiment_name: "anv_wsss_sicap_wsi_gnn_strong"
     experiment_tags: null

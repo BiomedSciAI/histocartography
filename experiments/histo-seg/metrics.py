@@ -94,7 +94,9 @@ class SegmentationMetric(Metric):
 
             # Discard background class
             prediction_copy = prediction.copy()
-            prediction_copy[ground_truth == self.background_label] = self.background_label
+            prediction_copy[
+                ground_truth == self.background_label
+            ] = self.background_label
 
             metric = self._compute_metric(
                 ground_truth=ground_truth, prediction=prediction_copy
@@ -160,9 +162,7 @@ class IoU(SegmentationMetric):
         class_ious = list()
         for pred, gt in zip(prediction, ground_truth):
             class_ious.append(
-                self._compute_sample_metric(
-                    prediction=pred, ground_truth=gt, nan=nan
-                )
+                self._compute_sample_metric(prediction=pred, ground_truth=gt, nan=nan)
             )
         return np.stack(class_ious)
 
@@ -194,30 +194,53 @@ class fIoU(IoU):
     """
 
     def _compute_metric(
-        self, ground_truth: torch.Tensor, prediction: torch.Tensor
-    ) -> torch.Tensor:
+        self,
+        ground_truth: Union[np.ndarray, List[np.ndarray]],
+        prediction: Union[np.ndarray, List[np.ndarray]],
+    ) -> float:
         """Computes the metric according to the implementation:
            https://github.com/lyndonchan/hsn_v1/blob/4356e68fc2a94260ab06e2ceb71a7787cba8178c/hsn_v1/hsn_v1.py#L184
 
         Args:
-            ground_truth (torch.Tensor): Ground truth tensor
-            prediction (torch.Tensor): Prediction tensor
+            ground_truth (Union[np.ndarray, List[np.ndarray]]): Ground truth tensor or list of tensors
+            prediction (Union[np.ndarray, List[np.ndarray]]): Prediction tensor or list of tensors
 
         Returns:
-            torch.Tensor: Computed fIoU
+            float: Inverse Log Frequency Weighted IoU
         """
-        class_counts = torch.empty((ground_truth.shape[0], self.nr_classes))
-        for class_label in range(self.nr_classes):
-            class_ground_truth = ground_truth == class_label
-            class_counts[:, class_label] = class_ground_truth.sum(axis=(1, 2))
-        class_iou = super()._compute_metric(ground_truth, prediction, nan=1.0)
+        class_ious = super()._compute_metric(ground_truth, prediction, np.NaN)
+        if isinstance(ground_truth, np.ndarray):
+            class_counts = np.empty((ground_truth.shape[0], self.nr_classes))
+            for class_label in range(self.nr_classes):
+                class_ground_truth = ground_truth == class_label
+                class_counts[:, class_label] = class_ground_truth.sum(axis=(1, 2))
 
-        log_class_counts = torch.max(torch.zeros_like(class_counts), class_counts.log())
-        y = log_class_counts.sum() / log_class_counts
-        y[log_class_counts == 0] = 0
-        class_weights = y / y.sum()
-        batch_fiou = (class_weights * class_iou).sum(axis=1)
-        return batch_fiou.mean()
+        else:  # Iterative version to support jagged tensors
+            class_counts = list()
+            for gt in ground_truth:
+                sample_class_counts = np.empty(self.nr_classes)
+                for class_label in range(self.nr_classes):
+                    class_ground_truth = gt == class_label
+                    sample_class_counts[class_label] = class_ground_truth.sum()
+                class_counts.append(sample_class_counts)
+            class_counts = np.stack(class_counts)
+
+        # Convert to inverse log frequency
+        log_class_counts = np.log(
+            class_counts,
+            out=np.zeros_like(class_counts),
+            where=class_counts != 0,
+        )
+        y = np.divide(
+            log_class_counts.sum(axis=1)[:, np.newaxis],
+            log_class_counts,
+            out=np.zeros_like(log_class_counts),
+            where=log_class_counts != 0,
+        )
+        class_weights = y / y.sum(axis=1)[:, np.newaxis]
+
+        # Compute per-sample weighted metric
+        return np.nansum(class_weights * class_ious, axis=1)
 
 
 class F1Score(SegmentationMetric):
@@ -281,9 +304,7 @@ class F1Score(SegmentationMetric):
         class_f1s = list()
         for pred, gt in zip(prediction, ground_truth):
             class_f1s.append(
-                self._compute_sample_metric(
-                    prediction=pred, ground_truth=gt, nan=nan
-                )
+                self._compute_sample_metric(prediction=pred, ground_truth=gt, nan=nan)
             )
         return np.stack(class_f1s)
 
@@ -526,7 +547,9 @@ class GleasonScoreMetric(Metric):
         **kwargs,
     ) -> Any:
         assert len(prediction) == len(ground_truth)
-        assert len(prediction[0].shape) == 2, f"Expected 2D predictions, but got {len(prediction[0].shape)}: {prediction}"
+        assert (
+            len(prediction[0].shape) == 2
+        ), f"Expected 2D predictions, but got {len(prediction[0].shape)}: {prediction}"
         assert tissue_mask is None or len(tissue_mask) == len(prediction)
 
         gleason_grade_ground_truth = list()
@@ -554,9 +577,19 @@ class GleasonScoreMetric(Metric):
 
 class GleasonScoreKappa(GleasonScoreMetric):
     def __init__(self, nr_classes: int, background_label: int) -> None:
-        super().__init__(f=sklearn.metrics.cohen_kappa_score, nr_classes=nr_classes, background_label=background_label, weights="quadratic")
+        super().__init__(
+            f=sklearn.metrics.cohen_kappa_score,
+            nr_classes=nr_classes,
+            background_label=background_label,
+            weights="quadratic",
+        )
 
 
 class GleasonScoreF1(GleasonScoreMetric):
     def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
-        super().__init__(f=sklearn.metrics.f1_score, nr_classes=nr_classes, background_label=background_label, average="weighted")
+        super().__init__(
+            f=sklearn.metrics.f1_score,
+            nr_classes=nr_classes,
+            background_label=background_label,
+            average="weighted",
+        )

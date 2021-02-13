@@ -85,6 +85,7 @@ def test_gnn(
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     ADDITIONAL_ANNOTATION = dynamic_import_from(dataset, "ADDITIONAL_ANNOTATION")
+    VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE") 
     prepare_graph_testset = dynamic_import_from(dataset, "prepare_graph_testset")
     show_class_acivation = dynamic_import_from(dataset, "show_class_acivation")
     show_segmentation_masks = dynamic_import_from(dataset, "show_segmentation_masks")
@@ -137,6 +138,7 @@ def test_gnn(
         prefix="pathologist1",
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
+        variable_size=VARIABLE_SIZE,
     )
     if ADDITIONAL_ANNOTATION:
         logger_pathologist_2 = LoggingHelper(
@@ -144,6 +146,7 @@ def test_gnn(
             prefix="pathologist2",
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,
+            variable_size=VARIABLE_SIZE,
         )
     else:
         logger_pathologist_2 = None
@@ -154,6 +157,13 @@ def test_gnn(
     ):
         tissue_mask = datapoint.tissue_mask
         prediction[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        ground_truth = datapoint.segmentation_mask.copy()
+        ground_truth[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        if ADDITIONAL_ANNOTATION:
+            ground_truth2 = datapoint.additional_segmentation_mask.copy()
+            ground_truth2[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        else:
+            ground_truth2 = None
 
         # Save figure
         if operation == "per_class":
@@ -161,8 +171,8 @@ def test_gnn(
         elif operation == "argmax":
             fig = show_segmentation_masks(
                 prediction,
-                annotation=datapoint.segmentation_mask,
-                annotation2=datapoint.additional_segmentation_mask,
+                annotation=ground_truth,
+                annotation2=ground_truth2,
             )
         else:
             raise NotImplementedError(

@@ -136,9 +136,9 @@ def prepare_experiment(
 
 
 class LoggingHelper:
-    def __init__(self, metrics_config, prefix="", **kwargs) -> None:
+    def __init__(self, metrics_config, prefix="", variable_size=False, **kwargs) -> None:
         self.metrics_config = metrics_config
-        self.variable_size = False
+        self.variable_size = variable_size
         self.prefix = prefix
         self._reset_epoch_stats()
         self.best_loss = float("inf")

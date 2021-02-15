@@ -27,6 +27,7 @@ from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
+from metrics import inverse_log_frequency
 
 
 @dataclass
@@ -386,7 +387,7 @@ class GraphClassificationDataset(BaseDataset):
                 self._load(image_metadata)
                 self._image_indices = np.arange(0, len(self._graphs))
             else:
-                self._image_indices = []
+                self._image_indices = np.arange(0, len(self._graphs))
         else:
             super().__init__(image_metadata, num_classes, background_index)
             self._tissue_indices = []
@@ -400,6 +401,7 @@ class GraphClassificationDataset(BaseDataset):
             self._graph_labels = self._load_image_level_labels(image_label_mapper)
         else:
             self._graph_labels = self._compute_graph_labels()
+        self._node_weights = self._compute_node_weights()
 
     def _initalize_loading(self):
         pass
@@ -449,6 +451,24 @@ class GraphClassificationDataset(BaseDataset):
         for name in self._names:
             labels.append((label_mapper[name]))
         return torch.as_tensor(labels)
+
+    def _compute_node_weight(self, node_labels: torch.Tensor) -> np.ndarray:
+        class_counts = fast_histogram(node_labels, nr_values=self.num_classes)
+        return inverse_log_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
+
+    def _compute_node_weights(self) -> np.ndarray:
+        node_weights = list()
+        for graph in self._graphs:
+            if self.mode == "tissue":
+                node_labels = graph.ndata[LABEL]
+                node_weights.append(self._compute_node_weight(node_labels))
+            else:
+                node_weights.append(None)
+        return np.array(node_weights)
+
+    @property
+    def node_weights(self):
+        return self._node_weights
 
     @property
     def graphs(self):
@@ -674,6 +694,33 @@ class GraphClassificationDataset(BaseDataset):
         elif self.mode == "image":
             assert len(self.graphs) == len(self._image_indices)
             return len(self.graphs)
+
+    def get_labels(self) -> torch.Tensor:
+        if self.mode == "tissue":
+            node_labels = list()
+            nr_datapoints = self.__len__()
+            for i in range(nr_datapoints):
+                datapoint = self.__getitem__(i)
+                node_labels.append(datapoint.node_labels)
+            return torch.cat(node_labels)
+        elif self.mode == "image":
+            graph_labels = list()
+            nr_datapoints = self.__len__()
+            for i in range(nr_datapoints):
+                datapoint = self.__getitem__(i)
+                graph_labels.append(datapoint.graph_label)
+            return torch.stack(graph_labels)
+        else:
+            raise NotImplementedError
+
+    def get_overall_loss_weights(self) -> torch.Tensor:
+        labels = self.get_labels()
+        if self.mode == "tissue":
+            class_counts = fast_histogram(labels, self.num_classes)
+        else:
+            class_counts = labels.sum(dim=0).numpy()
+        class_weights = inverse_log_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
+        return torch.as_tensor(class_weights)
 
 
 class AugmentedGraphClassificationDataset(GraphClassificationDataset):

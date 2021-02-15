@@ -39,6 +39,7 @@ def train_graph_classifier(
     test: bool,
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
+    use_weighted_loss: bool = False,
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -99,6 +100,8 @@ def train_graph_classifier(
     log_nr_parameters(model)
 
     # Loss function
+    if use_weighted_loss:
+        loss["graph"]['params']['weight'] = training_dataset.get_overall_loss_weights()
     criterion = get_loss(loss, "graph", device)
 
     # Optimizer

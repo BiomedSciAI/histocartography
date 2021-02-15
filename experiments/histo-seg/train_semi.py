@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
-from dataset import GraphBatch, collate_graphs
+from dataset import GraphBatch, collate_graphs, GraphClassificationDataset
 from inference import GraphGradCAMBasedInference
 from logging_helper import (
     GraphLoggingHelper,
@@ -25,7 +25,6 @@ from train_utils import (
     prepare_training,
     auto_test,
 )
-
 
 class CombinedCriterion(torch.nn.Module):
     def __init__(self, loss: dict, device) -> None:
@@ -80,6 +79,7 @@ def train_graph_classifier(
     test: bool,
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
+    use_weighted_loss: bool = False,
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -99,6 +99,8 @@ def train_graph_classifier(
     prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
 
     # Data loaders
+    training_dataset: GraphClassificationDataset
+    validation_dataset: GraphClassificationDataset
     training_dataset, validation_dataset = prepare_graph_datasets(**data_config)
     assert training_dataset.mode == "tissue"
     training_loader = DataLoader(
@@ -166,6 +168,12 @@ def train_graph_classifier(
     log_nr_parameters(model)
 
     # Loss function
+    if use_weighted_loss:
+        training_dataset.set_mode("tissue")
+        loss["node"]['params']['weight'] = training_dataset.get_overall_loss_weights()
+        training_dataset.set_mode("image")
+        loss["graph"]['params']['weight'] = training_dataset.get_overall_loss_weights()
+        training_dataset.set_mode("tissue")
     criterion = CombinedCriterion(loss, device)
 
     # Optimizer
@@ -319,7 +327,7 @@ def train_graph_classifier(
 
 
 if __name__ == "__main__":
-    config, tags = prepare_training(default="default.yml")
+    config, tags = prepare_training(default="default_semi.yml")
     train_graph_classifier(
         model_config=config["model"],
         data_config=config["data"],

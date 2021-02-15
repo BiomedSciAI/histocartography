@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 
-from dataset import GraphBatch, collate_graphs
+from dataset import GraphBatch, GraphClassificationDataset, collate_graphs
 from logging_helper import (
     GraphLoggingHelper,
     robust_mlflow,
@@ -38,6 +38,7 @@ def train_node_classifier(
     test: bool,
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
+    use_weighted_loss: bool = False,
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -57,6 +58,8 @@ def train_node_classifier(
     prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
 
     # Data loaders
+    training_dataset: GraphClassificationDataset
+    validation_dataset: GraphClassificationDataset
     training_dataset, validation_dataset = prepare_graph_datasets(**data_config)
     assert training_dataset.mode == "tissue"
     training_loader = DataLoader(
@@ -98,6 +101,8 @@ def train_node_classifier(
     log_nr_parameters(model)
 
     # Loss function
+    if use_weighted_loss:
+        loss["node"]['params']['weight'] = training_dataset.get_overall_loss_weights()
     criterion = get_loss(loss, "node", device)
 
     # Optimizer

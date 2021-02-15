@@ -3285,4 +3285,130 @@ if __name__ == "__main__":
         ],
         sequential=[folds],
     )
+
+    # Weighted loss
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_weighted_best_meaniou", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_weighted_good_meaniou", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_very_high_10x",
+            ),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_weighted_best_kappa", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_low_20x",
+            ),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_weighted_good_kappa", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_no_13x",
+            ),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_weighted_ps_best_meaniou", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v10_mobilenet_med_30x_no_overlap",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_weighted_ps_good_meaniou", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_weighted_ps_best_kappa", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_low_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_weighted_ps_good_kappa", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_no_10x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(
+                ["train", "params", "use_weighted_loss"],
+                True
+            )
+        ],
+        sequential=[folds],
+    )
     

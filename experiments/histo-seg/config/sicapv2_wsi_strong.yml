@@ -61,6 +61,7 @@ train:
     seed: null
     validation_frequency: 5
     autotest: True
+    use_weighted_loss: False
 test:
   data: {}
   model:

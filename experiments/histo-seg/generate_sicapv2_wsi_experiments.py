@@ -4,7 +4,8 @@ from pathlib import Path
 import numpy as np
 
 from experiment import (
-    CPUPreprocessingExperiment, GNNTestingExperiment,
+    CPUPreprocessingExperiment,
+    GNNTestingExperiment,
     GPUPreprocessingExperiment,
     Parameter,
     ParameterList,
@@ -95,8 +96,85 @@ if __name__ == "__main__":
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="best_weak_anti_overfit", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.3
+            ),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.7),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"],
+                    [16, 32, 64],
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"],
+                    [16, 32, 64],
+                ),
+            ]
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="best_weak_optim_anti_overfit",
+        base="config/sicapv2_wsi_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.3
+            ),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.7),
+            Parameter(["train", "params", "optimizer", "params", "lr"], 0.00003),
+            Parameter(["train", "params", "optimizer", "scheduler"], None),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["train", "model", "gnn_config", "hidden_dim"],
+                    [16, 32, 64],
+                ),
+                ParameterList(
+                    ["train", "model", "gnn_config", "output_dim"],
+                    [16, 32, 64],
+                ),
+            ]
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
 
-    GNNTestingExperiment(name="tissue_failed", base="config/sicapv2_wsi_strong.yml", path=PATH).generate(
+    # Weighted loss
+    StronglySupervisedGraphClassificationExperiment(
+        name="best_weighted_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="best_weighted_strong_node_aug",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+
+    GNNTestingExperiment(
+        name="tissue_failed", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
         sequential=[
             [
                 ParameterList(

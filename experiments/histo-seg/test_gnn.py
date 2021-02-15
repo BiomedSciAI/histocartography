@@ -134,7 +134,7 @@ def test_gnn(
         save_path.mkdir()
 
     logger_pathologist_1 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
+        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1", "fIoU", "fF1Score"],
         prefix="pathologist1",
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
@@ -142,7 +142,7 @@ def test_gnn(
     )
     if ADDITIONAL_ANNOTATION:
         logger_pathologist_2 = LoggingHelper(
-            ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
+            ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1", "fIoU", "fF1Score"],
             prefix="pathologist2",
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,

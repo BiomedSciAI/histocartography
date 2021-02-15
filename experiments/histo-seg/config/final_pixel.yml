@@ -51,6 +51,8 @@ train:
       - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
+      - "fIoU"
+      - "fF1Score"
   params:
     experiment_name: "anv_wsss_gnn_strongly_supervised"
     experiment_tags: null
@@ -60,14 +62,11 @@ train:
         lr: 0.00003
       scheduler: null
     loss:
-      graph:
-        class: "GraphBCELoss"
       node:
         class: "NodeStochasticCrossEntropy"
         params:
           background_label: 4
           drop_probability: 0.0
-      node_weight: 0.5
     batch_size: 8
     nr_epochs: 500
     num_workers: 8

@@ -65,12 +65,7 @@ train:
     loss:
       graph:
         class: "GraphBCELoss"
-      node:
-        class: "NodeStochasticCrossEntropy"
-        params:
-          background_label: 4
-          drop_probability: 0.0
-      node_weight: 0.5
+        params: {}
     batch_size: 8
     nr_epochs: 1000
     num_workers: 8

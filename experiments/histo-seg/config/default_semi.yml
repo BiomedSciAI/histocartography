@@ -81,6 +81,7 @@ train:
     loss:
       graph:
         class: "GraphBCELoss"
+        params: {}
       node:
         class: "NodeStochasticCrossEntropy"
         params:

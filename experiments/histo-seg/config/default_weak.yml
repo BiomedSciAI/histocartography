@@ -59,6 +59,7 @@ train:
     loss:
       graph:
         class: "GraphBCELoss"
+        params: {}
     batch_size: 8
     nr_epochs: 500
     num_workers: 8

@@ -73,7 +73,7 @@ train:
 test:
   data: {}
   model:
-    architecture: s3://mlflow/631/b7cecc7a7988472482be6544c661384f/artifacts/best.valid.segmentation.MeanIoU
+    architecture: s3://mlflow/644/4396cfe73c654e9ead2e8aa1bf393d29/artifacts/best.valid.graph.segmentation.fF1Score
   params:
     experiment_name: "anv_wsss_test_gnn"
     experiment_tags: null

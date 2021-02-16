@@ -27,7 +27,7 @@ from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
 from utils import read_image
-from metrics import inverse_log_frequency
+from metrics import inverse_log_frequency, inverse_frequency
 
 
 @dataclass
@@ -713,13 +713,16 @@ class GraphClassificationDataset(BaseDataset):
         else:
             raise NotImplementedError
 
-    def get_overall_loss_weights(self) -> torch.Tensor:
+    def get_overall_loss_weights(self, log=True) -> torch.Tensor:
         labels = self.get_labels()
         if self.mode == "tissue":
             class_counts = fast_histogram(labels, self.num_classes)
         else:
             class_counts = labels.sum(dim=0).numpy()
-        class_weights = inverse_log_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
+        if log:
+            class_weights = inverse_log_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
+        else:
+            class_weights = inverse_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
         return torch.as_tensor(class_weights)
 
 

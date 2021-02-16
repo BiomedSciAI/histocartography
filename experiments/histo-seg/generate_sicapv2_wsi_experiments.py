@@ -47,6 +47,28 @@ if __name__ == "__main__":
             ),
         ]
     )
+    GPUPreprocessingExperiment(
+        name="sicapv2_resnet34",
+        base="config/feat_sicap_wsi.yml",
+        queue="prod.p9",
+        workers=24,
+        path=PATH,
+    ).generate(
+        fixed=[ 
+            Parameter(["pipeline", "stages", 3, "feature_extraction", "params", "architecture"], "resnet34")
+        ]
+    )
+    GPUPreprocessingExperiment(
+        name="sicapv2_pretrained_cnn",
+        base="config/feat_sicap_wsi.yml",
+        queue="prod.p9",
+        workers=24,
+        path=PATH,
+    ).generate(
+        fixed=[ 
+            Parameter(["pipeline", "stages", 3, "feature_extraction", "params", "architecture"], "s3://mlflow/633/734fc44a6db048f5a081c33d0ba07428/artifacts/best.valid.MultiLabelBalancedAccuracy")
+        ]
+    )
 
     # SiCAPv2 WSI dataset
     StronglySupervisedGraphClassificationExperiment(
@@ -199,6 +221,37 @@ if __name__ == "__main__":
             Parameter(["train", "data", "centroid_features"], "no"),
             Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
             Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
+            ),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_lin_weights",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], False),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_lin_weights_keep",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], False),
             Parameter(
                 ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
             ),

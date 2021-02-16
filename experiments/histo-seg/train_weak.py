@@ -41,6 +41,7 @@ def train_graph_classifier(
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
     use_weighted_loss: bool = False,
+    use_log_frequency_weights: bool = True,
     focused_metric: str = "fF1Score",
     **kwargs,
 ) -> None:
@@ -103,7 +104,7 @@ def train_graph_classifier(
 
     # Loss function
     if use_weighted_loss:
-        loss["graph"]['params']['weight'] = training_dataset.get_overall_loss_weights()
+        loss["graph"]['params']['weight'] = training_dataset.get_overall_loss_weights(log=use_log_frequency_weights)
     criterion = get_loss(loss, "graph", device)
 
     # Optimizer

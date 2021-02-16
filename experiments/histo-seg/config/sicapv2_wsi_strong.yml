@@ -63,6 +63,7 @@ train:
     validation_frequency: 5
     autotest: True
     use_weighted_loss: False
+    use_log_frequency_weights: True
 test:
   data: {}
   model:

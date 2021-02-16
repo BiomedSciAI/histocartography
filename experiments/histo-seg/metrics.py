@@ -8,6 +8,17 @@ import torch
 from histocartography.preprocessing.utils import fast_histogram
 
 
+def inverse_frequency(class_counts: np.ndarray) -> np.ndarray:
+    y = np.divide(
+        class_counts.sum(axis=1)[:, np.newaxis],
+        class_counts,
+        out=np.zeros_like(class_counts),
+        where=class_counts != 0,
+    )
+    class_weights = y / y.sum(axis=1)[:, np.newaxis]
+    return class_weights
+
+
 def inverse_log_frequency(class_counts: np.ndarray) -> np.ndarray:
     """Converts class counts into normalized inverse log frequency weights per datapoint
 
@@ -22,14 +33,7 @@ def inverse_log_frequency(class_counts: np.ndarray) -> np.ndarray:
         out=np.zeros_like(class_counts),
         where=class_counts != 0,
     )
-    y = np.divide(
-        log_class_counts.sum(axis=1)[:, np.newaxis],
-        log_class_counts,
-        out=np.zeros_like(log_class_counts),
-        where=log_class_counts != 0,
-    )
-    class_weights = y / y.sum(axis=1)[:, np.newaxis]
-    return class_weights
+    return inverse_frequency(log_class_counts)
 
 
 class Metric:
@@ -127,7 +131,9 @@ class SegmentationMetric(Metric):
             )
         return np.nanmean(metric, axis=0)
 
-    def _get_class_counts(self, ground_truth: Union[np.ndarray, List[np.ndarray]]) -> np.ndarray:
+    def _get_class_counts(
+        self, ground_truth: Union[np.ndarray, List[np.ndarray]]
+    ) -> np.ndarray:
         """Computed class counts for each class and datapoint
 
         Args:
@@ -366,8 +372,9 @@ class MeanF1Score(F1Score):
 
 class fF1Score(F1Score):
     """Inverse Log Frequency Weighted Dice Score
-       Conceptually the same as the fIoU
+    Conceptually the same as the fIoU
     """
+
     def _compute_metric(
         self,
         ground_truth: Union[np.ndarray, List[np.ndarray]],

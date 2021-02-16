@@ -1,7 +1,4 @@
-from typing import Any, Callable, List, Optional
-from dataset import AugmentedGraphClassificationDataset, GraphDatapoint, ImageDatapoint
 import sys
-
 
 # Fake it till you make it: fake SimpleITK dependency to avoid installing ITK on the cluster.
 class SimpleITK(object):
@@ -11,22 +8,29 @@ class SimpleITK(object):
 
 sys.modules["SimpleITK"] = SimpleITK()
 
+from abc import abstractmethod
+from typing import Any, Callable, List, Optional
+
 import cv2
+import dgl
 import numpy as np
 import torch
 import torchio as tio
-from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
-from abc import abstractmethod
-
-from models import SegmentationFromCNN
 from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import (
     GraphGradCAMExplainer,
 )
+from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
+
+from dataset import (
+    AugmentedGraphClassificationDataset,
+    GraphDatapoint,
+    ImageDatapoint,
+    collate_graphs,
+)
 from logging_helper import LoggingHelper, MLflowTimer
-from utils import get_segmentation_map, fast_mode
-import dgl
-from torch.utils.data import Dataset
+from models import SegmentationFromCNN
+from utils import fast_mode, get_segmentation_map
 
 
 class BaseInference:
@@ -44,7 +48,85 @@ class BaseInference:
         pass
 
 
-# CNN Inference
+# GNN Classification Inference
+
+
+class ClassificationInference(BaseInference):
+    def __init__(
+        self, model, device, batch_size=64, num_workers=8, criterion=None
+    ) -> None:
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        super().__init__(model, device=device)
+        if criterion is not None:
+            self.criterion = criterion.to(self.device)
+        else:
+            self.criterion = None
+
+
+class NodeBasedInference(ClassificationInference):
+    def predict(self, dataset, logger: LoggingHelper):
+        dataset_loader = DataLoader(
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            collate_fn=collate_graphs,
+            num_workers=self.num_workers,
+        )
+        with torch.no_grad():
+            for graph_batch in dataset_loader:
+                graph = graph_batch.meta_graph.to(self.device)
+                labels = graph_batch.node_labels.to(self.device)
+                logits = self.model(graph)
+                if isinstance(logits, tuple):
+                    logits = logits[1]
+                if self.criterion is not None:
+                    loss_information = {
+                        "logits": logits,
+                        "targets": labels,
+                        "node_associations": graph.batch_num_nodes,
+                    }
+                    loss = self.criterion(**loss_information)
+                else:
+                    loss = None
+                logger.add_iteration_outputs(
+                    loss=loss,
+                    logits=logits,
+                    labels=labels,
+                    node_associations=graph.batch_num_nodes,
+                )
+        logger.log_and_clear()
+
+
+class GraphBasedInference(ClassificationInference):
+    def predict(self, dataset, logger: LoggingHelper):
+        dataset_loader = DataLoader(
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            collate_fn=collate_graphs,
+            num_workers=self.num_workers,
+        )
+        with torch.no_grad():
+            for graph_batch in dataset_loader:
+                graph = graph_batch.meta_graph.to(self.device)
+                labels = graph_batch.graph_labels.to(self.device)
+                logits = self.model(graph)
+                if isinstance(logits, tuple):
+                    logits = logits[0]
+                if self.criterion is not None:
+                    loss_information = {
+                        "logits": logits,
+                        "targets": labels,
+                    }
+                    loss = self.criterion(**loss_information)
+                else:
+                    loss = None
+                logger.add_iteration_outputs(loss=loss, logits=logits, labels=labels)
+        logger.log_and_clear()
+
+
+# CNN Segmentation Inference
 
 
 class PatchBasedInference(BaseInference):
@@ -168,7 +250,7 @@ class ImageInferenceModel(BaseInference):
         )
 
 
-# GNN Inference
+# GNN Segmentation Inference
 
 
 class GraphNodeBasedInference(BaseInference):
@@ -219,7 +301,7 @@ class GraphGradCAMBasedInference(BaseInference):
         return np.stack(segmentation_maps)
 
 
-# Dataset Inferencer
+# Dataset Segmentation Inferencer
 
 
 class DatasetBaseInference:

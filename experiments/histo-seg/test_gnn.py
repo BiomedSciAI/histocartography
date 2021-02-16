@@ -13,6 +13,8 @@ from inference import (
     GraphGradCAMBasedInference,
     GraphNodeBasedInference,
     TTAGraphInference,
+    NodeBasedInference,
+    GraphBasedInference,
 )
 from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
 from models import (
@@ -45,7 +47,10 @@ def fill_missing_information(model_config, data_config):
         df = mlflow.search_runs(experiment_id)
         df = df.set_index("run_id")
 
-        if "use_augmentation_dataset" not in data_config and "params.data.use_augmentation_dataset" in df:
+        if (
+            "use_augmentation_dataset" not in data_config
+            and "params.data.use_augmentation_dataset" in df
+        ):
             data_config["use_augmentation_dataset"] = (
                 df.loc[run_id, "params.data.use_augmentation_dataset"] == "True"
             )
@@ -57,14 +62,15 @@ def fill_missing_information(model_config, data_config):
             data_config["centroid_features"] = df.loc[
                 run_id, "params.data.centroid_features"
             ]
-        if "normalize_features" not in data_config and "params.data.normalize_features" in df:
+        if (
+            "normalize_features" not in data_config
+            and "params.data.normalize_features" in df
+        ):
             data_config["normalize_features"] = (
                 df.loc[run_id, "params.data.normalize_features"] == "True"
             )
         if "fold" not in data_config and "params.data.fold" in df:
-            data_config["fold"] = (
-                int(df.loc[run_id, "params.data.fold"])
-            )
+            data_config["fold"] = int(df.loc[run_id, "params.data.fold"])
 
 
 def test_gnn(
@@ -85,7 +91,7 @@ def test_gnn(
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     ADDITIONAL_ANNOTATION = dynamic_import_from(dataset, "ADDITIONAL_ANNOTATION")
-    VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE") 
+    VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE")
     prepare_graph_testset = dynamic_import_from(dataset, "prepare_graph_testset")
     show_class_acivation = dynamic_import_from(dataset, "show_class_acivation")
     show_segmentation_masks = dynamic_import_from(dataset, "show_segmentation_masks")
@@ -142,7 +148,14 @@ def test_gnn(
     )
     if ADDITIONAL_ANNOTATION:
         logger_pathologist_2 = LoggingHelper(
-            ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1", "fIoU", "fF1Score"],
+            [
+                "IoU",
+                "F1Score",
+                "GleasonScoreKappa",
+                "GleasonScoreF1",
+                "fIoU",
+                "fF1Score",
+            ],
             prefix="pathologist2",
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,
@@ -187,6 +200,27 @@ def test_gnn(
                 artifact_path=f"test_{operation}_segmentation_maps",
             )
         plt.close(fig=fig)
+
+    if mode in ["strong_supervision", "semi_strong_supervision"]:
+        classification_inferencer = NodeBasedInference(model=model, device=device)
+        node_logger = LoggingHelper(
+            ["NodeClassificationBalancedAccuracy", "NodeClassificationF1Score"],
+            prefix="node",
+            nr_classes=NR_CLASSES,
+            background_label=BACKGROUND_CLASS,
+            variable_size=VARIABLE_SIZE,
+        )
+        classification_inferencer.predict(test_dataset, node_logger)
+    if mode in ["weak_supervision", "semi_strong_supervision"]:
+        classification_inferencer = GraphBasedInference(model=model, device=device)
+        graph_logger = LoggingHelper(
+            ["MultiLabelBalancedAccuracy", "MultiLabelF1Score"],
+            prefix="graph",
+            nr_classes=NR_CLASSES,
+            background_label=BACKGROUND_CLASS,
+            variable_size=VARIABLE_SIZE,
+        )
+        classification_inferencer.predict(test_dataset, graph_logger)
 
     if use_tta:
         inference_runner = TTAGraphInference(

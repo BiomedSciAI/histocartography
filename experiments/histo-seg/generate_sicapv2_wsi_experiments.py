@@ -54,8 +54,18 @@ if __name__ == "__main__":
         workers=24,
         path=PATH,
     ).generate(
-        fixed=[ 
-            Parameter(["pipeline", "stages", 3, "feature_extraction", "params", "architecture"], "resnet34")
+        fixed=[
+            Parameter(
+                [
+                    "pipeline",
+                    "stages",
+                    3,
+                    "feature_extraction",
+                    "params",
+                    "architecture",
+                ],
+                "resnet34",
+            )
         ]
     )
     GPUPreprocessingExperiment(
@@ -65,8 +75,18 @@ if __name__ == "__main__":
         workers=24,
         path=PATH,
     ).generate(
-        fixed=[ 
-            Parameter(["pipeline", "stages", 3, "feature_extraction", "params", "architecture"], "s3://mlflow/633/734fc44a6db048f5a081c33d0ba07428/artifacts/best.valid.MultiLabelBalancedAccuracy")
+        fixed=[
+            Parameter(
+                [
+                    "pipeline",
+                    "stages",
+                    3,
+                    "feature_extraction",
+                    "params",
+                    "architecture",
+                ],
+                "s3://mlflow/633/734fc44a6db048f5a081c33d0ba07428/artifacts/best.valid.MultiLabelBalancedAccuracy",
+            )
         ]
     )
 
@@ -272,7 +292,7 @@ if __name__ == "__main__":
             Parameter(
                 ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
             ),
-            Parameter(["train", "params", "balanced_sampling"], True)
+            Parameter(["train", "params", "balanced_sampling"], True),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
         sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
@@ -290,7 +310,7 @@ if __name__ == "__main__":
             Parameter(
                 ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
             ),
-            Parameter(["train", "params", "balanced_sampling"], True)
+            Parameter(["train", "params", "balanced_sampling"], True),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
         sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
@@ -352,6 +372,119 @@ if __name__ == "__main__":
             ),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    # Patch size
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_keep_100_patches_1000",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], True),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 100
+            ),
+            Parameter(["train", "params", "balanced_sampling"], True),
+            Parameter(["train", "data", "patch_size"], 1000),
+            Parameter(["train", "params", "nr_epochs"], 20000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_keep_200_patches_2000",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], True),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
+            ),
+            Parameter(["train", "params", "balanced_sampling"], True),
+            Parameter(["train", "data", "patch_size"], 2000),
+            Parameter(["train", "params", "nr_epochs"], 15000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_keep_300_patches_3000",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], True),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 300
+            ),
+            Parameter(["train", "params", "balanced_sampling"], True),
+            Parameter(["train", "data", "patch_size"], 3000),
+            Parameter(["train", "params", "nr_epochs"], 10000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_only_patches_1000",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], True),
+            Parameter(["train", "params", "balanced_sampling"], True),
+            Parameter(["train", "data", "patch_size"], 1000),
+            Parameter(["train", "params", "nr_epochs"], 20000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_only_patches_2000",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], True),
+            Parameter(["train", "params", "balanced_sampling"], True),
+            Parameter(["train", "data", "patch_size"], 2000),
+            Parameter(["train", "params", "nr_epochs"], 15000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_only_patches_3000",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], True),
+            Parameter(["train", "params", "balanced_sampling"], True),
+            Parameter(["train", "data", "patch_size"], 3000),
+            Parameter(["train", "params", "nr_epochs"], 10000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
     )
 
     GNNTestingExperiment(

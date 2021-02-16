@@ -6,6 +6,7 @@ train:
     centroid_features: "cat"
     downsample_segmentation_maps: 16
     augmentation_mode: graph
+    patch_size: null
     supervision:
       mode: tissue_level
   model:

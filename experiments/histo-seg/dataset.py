@@ -351,7 +351,9 @@ class GraphClassificationDataset(BaseDataset):
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
         image_label_mapper: Optional[Dict[str, np.ndarray]] = None,
-        **kwargs
+        min_subgraph_ratio: float = 1.0,
+        max_subgraph_tries: float = 100,
+        **kwargs,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -369,6 +371,8 @@ class GraphClassificationDataset(BaseDataset):
         self.USE_ANNOTATION2 = (
             tissue_metadata is not None and "annotation2_path" in tissue_metadata
         )
+        self.min_subgraph_ratio = min_subgraph_ratio
+        self.max_subgraph_tries = max_subgraph_tries
         self.patch_size = patch_size
         self.mean = mean
         self.std = std
@@ -596,9 +600,19 @@ class GraphClassificationDataset(BaseDataset):
         Returns:
             Tuple[int, int, int, int]: A bounding box of the patch
         """
-        x_min = np.random.randint(full_size[0] - patch_size[0])
-        y_min = np.random.randint(full_size[1] - patch_size[1])
-        return (x_min, y_min, x_min + patch_size[0], y_min + patch_size[1])
+        if full_size[0] <= patch_size[0]:
+            size_x = full_size[0]
+            x_min = 0
+        else:
+            size_x = patch_size[0]
+            x_min = np.random.randint(full_size[0] - patch_size[0])
+        if full_size[1] <= patch_size[1]:
+            size_y = full_size[1]
+            y_min = 0
+        else:
+            size_y = patch_size[1]
+            y_min = np.random.randint(full_size[1] - patch_size[1])
+        return (x_min, y_min, x_min + size_x, y_min + size_y)
 
     def _build_datapoint(self, graph, node_labels, index):
         if self.mode == "tissue":
@@ -654,6 +668,28 @@ class GraphClassificationDataset(BaseDataset):
         ), f"Dataset mode must be from {valid_modes}, but is {mode}"
         self.mode = mode
 
+    def _get_minsize_random_subgraph(
+        self, graph: dgl.DGLGraph, node_labels, image_size
+    ):
+        if self.min_subgraph_ratio is None:
+            return self._get_random_subgraph(graph, node_labels, image_size)
+        else:
+            graph_size = 0
+            max_tries = self.max_subgraph_tries
+            min_target_size = int(
+                graph.number_of_nodes()
+                / (image_size[0] * image_size[1])
+                * (self.patch_size[0] * self.patch_size[1])
+                * self.min_subgraph_ratio
+            )
+            while max_tries > 0 and graph_size < min_target_size:
+                graph_candidate, node_label_candidate = self._get_random_subgraph(
+                    graph, node_labels, image_size
+                )
+                graph_size = graph_candidate.number_of_nodes()
+                max_tries -= 1
+            return graph_candidate, node_label_candidate
+
     def __getitem__(self, index: int) -> GraphDatapoint:
         """Returns a sample (patch) of graph i
 
@@ -677,7 +713,7 @@ class GraphClassificationDataset(BaseDataset):
         # Random patch sampling
         if self.patch_size is not None:
             image_size = self.image_sizes[index]
-            graph, node_labels = self._get_random_subgraph(
+            graph, node_labels = self._get_minsize_random_subgraph(
                 graph, node_labels, image_size
             )
 
@@ -720,9 +756,13 @@ class GraphClassificationDataset(BaseDataset):
         else:
             class_counts = labels.sum(dim=0).numpy()
         if log:
-            class_weights = inverse_log_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
+            class_weights = inverse_log_frequency(
+                class_counts.astype(np.float32)[np.newaxis, :]
+            )[0]
         else:
-            class_weights = inverse_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
+            class_weights = inverse_frequency(
+                class_counts.astype(np.float32)[np.newaxis, :]
+            )[0]
         return torch.as_tensor(class_weights)
 
     def get_graph_size_weights(self) -> torch.Tensor:
@@ -844,7 +884,7 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
         # Random patch sampling
         if self.patch_size is not None:
             image_size = self.image_sizes[index]
-            augmented_graph, node_labels = self._get_random_subgraph(
+            augmented_graph, node_labels = self._get_minsize_random_subgraph(
                 augmented_graph, node_labels, image_size
             )
 

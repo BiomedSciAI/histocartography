@@ -163,6 +163,7 @@ def prepare_graph_datasets(
     downsample_segmentation_maps: int = 1,
     augmentation_mode: Optional[str] = None,
     supervision: Optional[dict] = None,
+    patch_size: Optional[int] = None,
 ) -> Tuple[Dataset, Dataset]:
     assert fold in VALID_FOLDS, f"Fold must be in {VALID_FOLDS} but is {fold}"
     all_metadata, label_mapper = get_metadata(graph_directory)
@@ -182,11 +183,17 @@ def prepare_graph_datasets(
         training_metadata = training_metadata.sample(2)
         validation_metadata = validation_metadata.sample(2)
 
+    if patch_size is None:
+        patch_size_augmentation = None
+    else:
+        patch_size_augmentation = (patch_size, patch_size)
+
     training_arguments = {
         "num_classes": NR_CLASSES,
         "background_index": BACKGROUND_CLASS,
         "centroid_features": centroid_features,
         "image_label_mapper": label_mapper,
+        "patch_size": patch_size_augmentation
     }
     validation_arguments = {
         "num_classes": NR_CLASSES,

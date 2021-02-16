@@ -259,6 +259,42 @@ if __name__ == "__main__":
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
         sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
     )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_lin_oversample_keep",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], False),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
+            ),
+            Parameter(["train", "params", "balanced_sampling"], True)
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_log_oversample_keep",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], True),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
+            ),
+            Parameter(["train", "params", "balanced_sampling"], True)
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
 
     # Keep nodes
     StronglySupervisedGraphClassificationExperiment(

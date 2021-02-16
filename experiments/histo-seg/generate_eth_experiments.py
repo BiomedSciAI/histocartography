@@ -3295,10 +3295,7 @@ if __name__ == "__main__":
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_med_13x",
             ),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
@@ -3310,10 +3307,7 @@ if __name__ == "__main__":
                 ["train", "data", "graph_directory"],
                 "outputs/v12_mobilenet_very_high_10x",
             ),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
@@ -3325,10 +3319,7 @@ if __name__ == "__main__":
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_low_20x",
             ),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
@@ -3340,10 +3331,7 @@ if __name__ == "__main__":
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_no_13x",
             ),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
@@ -3356,10 +3344,7 @@ if __name__ == "__main__":
                 "outputs/v10_mobilenet_med_30x_no_overlap",
             ),
             Parameter(["train", "data", "image_labels_mode"], "p+s"),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
@@ -3372,10 +3357,7 @@ if __name__ == "__main__":
                 "outputs/v12_mobilenet_no_10x",
             ),
             Parameter(["train", "data", "image_labels_mode"], "p+s"),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
@@ -3388,10 +3370,7 @@ if __name__ == "__main__":
                 "outputs/v12_mobilenet_low_13x",
             ),
             Parameter(["train", "data", "image_labels_mode"], "p+s"),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
@@ -3404,14 +3383,11 @@ if __name__ == "__main__":
                 "outputs/v12_mobilenet_no_10x",
             ),
             Parameter(["train", "data", "image_labels_mode"], "p+s"),
-            Parameter(
-                ["train", "params", "use_weighted_loss"],
-                True
-            )
+            Parameter(["train", "params", "use_weighted_loss"], True),
         ],
         sequential=[folds],
     )
-    
+
     # Node stochastic
     StronglySupervisedGraphClassificationExperiment(
         name="rep_keep_30_best_meaniou", base="config/final_pixel.yml", path=PATH
@@ -3422,9 +3398,8 @@ if __name__ == "__main__":
                 "outputs/v11_mobilenet_med_13x",
             ),
             Parameter(
-                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
-                30
-            )
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 30
+            ),
         ],
         sequential=[folds],
     )
@@ -3437,9 +3412,8 @@ if __name__ == "__main__":
                 "outputs/v11_mobilenet_no_13x",
             ),
             Parameter(
-                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
-                30
-            )
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 30
+            ),
         ],
         sequential=[folds],
     )
@@ -3452,9 +3426,8 @@ if __name__ == "__main__":
                 "outputs/v11_mobilenet_med_13x",
             ),
             Parameter(
-                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
-                10
-            )
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 10
+            ),
         ],
         sequential=[folds],
     )
@@ -3467,9 +3440,140 @@ if __name__ == "__main__":
                 "outputs/v11_mobilenet_no_13x",
             ),
             Parameter(
-                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
-                10
-            )
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 10
+            ),
+        ],
+        sequential=[folds],
+    )
+
+    # New base
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_base", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "params", "focused_metric"], "fF1Score"),
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_lr_normal", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.0000001,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.00003,
+            ),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "focused_metric"], "fF1Score"),
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_lr_high", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 5,
+                        "min_lr": 0.000001,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.001,
+            ),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "focused_metric"], "fF1Score"),
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_lr_normal", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_low_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.0000001,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.00003,
+            ),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "focused_metric"], "fF1Score"),
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_lr_high", base="config/final_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v12_mobilenet_low_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 5,
+                        "min_lr": 0.000001,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.001,
+            ),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "focused_metric"], "fF1Score"),
         ],
         sequential=[folds],
     )

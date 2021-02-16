@@ -151,22 +151,57 @@ if __name__ == "__main__":
 
     # Weighted loss
     StronglySupervisedGraphClassificationExperiment(
-        name="best_weighted_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
-    ).generate(
-        fixed=[
-            Parameter(["train", "data", "centroid_features"], "no"),
-            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
-        ],
-        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
-    )
-    StronglySupervisedGraphClassificationExperiment(
-        name="best_weighted_strong_node_aug",
+        name="sicap_best_weighted_strong",
         base="config/sicapv2_wsi_strong.yml",
         path=PATH,
     ).generate(
         fixed=[
             Parameter(["train", "data", "centroid_features"], "no"),
             Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_weighted_strong_node_aug",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_weighted_strong_keep",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
+            ),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_best_weighted_strong_node_aug_keep",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
+            ),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
         sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
@@ -174,54 +209,58 @@ if __name__ == "__main__":
 
     # Keep nodes
     StronglySupervisedGraphClassificationExperiment(
-        name="sicap_keep_200_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+        name="sicap_keep_200_best_strong",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(["train", "data", "centroid_features"], "no"),
             Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
             Parameter(
-                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
-                200
-            )
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 200
+            ),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="sicap_keep_100_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+        name="sicap_keep_100_best_strong",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(["train", "data", "centroid_features"], "no"),
             Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
             Parameter(
-                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
-                100
-            )
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"], 100
+            ),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="sicap_keep_half_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+        name="sicap_keep_half_best_strong",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(["train", "data", "centroid_features"], "no"),
             Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
             Parameter(
-                ["train", "params", "loss", "node", "params", "drop_probability"],
-                0.5
-            )
+                ["train", "params", "loss", "node", "params", "drop_probability"], 0.5
+            ),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="sicap_keep_quarter_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+        name="sicap_keep_quarter_best_strong",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(["train", "data", "centroid_features"], "no"),
             Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
             Parameter(
-                ["train", "params", "loss", "node", "params", "drop_probability"],
-                0.75
-            )
+                ["train", "params", "loss", "node", "params", "drop_probability"], 0.75
+            ),
         ],
         grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )

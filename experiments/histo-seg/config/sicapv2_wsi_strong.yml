@@ -53,8 +53,9 @@ train:
         params:
           background_label: 4
           drop_probability: 0.0
+          nodes_to_keep: null
     batch_size: 4
-    nr_epochs: 3000
+    nr_epochs: 5000
     num_workers: 8
     clip_gradient_norm: null
     dataset: "sicapv2_wsi"

@@ -67,8 +67,9 @@ train:
         params:
           background_label: 4
           drop_probability: 0.0
+          nodes_to_keep: null
     batch_size: 8
-    nr_epochs: 500
+    nr_epochs: 1000
     num_workers: 8
     clip_gradient_norm: null
     dataset: "eth"
@@ -76,6 +77,7 @@ train:
     validation_frequency: 5
     autotest: True
     use_weighted_loss: False
+    focused_metric: "MeanIoU"
 test:
   data: {}
   model:

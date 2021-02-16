@@ -252,7 +252,11 @@ class LoggingHelper:
                                 f"best.{self.prefix}.{name}",
                             )
                         self.best_metric_values[i] = current_value
+            return_metrics = dict(zip(self.metric_names, current_values))
+        else:
+            return_metrics = None
         self._reset_epoch_stats()
+        return return_metrics
 
 
 class SegmentationLoggingHelper(LoggingHelper):
@@ -381,8 +385,15 @@ class GraphLoggingHelper:
             )
 
     def log_and_clear(self, step, model=None):
-        self.classification_helper.log_and_clear(step, model)
-        self.segmentation_helper.log_and_clear(step, model)
+        return_dict = self.classification_helper.log_and_clear(step, model)
+        segmentation_return_dict = self.segmentation_helper.log_and_clear(step, model)
+        if return_dict is None and segmentation_return_dict is not None:
+            return segmentation_return_dict
+        if return_dict is not None and segmentation_return_dict is None:
+            return return_dict
+        if return_dict is not None and segmentation_return_dict is not None:
+            return_dict.update(segmentation_return_dict)
+            return return_dict
 
 
 class MLflowTimer:

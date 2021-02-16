@@ -75,6 +75,7 @@ train:
     validation_frequency: 5
     autotest: True
     use_weighted_loss: False
+    focused_metric: "MeanIoU"
 test:
   data: {}
   model:

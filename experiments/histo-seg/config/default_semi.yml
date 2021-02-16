@@ -87,6 +87,7 @@ train:
         params:
           background_label: 4
           drop_probability: 0.0
+          nodes_to_keep: null
       node_weight: 0.5
     batch_size: 8
     nr_epochs: 500
@@ -97,6 +98,7 @@ train:
     validation_frequency: 5
     autotest: True
     use_weighted_loss: False
+    focused_metric: "MeanIoU"
 test:
   data: {}
   model:

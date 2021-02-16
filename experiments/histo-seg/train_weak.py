@@ -5,6 +5,7 @@ from typing import Dict, Optional
 import mlflow
 import torch
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm.auto import trange
 
 from dataset import GraphBatch, collate_graphs
@@ -40,6 +41,7 @@ def train_graph_classifier(
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
     use_weighted_loss: bool = False,
+    focused_metric: str = "fF1Score",
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -141,7 +143,7 @@ def train_graph_classifier(
                 loss=loss.item(), **loss_information
             )
 
-        if scheduler is not None:
+        if scheduler is not None and not isinstance(scheduler, ReduceLROnPlateau):
             robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
             scheduler.step()
 
@@ -193,7 +195,7 @@ def train_graph_classifier(
                     **loss_information,
                 )
 
-            validation_metric_logger.log_and_clear(
+            current_metrics = validation_metric_logger.log_and_clear(
                 step=epoch, model=model if not test else None
             )
             validation_epoch_duration = (
@@ -205,12 +207,17 @@ def train_graph_classifier(
                 validation_epoch_duration,
                 step=epoch,
             )
+            
+            if scheduler is not None and isinstance(scheduler, ReduceLROnPlateau):
+                robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
+                scheduler.step(current_metrics[focused_metric])
 
     mlflow.pytorch.log_model(model, "latest")
 
 
 if __name__ == "__main__":
     config, tags = prepare_training(default="default_weak.yml")
+    focused_metric = config["params"].get("focused_metric", "MeanIoU")
     train_graph_classifier(
         model_config=config["model"],
         data_config=config["data"],
@@ -218,6 +225,6 @@ if __name__ == "__main__":
         **config["params"],
     )
     experiment_id, run_id = end_run()
-    checkpoint = "best.valid.graph.segmentation.MeanIoU"
+    checkpoint = f"best.valid.graph.segmentation.{focused_metric}"
     model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/{checkpoint}"
     auto_test(config, tags, default="default_weak.yml", model_uri=model_uri)

@@ -3412,3 +3412,64 @@ if __name__ == "__main__":
         sequential=[folds],
     )
     
+    # Node stochastic
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_keep_30_best_meaniou", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
+                30
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_keep_30_good_kappa", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_no_13x",
+            ),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
+                30
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_keep_10_best_meaniou", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
+                10
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_keep_10_good_kappa", base="config/final_pixel.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_no_13x",
+            ),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
+                10
+            )
+        ],
+        sequential=[folds],
+    )

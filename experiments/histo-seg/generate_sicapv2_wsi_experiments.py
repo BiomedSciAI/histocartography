@@ -172,6 +172,60 @@ if __name__ == "__main__":
         sequential=[ParameterList(["train", "data", "augmentation_mode"], ["node"])],
     )
 
+    # Keep nodes
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_keep_200_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
+                200
+            )
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_keep_100_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "nodes_to_keep"],
+                100
+            )
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_keep_half_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "drop_probability"],
+                0.5
+            )
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_keep_quarter_best_strong", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(
+                ["train", "params", "loss", "node", "params", "drop_probability"],
+                0.75
+            )
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
     GNNTestingExperiment(
         name="tissue_failed", base="config/sicapv2_wsi_strong.yml", path=PATH
     ).generate(

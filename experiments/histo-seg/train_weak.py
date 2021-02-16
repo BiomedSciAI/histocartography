@@ -6,6 +6,7 @@ import mlflow
 import torch
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data.sampler import WeightedRandomSampler
 from tqdm.auto import trange
 
 from dataset import GraphBatch, collate_graphs
@@ -43,6 +44,7 @@ def train_graph_classifier(
     use_weighted_loss: bool = False,
     use_log_frequency_weights: bool = True,
     focused_metric: str = "fF1Score",
+    balanced_sampling: bool = False,
     **kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
@@ -63,11 +65,19 @@ def train_graph_classifier(
 
     # Data loaders
     training_dataset, validation_dataset = prepare_graph_datasets(**data_config)
+    if balanced_sampling:
+        training_sample_weights = training_dataset.get_graph_size_weights()
+        sampler = WeightedRandomSampler(
+            training_sample_weights, len(training_dataset), replacement=True
+        )
+    else:
+        sampler = None
     assert training_dataset.mode == "image"
     training_loader = DataLoader(
         training_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=not balanced_sampling,
+        sampler=sampler,
         collate_fn=collate_graphs,
         num_workers=num_workers,
     )

@@ -725,6 +725,15 @@ class GraphClassificationDataset(BaseDataset):
             class_weights = inverse_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
         return torch.as_tensor(class_weights)
 
+    def get_graph_size_weights(self) -> torch.Tensor:
+        graph: dgl.DGLGraph
+        nr_nodes = list()
+        for graph in self.graphs:
+            nr_nodes.append(graph.number_of_nodes())
+        nr_nodes = np.array(nr_nodes)
+        nr_nodes = nr_nodes / nr_nodes.sum()
+        return torch.as_tensor(nr_nodes)
+
 
 class AugmentedGraphClassificationDataset(GraphClassificationDataset):
     """Dataset variation used for extracted and dumped graphs with augmentations"""

@@ -62,6 +62,8 @@ train:
     autotest: True
     use_weighted_loss: False
     use_log_frequency_weights: True
+    focused_metric: "fF1Score"
+    balanced_sampling: False
 test:
   data: {}
   model:

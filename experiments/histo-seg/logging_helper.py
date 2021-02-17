@@ -290,8 +290,8 @@ class SegmentationLoggingHelper(LoggingHelper):
         )
 
     def create_segmentation_maps(self, actual, predicted):
-        width = 5
-        height = width * (actual.shape[0] / actual.shape[1]) + width * (predicted.shape[0] / predicted.shape[1])
+        width = 10
+        height = 4
 
         fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(width, height))
         ax[0].imshow(

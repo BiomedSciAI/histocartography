@@ -47,7 +47,7 @@ class SuperpixelExtractor(PipelineStep):
         if self.downsampling_factor != 1:
             input_image = self._downsample(input_image, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
-        superpixels = self._extract_superpixels(input_image=input_image, tissue_mask=tissue_mask)
+        superpixels = self._extract_superpixels(image=input_image, tissue_mask=tissue_mask)
         if self.downsampling_factor != 1:
             superpixels = self._upsample(superpixels, original_height, original_width)
             logging.debug("Upsampled to %s", superpixels.shape)

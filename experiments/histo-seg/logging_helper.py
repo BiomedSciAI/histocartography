@@ -293,7 +293,7 @@ class SegmentationLoggingHelper(LoggingHelper):
         width = 5
         height = width * (actual.shape[0] / actual.shape[1]) + width * (predicted.shape[0] / predicted.shape[1])
 
-        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(height, width))
+        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(width, height))
         ax[0].imshow(
             actual, cmap=self.cmap, vmin=-0.5, vmax=4.5, interpolation="nearest"
         )
@@ -337,7 +337,7 @@ class SegmentationLoggingHelper(LoggingHelper):
                         str(step).zfill(self.leading_zeros),
                         str(i).zfill(batch_leading_zeros),
                     )
-                    fig.savefig(str(name), bbox_inches="tight")
+                    fig.savefig(str(name), bbox_inches="tight", dpi=300)
                     robust_mlflow(
                         mlflow.log_artifact,
                         str(name),

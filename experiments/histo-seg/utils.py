@@ -352,6 +352,7 @@ def get_segmentation_map(node_predictions, superpixels, NR_CLASSES):
     all_maps = list()
     for label in range(NR_CLASSES):
         (spx_indices,) = np.where(node_predictions == label)
+        spx_indices = spx_indices + 1
         map_l = np.isin(superpixels, spx_indices) * label
         all_maps.append(map_l)
     return np.stack(all_maps).sum(axis=0)

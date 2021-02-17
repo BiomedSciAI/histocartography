@@ -207,9 +207,7 @@ def test_gnn(
             ["NodeClassificationBalancedAccuracy", "NodeClassificationF1Score"],
             prefix="node",
             nr_classes=NR_CLASSES,
-            background_label=BACKGROUND_CLASS,
-            variable_size=VARIABLE_SIZE,
-        )
+            background_label=BACKGROUND_CLASS,        )
         classification_inferencer.predict(test_dataset, node_logger)
     if mode in ["weak_supervision", "semi_strong_supervision"]:
         classification_inferencer = GraphBasedInference(model=model, device=device)
@@ -218,7 +216,6 @@ def test_gnn(
             prefix="graph",
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,
-            variable_size=VARIABLE_SIZE,
         )
         classification_inferencer.predict(test_dataset, graph_logger)
 

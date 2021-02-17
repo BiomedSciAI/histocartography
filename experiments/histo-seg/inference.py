@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
 from dataset import (
-    AugmentedGraphClassificationDataset,
+    AugmentedGraphClassificationDataset, GraphClassificationDataset,
     GraphDatapoint,
     ImageDatapoint,
     collate_graphs,
@@ -53,10 +53,8 @@ class BaseInference:
 
 class ClassificationInference(BaseInference):
     def __init__(
-        self, model, device, batch_size=64, num_workers=8, criterion=None
+        self, model, device, criterion=None
     ) -> None:
-        self.batch_size = batch_size
-        self.num_workers = num_workers
         super().__init__(model, device=device)
         if criterion is not None:
             self.criterion = criterion.to(self.device)
@@ -65,16 +63,18 @@ class ClassificationInference(BaseInference):
 
 
 class NodeBasedInference(ClassificationInference):
-    def predict(self, dataset, logger: LoggingHelper):
+    def predict(self, dataset: GraphClassificationDataset, logger: LoggingHelper):
+        old_state = dataset.return_segmentation_info
+        dataset.return_segmentation_info = False
         dataset_loader = DataLoader(
             dataset,
-            batch_size=self.batch_size,
+            batch_size=1,
             shuffle=False,
             collate_fn=collate_graphs,
-            num_workers=self.num_workers,
+            num_workers=0,
         )
         with torch.no_grad():
-            for graph_batch in dataset_loader:
+            for graph_batch in tqdm(dataset_loader, total=len(dataset_loader)):
                 graph = graph_batch.meta_graph.to(self.device)
                 labels = graph_batch.node_labels.to(self.device)
                 logits = self.model(graph)
@@ -96,19 +96,22 @@ class NodeBasedInference(ClassificationInference):
                     node_associations=graph.batch_num_nodes,
                 )
         logger.log_and_clear()
+        dataset.return_segmentation_info = old_state
 
 
 class GraphBasedInference(ClassificationInference):
-    def predict(self, dataset, logger: LoggingHelper):
+    def predict(self, dataset: GraphClassificationDataset, logger: LoggingHelper):
+        old_state = dataset.return_segmentation_info
+        dataset.return_segmentation_info = False
         dataset_loader = DataLoader(
             dataset,
-            batch_size=self.batch_size,
+            batch_size=1,
             shuffle=False,
             collate_fn=collate_graphs,
-            num_workers=self.num_workers,
+            num_workers=0,
         )
         with torch.no_grad():
-            for graph_batch in dataset_loader:
+            for graph_batch in tqdm(dataset_loader, total=len(dataset_loader)):
                 graph = graph_batch.meta_graph.to(self.device)
                 labels = graph_batch.graph_labels.to(self.device)
                 logits = self.model(graph)
@@ -124,6 +127,7 @@ class GraphBasedInference(ClassificationInference):
                     loss = None
                 logger.add_iteration_outputs(loss=loss, logits=logits, labels=labels)
         logger.log_and_clear()
+        dataset.return_segmentation_info = old_state
 
 
 # CNN Segmentation Inference

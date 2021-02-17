@@ -66,11 +66,8 @@ class PipelineStep(ABC):
                     "Link exists, but points nowhere. Ignoring..."
                 )
                 return
-        else:
-            logging.critical(
-                    "Link does not exist, but there is a file. Ignoring..."
-                )
-            return
+        elif os.path.exists(link_directory):
+            os.remove(link_directory)
         os.symlink(self.output_dir, link_directory, target_is_directory=True)
 
     def precompute(self, final_path) -> None:

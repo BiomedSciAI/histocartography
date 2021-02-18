@@ -69,8 +69,15 @@ class FeatureExtractor(PipelineStep):
             str: Architecture name to use for the save path
         """
         if architecture.startswith("s3://mlflow"):
-            _, experiment_id, run_id, _, metric = architecture[5:].split("/")
-            return f"MLflow({experiment_id},{run_id},{metric})"
+            processed_architecture = architecture[5:].split("/")
+            if len(processed_architecture) == 5:
+                _, experiment_id, run_id, _, metric = processed_architecture
+                return f"MLflow({experiment_id},{run_id},{metric})"
+            elif len(processed_architecture) == 4:
+                _, experiment_id, _, name = processed_architecture
+                return f"MLflow({experiment_id},{name})"
+            else:
+                return f"MLflow({','.join(processed_architecture)})"
         elif architecture.endswith(".pth"):
             return f"Local({architecture.replace('/', '_')})"
         else:

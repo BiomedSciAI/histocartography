@@ -237,7 +237,7 @@ if __name__ == "__main__":
         # End training run
         run_id = robust_mlflow(mlflow.active_run).info.run_id
         experiment_id = robust_mlflow(mlflow.active_run).info.experiment_id
-        model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+        model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/best.valid.MeanMultiLabelBalancedAccuracy"
         robust_mlflow(mlflow.end_run)
 
         # Start testing run

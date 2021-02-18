@@ -78,7 +78,7 @@ def train_patch_classifier(
     )
 
     # Compute device
-    device = log_device
+    device = log_device()
 
     # Model
     model = PatchTissueClassifier(num_classes=NR_CLASSES, **model_config)

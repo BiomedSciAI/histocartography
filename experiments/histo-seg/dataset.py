@@ -1008,7 +1008,7 @@ class PatchClassificationDataset(ImageDataset):
         self.augmentor = self._get_augmentor(augmentations, mean, std)
 
     def _generate_patches(self):
-        patches = self.images.unfold(1, self.patch_size, self.stride).unfold(
+        patches = torch.as_tensor(self.images).unfold(1, self.patch_size, self.stride).unfold(
             2, self.patch_size, self.stride
         )
         patches = patches.reshape([-1, 3, self.patch_size, self.patch_size])
@@ -1021,7 +1021,7 @@ class PatchClassificationDataset(ImageDataset):
         return self._to_onehot_with_ignore(unique_annotation).sum(axis=0).numpy()
 
     def _generate_labels(self):
-        labels = self.annotations.unfold(1, self.patch_size, self.stride).unfold(
+        labels = torch.as_tensor(self.annotations).unfold(1, self.patch_size, self.stride).unfold(
             2, self.patch_size, self.stride
         )
         self.patch_annotations = labels.reshape([-1, self.patch_size, self.patch_size])
@@ -1033,7 +1033,7 @@ class PatchClassificationDataset(ImageDataset):
         )
 
     def _generate_tissue_masks(self):
-        masks = self.tissue_masks.unfold(1, self.patch_size, self.stride).unfold(
+        masks = torch.as_tensor(self.tissue_masks).unfold(1, self.patch_size, self.stride).unfold(
             2, self.patch_size, self.stride
         )
         masks = masks.reshape([-1, self.patch_size, self.patch_size])

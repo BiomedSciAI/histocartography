@@ -26,8 +26,8 @@ from torchvision.transforms import (
 from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
+from metrics import inverse_frequency, inverse_log_frequency
 from utils import read_image
-from metrics import inverse_log_frequency, inverse_frequency
 
 
 @dataclass
@@ -1008,8 +1008,10 @@ class PatchClassificationDataset(ImageDataset):
         self.augmentor = self._get_augmentor(augmentations, mean, std)
 
     def _generate_patches(self):
-        patches = torch.as_tensor(self.images).unfold(1, self.patch_size, self.stride).unfold(
-            2, self.patch_size, self.stride
+        patches = (
+            torch.as_tensor(self.images)
+            .unfold(1, self.patch_size, self.stride)
+            .unfold(2, self.patch_size, self.stride)
         )
         patches = patches.reshape([-1, 3, self.patch_size, self.patch_size])
         return patches
@@ -1021,8 +1023,10 @@ class PatchClassificationDataset(ImageDataset):
         return self._to_onehot_with_ignore(unique_annotation).sum(axis=0).numpy()
 
     def _generate_labels(self):
-        labels = torch.as_tensor(self.annotations).unfold(1, self.patch_size, self.stride).unfold(
-            2, self.patch_size, self.stride
+        labels = (
+            torch.as_tensor(self.annotations)
+            .unfold(1, self.patch_size, self.stride)
+            .unfold(2, self.patch_size, self.stride)
         )
         self.patch_annotations = labels.reshape([-1, self.patch_size, self.patch_size])
         return torch.as_tensor(
@@ -1033,8 +1037,10 @@ class PatchClassificationDataset(ImageDataset):
         )
 
     def _generate_tissue_masks(self):
-        masks = torch.as_tensor(self.tissue_masks).unfold(1, self.patch_size, self.stride).unfold(
-            2, self.patch_size, self.stride
+        masks = (
+            torch.as_tensor(self.tissue_masks)
+            .unfold(1, self.patch_size, self.stride)
+            .unfold(2, self.patch_size, self.stride)
         )
         masks = masks.reshape([-1, self.patch_size, self.patch_size])
         masks = masks // 255
@@ -1112,3 +1118,52 @@ class PatchClassificationDataset(ImageDataset):
         )
         frequencies = 1 / counts.to(torch.float32)
         return frequencies[classes]
+
+
+class GleasonPercentageDataset(Dataset):
+    GG_SUM_TO_LABEL = {0: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
+
+    def __init__(self, percentage_df, label_df, mode):
+        self.mode = mode
+        names = list()
+        percentages = list()
+        primaries = list()
+        secondaries = list()
+        for name, row in percentage_df.iterrows():
+            names.append(name)
+            percentage = row.to_numpy()
+            percentage = percentage / percentage.sum()
+            percentages.append(percentage)
+            primaries.append(label_df.loc[name, "Gleason_primary"])
+            secondaries.append(label_df.loc[name, "Gleason_secondary"])
+        self.percentages = torch.as_tensor(np.array(percentages)).to(torch.float32)
+        self.primaries = np.array(primaries)
+        self.secondaries = np.array(secondaries)
+        self.names = np.array(names)
+
+    def _ps_to_multilabel(self, p, s):
+        one_hot = np.array([0] * 4)
+        one_hot[p] = 1
+        one_hot[s] = 1
+        return one_hot
+
+    def _ps_to_finalgleasonscore(self, p, s):
+        return self.GG_SUM_TO_LABEL[p + s]
+
+    def __getitem__(self, index):
+        if self.mode == "multihead":
+            label = (self.primaries[index], self.secondaries[index])
+        elif self.mode == "multilabel":
+            label = self._ps_to_multilabel(
+                self.primaries[index], self.secondaries[index]
+            )
+        elif self.mode == "finalgleasonscore":
+            label = self._ps_to_finalgleasonscore(
+                self.primaries[index], self.secondaries[index]
+            )
+        else:
+            raise NotImplementedError
+        return self.percentages[index], label
+
+    def __len__(self):
+        return len(self.percentages)

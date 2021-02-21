@@ -164,6 +164,8 @@ def prepare_graph_datasets(
     augmentation_mode: Optional[str] = None,
     supervision: Optional[dict] = None,
     patch_size: Optional[int] = None,
+    additional_training_arguments: dict = {},
+    additional_validation_arguments: dict = {},
 ) -> Tuple[Dataset, Dataset]:
     assert fold in VALID_FOLDS, f"Fold must be in {VALID_FOLDS} but is {fold}"
     all_metadata, label_mapper = get_metadata(graph_directory)
@@ -195,6 +197,7 @@ def prepare_graph_datasets(
         "image_label_mapper": label_mapper,
         "patch_size": patch_size_augmentation
     }
+    training_arguments.update(additional_training_arguments)
     validation_arguments = {
         "num_classes": NR_CLASSES,
         "background_index": BACKGROUND_CLASS,
@@ -203,6 +206,7 @@ def prepare_graph_datasets(
         "segmentation_downsample_ratio": downsample_segmentation_maps,
         "image_label_mapper": label_mapper,
     }
+    validation_arguments.update(additional_validation_arguments)
 
     supervision_mode = (
         supervision.get("mode", "tissue_level")

@@ -3,29 +3,24 @@ import logging
 from typing import Dict, Optional
 
 import mlflow
-from numpy.lib.arraysetops import isin
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from tqdm.auto import trange
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from dataset import GraphBatch, GraphClassificationDataset, collate_graphs
 from logging_helper import (
     GraphLoggingHelper,
+    log_device,
+    log_nr_parameters,
     robust_mlflow,
 )
 from losses import get_loss, get_lr
 from models import SuperPixelTissueClassifier
+from postprocess import extract_all
+from train_utils import auto_test, end_run, get_optimizer, prepare_training
 from utils import dynamic_import_from, get_batched_segmentation_maps
-from train_utils import (
-    end_run,
-    log_nr_parameters,
-    get_optimizer,
-    log_device,
-    prepare_training,
-    auto_test,
-)
 
 
 def train_node_classifier(
@@ -45,7 +40,7 @@ def train_node_classifier(
     use_log_frequency_weights: bool = True,
     focused_metric: str = "fF1Score",
     balanced_sampling: bool = False,
-    **kwargs,
+    ** kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
 
@@ -116,7 +111,9 @@ def train_node_classifier(
 
     # Loss function
     if use_weighted_loss:
-        loss["node"]['params']['weight'] = training_dataset.get_overall_loss_weights(log=use_log_frequency_weights)
+        loss["node"]["params"]["weight"] = training_dataset.get_overall_loss_weights(
+            log=use_log_frequency_weights
+        )
     criterion = get_loss(loss, "node", device)
 
     # Optimizer

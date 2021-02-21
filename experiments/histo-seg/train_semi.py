@@ -1,32 +1,28 @@
 import datetime
 import logging
-from typing import Dict, MutableSequence, Optional, List, no_type_check
+from typing import Dict, List, MutableSequence, Optional, no_type_check
 
 import mlflow
 import torch
-from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from tqdm.auto import trange
 
-from dataset import GraphBatch, collate_graphs, GraphClassificationDataset
+from dataset import GraphBatch, GraphClassificationDataset, collate_graphs
 from inference import GraphGradCAMBasedInference
 from logging_helper import (
     GraphLoggingHelper,
     LoggingHelper,
+    log_device,
+    log_nr_parameters,
     robust_mlflow,
 )
 from losses import get_loss, get_lr
 from models import SemiSuperPixelTissueClassifier
+from train_utils import auto_test, end_run, get_optimizer, prepare_training
 from utils import dynamic_import_from, get_batched_segmentation_maps
-from train_utils import (
-    end_run,
-    log_nr_parameters,
-    get_optimizer,
-    log_device,
-    prepare_training,
-    auto_test,
-)
+
 
 class CombinedCriterion(torch.nn.Module):
     def __init__(self, loss: dict, device) -> None:
@@ -183,9 +179,13 @@ def train_graph_classifier(
     # Loss function
     if use_weighted_loss:
         training_dataset.set_mode("tissue")
-        loss["node"]['params']['weight'] = training_dataset.get_overall_loss_weights(log=use_log_frequency_weights)
+        loss["node"]["params"]["weight"] = training_dataset.get_overall_loss_weights(
+            log=use_log_frequency_weights
+        )
         training_dataset.set_mode("image")
-        loss["graph"]['params']['weight'] = training_dataset.get_overall_loss_weights(log=use_log_frequency_weights)
+        loss["graph"]["params"]["weight"] = training_dataset.get_overall_loss_weights(
+            log=use_log_frequency_weights
+        )
         training_dataset.set_mode("tissue")
     criterion = CombinedCriterion(loss, device)
 
@@ -356,8 +356,10 @@ if __name__ == "__main__":
     checkpoint = f"best.valid.node.segmentation.{focused_metric}"
     model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/{checkpoint}"
     auto_test(config, tags, default="default_strong.yml", model_uri=model_uri)
+    robust_mlflow(mlflow.log_param("head", "node"))
     end_run()
 
     checkpoint = "best.valid.graph.segmentation.MeanIoU"
     model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/{checkpoint}"
     auto_test(config, tags, default="default_weak.yml", model_uri=model_uri)
+    robust_mlflow(mlflow.log_param("head", "graph"))

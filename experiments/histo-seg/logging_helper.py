@@ -15,6 +15,11 @@ import yaml
 from matplotlib.colors import ListedColormap
 
 from metrics import Metric
+from models import (
+    ImageTissueClassifier,
+    SemiSuperPixelTissueClassifier,
+    SuperPixelTissueClassifier,
+)
 from utils import dynamic_import_from, fix_seeds
 
 with os.popen("hostname") as subprocess:
@@ -99,6 +104,31 @@ def log_preprocessing_parameters(graph_path: Path):
                         )
 
 
+def log_device():
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        robust_mlflow(mlflow.log_param, "device", torch.cuda.get_device_name(0))
+    else:
+        robust_mlflow(mlflow.log_param, "device", "CPU")
+    return device
+
+
+def log_nr_parameters(model):
+    nr_trainable_total_params = sum(
+        p.numel() for p in model.parameters() if p.requires_grad
+    )
+    robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
+    if isinstance(model, ImageTissueClassifier):
+        mode = "weak_supervision"
+    elif isinstance(model, SuperPixelTissueClassifier):
+        mode = "strong_supervision"
+    elif isinstance(model, SemiSuperPixelTissueClassifier):
+        mode = "combined_supervision"
+    else:
+        mode = "unknown"
+    robust_mlflow(mlflow.log_param, "supervision", mode)
+
+
 def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):
     while max_tries > 1:
         try:
@@ -136,7 +166,9 @@ def prepare_experiment(
 
 
 class LoggingHelper:
-    def __init__(self, metrics_config, prefix="", variable_size=False, **kwargs) -> None:
+    def __init__(
+        self, metrics_config, prefix="", variable_size=False, **kwargs
+    ) -> None:
         self.metrics_config = metrics_config
         self.variable_size = variable_size
         self.prefix = prefix

@@ -9,19 +9,20 @@ import torch
 
 from dataset import GraphDatapoint
 from inference import (
+    GraphBasedInference,
     GraphDatasetInference,
     GraphGradCAMBasedInference,
     GraphNodeBasedInference,
-    TTAGraphInference,
     NodeBasedInference,
-    GraphBasedInference,
+    TTAGraphInference,
 )
-from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
+from logging_helper import LoggingHelper, log_device, prepare_experiment, robust_mlflow
 from models import (
     ImageTissueClassifier,
     SemiSuperPixelTissueClassifier,
     SuperPixelTissueClassifier,
 )
+from postprocess import create_dataset, run_mlp, train_mlp
 from utils import dynamic_import_from, get_config
 
 
@@ -207,7 +208,8 @@ def test_gnn(
             ["NodeClassificationBalancedAccuracy", "NodeClassificationF1Score"],
             prefix="node",
             nr_classes=NR_CLASSES,
-            background_label=BACKGROUND_CLASS,        )
+            background_label=BACKGROUND_CLASS,
+        )
         classification_inferencer.predict(test_dataset, node_logger)
     if mode in ["weak_supervision", "semi_strong_supervision"]:
         classification_inferencer = GraphBasedInference(model=model, device=device)
@@ -251,3 +253,24 @@ if __name__ == "__main__":
         test=test,
         **config["params"],
     )
+
+    if config["params"].get('dataset', "eth") == "sicapv2_wsi":
+        # Create percentage datasets
+        training_dataset, validation_dataset, testing_dataset = create_dataset(
+            model_config=config["model"],
+            data_config=config["data"],
+            test=test,
+            **config["params"],
+        )
+
+        device = log_device()
+        # Train MLP
+        model = train_mlp(
+            training_dataset=training_dataset,
+            validation_dataset=validation_dataset,
+            device=device,
+            **config["params"],
+        )
+
+        # Evaluate on testset
+        run_mlp(model=model, device=device, testing_dataset=testing_dataset)

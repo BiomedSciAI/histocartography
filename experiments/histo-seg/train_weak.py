@@ -4,8 +4,8 @@ from typing import Dict, Optional
 
 import mlflow
 import torch
-from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from tqdm.auto import trange
 
@@ -13,19 +13,14 @@ from dataset import GraphBatch, collate_graphs
 from inference import GraphGradCAMBasedInference
 from logging_helper import (
     GraphLoggingHelper,
+    log_device,
+    log_nr_parameters,
     robust_mlflow,
 )
 from losses import get_loss, get_lr
 from models import ImageTissueClassifier
+from train_utils import auto_test, end_run, get_optimizer, prepare_training
 from utils import dynamic_import_from
-from train_utils import (
-    log_nr_parameters,
-    get_optimizer,
-    log_device,
-    prepare_training,
-    auto_test,
-    end_run,
-)
 
 
 def train_graph_classifier(
@@ -114,7 +109,9 @@ def train_graph_classifier(
 
     # Loss function
     if use_weighted_loss:
-        loss["graph"]['params']['weight'] = training_dataset.get_overall_loss_weights(log=use_log_frequency_weights)
+        loss["graph"]["params"]["weight"] = training_dataset.get_overall_loss_weights(
+            log=use_log_frequency_weights
+        )
     criterion = get_loss(loss, "graph", device)
 
     # Optimizer
@@ -218,7 +215,7 @@ def train_graph_classifier(
                 validation_epoch_duration,
                 step=epoch,
             )
-            
+
             if scheduler is not None and isinstance(scheduler, ReduceLROnPlateau):
                 robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
                 scheduler.step(current_metrics[focused_metric])

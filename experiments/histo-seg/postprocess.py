@@ -215,17 +215,25 @@ def create_dataset(
     prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
     prepare_graph_testset = dynamic_import_from(dataset, "prepare_graph_testset")
 
-    training_dataset, validation_dataset = prepare_graph_datasets(
-        overfit_test=test,
-        additional_training_arguments={
+    train_arguments = data_config.copy()
+    train_arguments.update({
+        "overfit_test": test,
+        "additional_training_arguments": {
             "return_segmentation_info": True,
             "segmentation_downsample_ratio": 2,
         },
-        additional_validation_arguments={"segmentation_downsample_ratio": 2},
-        **data_config,
+        "additional_validation_arguments" : {"segmentation_downsample_ratio": 2},
+    })
+    training_dataset, validation_dataset = prepare_graph_datasets(
+        **train_arguments,
     )
+    test_arguments = data_config.copy()
+    test_arguments.update({
+        "test": test,
+        "segmentation_downsample_ratio": 2
+    })
     test_dataset = prepare_graph_testset(
-        test=test, **data_config, segmentation_downsample_ratio=2
+        **test_arguments
     )
 
     device = log_device()

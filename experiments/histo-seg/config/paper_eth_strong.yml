@@ -1,12 +1,22 @@
 train:
   data:
-    fold: 1
     overfit_test: False
-    graph_directory:  "v0_low_4000"
-    centroid_features: "cat"
-    downsample_segmentation_maps: 16
-    augmentation_mode: graph
+    train_fraction: null
+    training_slides:
+      - 111
+      - 199
+      - 204
+    validation_slides:
+      - 76
     patch_size: null
+    graph_directory:  "outputs/v11_mobilenet_med_13x"
+    centroid_features: "cat"
+    use_patches_for_validation: false
+    normalize_features: false
+    downsample_segmentation_maps: 16
+    use_augmentation_dataset: true
+    augmentation_mode: "graph"
+    image_labels_mode: "original_labels"
     supervision:
       mode: tissue_level
     partial_annotation: null
@@ -30,10 +40,6 @@ train:
       activation: "PReLU"
       input_dropout: 0.5
       seperate_heads: True
-    graph_classifier_config:
-      n_layers: 2
-      hidden_dim: 32
-      input_dropout: 0.5
   metrics:
     graph:
       - "MultiLabelBalancedAccuracy"
@@ -49,33 +55,35 @@ train:
       - "fIoU"
       - "fF1Score"
   params:
-    experiment_name: "anv_wsss_sicap_wsi_gnn_semi"
+    experiment_name: "anv_wsss_gnn_strongly_supervised"
     experiment_tags: null
     optimizer:
       class: "Adam"
       params:
         lr: 0.00003
-      scheduler: null
+      scheduler:
+        class: ReduceLROnPlateau
+        params:
+          mode: max
+          factor: 0.5
+          patience: 10
+          min_lr: 0.0000001
     loss:
-      graph:
-        class: "GraphBCELoss"
-        params: {}
       node:
         class: "NodeStochasticCrossEntropy"
         params:
           background_label: 4
           drop_probability: 0.0
           nodes_to_keep: null
-      node_weight: 0.5
-    batch_size: 4
-    nr_epochs: 5000
+    batch_size: 8
+    nr_epochs: 1000
     num_workers: 8
     clip_gradient_norm: null
-    dataset: "sicapv2_wsi"
+    dataset: "eth"
     seed: null
     validation_frequency: 5
     autotest: True
-    use_weighted_loss: False
+    use_weighted_loss: True
     use_log_frequency_weights: True
     focused_metric: "fF1Score"
     balanced_sampling: False
@@ -84,11 +92,11 @@ test:
   model:
     architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
   params:
-    experiment_name: "anv_wsss_sicap_wsi_test_gnn"
+    experiment_name: "anv_wsss_test_gnn"
     experiment_tags: null
-    dataset: sicapv2_wsi
+    dataset: eth
     operation: argmax
-    local_save_path: '/dataP/anv/data/SICAPv2_WSI/gnn_test_masks'
-    mlflow_save_path: 'gnn_wsi_test_masks'
+    local_save_path: '/dataP/anv/data/ETH/gnn_test_masks'
+    mlflow_save_path: 'gnn_test_masks'
     threshold: 0.25
     use_grad_cam: False

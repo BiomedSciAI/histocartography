@@ -3485,35 +3485,6 @@ if __name__ == "__main__":
         repetitions=3,
     )
 
-    # FINAL CNN (ETH Parameters)
-    PretrainingExperiment(
-        name="rep_eth", base="config/final_cnn_eth.yml", queue="prod.long", path=PATH
-    ).generate(repetitions=3)
-    PretrainingExperiment(
-        name="rep_best_meaniou",
-        base="config/final_cnn.yml",
-        queue="prod.long",
-        path=PATH,
-    ).generate(repetitions=3)
-    PretrainingExperiment(
-        name="rep_good_meaniou",
-        base="config/final_cnn2.yml",
-        queue="prod.long",
-        path=PATH,
-    ).generate(repetitions=3)
-    PretrainingExperiment(
-        name="rep_best_kappa1",
-        base="config/final_cnn3.yml",
-        queue="prod.long",
-        path=PATH,
-    ).generate(repetitions=3)
-    PretrainingExperiment(
-        name="rep_best_kappa2",
-        base="config/final_cnn4.yml",
-        queue="prod.long",
-        path=PATH,
-    ).generate(repetitions=3)
-
     # FINAL PIXEL LEVEL
     StronglySupervisedGraphClassificationExperiment(
         name="rep_best_meaniou", base="config/final_pixel.yml", path=PATH
@@ -4089,6 +4060,462 @@ if __name__ == "__main__":
             ),
             Parameter(["train", "params", "use_weighted_loss"], True),
             Parameter(["train", "params", "focused_metric"], "fF1Score"),
+        ],
+        sequential=[folds],
+    )
+
+    # FINAL CNN (ETH Parameters)
+    PretrainingExperiment(
+        name="rep_final",
+        base="config/final_cnn.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        sequential=[folds],
+    )
+    PretrainingExperiment(
+        name="rep_final2",
+        base="config/final_cnn4.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        sequential=[folds],
+    )
+
+    # Final semi-supervised
+    SemiSupervisedGraphClassificationExperiment(
+        name="rep_semi_0.7", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
+            Parameter(["train", "params", "loss", "node_weight"], 0.7),
+        ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="rep_semi_0.5", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
+            Parameter(["train", "params", "loss", "node_weight"], 0.5),
+        ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="rep_semi_0.9", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
+            Parameter(["train", "params", "loss", "node_weight"], 0.9),
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_semi_node_compare", base="config/default_strong.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
+        ],
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_semi_graph_compare", base="config/default_weak2.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+        ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="rep_semi_0.3", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
+            Parameter(["train", "params", "loss", "node_weight"], 0.3),
+        ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="rep_semi_0.1", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x",
+            ),
+            Parameter(["train", "data", "image_labels_mode"], "p+s"),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.5),
+            Parameter(["train", "model", "node_classifier_config", "n_layers"], 2),
+            Parameter(
+                ["train", "model", "node_classifier_config", "seperate_heads"], True
+            ),
+            Parameter(["train", "params", "loss", "node_weight"], 0.1),
+        ],
+        sequential=[folds],
+    )
+
+    CNNTestingExperiment(name="rerun_final", path=PATH).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "rep_final",
+                            "rep_final",
+                            "rep_final",
+                            "rep_final",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        f"s3://mlflow/633/{run}/artifacts/best.valid.MeanMultiLabelF1Score"
+                        for run in [
+                            "ca9c816ef60d4ad4bd22bd0ba99313f2",
+                            "5f5e761e41634fdd8d0ad103667c6e99",
+                            "065eeb18f01846c483d6462bf3ae4836",
+                            "7b70ffbe772f49b5b38dcf63eda688a5",
+                        ]
+                    ],
+                ),
+            ]
+        ],
+        grid=[
+            ParameterList(
+                ["test", "params", "inference_mode"], ["patch_based", "hacky"]
+            )
+        ],
+    )
+    CNNTestingExperiment(name="rerun_final2", path=PATH).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "rep_final2",
+                            "rep_final2",
+                            "rep_final2",
+                            "rep_final2",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        f"s3://mlflow/633/{run}/artifacts/best.valid.MeanMultiLabelF1Score"
+                        for run in [
+                            "42f2d4fd7f6a43348b4bf472391abe78",
+                            "6e72f780d75f4f4b9a710287f19cf319",
+                            "0833705e25a74eb8b4bb26cc912c03a4",
+                            "de65c0a390e84266a769a18173f20d9a",
+                        ]
+                    ],
+                ),
+            ]
+        ],
+        grid=[
+            ParameterList(
+                ["test", "params", "inference_mode"], ["patch_based", "hacky"]
+            )
+        ],
+    )
+
+    GNNTestingExperiment(
+        name="eth_rerun_semi_node", base="config/default_strong.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "semi_rep_node_0.9",
+                            "semi_rep_node_0.9",
+                            "semi_rep_node_0.9",
+                            "semi_rep_node_0.9",
+                            "semi_rep_node_0.5",
+                            "semi_rep_node_0.5",
+                            "semi_rep_node_0.5",
+                            "semi_rep_node_0.5",
+                            "semi_rep_node_0.7",
+                            "semi_rep_node_0.7",
+                            "semi_rep_node_0.7",
+                            "semi_rep_node_0.7",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/646/3d498ccc11384fd58248d763be09fcd0/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/24af2c15568341f2914366e38d893376/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/9c47ee6c52c44d6ea65661b1cbf3c615/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/f5863b829ce64da8ab98e82c93650dca/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/0a8e5afd9b74432eb8d687b9d2416f5e/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/7cf186e3071447f7b20fa891ef2124ee/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/87400401128f4fc1b5f16535eb9d4f37/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/880fa612b4484e179e3d36bc28a08bf8/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/80cf3f27bfdc437d8665c5980031bdb1/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/afe19dfe448b4f74985194445aedc226/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/09d8e0f469df4186aadd5ca25967c2d1/artifacts/best.valid.node.segmentation.MeanF1Score",
+                        "s3://mlflow/646/b27d6bbf4ed64fc29ce5d97708ccb173/artifacts/best.valid.node.segmentation.MeanF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="eth_rerun_semi_graph", base="config/default_weak.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "semi_rep_graph_0.9",
+                            "semi_rep_graph_0.9",
+                            "semi_rep_graph_0.9",
+                            "semi_rep_graph_0.9",
+                            "semi_rep_graph_0.5",
+                            "semi_rep_graph_0.5",
+                            "semi_rep_graph_0.5",
+                            "semi_rep_graph_0.5",
+                            "semi_rep_graph_0.7",
+                            "semi_rep_graph_0.7",
+                            "semi_rep_graph_0.7",
+                            "semi_rep_graph_0.7",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/646/3d498ccc11384fd58248d763be09fcd0/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/24af2c15568341f2914366e38d893376/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/9c47ee6c52c44d6ea65661b1cbf3c615/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/f5863b829ce64da8ab98e82c93650dca/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/0a8e5afd9b74432eb8d687b9d2416f5e/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/7cf186e3071447f7b20fa891ef2124ee/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/87400401128f4fc1b5f16535eb9d4f37/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/880fa612b4484e179e3d36bc28a08bf8/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/80cf3f27bfdc437d8665c5980031bdb1/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/afe19dfe448b4f74985194445aedc226/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/09d8e0f469df4186aadd5ca25967c2d1/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/646/b27d6bbf4ed64fc29ce5d97708ccb173/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="eth_rerun_semi_new_graph", base="config/default_weak.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "semi_rep_graph_0.1",
+                            "semi_rep_graph_0.1",
+                            "semi_rep_graph_0.1",
+                            "semi_rep_graph_0.1",
+                            "semi_rep_graph_0.3",
+                            "semi_rep_graph_0.3",
+                            "semi_rep_graph_0.3",
+                            "semi_rep_graph_0.3",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/646/c7567ec065b34d3f93cf800c345b82e2/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/e4bb4540ea7f413e916c875c96a39d63/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/1372b6afbf2c4d18bac885225745be28/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/4fb70da099f04682a45d82a7539c2964/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/518e543945374d9499b60874cf084325/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/865a6064e2cd45118a2ac5a679dafeb4/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/42ee5440d57c45d9a43b1e42bbac47b6/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/9b9320e7017149df84e5151ccf2417a1/artifacts/best.valid.graph.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+
+    # Partial Annotations
+    CPUPreprocessingExperiment(
+        name="v11_standard_med_13x_partial", base="config/new_preprocess.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(["superpixel", "params", "threshold"], 0.02),
+            Parameter(
+                ["superpixel", "params", "nr_superpixels"],
+                400,
+            ),
+            Parameter(
+                ["superpixel", "params", "compactness"],
+                30,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "downsample_factor"],
+                3,
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(["graph_builders", "params", "partial_annotation"], [50, 25]),
+                ParameterList(["params", "partial_annotation"], [50, 25]
+                ),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v11_mobilenet_med_13x_partial_{s}" for s in [50, 25]],
+                ),
+            ]
+        ],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="eth_partial_50", base="config/paper_eth_strong.yml", path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_50",
+            ),
+            Parameter(
+                ["train", "data", "partial_annotation",
+                50]
+            )
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="eth_partial_25", base="config/paper_eth_strong.yml", path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_25",
+            ),
+            Parameter(
+                ["train", "data", "partial_annotation",
+                25]
+            )
+        ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="eth_partial_50", base="config/paper_eth_semi.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_50",
+            ),
+            Parameter(
+                ["train", "data", "partial_annotation",
+                50]
+            )
+        ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="eth_partial_25", base="config/paper_eth_semi.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_25",
+            ),
+            Parameter(
+                ["train", "data", "partial_annotation",
+                25]
+            )
         ],
         sequential=[folds],
     )

@@ -146,6 +146,7 @@ def test_gnn(
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
         variable_size=VARIABLE_SIZE,
+        threshold=threshold,
     )
     if ADDITIONAL_ANNOTATION:
         logger_pathologist_2 = LoggingHelper(
@@ -161,6 +162,7 @@ def test_gnn(
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,
             variable_size=VARIABLE_SIZE,
+            threshold=threshold,
         )
     else:
         logger_pathologist_2 = None

@@ -588,7 +588,7 @@ def sum_up_gleason(annotation, n_class=4, thres=0):
 
 
 class GleasonScoreMetric(Metric):
-    def __init__(self, f, nr_classes: int, background_label: int, **kwargs) -> None:
+    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, **kwargs) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -598,6 +598,7 @@ class GleasonScoreMetric(Metric):
         self.background_label = background_label
         self.f = f
         self.kwargs = kwargs
+        self.threshold = threshold
         super().__init__()
 
     def __call__(
@@ -623,7 +624,7 @@ class GleasonScoreMetric(Metric):
                 sum_up_gleason(labels, n_class=self.nr_classes)
             )
             gleason_grade_prediction.append(
-                sum_up_gleason(logits, n_class=self.nr_classes, thres=0.25)
+                sum_up_gleason(logits, n_class=self.nr_classes, thres=self.threshold)
             )
         return self.f(
             gleason_grade_ground_truth,
@@ -637,12 +638,13 @@ class GleasonScoreMetric(Metric):
 
 
 class GleasonScoreKappa(GleasonScoreMetric):
-    def __init__(self, nr_classes: int, background_label: int) -> None:
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
         super().__init__(
             f=sklearn.metrics.cohen_kappa_score,
             nr_classes=nr_classes,
             background_label=background_label,
             weights="quadratic",
+            **kwargs,
         )
 
 
@@ -653,4 +655,5 @@ class GleasonScoreF1(GleasonScoreMetric):
             nr_classes=nr_classes,
             background_label=background_label,
             average="weighted",
+            **kwargs
         )

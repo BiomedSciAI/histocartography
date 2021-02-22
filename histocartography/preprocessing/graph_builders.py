@@ -39,9 +39,12 @@ class BaseGraphBuilder(PipelineStep):
     Base interface class for graph building.
     """
 
-    def __init__(self, nr_classes: int = 6, **kwargs) -> None:
+    def __init__(self, nr_classes: int = 6, background_class: int = 4, partial_annotation: Optional[int] = None, **kwargs) -> None:
+        if partial_annotation:
+            self.partial_annotation = partial_annotation
         super().__init__(**kwargs)
         self.nr_classes = nr_classes
+        self.background_class = background_class
 
     def process(
         self,
@@ -210,11 +213,16 @@ class RAGGraphBuilder(BaseGraphBuilder):
         region_labels = pd.unique(np.ravel(instance_map))
         labels = torch.empty(len(region_labels), dtype=torch.uint8)
         for region_label in region_labels:
-            assignment = np.argmax(
-                fast_histogram(
-                    annotation[instance_map == region_label], nr_values=self.nr_classes
-                )
+            histogram = fast_histogram(
+                annotation[instance_map == region_label], nr_values=self.nr_classes
             )
+            mask = np.ones(len(histogram), np.bool)
+            mask[self.background_class] = 0
+            if histogram[mask].sum() == 0:
+                assignment = self.background_class
+            else:
+                histogram[self.background_class] = 0
+                assignment = np.argmax(histogram)
             labels[region_label - 1] = int(assignment)
         graph.ndata[LABEL] = labels
 

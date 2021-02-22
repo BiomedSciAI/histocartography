@@ -51,6 +51,10 @@ ADDITIONAL_ANNOTATION = True
 
 TMA_IMAGE_PATH = BASE_PATH / "TMA_Images"
 TRAIN_ANNOTATION_PATH = BASE_PATH / "Gleason_masks_train"
+TRAIN_PARTIAL_ANNOTATION_PATHS = {
+    50: BASE_PATH / "Gleason_masks_partial" / "Gleason_masks_train_50",
+    25: BASE_PATH / "Gleason_masks_partial" / "Gleason_masks_train_25"
+}
 TEST_ANNOTATION_PATH = BASE_PATH / "Gleason_masks_test"
 TEST_ANNOTATION = "Gleason_masks_test_pathologist"
 TEST_PATHOLOGISTS = [1, 2]
@@ -65,6 +69,10 @@ DATASET_PATH = BASE_PATH / "datasets"
 
 IMAGES_DF = BASE_PATH / "images.pickle"
 ANNOTATIONS_DF = BASE_PATH / "annotations.pickle"
+PARTIAL_ANNOTATIONS_DFS = {
+    50: BASE_PATH / "annotations50.pickle",
+    25: BASE_PATH / "annotations25.pickle"
+}
 LABELS_DF = BASE_PATH / "image_level_annotations.pickle"
 
 MASK_PREFIX = "mask_"
@@ -179,6 +187,33 @@ def generate_annotations_meta_df() -> None:
             df.append((name, file, pathologist, "test"))
     df = pd.DataFrame(df, columns=["name", "path", "pathologist", "use"])
     df.to_pickle(ANNOTATIONS_DF)
+
+
+def generate_partial_annotations_meta_df() -> None:
+    for key, value in TRAIN_PARTIAL_ANNOTATION_PATHS.items():
+        df = list()
+        for file in value.iterdir():
+            if file.name == ".DS_Store":
+                continue
+            if file.is_dir():
+                continue
+            name = file.name.split(".")[0].split(MASK_PREFIX)[1]
+            df.append((name, file, 1, "train"))
+
+        for pathologist, pathologist_path in TEST_ANNOTATIONS_PATHS:
+            for file in tqdm(
+                pathologist_path.iterdir(), desc=f"DF Masks pathologist {pathologist}"
+            ):
+                if file.name == ".DS_Store":
+                    continue
+                if file.is_dir():
+                    continue
+                name = file.name.split(".")[0].split(
+                    MASK_PREFIX[:-1] + str(pathologist) + MASK_PREFIX[-1]
+                )[1]
+                df.append((name, file, pathologist, "test"))
+        df = pd.DataFrame(df, columns=["name", "path", "pathologist", "use"])
+        df.to_pickle(PARTIAL_ANNOTATIONS_DFS[key])
 
 
 def generate_labels() -> None:
@@ -357,6 +392,7 @@ def prepare_graph_datasets(
     augmentation_mode: Optional[bool] = False,
     image_labels_mode: Optional[str] = "original_labels",
     supervision: Optional[dict] = None,
+    partial_annotation: Optional[int] = None,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -383,9 +419,15 @@ def prepare_graph_datasets(
             graph_directory, tissue_mask_directory
         )
     log_preprocessing_parameters(graph_directory)
+    image_metadata = pd.read_pickle(IMAGES_DF)
+    if partial_annotation is None:
+        annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+    else:
+        assert partial_annotation in PARTIAL_ANNOTATIONS_DFS, f"Partial Annotation {partial_annotation} not supported. Only {PARTIAL_ANNOTATIONS_DFS.keys()}"
+        annotation_metadata = pd.read_pickle(PARTIAL_ANNOTATIONS_DFS[partial_annotation])
     all_metadata = merge_metadata(
-        pd.read_pickle(IMAGES_DF),
-        pd.read_pickle(ANNOTATIONS_DF),
+        image_metadata=image_metadata,
+        annotation_metadata=annotation_metadata,
         graph_directory=graph_directory,
         superpixel_directory=superpixel_directory,
         tissue_mask_directory=new_tissue_mask_directory,
@@ -753,7 +795,7 @@ def show_segmentation_masks(output, annotation=None, annotation2=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["cleanup", "labels"], default="cleanup")
+    parser.add_argument("command", choices=["cleanup", "labels", "partial_annotations"], default="cleanup")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -767,5 +809,7 @@ if __name__ == "__main__":
         generate_images_meta_df()
         generate_mask_folder_structure(delete=True)
         generate_annotations_meta_df()
+    elif args.command == "partial_annotations":
+        generate_partial_annotations_meta_df()
     elif args.command == "labels":
         generate_labels()

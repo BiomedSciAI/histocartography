@@ -95,6 +95,8 @@ pipeline:
         - graph
         params:
           nr_classes: 5
+          background_class: 4
+          partial_annotation: null
           hops: 1
     - stats:
         class: GraphDiameter
@@ -114,3 +116,4 @@ params:
   cores: 64
   labels: True
   link_directory: null
+  partial_annotation: null

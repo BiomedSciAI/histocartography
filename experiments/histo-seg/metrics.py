@@ -588,7 +588,7 @@ def sum_up_gleason(annotation, n_class=4, thres=0):
 
 
 class GleasonScoreMetric(Metric):
-    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, **kwargs) -> None:
+    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, callbacks=[], **kwargs) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -599,6 +599,8 @@ class GleasonScoreMetric(Metric):
         self.f = f
         self.kwargs = kwargs
         self.threshold = threshold
+        self.callbacks = callbacks
+        self.enabled_callbacks = False
         super().__init__()
 
     def __call__(
@@ -626,6 +628,9 @@ class GleasonScoreMetric(Metric):
             gleason_grade_prediction.append(
                 sum_up_gleason(logits, n_class=self.nr_classes, thres=self.threshold)
             )
+        if self.enabled_callbacks:
+            for callback in self.callbacks:
+                callback(prediction=gleason_grade_prediction, ground_truth=gleason_grade_ground_truth)
         return self.f(
             gleason_grade_ground_truth,
             gleason_grade_prediction,
@@ -646,6 +651,7 @@ class GleasonScoreKappa(GleasonScoreMetric):
             weights="quadratic",
             **kwargs,
         )
+        self.enabled_callbacks = True
 
 
 class GleasonScoreF1(GleasonScoreMetric):

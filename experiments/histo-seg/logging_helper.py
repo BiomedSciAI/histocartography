@@ -13,6 +13,8 @@ import numpy as np
 import torch
 import yaml
 from matplotlib.colors import ListedColormap
+from sklearn.metrics import confusion_matrix
+from utils import plot_confusion_matrix
 
 from metrics import Metric
 from models import (
@@ -163,6 +165,24 @@ def prepare_experiment(
 
     # Log everything relevant
     log_parameters(data, model, seed=seed, **params)
+
+
+def save_fig_to_mlflow(fig, mlflow_dir, name):
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        file_name = Path(temp_dir_name) / f"{name}.png"
+        fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
+        robust_mlflow(
+            mlflow.log_artifact,
+            str(file_name),
+            artifact_path=mlflow_dir,
+        )
+        plt.close(fig=fig)
+
+
+def log_confusion_matrix(prediction, ground_truth, classes, name):
+    cm = confusion_matrix(y_true=ground_truth, y_pred=prediction)
+    fig = plot_confusion_matrix(cm, classes, figname=None, normalize=False)
+    save_fig_to_mlflow(fig, "confusion_plots", name)
 
 
 class LoggingHelper:

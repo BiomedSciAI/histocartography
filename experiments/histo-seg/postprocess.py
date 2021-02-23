@@ -18,6 +18,7 @@ from tqdm.auto import tqdm
 from dataset import GleasonPercentageDataset, GraphBatch, collate_graphs
 from inference import GraphGradCAMBasedInference
 from logging_helper import (
+    log_confusion_matrix,
     log_device,
     log_nr_parameters,
     prepare_experiment,
@@ -54,6 +55,8 @@ MULTI_LABELS_TO_GG = {
 }
 
 GG_SUM_TO_LABEL = {0: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
+
+CLASSES = ["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"]
 
 
 def get_model(architecture):
@@ -216,25 +219,22 @@ def create_dataset(
     prepare_graph_testset = dynamic_import_from(dataset, "prepare_graph_testset")
 
     train_arguments = data_config.copy()
-    train_arguments.update({
-        "overfit_test": test,
-        "additional_training_arguments": {
-            "return_segmentation_info": True,
-            "segmentation_downsample_ratio": 2,
-        },
-        "additional_validation_arguments" : {"segmentation_downsample_ratio": 2},
-    })
+    train_arguments.update(
+        {
+            "overfit_test": test,
+            "additional_training_arguments": {
+                "return_segmentation_info": True,
+                "segmentation_downsample_ratio": 2,
+            },
+            "additional_validation_arguments": {"segmentation_downsample_ratio": 2},
+        }
+    )
     training_dataset, validation_dataset = prepare_graph_datasets(
         **train_arguments,
     )
     test_arguments = data_config.copy()
-    test_arguments.update({
-        "test": test,
-        "segmentation_downsample_ratio": 2
-    })
-    test_dataset = prepare_graph_testset(
-        **test_arguments
-    )
+    test_arguments.update({"test": test, "segmentation_downsample_ratio": 2})
+    test_dataset = prepare_graph_testset(**test_arguments)
 
     device = log_device()
     model = get_model(**model_config)
@@ -402,7 +402,7 @@ def train_mlp(
     dataset: str,
     device,
     mode: str = "multihead",
-    lr=0.001,
+    lr=0.0005,
     weight_decay=1e-5,
     batch_size=16,
     nr_epochs=10000,
@@ -543,6 +543,9 @@ def run_mlp(model, device, testing_dataset: GleasonPercentageDataset):
 
     mlflow.log_metric("MLP.GleasonScoreF1", weighted_f1_score)
     mlflow.log_metric("MLP.GleasonScoreKappa", kappa_score)
+    log_confusion_matrix(
+        prediction=pred_gg, ground_truth=gg_labels, classes=CLASSES, name="Test.MLP"
+    )
 
 
 if __name__ == "__main__":

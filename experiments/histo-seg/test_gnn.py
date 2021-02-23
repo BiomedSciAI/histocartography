@@ -1,3 +1,4 @@
+from functools import partial
 import logging
 from pathlib import Path
 from typing import Dict
@@ -16,7 +17,13 @@ from inference import (
     NodeBasedInference,
     TTAGraphInference,
 )
-from logging_helper import LoggingHelper, log_device, prepare_experiment, robust_mlflow
+from logging_helper import (
+    LoggingHelper,
+    log_device,
+    prepare_experiment,
+    robust_mlflow,
+    log_confusion_matrix,
+)
 from models import (
     ImageTissueClassifier,
     SemiSuperPixelTissueClassifier,
@@ -147,6 +154,13 @@ def test_gnn(
         background_label=BACKGROUND_CLASS,
         variable_size=VARIABLE_SIZE,
         threshold=threshold,
+        callbacks=[
+            partial(
+                log_confusion_matrix,
+                classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
+                name="test.pathologist1.summed"
+            )
+        ],
     )
     if ADDITIONAL_ANNOTATION:
         logger_pathologist_2 = LoggingHelper(
@@ -163,6 +177,13 @@ def test_gnn(
             background_label=BACKGROUND_CLASS,
             variable_size=VARIABLE_SIZE,
             threshold=threshold,
+            callbacks=[
+            partial(
+                log_confusion_matrix,
+                classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
+                name="test.pathologist2.summed"
+            )
+        ],
         )
     else:
         logger_pathologist_2 = None
@@ -256,7 +277,7 @@ if __name__ == "__main__":
         **config["params"],
     )
 
-    if config["params"].get('dataset', "eth") == "sicapv2_wsi":
+    if config["params"].get("dataset", "eth") == "sicapv2_wsi":
         # Create percentage datasets
         training_dataset, validation_dataset, testing_dataset = create_dataset(
             model_config=config["model"],

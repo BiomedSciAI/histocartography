@@ -158,7 +158,7 @@ def merge_metadata(
             [
                 (path.name.split(".")[0], path)
                 for path in filter(
-                    lambda x: x.name.endswith('.bin'), graph_directory.iterdir()
+                    lambda x: x.name.endswith(".bin"), graph_directory.iterdir()
                 )
             ],
             columns=["name", "graph_path"],
@@ -171,7 +171,7 @@ def merge_metadata(
             [
                 (path.name.split(".")[0], path)
                 for path in filter(
-                    lambda x: x.name.endswith('.h5'), superpixel_directory.iterdir()
+                    lambda x: x.name.endswith(".h5"), superpixel_directory.iterdir()
                 )
             ],
             columns=["name", "superpixel_path"],
@@ -184,7 +184,8 @@ def merge_metadata(
             [
                 (path.name.split(".")[0], path)
                 for path in filter(
-                    lambda x: x.name.endswith('.png'), processed_image_directory.iterdir()
+                    lambda x: x.name.endswith(".png"),
+                    processed_image_directory.iterdir(),
                 )
             ],
             columns=["name", "processed_image_path"],
@@ -197,7 +198,7 @@ def merge_metadata(
             [
                 (path.name.split(".")[0], path)
                 for path in filter(
-                    lambda x: x.name.endswith('.png'), tissue_mask_directory.iterdir()
+                    lambda x: x.name.endswith(".png"), tissue_mask_directory.iterdir()
                 )
             ],
             columns=["name", "tissue_mask_path"],
@@ -337,13 +338,17 @@ def get_config(name="train", default="default.yml", required=[]):
     return config, args.config, args.test
 
 
-def get_batched_segmentation_maps(node_logits, superpixels, node_associations, NR_CLASSES):
+def get_batched_segmentation_maps(
+    node_logits, superpixels, node_associations, NR_CLASSES
+):
     batch_node_predictions = node_logits.argmax(axis=1).detach().cpu().numpy()
     segmentation_maps = np.empty((superpixels.shape), dtype=np.uint8)
     start = 0
     for i, end in enumerate(node_associations):
         node_predictions = batch_node_predictions[start : start + end]
-        segmentation_maps[i] = get_segmentation_map(node_predictions, superpixels[i], NR_CLASSES)
+        segmentation_maps[i] = get_segmentation_map(
+            node_predictions, superpixels[i], NR_CLASSES
+        )
         start += end
     return segmentation_maps
 
@@ -401,50 +406,57 @@ def timeit(method):
         ts = time.time()
         result = method(*args, **kw)
         te = time.time()
-        if 'log_time' in kw:
-            name = kw.get('log_name', method.__name__.upper())
-            kw['log_time'][name] = int((te - ts) * 1000)
+        if "log_time" in kw:
+            name = kw.get("log_name", method.__name__.upper())
+            kw["log_time"][name] = int((te - ts) * 1000)
         else:
-            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+            print("%r  %2.2f ms" % (method.__name__, (te - ts) * 1000))
         return result
+
     return timed
 
 
-def plot_confusion_matrix(cm, classes, figname=None, normalize=False, title=None, cmap=plt.cm.Blues):
+def plot_confusion_matrix(
+    cm, classes, figname=None, normalize=False, title=None, cmap=plt.cm.Blues
+):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
     (This function is copied from the scikit docs.)
     """
-    plt.figure(figsize=(7,7))
+    fig, ax = plt.subplots(figsize=(7, 7))
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=45, fontsize=18)
     plt.yticks(tick_marks, classes, fontsize=18)
     if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-    print(cm)
-    thresh = cm.max() / 2.
+        cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
+    thresh = cm.max() / 2.0
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         if normalize:
-            plt.text(j, i, '%.2f' % cm[i, j], horizontalalignment="center",
-                     color="white" if cm[i, j] > thresh else "black",
-                     fontsize=16)
+            plt.text(
+                j,
+                i,
+                "%.2f" % cm[i, j],
+                horizontalalignment="center",
+                color="white" if cm[i, j] > thresh else "black",
+                fontsize=16,
+            )
         else:
-            plt.text(j, i, cm[i, j], horizontalalignment="center",
-                     color="white" if cm[i, j] > thresh else "black",
-                     fontsize=16)
+            plt.text(
+                j,
+                i,
+                cm[i, j],
+                horizontalalignment="center",
+                color="white" if cm[i, j] > thresh else "black",
+                fontsize=16,
+            )
     plt.tight_layout()
-    #plt.ylabel('True label', fontsize=20)
-    #plt.xlabel('Predicted label', fontsize=20)
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    # plt.ylabel('True label', fontsize=20)
+    # plt.xlabel('Predicted label', fontsize=20)
+    ax.imshow(cm, interpolation="nearest", cmap=cmap)
     if title is not None:
-        plt.title(title)
-    # plt.colorbar()
-    if figname is None:
-        plt.show()
-    else:
-        plt.savefig(figname)
-        plt.close()
+        ax.set_title(title)
+    return fig
 
 
 class SuperpixelVisualizer:

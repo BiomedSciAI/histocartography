@@ -982,13 +982,16 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         self.architecture = self._preprocess_architecture(architecture)
         self.patch_size = patch_size
         self.stride = stride
-        self.verbose = verbose
+        if verbose:
+            self.verbose = verbose
         self.downsample_factor = downsample_factor
         if normalizer is not None:
             self.normalizer = normalizer.get("type", "unknown")
         else:
             self.normalizer = None
         super().__init__(**kwargs)
+        if not verbose:
+            self.verbose = verbose
 
         # Handle GPU
         cuda = torch.cuda.is_available()

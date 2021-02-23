@@ -121,12 +121,15 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             compactness (int, optional): Compactness of the superpixels. Defaults to 30.
         """
         self.nr_superpixels = nr_superpixels
-        self.dynamic_superpixels = dynamic_superpixels
+        if dynamic_superpixels:
+            self.dynamic_superpixels = dynamic_superpixels
         self.blur_kernel_size = blur_kernel_size
         self.max_iter = max_iter
         self.compactness = compactness
         self.color_space = color_space
         super().__init__(**kwargs)
+        if not dynamic_superpixels:
+            self.dynamic_superpixels = dynamic_superpixels
 
     def _extract_superpixels(self, image: np.ndarray, *args, **kwargs) -> np.ndarray:
         """Perform the superpixel extraction

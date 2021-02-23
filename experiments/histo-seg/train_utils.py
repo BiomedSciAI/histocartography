@@ -64,12 +64,12 @@ def auto_test(config, tags, model_uri, default="default.yml"):
             **test_config["params"],
         )
 
-        if config["params"].get('dataset', "eth") == "sicapv2_wsi":
+        if test_config["params"].get('dataset', "eth") == "sicapv2_wsi":
             # Create percentage datasets
             training_dataset, validation_dataset, testing_dataset = create_dataset(
-                model_config=config["model"],
-                data_config=config["data"],
-                **config["params"],
+                model_config=test_config["model"],
+                data_config=test_config["data"],
+                **test_config["params"],
             )
 
             device = log_device()
@@ -78,7 +78,7 @@ def auto_test(config, tags, model_uri, default="default.yml"):
                 training_dataset=training_dataset,
                 validation_dataset=validation_dataset,
                 device=device,
-                **config["params"],
+                **test_config["params"],
             )
 
             # Evaluate on testset

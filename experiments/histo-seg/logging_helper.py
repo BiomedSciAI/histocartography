@@ -180,7 +180,7 @@ def save_fig_to_mlflow(fig, mlflow_dir, name):
 
 
 def log_confusion_matrix(prediction, ground_truth, classes, name):
-    cm = confusion_matrix(y_true=ground_truth, y_pred=prediction)
+    cm = confusion_matrix(y_true=ground_truth, y_pred=prediction, labels=np.arange(len(classes)))
     fig = plot_confusion_matrix(cm, classes, figname=None, normalize=False)
     save_fig_to_mlflow(fig, "confusion_plots", name)
 

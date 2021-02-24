@@ -451,8 +451,8 @@ def plot_confusion_matrix(
                 fontsize=16,
             )
     plt.tight_layout()
-    # plt.ylabel('True label', fontsize=20)
-    # plt.xlabel('Predicted label', fontsize=20)
+    plt.ylabel('True label', fontsize=20)
+    plt.xlabel('Predicted label', fontsize=20)
     ax.imshow(cm, interpolation="nearest", cmap=cmap)
     if title is not None:
         ax.set_title(title)

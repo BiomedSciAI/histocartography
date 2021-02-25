@@ -68,7 +68,7 @@ train:
 test:
   data: {}
   model:
-    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
+    architecture: 's3://mlflow/652/09df1a1a82684bd48816765c0d0f5d94/artifacts/best.valid.graph.segmentation.fF1Score'
   params:
     experiment_name: "anv_wsss_sicap_wsi_test_gnn"
     experiment_tags: null
@@ -78,3 +78,4 @@ test:
     mlflow_save_path: 'gnn_wsi_test_masks'
     threshold: 0.25
     use_grad_cam: True
+    normalize_percentages: False

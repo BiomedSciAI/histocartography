@@ -1123,7 +1123,7 @@ class PatchClassificationDataset(ImageDataset):
 class GleasonPercentageDataset(Dataset):
     GG_SUM_TO_LABEL = {0: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
 
-    def __init__(self, percentage_df, label_df, mode):
+    def __init__(self, percentage_df, label_df, mode, normalize=False):
         self.mode = mode
         names = list()
         percentages = list()
@@ -1140,6 +1140,15 @@ class GleasonPercentageDataset(Dataset):
         self.primaries = np.array(primaries)
         self.secondaries = np.array(secondaries)
         self.names = np.array(names)
+        
+        if isinstance(normalize, bool):
+            self.normalize = normalize
+            self.mean = self.percentages.mean(dim=0)
+            self.std = self.percentages.std(dim=0)
+        else:
+            self.normalize = True
+            self.mean = normalize.mean
+            self.std = normalize.std
 
     def _ps_to_multilabel(self, p, s):
         one_hot = np.array([0] * 4)
@@ -1163,7 +1172,12 @@ class GleasonPercentageDataset(Dataset):
             )
         else:
             raise NotImplementedError
-        return self.percentages[index], label
+
+        if self.normalize:
+            percentage = (self.percentages[index] - self.mean) / self.std
+        else:
+            percentage = self.percentages[index]
+        return percentage, label
 
     def __len__(self):
         return len(self.percentages)

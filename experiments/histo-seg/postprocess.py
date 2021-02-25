@@ -210,6 +210,7 @@ def create_dataset(
     num_workers: int = 8,
     test: bool = False,
     mode: str = "multihead",
+    normalize_percentages: bool = False,
     **kwargs,
 ):
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
@@ -282,9 +283,21 @@ def create_dataset(
 
     # Calculate percentage datasets
     labels_df = get_labels_df(LABELS_PATH)
-    train_dataset = GleasonPercentageDataset(train_df, labels_df, mode="multihead")
-    valid_dataset = GleasonPercentageDataset(valid_df, labels_df, mode="multihead")
-    test_dataset = GleasonPercentageDataset(test_df, labels_df, mode="multihead")
+    train_dataset = GleasonPercentageDataset(
+        train_df, labels_df, mode="multihead", normalize=normalize_percentages
+    )
+    valid_dataset = GleasonPercentageDataset(
+        valid_df,
+        labels_df,
+        mode="multihead",
+        normalize=train_dataset if normalize_percentages else False,
+    )
+    test_dataset = GleasonPercentageDataset(
+        test_df,
+        labels_df,
+        mode="multihead",
+        normalize=train_dataset if normalize_percentages else False,
+    )
 
     return train_dataset, valid_dataset, test_dataset
 
@@ -346,9 +359,7 @@ def run_forward_pass(model, device, mode, loader, NR_CLASSES) -> pd.DataFrame:
         graph = graph_batch.meta_graph.to(device)
         if mode == "weak_supervision":
             logits = model(graph)
-            inferencer = GraphGradCAMBasedInference(
-                NR_CLASSES, model, device=device
-            )
+            inferencer = GraphGradCAMBasedInference(NR_CLASSES, model, device=device)
             segmentation_maps = inferencer.predict_batch(
                 graph_batch.meta_graph, graph_batch.instance_maps
             )

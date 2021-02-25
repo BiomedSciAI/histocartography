@@ -34,7 +34,7 @@ from utils import fast_mode, get_segmentation_map
 
 
 class BaseInference:
-    def __init__(self, model, device=None) -> None:
+    def __init__(self, model, device=None, **kwargs) -> None:
         super().__init__()
         self.model = model.eval()
         if device is not None:
@@ -258,8 +258,8 @@ class ImageInferenceModel(BaseInference):
 
 
 class GraphNodeBasedInference(BaseInference):
-    def __init__(self, model, device, NR_CLASSES) -> None:
-        super().__init__(model, device=device)
+    def __init__(self, model, device, NR_CLASSES, **kwargs) -> None:
+        super().__init__(model, device=device, **kwargs)
         self.NR_CLASSES = NR_CLASSES
 
     def predict(self, graph, superpixels, operation="argmax"):

@@ -71,7 +71,8 @@ IMAGES_DF = BASE_PATH / "images.pickle"
 ANNOTATIONS_DF = BASE_PATH / "annotations.pickle"
 PARTIAL_ANNOTATIONS_DFS = {
     50: BASE_PATH / "annotations50.pickle",
-    25: BASE_PATH / "annotations25.pickle"
+    25: BASE_PATH / "annotations25.pickle",
+    10: BASE_PATH / "annotations10.pickle"
 }
 LABELS_DF = BASE_PATH / "image_level_annotations.pickle"
 

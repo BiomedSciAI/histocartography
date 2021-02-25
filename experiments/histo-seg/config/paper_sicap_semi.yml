@@ -92,3 +92,4 @@ test:
     mlflow_save_path: 'gnn_wsi_test_masks'
     threshold: 0.25
     use_grad_cam: False
+    normalize_percentages: False

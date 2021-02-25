@@ -237,10 +237,17 @@ def test_gnn(
     if mode in ["weak_supervision", "semi_strong_supervision"]:
         classification_inferencer = GraphBasedInference(model=model, device=device)
         graph_logger = LoggingHelper(
-            ["MultiLabelBalancedAccuracy", "MultiLabelF1Score"],
+            ["MultiLabelBalancedAccuracy", "MultiLabelF1Score", "GraphClassificationGleasonScoreKappa", "GraphClassificationGleasonScoreF1"],
             prefix="graph",
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,
+            callbacks=[
+                partial(
+                    log_confusion_matrix,
+                    classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
+                    name="test.pathologist1.graph"
+                )
+            ],
         )
         classification_inferencer.predict(test_dataset, graph_logger)
 

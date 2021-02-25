@@ -663,3 +663,119 @@ class GleasonScoreF1(GleasonScoreMetric):
             average="weighted",
             **kwargs
         )
+
+
+GG_SUM_TO_LABEL = {
+    0: 0,
+    2: 1,
+    3: 2,
+    4: 3,
+    5: 4,
+    6: 5
+}
+
+
+def assign_group(primary, secondary):
+
+    def assign(a, b):
+        if (a > 0) and (b == 0):
+            b = a
+        if (b > 0) and (a == 0):
+            a = b
+        return a, b 
+
+    if isinstance(primary, int) and isinstance(secondary, int):
+        a, b = assign(primary, secondary)
+        return GG_SUM_TO_LABEL[a+b]
+    else:
+        gg = []
+        for a, b in zip(primary, secondary):
+            a, b = assign(a, b)
+            gg.append(GG_SUM_TO_LABEL[a+b])
+        return np.array(gg)
+
+
+def gleason_summary_wsum(y_pred, thres=None):
+    gleason_scores = y_pred.copy()
+    # remove outlier predictions
+    if thres is not None:
+        gleason_scores[gleason_scores < thres] = 0
+    # and assign overall grade
+    idx = np.argsort(gleason_scores)[::-1]
+    primary_class = int(idx[0])
+    secondary_class = int(idx[1]) if gleason_scores[idx[1]] > 0 else int(idx[0])
+    final_class = assign_group(primary_class, secondary_class)
+    return final_class
+
+
+class GraphClassificationGleasonScore(Metric):
+    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, callbacks=[], **kwargs) -> None:
+        """Create a IoU calculator for a certain number of classes
+
+        Args:
+            nr_classes (int, optional): Number of classes to use
+        """
+        self.nr_classes = nr_classes
+        self.background_label = background_label
+        self.f = f
+        self.kwargs = kwargs
+        self.threshold = threshold
+        self.callbacks = callbacks
+        self.enabled_callbacks = False
+        super().__init__()
+
+    def __call__(
+        self,
+        prediction: torch.Tensor,
+        ground_truth: torch.Tensor,
+        tissue_mask=None,
+        **kwargs,
+    ) -> Any:
+        prediction = torch.sigmoid(prediction).detach().cpu().numpy()
+        gleason_grade_ground_truth = list()
+        gleason_grade_prediction = list()
+        for i, (logits, labels) in enumerate(zip(prediction, ground_truth)):
+            if tissue_mask is not None:
+                logits[~tissue_mask[i]] = self.background_label
+
+            gleason_grade_ground_truth.append(
+                gleason_summary_wsum(labels.numpy())
+            )
+            gleason_grade_prediction.append(
+                gleason_summary_wsum(logits, thres=self.threshold)
+            )
+        if self.enabled_callbacks:
+            for callback in self.callbacks:
+                callback(prediction=gleason_grade_prediction, ground_truth=gleason_grade_ground_truth)
+        return self.f(
+            gleason_grade_ground_truth,
+            gleason_grade_prediction,
+            **self.kwargs,
+        )
+
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        return value >= comparison
+
+
+class GraphClassificationGleasonScoreKappa(GraphClassificationGleasonScore):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        super().__init__(
+            f=sklearn.metrics.cohen_kappa_score,
+            nr_classes=nr_classes,
+            background_label=background_label,
+            weights="quadratic",
+            **kwargs,
+        )
+        self.enabled_callbacks = True
+
+
+class GraphClassificationGleasonScoreF1(GraphClassificationGleasonScore):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        super().__init__(
+            f=sklearn.metrics.f1_score,
+            nr_classes=nr_classes,
+            background_label=background_label,
+            average="weighted",
+            **kwargs
+        )

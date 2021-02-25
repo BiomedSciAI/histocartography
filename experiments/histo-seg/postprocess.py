@@ -340,31 +340,32 @@ def extract_all(
 def run_forward_pass(model, device, mode, loader, NR_CLASSES) -> pd.DataFrame:
     model.eval()
     percentages = list()
-    with torch.no_grad():
-        graph_batch: GraphBatch
-        for graph_batch in tqdm(loader, total=len(loader)):
-            graph = graph_batch.meta_graph.to(device)
-            names = graph_batch.names
+    graph_batch: GraphBatch
+    for graph_batch in tqdm(loader, total=len(loader)):
+        names = graph_batch.names
+        graph = graph_batch.meta_graph.to(device)
+        if mode == "weak_supervision":
             logits = model(graph)
-            if mode == "weak_supervision":
-                inferencer = GraphGradCAMBasedInference(
-                    NR_CLASSES, model, device=device
-                )
-                segmentation_maps = inferencer.predict_batch(
-                    graph, graph_batch.instance_maps
-                )
-            else:
+            inferencer = GraphGradCAMBasedInference(
+                NR_CLASSES, model, device=device
+            )
+            segmentation_maps = inferencer.predict_batch(
+                graph_batch.meta_graph, graph_batch.instance_maps
+            )
+        else:
+            with torch.no_grad():
+                logits = model(graph)
                 segmentation_maps = get_batched_segmentation_maps(
                     node_logits=logits,
                     node_associations=graph.batch_num_nodes,
                     superpixels=graph_batch.instance_maps,
                     NR_CLASSES=NR_CLASSES,
                 )
-            for segmentation_map, name in zip(segmentation_maps, names):
-                values, counts = np.unique(segmentation_map, return_counts=True)
-                all_counts = np.zeros(NR_CLASSES, dtype=np.int64)
-                all_counts[values] = counts
-                percentages.append((name,) + tuple(all_counts))
+        for segmentation_map, name in zip(segmentation_maps, names):
+            values, counts = np.unique(segmentation_map, return_counts=True)
+            all_counts = np.zeros(NR_CLASSES, dtype=np.int64)
+            all_counts[values] = counts
+            percentages.append((name,) + tuple(all_counts))
     classes = ["name"] + [f"class_{i}" for i in range(NR_CLASSES)]
     return pd.DataFrame(percentages, columns=classes).set_index("name")
 

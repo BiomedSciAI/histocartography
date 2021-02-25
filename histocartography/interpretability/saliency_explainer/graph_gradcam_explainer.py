@@ -52,7 +52,12 @@ class GraphGradCAMExplainer(BaseExplainer):
             node_importance (np.ndarray): Node-level importance scores
             logits (np.ndarray): Prediction logits
         """
-        graph_copy = deepcopy(graph)
+        graph_copy = dgl.DGLGraph(graph_data=graph)
+        for k, v in graph.ndata.items():
+            graph_copy.ndata[k] = v.clone()
+        for k, v in graph.edata.items():
+            graph_copy.edata[k] = v.clone()
+        #graph_copy = deepcopy(graph)
         self.extractor = GradCAM(
             getattr(self.model, self.gnn_layer_name).layers, self.gnn_layer_ids
         )

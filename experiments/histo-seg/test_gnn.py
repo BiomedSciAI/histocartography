@@ -1,5 +1,6 @@
 from functools import partial
 import logging
+from metrics import F1Score
 from pathlib import Path
 from typing import Dict
 
@@ -100,6 +101,9 @@ def test_gnn(
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     ADDITIONAL_ANNOTATION = dynamic_import_from(dataset, "ADDITIONAL_ANNOTATION")
     VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE")
+    DISCARD_THRESHOLD = dynamic_import_from(dataset, "DISCARD_THRESHOLD")
+    THRESHOLD = dynamic_import_from(dataset, "THRESHOLD")
+    WSI_FIX = dynamic_import_from(dataset, "WSI_FIX")
     prepare_graph_testset = dynamic_import_from(dataset, "prepare_graph_testset")
     show_class_acivation = dynamic_import_from(dataset, "show_class_acivation")
     show_segmentation_masks = dynamic_import_from(dataset, "show_segmentation_masks")
@@ -153,7 +157,9 @@ def test_gnn(
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
         variable_size=VARIABLE_SIZE,
-        threshold=threshold,
+        discard_threshold=DISCARD_THRESHOLD,
+        threshold=THRESHOLD,
+        wsi_fix=WSI_FIX,
         callbacks=[
             partial(
                 log_confusion_matrix,
@@ -176,7 +182,9 @@ def test_gnn(
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,
             variable_size=VARIABLE_SIZE,
-            threshold=threshold,
+            discard_threshold=DISCARD_THRESHOLD,
+            threshold=THRESHOLD,
+            wsi_fix=WSI_FIX,
             callbacks=[
             partial(
                 log_confusion_matrix,
@@ -215,6 +223,12 @@ def test_gnn(
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
             )
+        
+        # Set title to be DICE score
+        metric = F1Score(nr_classes=NR_CLASSES, discard_threshold=DISCARD_THRESHOLD, background_label=BACKGROUND_CLASS)
+        metric_value = metric(prediction=[prediction], ground_truth=[ground_truth])
+        fig.suptitle(f"Benign: {metric_value[0]}, Grade 3: {metric_value[1]}, Grade 4: {metric_value[2]}, Grade 5: {metric_value[3]}")
+
         file_name = save_path / f"{datapoint.name}.png"
         fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
         if mlflow_save_path is not None:

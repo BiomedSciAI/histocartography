@@ -1,3 +1,4 @@
+from functools import partial
 import logging
 from abc import abstractmethod
 from typing import Any, List, Union
@@ -79,6 +80,7 @@ class SegmentationMetric(Metric):
         self,
         prediction: Union[torch.Tensor, np.ndarray],
         ground_truth: Union[torch.Tensor, np.ndarray],
+        tissue_mask=None,
         **kwargs,
     ) -> torch.Tensor:
         """From either a batched, unbatched calculate the metric accordingly and take the average over the samples
@@ -94,12 +96,15 @@ class SegmentationMetric(Metric):
             assert len(ground_truth) == len(prediction)
             prediction_copy = list()
             ground_truth_copy = list()
-            for sample_gt, sample_pred in zip(ground_truth, prediction):
+            for i, (sample_gt, sample_pred) in enumerate(zip(ground_truth, prediction)):
                 if isinstance(sample_gt, torch.Tensor):
                     sample_gt = sample_gt.detach().cpu().numpy()
                 if isinstance(sample_pred, torch.Tensor):
                     sample_pred = sample_pred.detach().cpu().numpy()
                 sample_pred = sample_pred.copy()
+                sample_gt = sample_gt.copy()
+                if tissue_mask is not None:
+                    sample_gt[~tissue_mask[i]] = self.background_label
                 sample_pred[sample_gt == self.background_label] = self.background_label
                 prediction_copy.append(sample_pred)
                 ground_truth_copy.append(sample_gt)
@@ -121,6 +126,8 @@ class SegmentationMetric(Metric):
             # Now we have shape BATCH x H x W
 
             # Discard background class
+            ground_truth = ground_truth.copy()
+            ground_truth[~tissue_mask] = self.background_label
             prediction_copy = prediction.copy()
             prediction_copy[
                 ground_truth == self.background_label
@@ -165,13 +172,14 @@ class SegmentationMetric(Metric):
 class IoU(SegmentationMetric):
     """Compute the class IoU"""
 
-    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+    def __init__(self, nr_classes: int, background_label: int, discard_threshold: int = 0, **kwargs) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
             nr_classes (int, optional): Number of classes to use
         """
         self.nr_classes = nr_classes
+        self.discard_threshold = discard_threshold
         self.smooth = 1e-12
         super().__init__(background_label=background_label, **kwargs)
 
@@ -190,7 +198,7 @@ class IoU(SegmentationMetric):
         class_iou = np.empty(self.nr_classes)
         for class_label in range(self.nr_classes):
             class_ground_truth = ground_truth == class_label
-            if not class_ground_truth.any():
+            if class_ground_truth.sum() <= self.discard_threshold:
                 class_iou[class_label] = nan
                 continue
             class_prediction = prediction == class_label
@@ -283,7 +291,7 @@ class fIoU(IoU):
 class F1Score(SegmentationMetric):
     """Compute the class F1 score"""
 
-    def __init__(self, nr_classes: int = 5, **kwargs) -> None:
+    def __init__(self, nr_classes: int = 5, discard_threshold: int = 0, **kwargs) -> None:
         """Create a F1 calculator for a certain number of classes
 
         Args:
@@ -291,6 +299,7 @@ class F1Score(SegmentationMetric):
         """
         self.nr_classes = nr_classes
         self.smooth = 1e-12
+        self.discard_threshold = discard_threshold
         super().__init__(**kwargs)
 
     def _compute_sample_metric(
@@ -302,7 +311,7 @@ class F1Score(SegmentationMetric):
         class_f1 = np.empty(self.nr_classes)
         for class_label in range(self.nr_classes):
             class_ground_truth = ground_truth == class_label
-            if not class_ground_truth.any():
+            if class_ground_truth.sum() <= self.discard_threshold:
                 class_f1[class_label] = nan
                 continue
             class_prediction = prediction == class_label
@@ -562,11 +571,14 @@ class NodeClassificationF1Score(NodeClassificationsSklearnMetric):
         super().__init__(sklearn.metrics.f1_score, average="weighted", **kwargs)
 
 
-def sum_up_gleason(annotation, n_class=4, thres=0):
+def sum_up_gleason(annotation, n_class=4, thres=0, wsi_fix=False):
     # read the mask and count the grades
     grade_count = fast_histogram(annotation.flatten(), n_class)
     grade_count = grade_count / grade_count.sum()
     grade_count[grade_count < thres] = 0
+    
+    if wsi_fix and sum(grade_count[1:] != 0) > 1:
+        grade_count[0] = 0
 
     # get the max and second max scores and write them to file
     idx = np.argsort(grade_count)
@@ -588,7 +600,7 @@ def sum_up_gleason(annotation, n_class=4, thres=0):
 
 
 class GleasonScoreMetric(Metric):
-    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, callbacks=[], **kwargs) -> None:
+    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, callbacks=[], wsi_fix=False, **kwargs) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -597,11 +609,11 @@ class GleasonScoreMetric(Metric):
         self.nr_classes = nr_classes
         self.background_label = background_label
         self.f = f
-        self.kwargs = kwargs
         self.threshold = threshold
         self.callbacks = callbacks
         self.enabled_callbacks = False
-        super().__init__()
+        self.wsi_fix = wsi_fix
+        super().__init__(**kwargs)
 
     def __call__(
         self,
@@ -621,12 +633,13 @@ class GleasonScoreMetric(Metric):
         for i, (logits, labels) in enumerate(zip(prediction, ground_truth)):
             if tissue_mask is not None:
                 logits[~tissue_mask[i]] = self.background_label
+                labels[~tissue_mask[i]] = self.background_label
 
             gleason_grade_ground_truth.append(
-                sum_up_gleason(labels, n_class=self.nr_classes)
+                sum_up_gleason(labels, n_class=self.nr_classes, thres=self.threshold if self.wsi_fix else 0.0, wsi_fix=self.wsi_fix)
             )
             gleason_grade_prediction.append(
-                sum_up_gleason(logits, n_class=self.nr_classes, thres=self.threshold)
+                sum_up_gleason(logits, n_class=self.nr_classes, thres=self.threshold, wsi_fix=self.wsi_fix)
             )
         if self.enabled_callbacks:
             for callback in self.callbacks:
@@ -634,7 +647,6 @@ class GleasonScoreMetric(Metric):
         return self.f(
             gleason_grade_ground_truth,
             gleason_grade_prediction,
-            **self.kwargs,
         )
 
     @staticmethod
@@ -645,10 +657,9 @@ class GleasonScoreMetric(Metric):
 class GleasonScoreKappa(GleasonScoreMetric):
     def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
         super().__init__(
-            f=sklearn.metrics.cohen_kappa_score,
+            f=partial(sklearn.metrics.cohen_kappa_score, weights="quadratic"),
             nr_classes=nr_classes,
             background_label=background_label,
-            weights="quadratic",
             **kwargs,
         )
         self.enabled_callbacks = True
@@ -657,10 +668,9 @@ class GleasonScoreKappa(GleasonScoreMetric):
 class GleasonScoreF1(GleasonScoreMetric):
     def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
         super().__init__(
-            f=sklearn.metrics.f1_score,
+            f=partial(sklearn.metrics.f1_score, average="weighted"),
             nr_classes=nr_classes,
             background_label=background_label,
-            average="weighted",
             **kwargs
         )
 
@@ -709,7 +719,7 @@ def gleason_summary_wsum(y_pred, thres=None):
 
 
 class GraphClassificationGleasonScore(Metric):
-    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, callbacks=[], **kwargs) -> None:
+    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, gt_threshold: float = 0.0, callbacks=[], **kwargs) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -718,11 +728,11 @@ class GraphClassificationGleasonScore(Metric):
         self.nr_classes = nr_classes
         self.background_label = background_label
         self.f = f
-        self.kwargs = kwargs
         self.threshold = threshold
         self.callbacks = callbacks
         self.enabled_callbacks = False
-        super().__init__()
+        self.gt_threshold = gt_threshold
+        super().__init__(**kwargs)
 
     def __call__(
         self,
@@ -739,7 +749,7 @@ class GraphClassificationGleasonScore(Metric):
                 logits[~tissue_mask[i]] = self.background_label
 
             gleason_grade_ground_truth.append(
-                gleason_summary_wsum(labels.numpy())
+                gleason_summary_wsum(labels.numpy(), thres=self.gt_threshold)
             )
             gleason_grade_prediction.append(
                 gleason_summary_wsum(logits, thres=self.threshold)
@@ -750,7 +760,6 @@ class GraphClassificationGleasonScore(Metric):
         return self.f(
             gleason_grade_ground_truth,
             gleason_grade_prediction,
-            **self.kwargs,
         )
 
     @staticmethod
@@ -761,10 +770,9 @@ class GraphClassificationGleasonScore(Metric):
 class GraphClassificationGleasonScoreKappa(GraphClassificationGleasonScore):
     def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
         super().__init__(
-            f=sklearn.metrics.cohen_kappa_score,
+            f=partial(sklearn.metrics.cohen_kappa_score, weights="quadratic"),
             nr_classes=nr_classes,
             background_label=background_label,
-            weights="quadratic",
             **kwargs,
         )
         self.enabled_callbacks = True
@@ -773,9 +781,8 @@ class GraphClassificationGleasonScoreKappa(GraphClassificationGleasonScore):
 class GraphClassificationGleasonScoreF1(GraphClassificationGleasonScore):
     def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
         super().__init__(
-            f=sklearn.metrics.f1_score,
+            f=partial(sklearn.metrics.f1_score, average="weighted"),
             nr_classes=nr_classes,
             background_label=background_label,
-            average="weighted",
             **kwargs
         )

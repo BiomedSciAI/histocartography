@@ -56,6 +56,9 @@ def train_node_classifier(
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE")
+    DISCARD_THRESHOLD = dynamic_import_from(dataset, "DISCARD_THRESHOLD")
+    THRESHOLD = dynamic_import_from(dataset, "THRESHOLD")
+    WSI_FIX = dynamic_import_from(dataset, "WSI_FIX")
     prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
 
     # Data loaders
@@ -99,6 +102,9 @@ def train_node_classifier(
         prefix="valid",
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
+        discard_threshold=DISCARD_THRESHOLD,
+        threshold=THRESHOLD,
+        wsi_fix=WSI_FIX,
     )
 
     # Compute device

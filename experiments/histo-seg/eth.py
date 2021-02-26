@@ -48,12 +48,17 @@ NR_CLASSES = 4
 BACKGROUND_CLASS = 4
 VARIABLE_SIZE = False
 ADDITIONAL_ANNOTATION = True
+DISCARD_THRESHOLD = 0
+THRESHOLD = 0.25
+WSI_FIX = False
 
 TMA_IMAGE_PATH = BASE_PATH / "TMA_Images"
 TRAIN_ANNOTATION_PATH = BASE_PATH / "Gleason_masks_train"
 TRAIN_PARTIAL_ANNOTATION_PATHS = {
     50: BASE_PATH / "Gleason_masks_partial" / "Gleason_masks_train_50",
-    25: BASE_PATH / "Gleason_masks_partial" / "Gleason_masks_train_25"
+    25: BASE_PATH / "Gleason_masks_partial" / "Gleason_masks_train_25",
+    10: BASE_PATH / "Gleason_masks_partial" / "Gleason_masks_train_10",
+    5: BASE_PATH / "Gleason_masks_partial" / "Gleason_masks_train_5"
 }
 TEST_ANNOTATION_PATH = BASE_PATH / "Gleason_masks_test"
 TEST_ANNOTATION = "Gleason_masks_test_pathologist"
@@ -72,7 +77,8 @@ ANNOTATIONS_DF = BASE_PATH / "annotations.pickle"
 PARTIAL_ANNOTATIONS_DFS = {
     50: BASE_PATH / "annotations50.pickle",
     25: BASE_PATH / "annotations25.pickle",
-    10: BASE_PATH / "annotations10.pickle"
+    10: BASE_PATH / "annotations10.pickle",
+    5: BASE_PATH / "annotations5.pickle"
 }
 LABELS_DF = BASE_PATH / "image_level_annotations.pickle"
 

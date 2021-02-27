@@ -393,12 +393,14 @@ class GraphDatasetInference(DatasetBaseInference):
                 logits=prediction.copy()[np.newaxis, :, :],
                 labels=datapoint.segmentation_mask[np.newaxis, :, :],
                 tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+                image_labels=datapoint.graph_label[np.newaxis, :],
             )
         if additional_logger is not None:
             additional_logger.add_iteration_outputs(
                 logits=prediction.copy()[np.newaxis, :, :],
                 labels=datapoint.additional_segmentation_mask[np.newaxis, :, :],
                 tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+                image_labels=datapoint.graph_label[np.newaxis, :],
             )
         return prediction
 

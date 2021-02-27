@@ -180,7 +180,9 @@ def save_fig_to_mlflow(fig, mlflow_dir, name):
 
 
 def log_confusion_matrix(prediction, ground_truth, classes, name):
-    cm = confusion_matrix(y_true=ground_truth, y_pred=prediction, labels=np.arange(len(classes)))
+    cm = confusion_matrix(
+        y_true=ground_truth, y_pred=prediction, labels=np.arange(len(classes))
+    )
     fig = plot_confusion_matrix(cm, classes, figname=None, normalize=False)
     save_fig_to_mlflow(fig, "confusion_plots", name)
 
@@ -253,7 +255,14 @@ class LoggingHelper:
         name: str
         metric: Metric
         for name, metric in zip(self.metric_names, self.metrics):
-            metric_value = metric(logits, labels, **self.extra_info)
+            try:
+                metric_value = metric(logits, labels, **self.extra_info)
+            except TypeError as e:
+                print(
+                    f"Got type error in metric {metric.__class__.__name__} __call__ function"
+                )
+                print(f"extra_info passed: {self.extra_info}")
+                raise e
             if metric.is_per_class:
                 for i in range(len(metric_value)):
                     self._log(f"{name}_class_{i}", metric_value[i], step)
@@ -433,7 +442,10 @@ class GraphLoggingHelper:
             and tissue_masks is not None
         ):
             self.segmentation_helper.add_iteration_outputs(
-                logits=predicted_segmentation, labels=annotation, mask=tissue_masks
+                logits=predicted_segmentation,
+                labels=annotation,
+                mask=tissue_masks,
+                **kwargs,
             )
 
     def log_and_clear(self, step, model=None):

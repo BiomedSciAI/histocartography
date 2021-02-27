@@ -305,6 +305,7 @@ def train_graph_classifier(
                     annotation=torch.as_tensor(graph_batch.segmentation_masks),
                     predicted_segmentation=gradcam_segmentation_maps,
                     tissue_masks=graph_batch.tissue_masks.astype(bool),
+                    image_labels=graph_batch.graph_labels,
                 )
 
                 # Node Head Prediction
@@ -322,6 +323,7 @@ def train_graph_classifier(
                     annotation=torch.as_tensor(graph_batch.segmentation_masks),
                     predicted_segmentation=node_segmentation_maps,
                     tissue_masks=graph_batch.tissue_masks.astype(bool),
+                    image_labels=graph_batch.graph_labels,
                     node_associations=graph.batch_num_nodes,
                 )
 

@@ -206,6 +206,7 @@ def train_graph_classifier(
                     annotation=torch.as_tensor(graph_batch.segmentation_masks),
                     predicted_segmentation=segmentation_maps,
                     tissue_masks=graph_batch.tissue_masks.astype(bool),
+                    image_labels=graph_batch.graph_labels,
                     **loss_information,
                 )
 

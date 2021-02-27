@@ -102,9 +102,27 @@ class SegmentationMetric(Metric):
                     sample_gt = sample_gt.detach().cpu().numpy()
                 if isinstance(sample_pred, torch.Tensor):
                     sample_pred = sample_pred.detach().cpu().numpy()
+                assert isinstance(
+                    sample_gt, np.ndarray
+                ), f"Ground truth sample must be np.ndarray but got {type(sample_gt)}"
+                assert isinstance(
+                    sample_pred, np.ndarray
+                ), f"Prediction must be of np.ndarray but got {type(sample_pred)}"
                 sample_pred = sample_pred.copy()
                 sample_gt = sample_gt.copy()
                 if tissue_mask is not None:
+                    assert isinstance(tissue_mask, np.ndarray) or isinstance(
+                        tissue_mask, list
+                    ), f"Tissue mask must be of type np.ndarray or list but got {type(tissue_mask)}"
+                    assert isinstance(
+                        tissue_mask[i], np.ndarray
+                    ), f"Tissue mask entry must be of type np.ndarray, but got {type(tissue_mask[i])}"
+                    assert (
+                        tissue_mask[i].dtype == bool
+                    ), f"Tissue mask must be of dtype bool, but is {tissue_mask[i].dtype}"
+                    assert (
+                        sample_gt.shape == tissue_mask[i].shape
+                    ), f"Shape of sample and mask mismatch: {sample_gt.shape}, {tissue_mask[i].shape}"
                     sample_gt[~tissue_mask[i]] = self.background_label
                 sample_pred[sample_gt == self.background_label] = self.background_label
                 prediction_copy.append(sample_pred)
@@ -128,7 +146,7 @@ class SegmentationMetric(Metric):
 
             # Discard background class
             ground_truth = ground_truth.copy()
-            ground_truth[~tissue_mask] = self.background_label
+            ground_truth[~np.asarray(tissue_mask)] = self.background_label
             prediction_copy = prediction.copy()
             prediction_copy[
                 ground_truth == self.background_label
@@ -178,12 +196,16 @@ class ConfusionMatrixMetric(Metric):
 
     def _aggregate(self, confusion_matrix):
         return confusion_matrix
-    
-    def __call__(self, prediction: Union[torch.Tensor, np.ndarray],
+
+    def __call__(
+        self,
+        prediction: Union[torch.Tensor, np.ndarray],
         ground_truth: Union[torch.Tensor, np.ndarray],
-        tissue_mask=None,) -> Any:
+        tissue_mask=None,
+        **kwargs,
+    ) -> Any:
         assert len(ground_truth) == len(prediction)
-        
+
         confusion_matrix = np.zeros((self.nr_classes, self.nr_classes), dtype=np.int64)
         for i, (sample_gt, sample_pred) in enumerate(zip(ground_truth, prediction)):
             if isinstance(sample_gt, torch.Tensor):
@@ -194,9 +216,13 @@ class ConfusionMatrixMetric(Metric):
             sample_gt = sample_gt.copy()
             if tissue_mask is not None:
                 sample_gt[~tissue_mask[i]] = self.background_label
-            
+
             mask = sample_gt != self.background_label
-            sample_confusion_matrix = fast_confusion_matrix(y_true=sample_gt[mask], y_pred=sample_pred[mask], nr_classes=self.nr_classes)
+            sample_confusion_matrix = fast_confusion_matrix(
+                y_true=sample_gt[mask],
+                y_pred=sample_pred[mask],
+                nr_classes=self.nr_classes,
+            )
             confusion_matrix = confusion_matrix + sample_confusion_matrix
         return self._aggregate(confusion_matrix.T)
 
@@ -217,7 +243,7 @@ class DatasetDice(ConfusionMatrixMetric):
             FN = confusion_matrix[index.astype(bool)].sum()
             recall = TP / (FN + TP)
             precision = TP / (TP + FP)
-            scores[i] = 2 * 1/(1/recall + 1/precision)
+            scores[i] = 2 * 1 / (1 / recall + 1 / precision)
         return scores
 
     @staticmethod
@@ -266,7 +292,13 @@ class DatasetIoU(ConfusionMatrixMetric):
 class IoU(SegmentationMetric):
     """Compute the class IoU"""
 
-    def __init__(self, nr_classes: int, background_label: int, discard_threshold: int = 0, **kwargs) -> None:
+    def __init__(
+        self,
+        nr_classes: int,
+        background_label: int,
+        discard_threshold: int = 0,
+        **kwargs,
+    ) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -343,8 +375,9 @@ class MeanIoU(IoU):
         self,
         prediction: Union[torch.Tensor, np.ndarray],
         ground_truth: Union[torch.Tensor, np.ndarray],
+        **kwargs,
     ) -> torch.Tensor:
-        return np.nanmean(super().__call__(prediction, ground_truth))
+        return np.nanmean(super().__call__(prediction, ground_truth, **kwargs))
 
     @property
     def is_per_class(self):
@@ -385,7 +418,9 @@ class fIoU(IoU):
 class F1Score(SegmentationMetric):
     """Compute the class F1 score"""
 
-    def __init__(self, nr_classes: int = 5, discard_threshold: int = 0, **kwargs) -> None:
+    def __init__(
+        self, nr_classes: int = 5, discard_threshold: int = 0, **kwargs
+    ) -> None:
         """Create a F1 calculator for a certain number of classes
 
         Args:
@@ -465,8 +500,9 @@ class MeanF1Score(F1Score):
         self,
         prediction: Union[torch.Tensor, np.ndarray],
         ground_truth: Union[torch.Tensor, np.ndarray],
+        **kwargs,
     ) -> torch.Tensor:
-        return np.nanmean(super().__call__(prediction, ground_truth))
+        return np.nanmean(super().__call__(prediction, ground_truth, **kwargs))
 
     @property
     def is_per_class(self):
@@ -601,7 +637,10 @@ class MultiLabelBalancedAccuracy(MultiLabelSklearnMetric):
 class MultiLabelF1Score(MultiLabelSklearnMetric):
     def __init__(self, nr_classes: int, **kwargs) -> None:
         super().__init__(
-            f=sklearn.metrics.f1_score, thresholded_metric=True, nr_classes=nr_classes, **kwargs
+            f=sklearn.metrics.f1_score,
+            thresholded_metric=True,
+            nr_classes=nr_classes,
+            **kwargs,
         )
 
 
@@ -620,6 +659,7 @@ class NodeClassificationMetric(ClassificationMetric):
         node_logits: torch.Tensor,
         node_labels: torch.Tensor,
         node_associations: List[int],
+        **kwargs,
     ) -> float:
         predictions = torch.softmax(node_logits, dim=1)
         metrics = np.empty(len(node_associations))
@@ -670,7 +710,7 @@ def sum_up_gleason(annotation, n_class=4, thres=0, wsi_fix=False):
     grade_count = fast_histogram(annotation.flatten(), n_class)
     grade_count = grade_count / grade_count.sum()
     grade_count[grade_count < thres] = 0
-    
+
     if wsi_fix and sum(grade_count[1:] != 0) > 1:
         grade_count[0] = 0
 
@@ -694,7 +734,16 @@ def sum_up_gleason(annotation, n_class=4, thres=0, wsi_fix=False):
 
 
 class GleasonScoreMetric(Metric):
-    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, callbacks=[], wsi_fix=False, **kwargs) -> None:
+    def __init__(
+        self,
+        f,
+        nr_classes: int,
+        background_label: int,
+        threshold: float = 0.25,
+        callbacks=[],
+        wsi_fix=False,
+        **kwargs,
+    ) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -714,6 +763,7 @@ class GleasonScoreMetric(Metric):
         prediction: torch.Tensor,
         ground_truth: torch.Tensor,
         tissue_mask=None,
+        image_labels=None,
         **kwargs,
     ) -> Any:
         assert len(prediction) == len(ground_truth)
@@ -729,15 +779,34 @@ class GleasonScoreMetric(Metric):
                 logits[~tissue_mask[i]] = self.background_label
                 labels[~tissue_mask[i]] = self.background_label
 
-            gleason_grade_ground_truth.append(
-                sum_up_gleason(labels, n_class=self.nr_classes, thres=self.threshold if self.wsi_fix else 0.0, wsi_fix=self.wsi_fix)
-            )
+            if image_labels is not None:
+                image_label = image_labels[i]
+                if isinstance(image_label, torch.Tensor):
+                    image_label = image_label.detach().cpu().numpy()
+                gleason_grade_ground_truth.append(gleason_summary_wsum(image_label))
+            else:
+                gleason_grade_ground_truth.append(
+                    sum_up_gleason(
+                        labels,
+                        n_class=self.nr_classes,
+                        thres=self.threshold if self.wsi_fix else 0.0,
+                        wsi_fix=self.wsi_fix,
+                    )
+                )
             gleason_grade_prediction.append(
-                sum_up_gleason(logits, n_class=self.nr_classes, thres=self.threshold, wsi_fix=self.wsi_fix)
+                sum_up_gleason(
+                    logits,
+                    n_class=self.nr_classes,
+                    thres=self.threshold,
+                    wsi_fix=self.wsi_fix,
+                )
             )
         if self.enabled_callbacks:
             for callback in self.callbacks:
-                callback(prediction=gleason_grade_prediction, ground_truth=gleason_grade_ground_truth)
+                callback(
+                    prediction=gleason_grade_prediction,
+                    ground_truth=gleason_grade_ground_truth,
+                )
         return self.f(
             gleason_grade_ground_truth,
             gleason_grade_prediction,
@@ -765,37 +834,29 @@ class GleasonScoreF1(GleasonScoreMetric):
             f=partial(sklearn.metrics.f1_score, average="weighted"),
             nr_classes=nr_classes,
             background_label=background_label,
-            **kwargs
+            **kwargs,
         )
 
 
-GG_SUM_TO_LABEL = {
-    0: 0,
-    2: 1,
-    3: 2,
-    4: 3,
-    5: 4,
-    6: 5
-}
+GG_SUM_TO_LABEL = {0: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
 
 
 def assign_group(primary, secondary):
-
     def assign(a, b):
         if (a > 0) and (b == 0):
             b = a
         if (b > 0) and (a == 0):
             a = b
-        return a, b 
+        return a, b
 
     if isinstance(primary, int) and isinstance(secondary, int):
         a, b = assign(primary, secondary)
-        return GG_SUM_TO_LABEL[a+b]
+        return GG_SUM_TO_LABEL[a + b]
     else:
         gg = []
         for a, b in zip(primary, secondary):
             a, b = assign(a, b)
-            gg.append(GG_SUM_TO_LABEL[a+b])
+            gg.append(GG_SUM_TO_LABEL[a + b])
         return np.array(gg)
 
 
@@ -813,7 +874,15 @@ def gleason_summary_wsum(y_pred, thres=None):
 
 
 class GraphClassificationGleasonScore(Metric):
-    def __init__(self, f, nr_classes: int, background_label: int, threshold: float = 0.25, gt_threshold: float = 0.0, callbacks=[], **kwargs) -> None:
+    def __init__(
+        self,
+        f,
+        nr_classes: int,
+        background_label: int,
+        threshold: float = 0.25,
+        callbacks=[],
+        **kwargs,
+    ) -> None:
         """Create a IoU calculator for a certain number of classes
 
         Args:
@@ -825,7 +894,6 @@ class GraphClassificationGleasonScore(Metric):
         self.threshold = threshold
         self.callbacks = callbacks
         self.enabled_callbacks = False
-        self.gt_threshold = gt_threshold
         super().__init__(**kwargs)
 
     def __call__(
@@ -842,15 +910,16 @@ class GraphClassificationGleasonScore(Metric):
             if tissue_mask is not None:
                 logits[~tissue_mask[i]] = self.background_label
 
-            gleason_grade_ground_truth.append(
-                gleason_summary_wsum(labels.numpy(), thres=self.gt_threshold)
-            )
+            gleason_grade_ground_truth.append(gleason_summary_wsum(labels.numpy()))
             gleason_grade_prediction.append(
                 gleason_summary_wsum(logits, thres=self.threshold)
             )
         if self.enabled_callbacks:
             for callback in self.callbacks:
-                callback(prediction=gleason_grade_prediction, ground_truth=gleason_grade_ground_truth)
+                callback(
+                    prediction=gleason_grade_prediction,
+                    ground_truth=gleason_grade_ground_truth,
+                )
         return self.f(
             gleason_grade_ground_truth,
             gleason_grade_prediction,
@@ -878,5 +947,5 @@ class GraphClassificationGleasonScoreF1(GraphClassificationGleasonScore):
             f=partial(sklearn.metrics.f1_score, average="weighted"),
             nr_classes=nr_classes,
             background_label=background_label,
-            **kwargs
+            **kwargs,
         )

@@ -7,6 +7,7 @@ import numpy as np
 import sklearn.metrics
 import torch
 from histocartography.preprocessing.utils import fast_histogram
+from utils import fast_confusion_matrix
 
 
 def inverse_frequency(class_counts: np.ndarray) -> np.ndarray:
@@ -167,6 +168,99 @@ class SegmentationMetric(Metric):
                 class_counts.append(sample_class_counts)
             class_counts = np.stack(class_counts)
         return class_counts
+
+
+class ConfusionMatrixMetric(Metric):
+    def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
+        self.nr_classes = nr_classes
+        self.background_label = background_label
+        super().__init__(**kwargs)
+
+    def _aggregate(self, confusion_matrix):
+        return confusion_matrix
+    
+    def __call__(self, prediction: Union[torch.Tensor, np.ndarray],
+        ground_truth: Union[torch.Tensor, np.ndarray],
+        tissue_mask=None,) -> Any:
+        assert len(ground_truth) == len(prediction)
+        
+        confusion_matrix = np.zeros((self.nr_classes, self.nr_classes), dtype=np.int64)
+        for i, (sample_gt, sample_pred) in enumerate(zip(ground_truth, prediction)):
+            if isinstance(sample_gt, torch.Tensor):
+                sample_gt = sample_gt.detach().cpu().numpy()
+            if isinstance(sample_pred, torch.Tensor):
+                sample_pred = sample_pred.detach().cpu().numpy()
+            sample_pred = sample_pred.copy()
+            sample_gt = sample_gt.copy()
+            if tissue_mask is not None:
+                sample_gt[~tissue_mask[i]] = self.background_label
+            
+            mask = sample_gt != self.background_label
+            sample_confusion_matrix = fast_confusion_matrix(y_true=sample_gt[mask], y_pred=sample_pred[mask], nr_classes=self.nr_classes)
+            confusion_matrix = confusion_matrix + sample_confusion_matrix
+        return self._aggregate(confusion_matrix.T)
+
+
+class DatasetDice(ConfusionMatrixMetric):
+    def _aggregate(self, confusion_matrix):
+        scores = np.empty(self.nr_classes)
+        indices = np.arange(self.nr_classes)
+        for i in range(self.nr_classes):
+            TP = confusion_matrix[i, i]
+            index = np.zeros_like(confusion_matrix, dtype=bool)
+            index[indices == i, :] = True
+            index[i, i] = False
+            FP = confusion_matrix[index.astype(bool)].sum()
+            index = np.zeros_like(confusion_matrix, dtype=bool)
+            index[:, indices == i] = True
+            index[i, i] = False
+            FN = confusion_matrix[index.astype(bool)].sum()
+            recall = TP / (FN + TP)
+            precision = TP / (TP + FP)
+            scores[i] = 2 * 1/(1/recall + 1/precision)
+        return scores
+
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        return value >= comparison
+
+    @property
+    def logs_model(self):
+        return False
+
+    @property
+    def is_per_class(self):
+        return True
+
+
+class DatasetIoU(ConfusionMatrixMetric):
+    def _aggregate(self, confusion_matrix):
+        scores = np.empty(self.nr_classes)
+        indices = np.arange(self.nr_classes)
+        for i in range(self.nr_classes):
+            TP = confusion_matrix[i, i]
+            index = np.zeros_like(confusion_matrix, dtype=bool)
+            index[indices == i, :] = True
+            index[i, i] = False
+            FP = confusion_matrix[index.astype(bool)].sum()
+            index = np.zeros_like(confusion_matrix, dtype=bool)
+            index[:, indices == i] = True
+            index[i, i] = False
+            FN = confusion_matrix[index.astype(bool)].sum()
+            scores[i] = TP / (TP + FP + FN)
+        return scores
+
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        return value >= comparison
+
+    @property
+    def logs_model(self):
+        return False
+
+    @property
+    def is_per_class(self):
+        return True
 
 
 class IoU(SegmentationMetric):
@@ -460,10 +554,10 @@ class MultiLabelClassificationMetric(ClassificationMetric):
 
 
 class MultiLabelSklearnMetric(MultiLabelClassificationMetric):
-    def __init__(self, f, threshold, nr_classes: int, **kwargs) -> None:
+    def __init__(self, f, thresholded_metric, nr_classes: int, **kwargs) -> None:
         super().__init__(nr_classes, **kwargs)
         self.f = f
-        self.threshold = threshold
+        self.thresholded_metric = thresholded_metric
 
     def _compare(self, predictions, labels, **kwargs):
         assert (
@@ -473,7 +567,7 @@ class MultiLabelSklearnMetric(MultiLabelClassificationMetric):
         for i in range(self.nr_classes):
             y_pred = predictions.numpy()[:, i]
             y_true = labels[:, i].numpy()
-            if self.threshold:
+            if self.thresholded_metric:
                 class_metric[i] = self.f(y_pred=y_pred > 0.5, y_true=y_true)
             else:
                 class_metric[i] = self.f(y_score=y_pred, y_true=y_true)
@@ -488,7 +582,7 @@ class MultiLabelAccuracy(MultiLabelSklearnMetric):
     def __init__(self, nr_classes: int, **kwargs) -> None:
         super().__init__(
             f=sklearn.metrics.accuracy_score,
-            threshold=True,
+            thresholded_metric=True,
             nr_classes=nr_classes,
             **kwargs,
         )
@@ -498,7 +592,7 @@ class MultiLabelBalancedAccuracy(MultiLabelSklearnMetric):
     def __init__(self, nr_classes: int, **kwargs) -> None:
         super().__init__(
             f=sklearn.metrics.balanced_accuracy_score,
-            threshold=True,
+            thresholded_metric=True,
             nr_classes=nr_classes,
             **kwargs,
         )
@@ -507,7 +601,7 @@ class MultiLabelBalancedAccuracy(MultiLabelSklearnMetric):
 class MultiLabelF1Score(MultiLabelSklearnMetric):
     def __init__(self, nr_classes: int, **kwargs) -> None:
         super().__init__(
-            f=sklearn.metrics.f1_score, threshold=True, nr_classes=nr_classes, **kwargs
+            f=sklearn.metrics.f1_score, thresholded_metric=True, nr_classes=nr_classes, **kwargs
         )
 
 

@@ -6,7 +6,7 @@ import logging
 import random
 import re
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import cv2
 import dgl
@@ -39,6 +39,28 @@ def fast_mode(input_array: np.ndarray, nr_values: int, axis: int = 0) -> np.ndar
     for i in range(nr_values):
         output_array[i, ...] = (input_array == i).sum(axis=axis)
     return np.argmax(output_array, axis=0)
+
+
+def fast_confusion_matrix(y_true: Union[np.ndarray, torch.Tensor], y_pred: Union[np.ndarray, torch.Tensor], nr_classes: int):
+    """Faster computation of confusion matrix according to https://stackoverflow.com/a/59089379
+
+    Args:
+        y_true (Union[np.ndarray, torch.Tensor]): Ground truth (1D)
+        y_pred (Union[np.ndarray, torch.Tensor]): Prediction (1D)
+        nr_classes (int): Number of classes
+
+    Returns:
+        np.ndarray: Confusion matrix of shape nr_classes x nr_classes
+    """
+    assert y_true.shape == y_pred.shape
+    y_true = torch.as_tensor(y_true, dtype=torch.long)
+    y_pred = torch.as_tensor(y_pred, dtype=torch.long)
+    y = nr_classes * y_true + y_pred
+    y = torch.bincount(y)
+    if len(y) < nr_classes * nr_classes:
+        y = torch.cat((y, torch.zeros(nr_classes * nr_classes - len(y), dtype=torch.long)))
+    y = y.reshape(nr_classes, nr_classes)
+    return y.numpy()
 
 
 def read_image(image_path: str) -> np.ndarray:

@@ -152,7 +152,7 @@ def test_gnn(
         save_path.mkdir()
 
     logger_pathologist_1 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1", "fIoU", "fF1Score"],
+        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1", "fIoU", "fF1Score", "DatasetDice", "DatasetIoU"],
         prefix="pathologist1",
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
@@ -177,6 +177,8 @@ def test_gnn(
                 "GleasonScoreF1",
                 "fIoU",
                 "fF1Score",
+                "DatasetDice",
+                "DatasetIoU"
             ],
             prefix="pathologist2",
             nr_classes=NR_CLASSES,

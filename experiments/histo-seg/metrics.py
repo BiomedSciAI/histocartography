@@ -761,7 +761,7 @@ class GleasonScoreMetric(Metric):
     def __call__(
         self,
         prediction: torch.Tensor,
-        ground_truth: torch.Tensor,
+        ground_truth=None,
         tissue_mask=None,
         image_labels=None,
         **kwargs,
@@ -771,13 +771,15 @@ class GleasonScoreMetric(Metric):
             len(prediction[0].shape) == 2
         ), f"Expected 2D predictions, but got {len(prediction[0].shape)}: {prediction}"
         assert tissue_mask is None or len(tissue_mask) == len(prediction)
+        assert (
+            ground_truth is not None or image_labels is not None
+        ), f"Must pass either ground truth or image_labels"
 
         gleason_grade_ground_truth = list()
         gleason_grade_prediction = list()
-        for i, (logits, labels) in enumerate(zip(prediction, ground_truth)):
+        for i, logits in enumerate(prediction):
             if tissue_mask is not None:
                 logits[~tissue_mask[i]] = self.background_label
-                labels[~tissue_mask[i]] = self.background_label
 
             if image_labels is not None:
                 image_label = image_labels[i]
@@ -785,6 +787,9 @@ class GleasonScoreMetric(Metric):
                     image_label = image_label.detach().cpu().numpy()
                 gleason_grade_ground_truth.append(gleason_summary_wsum(image_label))
             else:
+                labels = ground_truth[i]
+                if tissue_mask is not None:
+                    labels[~tissue_mask[i]] = self.background_label
                 gleason_grade_ground_truth.append(
                     sum_up_gleason(
                         labels,

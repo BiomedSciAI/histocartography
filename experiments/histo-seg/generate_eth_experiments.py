@@ -4449,9 +4449,10 @@ if __name__ == "__main__":
         ],
         sequential=[
             [
-                ParameterList(["graph_builders", "params", "partial_annotation"], [50, 25]),
-                ParameterList(["params", "partial_annotation"], [50, 25]
+                ParameterList(
+                    ["graph_builders", "params", "partial_annotation"], [50, 25]
                 ),
+                ParameterList(["params", "partial_annotation"], [50, 25]),
                 ParameterList(
                     ["params", "link_directory"],
                     [f"v11_mobilenet_med_13x_partial_{s}" for s in [50, 25]],
@@ -4459,33 +4460,104 @@ if __name__ == "__main__":
             ]
         ],
     )
+    CPUPreprocessingExperiment(
+        name="v11_standard_med_13x_partial_new",
+        base="config/new_preprocess.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["stain_normalizers", "params", "target"],
+                "ZT111_4_C_7_1",
+            ),
+            Parameter(
+                ["feature_extraction", "params", "patch_size"],
+                224,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "stride"],
+                32,
+            ),
+            Parameter(["superpixel", "params", "threshold"], 0.02),
+            Parameter(
+                ["superpixel", "params", "nr_superpixels"],
+                400,
+            ),
+            Parameter(
+                ["superpixel", "params", "compactness"],
+                30,
+            ),
+            Parameter(
+                ["feature_extraction", "params", "downsample_factor"],
+                3,
+            ),
+        ],
+        sequential=[
+            [
+                ParameterList(
+                    ["graph_builders", "params", "partial_annotation"], [10, 5]
+                ),
+                ParameterList(["params", "partial_annotation"], [10, 5]),
+                ParameterList(
+                    ["params", "link_directory"],
+                    [f"v11_mobilenet_med_13x_partial_{s}" for s in [10, 5]],
+                ),
+            ]
+        ],
+    )
     StronglySupervisedGraphClassificationExperiment(
-        name="eth_partial_50", base="config/paper_eth_strong.yml", path=PATH,
+        name="eth_partial_50",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_med_13x_partial_50",
             ),
-            Parameter(
-                ["train", "data", "partial_annotation",
-                50]
-            )
+            Parameter(["train", "data", "partial_annotation"], 50),
         ],
         sequential=[folds],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="eth_partial_25", base="config/paper_eth_strong.yml", path=PATH,
+        name="eth_partial_25",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_med_13x_partial_25",
             ),
+            Parameter(["train", "data", "partial_annotation"], 25),
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="eth_partial_10",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
             Parameter(
-                ["train", "data", "partial_annotation",
-                25]
-            )
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_10",
+            ),
+            Parameter(["train", "data", "partial_annotation"], 10),
+        ],
+        sequential=[folds],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="eth_partial_5",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_5",
+            ),
+            Parameter(["train", "data", "partial_annotation"], 5),
         ],
         sequential=[folds],
     )
@@ -4497,10 +4569,7 @@ if __name__ == "__main__":
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_med_13x_partial_50",
             ),
-            Parameter(
-                ["train", "data", "partial_annotation",
-                50]
-            )
+            Parameter(["train", "data", "partial_annotation"], 50),
         ],
         sequential=[folds],
     )
@@ -4512,10 +4581,275 @@ if __name__ == "__main__":
                 ["train", "data", "graph_directory"],
                 "outputs/v11_mobilenet_med_13x_partial_25",
             ),
-            Parameter(
-                ["train", "data", "partial_annotation",
-                25]
-            )
+            Parameter(["train", "data", "partial_annotation"], 25),
         ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="eth_partial_10", base="config/paper_eth_semi.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_10",
+            ),
+            Parameter(["train", "data", "partial_annotation"], 10),
+        ],
+        sequential=[folds],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="eth_partial_5", base="config/paper_eth_semi.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "data", "graph_directory"],
+                "outputs/v11_mobilenet_med_13x_partial_5",
+            ),
+            Parameter(["train", "data", "partial_annotation"], 5),
+        ],
+        sequential=[folds],
+    )
+
+    GNNTestingExperiment(
+        name="eth_rerun_new_partial_tissue",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_10",
+                            "tissue_eth_partial_10",
+                            "tissue_eth_partial_10",
+                            "tissue_eth_partial_10",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/645/4bf6a4679f014ed6b575303d6596641b/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/adec59159dd4483688af542d27dc961a/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/64309db47967415caaad16d08410bd43/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/14728435a9ba4eb1b6151d4ce4dd0aed/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/f8840786a1834569a058224ff7f59e31/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/30eff8f8135c4407bdc9fc6dcc5481da/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/ab91980014f145eaae115f02e5eb47e6/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/a66a07a6a6b24a86873c4f2d01a4a2b8/artifacts/best.valid.node.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="eth_rerun_new_partial_semi", base="config/paper_eth_semi.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "semi_eth_partial_5",
+                            "semi_eth_partial_5",
+                            "semi_eth_partial_5",
+                            "semi_eth_partial_5",
+                            "semi_eth_partial_10",
+                            "semi_eth_partial_10",
+                            "semi_eth_partial_10",
+                            "semi_eth_partial_10",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/646/7dfde04f6f734a01a721dd3e1fd9f001/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/9fc37069990a44c0b3ef52a0d35586c8/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/edbecac3a4c34969bb5d064ac9428cc0/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/3a2b9fc4c83646cd9113d49d4ce0282d/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/c126dbd83c4f43719cc836679b912974/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/76eee0bd41da47d89d268468d5483ee1/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/a2828465f3ef4e1a82201b965f9b510f/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/fbb1cf0401774debac8e0274a1d973e6/artifacts/best.valid.node.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="eth_rerun_new_partial_semi_node",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "semi_eth_partial_node_5",
+                            "semi_eth_partial_node_5",
+                            "semi_eth_partial_node_5",
+                            "semi_eth_partial_node_5",
+                            "semi_eth_partial_node_10",
+                            "semi_eth_partial_node_10",
+                            "semi_eth_partial_node_10",
+                            "semi_eth_partial_node_10",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/646/7dfde04f6f734a01a721dd3e1fd9f001/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/9fc37069990a44c0b3ef52a0d35586c8/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/edbecac3a4c34969bb5d064ac9428cc0/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/3a2b9fc4c83646cd9113d49d4ce0282d/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/c126dbd83c4f43719cc836679b912974/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/76eee0bd41da47d89d268468d5483ee1/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/a2828465f3ef4e1a82201b965f9b510f/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/fbb1cf0401774debac8e0274a1d973e6/artifacts/best.valid.node.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="eth_rerun_new_partial_tissue_high",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x}
+                        for x in [
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_5",
+                            "tissue_eth_partial_10",
+                            "tissue_eth_partial_10",
+                            "tissue_eth_partial_10",
+                            "tissue_eth_partial_10",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/645/4bf6a4679f014ed6b575303d6596641b/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/adec59159dd4483688af542d27dc961a/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/64309db47967415caaad16d08410bd43/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/14728435a9ba4eb1b6151d4ce4dd0aed/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/f8840786a1834569a058224ff7f59e31/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/30eff8f8135c4407bdc9fc6dcc5481da/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/ab91980014f145eaae115f02e5eb47e6/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/645/a66a07a6a6b24a86873c4f2d01a4a2b8/artifacts/best.valid.node.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="eth_rerun_new_partial_semi_high",
+        base="config/paper_eth_semi.yml",
+        path=PATH,
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x + "_graph"}
+                        for x in [
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_50",
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_50",
+                            "semi_eth_partial_50",
+                            "semi_eth_partial_50",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/646/9f5b61f1738d4e3cbb7be3970edb608a/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/825e329a92544921a3a48f0a108ed74c/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/fbe9ee7cbecf4e788f574a1a07e266d4/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/20a6c323b81d4268a4012791cfa60840/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/3242af9de85446df8932a2e1d2cfbf50/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/ac268b7a01694a99bcb00b96cd2da572/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/7d530190c66e4cbcac3a6b85cfe3f993/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/646/94f15c24601b4ce286e73711a9da53d0/artifacts/best.valid.graph.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="eth_rerun_new_partial_semi_high_node",
+        base="config/paper_eth_strong.yml",
+        path=PATH,
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": x+ "_node"}
+                        for x in [
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_50",
+                            "semi_eth_partial_25",
+                            "semi_eth_partial_50",
+                            "semi_eth_partial_50",
+                            "semi_eth_partial_50",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/646/9f5b61f1738d4e3cbb7be3970edb608a/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/825e329a92544921a3a48f0a108ed74c/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/fbe9ee7cbecf4e788f574a1a07e266d4/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/20a6c323b81d4268a4012791cfa60840/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/3242af9de85446df8932a2e1d2cfbf50/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/ac268b7a01694a99bcb00b96cd2da572/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/7d530190c66e4cbcac3a6b85cfe3f993/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/646/94f15c24601b4ce286e73711a9da53d0/artifacts/best.valid.node.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+
+    StronglySupervisedGraphClassificationExperiment(
+        name="rep_final_strong", base="config/paper_eth_strong.yml", path=PATH
+    ).generate(
+        sequential=[folds],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="rep_final_weak", base="config/paper_eth_weak.yml", path=PATH
+    ).generate(
         sequential=[folds],
     )

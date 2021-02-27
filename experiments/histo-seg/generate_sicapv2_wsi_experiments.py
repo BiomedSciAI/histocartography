@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 
@@ -1977,8 +1978,70 @@ if __name__ == "__main__":
             [
                 ParameterList(
                     ["test", "params", "experiment_tags"],
+                    [{"grid_search": f"thres_{threshold}_" + x} for x in run_tags],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    run_ids,
+                ),
+                ParameterList(
+                    ["test", "params", "threshold"], [threshold] * len(run_ids)
+                ),
+            ]
+            for threshold in [0.001, 0.05, 0.1, 0.15, 0.2, 0.25]
+        ],
+    )
+    GNNTestingExperiment(
+        "rerun_sicap_new_best", base="config/sicapv2_wsi_strong.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [{"grid_search": f"fixed2_" + x} for x in run_tags],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    run_ids,
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        "rerun_sicap_new_best_normalized",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[Parameter(["test", "params", "normalize_percentages"], True)],
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [{"grid_search": f"normalized_{threshold}_" + x} for x in run_tags],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    run_ids,
+                ),
+                ParameterList(
+                    ["test", "params", "threshold"], [threshold] * len(run_ids)
+                ),
+            ]
+            for threshold in [0.05]
+        ],
+    )
+    GNNTestingExperiment(
+        "rerun_sicap_new_best_unnormalized",
+        base="config/sicapv2_wsi_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[Parameter(["test", "params", "normalize_percentages"], False)],
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
                     [
-                        {"grid_search": f"thres_{threshold}_" + x}
+                        {"grid_search": f"unnormalized_{threshold}_" + x}
                         for x in run_tags
                     ],
                 ),
@@ -1987,11 +2050,11 @@ if __name__ == "__main__":
                     run_ids,
                 ),
                 ParameterList(
-                    ["test", "params", "threshold"],
-                    [threshold]*len(run_ids)
-                )
+                    ["test", "params", "threshold"], [threshold] * len(run_ids)
+                ),
             ]
-        for threshold in [0.001, 0.05, 0.1, 0.15, 0.2, 0.25]],
+            for threshold in [0.05]
+        ],
     )
 
     # Partial
@@ -2003,9 +2066,10 @@ if __name__ == "__main__":
     ).generate(
         sequential=[
             [
-                ParameterList(["graph_builders", "params", "partial_annotation"], [50, 25]),
-                ParameterList(["params", "partial_annotation"], [50, 25]
+                ParameterList(
+                    ["graph_builders", "params", "partial_annotation"], [50, 25]
                 ),
+                ParameterList(["params", "partial_annotation"], [50, 25]),
                 ParameterList(
                     ["params", "link_directory"],
                     [f"v0_4000_low_partial_{s}" for s in [50, 25]],
@@ -2014,62 +2078,600 @@ if __name__ == "__main__":
         ],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="sicap_partial_50", base="config/paper_sicap_strong.yml", path=PATH,
+        name="sicap_partial_50",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
-                "outputs/v0_4000_low_partial_50",
+                "v0_4000_low_partial_50",
             ),
-            Parameter(
-                ["train", "data", "partial_annotation",
-                50]
-            )
+            Parameter(["train", "data", "partial_annotation"], 50),
         ],
         sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )
     StronglySupervisedGraphClassificationExperiment(
-        name="sicap_partial_25", base="config/paper_sicap_strong.yml", path=PATH,
+        name="sicap_partial_25",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
-                "outputs/v0_4000_low_partial_25",
+                "v0_4000_low_partial_25",
             ),
-            Parameter(
-                ["train", "data", "partial_annotation",
-                25]
-            )
+            Parameter(["train", "data", "partial_annotation"], 25),
         ],
         sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )
     SemiSupervisedGraphClassificationExperiment(
-        name="sicap_partial_50", base="config/paper_sicap_semi.yml", path=PATH,
+        name="sicap_partial_50",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
-                "outputs/v0_4000_low_partial_50",
+                "v0_4000_low_partial_50",
             ),
-            Parameter(
-                ["train", "data", "partial_annotation",
-                25]
-            )
+            Parameter(["train", "data", "partial_annotation"], 50),
         ],
         sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )
     SemiSupervisedGraphClassificationExperiment(
-        name="sicap_partial_25", base="config/paper_sicap_semi.yml", path=PATH,
+        name="sicap_partial_25",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
     ).generate(
         fixed=[
             Parameter(
                 ["train", "data", "graph_directory"],
-                "outputs/v0_4000_low_partial_25",
+                "v0_4000_low_partial_25",
             ),
-            Parameter(
-                ["train", "data", "partial_annotation",
-                25]
-            )
+            Parameter(["train", "data", "partial_annotation"], 25),
         ],
         sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    GNNTestingExperiment(
+        name="sicap_partial_node", base="config/paper_sicap_strong.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": "___" + x}
+                        for x in [
+                            "semi_sicap_partial_node_25",
+                            "semi_sicap_partial_node_25",
+                            "semi_sicap_partial_node_25",
+                            "semi_sicap_partial_node_25",
+                            "semi_sicap_partial_node_50",
+                            "semi_sicap_partial_node_50",
+                            "semi_sicap_partial_node_50",
+                            "semi_sicap_partial_node_50",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/656/e34c680fe15b4a5785926552e8a6b395/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/656/a0843853c0274b988ba6232d29876908/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/656/0334f2afe7b6400899235ed7d7a21a41/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/656/14b29148d912403d82dbb7e881b4a7df/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/656/7d00a6edb6764719b69cc0d2a7f839f2/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/656/896027b06b934bf99fabf46582dc01d9/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/656/87a621bf603545d1839b37e164c8a41a/artifacts/best.valid.node.segmentation.fF1Score",
+                        "s3://mlflow/656/20db40ead56142bdbd40dd733ebf243e/artifacts/best.valid.node.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    GNNTestingExperiment(
+        name="sicap_partial_graph", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": "___" + x}
+                        for x in [
+                            "semi_sicap_partial_graph_25",
+                            "semi_sicap_partial_graph_25",
+                            "semi_sicap_partial_graph_25",
+                            "semi_sicap_partial_graph_50",
+                            "semi_sicap_partial_graph_25",
+                            "semi_sicap_partial_graph_50",
+                            "semi_sicap_partial_graph_50",
+                            "semi_sicap_partial_graph_50",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/656/e34c680fe15b4a5785926552e8a6b395/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/656/a0843853c0274b988ba6232d29876908/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/656/0334f2afe7b6400899235ed7d7a21a41/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/656/14b29148d912403d82dbb7e881b4a7df/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/656/7d00a6edb6764719b69cc0d2a7f839f2/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/656/896027b06b934bf99fabf46582dc01d9/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/656/87a621bf603545d1839b37e164c8a41a/artifacts/best.valid.graph.segmentation.fF1Score",
+                        "s3://mlflow/656/20db40ead56142bdbd40dd733ebf243e/artifacts/best.valid.graph.segmentation.fF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+
+    # Weakly Supervised
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_base", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_base_node", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_scheduler_normal", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.0000001,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.00003,
+            ),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_scheduler_high", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 5,
+                        "min_lr": 0.000001,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.001,
+            ),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_insane_dropout", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.8
+            ),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.8),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_weighted_log", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "params", "use_weighted_loss"], True),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_weighted_lin", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], False),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_no_loc", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_resnet_base", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_low_4000_resnet34"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 514),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_resnet_rainbow_lin", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_low_4000_resnet34"),
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 512),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], False),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_resnet_rainbow_log", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_low_4000_resnet34"),
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 512),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_classifier_dropout", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "graph_classifier_config", "input_dropout"],
+                [0.0, 0.2, 0.4, 0.6, 0.8],
+            )
+        ],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_gnn_depth", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+        ],
+        sequential=[
+            ParameterList(
+                ["train", "model", "gnn_config", "n_layers"], [3, 6, 9, 12, 15, 18, 21]
+            )
+        ],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_rainbox_lin", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "params", "use_log_frequency_weights"], False),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_rainbox_log", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    GNNTestingExperiment(
+        name="sicap_rerun_weak", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": "___" + x}
+                        for x in [
+                            "image_sicap_no_loc",
+                            "image_sicap_no_loc",
+                            "image_sicap_no_loc",
+                            "image_sicap_weighted_lin",
+                            "image_sicap_no_loc",
+                            "image_sicap_weighted_lin",
+                            "image_sicap_weighted_lin",
+                            "image_sicap_weighted_lin",
+                            "image_sicap_weighted_log",
+                            "image_sicap_weighted_log",
+                            "image_sicap_weighted_log",
+                            "image_sicap_weighted_log",
+                            "image_sicap_classifier_dropout",
+                            "image_sicap_classifier_dropout",
+                            "image_sicap_classifier_dropout",
+                            "image_sicap_classifier_dropout",
+                            "image_sicap_classifier_dropout",
+                            "image_sicap_insane_dropout",
+                            "image_sicap_insane_dropout",
+                            "image_sicap_insane_dropout",
+                            "image_sicap_insane_dropout",
+                            "image_sicap_scheduler_high",
+                            "image_sicap_scheduler_high",
+                            "image_sicap_scheduler_high",
+                            "image_sicap_scheduler_high",
+                            "image_sicap_scheduler_normal",
+                            "image_sicap_scheduler_normal",
+                            "image_sicap_scheduler_normal",
+                            "image_sicap_scheduler_normal",
+                            "image_sicap_base_node",
+                            "image_sicap_base_node",
+                            "image_sicap_base_node",
+                            "image_sicap_base_node",
+                            "image_sicap_base",
+                            "image_sicap_base",
+                            "image_sicap_base",
+                            "image_sicap_base",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/652/70472938fddd41328dd60e7ed114b021/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/0fae7982f7ce4f4e8aa1b174b905001a/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/460ae360b0174278b4f67514c0e43876/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/cc9ed9d17cd44f3988b0a09ca2fc5e40/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/dd937a7fba754120a133049f17703aaf/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/1236bfd2f05e48b0a8369291642cdab5/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/4473e975815640a4921f2f3786230245/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/fc425e7b7a814be09154b5e874eadbd3/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/99b8502e0dce4753907f8a4bfacfef15/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/0b07e7584bb84b49992766754c5a1946/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/7262d5816366453181c59adcd996f90d/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/443d29b7155a457aa9edb38ab4ab5326/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/edbbd41fee5e40d08c584a6acfac2b29/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/e893f021d1a34f6f8aa0c82e21334578/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/c58a11b0ca814d3b841adde2b86e0dd0/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/a9bd91fcf3c442bc9aa70f3ee65d33de/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/833a73f5ef874500b91299caacb7781a/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/503e967871cb4c11b0d11b1d88c55410/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/4d4190ce26d74d9d8960a3a0eec43bee/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/7d80ff010b7a46399fde319b4bfb3d7f/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/100d378c4a874d738a45d9f05ec1b720/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/d14606abcdff49b589d0b01fd6365f5f/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/3dea7c0677014ad7bd7b01349f478d8b/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/a28cb84a0dac41549f461c5bf4091a1e/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/2e46f69cebeb41a5b108accecdeda5ef/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/c3abf57991a84fa7870d5d98a67e9562/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/c03e696a948445bb9dff18d35c570142/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/fe83a02e432c440881976541ca33e761/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/e8f71c4585b14df5b4daaf5d894c71ae/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/8cb30bdcbada4a74aa213d8d591f4edf/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/d688e96555344c53ab42e5ecc3831dfa/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/09df1a1a82684bd48816765c0d0f5d94/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/d23044dfb13b4128bd2dc58cc03086db/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/7a6287bad24a4324ba55db2695778c32/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/e991e852f6244460849b55f82061e325/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/826b095fd1f542deb6eb9140c92207af/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/9df65aeda5314a2a99878d74ead48b63/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_classifier_rainbow_dropout_0.4",
+        base="config/sicapv2_wsi_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"],
+                0.4,
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "fold"], [1, 2, 3, 4]),
+        ],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_classifier_rainbow_dropout_0.5",
+        base="config/sicapv2_wsi_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"],
+                0.5,
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "fold"], [1, 2, 3, 4]),
+        ],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_classifier_rainbow_dropout_0.3",
+        base="config/sicapv2_wsi_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"],
+                0.3,
+            ),
+        ],
+        sequential=[
+            ParameterList(["train", "data", "fold"], [1, 2, 3, 4]),
+        ],
+    )
+    GNNTestingExperiment(
+        name="sicap_rerun_weak2", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        sequential=[
+            [
+                ParameterList(
+                    ["test", "params", "experiment_tags"],
+                    [
+                        {"grid_search": "___" + x}
+                        for x in [
+                            "image_sicap_rainbox_log",
+                            "image_sicap_rainbox_log",
+                            "image_sicap_rainbox_log",
+                            "image_sicap_rainbox_log",
+                            "image_sicap_rainbox_lin",
+                            "image_sicap_rainbox_lin",
+                            "image_sicap_rainbox_lin",
+                            "image_sicap_rainbox_lin",
+                            "image_sicap_resnet_rainbow_log",
+                            "image_sicap_resnet_rainbow_log",
+                            "image_sicap_resnet_rainbow_log",
+                            "image_sicap_resnet_rainbow_log",
+                            "image_sicap_resnet_rainbow_lin",
+                            "image_sicap_resnet_rainbow_lin",
+                            "image_sicap_resnet_rainbow_lin",
+                            "image_sicap_resnet_rainbow_lin",
+                            "image_sicap_resnet_base",
+                            "image_sicap_resnet_base",
+                            "image_sicap_resnet_base",
+                            "image_sicap_resnet_base",
+                        ]
+                    ],
+                ),
+                ParameterList(
+                    ["test", "model", "architecture"],
+                    [
+                        "s3://mlflow/652/7b3670dc3aef4ca087a8f080ecf68b1d/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/1d20edb8aa8a4c36977916c66d9f11db/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/0fb10261195a446a96c2d6825791d7c5/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/9d09b98947254a60bc8c7aff1df5e52f/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/13abe3597c1a4a069cf2a8b0fee4d893/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/25d7c5e0186e453d949aa906c5514226/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/35e0e3dbf378465eb93d44e650e5f187/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/ac3bfd8a01a242d7a7edcb32ecf973c5/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/35d8daae92f54062be8a5427ede54073/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/6436e0ad61c442109a5134317e021e32/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/e889ed9d66074779bfc8e5a1277e6b44/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/79d4c77f8ab0494883eb6a34c7b8c9fb/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/6cc883c983b241aeb894e5b6c96411cc/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/3398cb45521046d5bb2fdb594d5ff6b2/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/f9587e9ce709431197afb772fdda5ecf/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/8dc5d67df56d4f9b9a897c6e2d162fd4/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/722da1dcd3034ebf8ab45c8d98249b51/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/4fe5e96a745b42d0977d5b6bf75d9477/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/59e458d7acf9494a8fa22c4294dd19ca/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                        "s3://mlflow/652/092ae210266b4be5ae585e4210739a35/artifacts/best.valid.graph.segmentation.MeanF1Score",
+                    ],
+                ),
+            ]
+        ],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_high_dropout", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "model", "graph_classifier_config", "input_dropout"], 0.7
+            ),
+            Parameter(["train", "model", "gnn_config", "dropout"], 0.7),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_gnn_6", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 6),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_gnn_9", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 9),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_gnn_15", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 15),
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_lstm", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "model", "gnn_config", "agg_operator"], "lstm")
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_none", base="config/sicapv2_wsi_weak.yml", path=PATH
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "model", "gnn_config", "agg_operator"], "none")
+        ],
+        sequential=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_rep_final",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
     )

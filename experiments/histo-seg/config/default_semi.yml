@@ -61,6 +61,8 @@ train:
     graph:
       - "MultiLabelBalancedAccuracy"
       - "MultiLabelF1Score"
+      - "GraphClassificationGleasonScoreKappa"
+      - "GraphClassificationGleasonScoreF1"
     node:
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
@@ -69,6 +71,8 @@ train:
       - "GleasonScoreF1"
       - "F1Score"
       - "IoU"
+      - "DatasetDice"
+      - "DatasetIoU"
       - "fIoU"
       - "fF1Score"
   params:

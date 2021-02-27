@@ -252,7 +252,7 @@ class DatasetDice(ConfusionMatrixMetric):
 
     @property
     def logs_model(self):
-        return False
+        return True
 
     @property
     def is_per_class(self):
@@ -282,7 +282,7 @@ class DatasetIoU(ConfusionMatrixMetric):
 
     @property
     def logs_model(self):
-        return False
+        return True
 
     @property
     def is_per_class(self):

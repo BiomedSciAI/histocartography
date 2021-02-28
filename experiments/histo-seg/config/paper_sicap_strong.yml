@@ -34,8 +34,6 @@ train:
     node:
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
-      - "GraphClassificationGleasonScoreKappa"
-      - "GraphClassificationGleasonScoreF1"
     segmentation:
       - "GleasonScoreKappa"
       - "GleasonScoreF1"

@@ -251,3 +251,10 @@ if __name__ == "__main__":
     checkpoint = f"best.valid.node.segmentation.{focused_metric}"
     model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/{checkpoint}"
     auto_test(config, tags, default="default_strong.yml", model_uri=model_uri)
+    robust_mlflow(mlflow.log_param, "focus", focused_metric)
+    end_run()
+
+    checkpoint = f"best.valid.node.segmentation.GleasonScoreF1"
+    model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/{checkpoint}"
+    auto_test(config, tags, default="default_strong.yml", model_uri=model_uri)
+    robust_mlflow(mlflow.log_param, "focus", "GleasonScoreF1")

@@ -49,11 +49,8 @@ train:
     segmentation:
       - "GleasonScoreKappa"
       - "GleasonScoreF1"
-      - "F1Score"
-      - "IoU"
       - "DatasetDice"
       - "DatasetIoU"
-      - "fIoU"
       - "fF1Score"
   params:
     experiment_name: "anv_wsss_gnn_weakly_supervised"
@@ -80,7 +77,7 @@ train:
     autotest: True
     use_weighted_loss: False
     use_log_frequency_weights: True
-    focused_metric: "MeanIoU"
+    focused_metric: "MeanDatasetDice"
     balanced_sampling: False
 test:
   data: {}

@@ -51,6 +51,8 @@ train:
       - "GleasonScoreKappa"
       - "F1Score"
       - "IoU"
+      - "DatasetDice"
+      - "DatasetIoU"
   params:
     experiment_name: "anv_wsss_train_classifier"
     experiment_tags: null

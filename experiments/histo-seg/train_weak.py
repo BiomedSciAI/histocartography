@@ -225,7 +225,10 @@ def train_graph_classifier(
 
             if scheduler is not None and isinstance(scheduler, ReduceLROnPlateau):
                 robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
-                scheduler.step(current_metrics[focused_metric])
+                if focused_metric in current_metrics:
+                    scheduler.step(current_metrics[focused_metric])
+                else:
+                    scheduler.step(current_metrics[focused_metric[4:]])
 
     mlflow.pytorch.log_model(model, "latest")
 

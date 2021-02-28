@@ -282,7 +282,7 @@ class DatasetIoU(ConfusionMatrixMetric):
 
     @property
     def logs_model(self):
-        return True
+        return False
 
     @property
     def is_per_class(self):
@@ -933,6 +933,10 @@ class GraphClassificationGleasonScore(Metric):
     @staticmethod
     def is_better(value: Any, comparison: Any) -> bool:
         return value >= comparison
+
+    @property
+    def logs_model(self):
+        return False
 
 
 class GraphClassificationGleasonScoreKappa(GraphClassificationGleasonScore):

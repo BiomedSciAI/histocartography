@@ -5,15 +5,60 @@
 GradCAM
 """
 
+from typing import List
+
 import torch
 
-from .cam import _CAM
+from .cam import _CAM, _LegacyCAM
 
-__all__ = ['GradCAM', 'GradCAMpp']
+__all__ = ["GradCAM", "LegacyGradCAM", "GradCAMpp"]
 EPS = 10e-7
 
 
 class _GradCAM(_CAM):
+    """Implements a gradient-based class activation map extractor
+
+    Args:
+        model (torch.nn.Module): Input model
+        conv_layers (List[str]): Name of the layers to average over
+    """
+
+    def __init__(self, model: torch.nn.Module, conv_layers: List[str]) -> None:
+        self.hook_g = list()
+        super().__init__(model, conv_layers)
+        # Ensure ReLU is applied before normalization
+        self._relu = False
+        # Model output is used by the extractor
+        self._score_used = True
+        # Backward hook
+        for conv_layer in conv_layers:
+            self.hook_handles.append(
+                self.model._modules.get(conv_layer).register_backward_hook(self._hook_g)
+            )
+
+    def _hook_g(self, module, input, output):
+        """Gradient hook"""
+        if self._hooks_enabled:
+            self.hook_g.append(output[0].data)
+
+    def _backprop(self, scores, class_idx):
+        """Backpropagate the loss for a specific output class"""
+
+        if self.hook_a is None:
+            raise TypeError(
+                "Inputs need to be forwarded in the model for the conv features to be hooked"
+            )
+
+        # Backpropagate to get the gradients on the hooked layer
+        loss = scores[:, class_idx].sum()
+        self.model.zero_grad()
+        loss.backward(retain_graph=True)
+
+    def _get_weights(self, class_idx, scores):
+        raise NotImplementedError
+
+
+class _LegacyGradCAM(_LegacyCAM):
     """Implements a gradient-based class activation map extractor
     Args:
         model (torch.nn.Module): input model
@@ -31,7 +76,9 @@ class _GradCAM(_CAM):
         # Model output is used by the extractor
         self._score_used = True
         # Backward hook
-        self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
+        self.hook_handles.append(
+            self.model._modules.get(conv_layer).register_backward_hook(self._hook_g)
+        )
 
     def _hook_g(self, module, input, output):
         """Gradient hook"""
@@ -42,7 +89,9 @@ class _GradCAM(_CAM):
         """Backpropagate the loss for a specific output class"""
 
         if self.hook_a is None:
-            raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
+            raise TypeError(
+                "Inputs need to be forwarded in the model for the conv features to be hooked"
+            )
 
         # Backpropagate to get the gradients on the hooked layer
         # print('Logits are:', scores, class_idx)
@@ -55,7 +104,7 @@ class _GradCAM(_CAM):
         raise NotImplementedError
 
 
-class GradCAM(_GradCAM):
+class LegacyGradCAM(_LegacyGradCAM):
     """Implements a class activation map extractor as described in `"Grad-CAM: Visual Explanations from Deep Networks
     via Gradient-based Localization" <https://arxiv.org/pdf/1610.02391.pdf>`_.
     The localization map is computed as follows:
@@ -93,7 +142,47 @@ class GradCAM(_GradCAM):
         return self.hook_g.squeeze(0).mean(axis=0)
 
 
-class GradCAMpp(_GradCAM):
+class GradCAM(_GradCAM):
+    """Implements a class activation map extractor as described in `"Grad-CAM: Visual Explanations from Deep Networks
+    via Gradient-based Localization" <https://arxiv.org/pdf/1610.02391.pdf>`_.
+    The localization map is computed as follows:
+    .. math::
+        L^{(c)}_{Grad-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+    with the coefficient :math:`w_k^{(c)}` being defined as:
+    .. math::
+        w_k^{(c)} = \\frac{1}{H \\cdot W} \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W
+        \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    position :math:`(x, y)`,
+    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import GradCAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = GradCAM(model, 'layer4')
+        >>> with torch.no_grad(): scores = model(input_tensor)
+        >>> cam(class_idx=100, scores=scores)
+    Args:
+        model (torch.nn.Module): input model
+        conv_layer (str): name of the last convolutional layer
+    """
+
+    def __init__(self, model, conv_layers):
+        super().__init__(model, conv_layers)
+
+    def __call__(self, *args, **kwargs):
+        self.hook_g = list()
+        return super().__call__(*args, **kwargs)
+
+    def _get_weights(self, class_idx, scores):
+        """Computes the weight coefficients of the hooked activation maps"""
+        # Backpropagate
+        self._backprop(scores, class_idx)
+        grads = torch.stack(list(reversed(self.hook_g)), dim=2)
+        return grads.mean(axis=0)
+
+
+class GradCAMpp(_LegacyGradCAM):
     """Implements a class activation map extractor as described in `"Grad-CAM++: Improved Visual Explanations for
     Deep Convolutional Networks" <https://arxiv.org/pdf/1710.11063.pdf>`_.
     The localization map is computed as follows:
@@ -133,7 +222,9 @@ class GradCAMpp(_GradCAM):
         # Alpha coefficient for each pixel
         grad_2 = self.hook_g.pow(2)
         grad_3 = self.hook_g.pow(3)
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a).sum(axis=(0), keepdims=True) + EPS)
+        alpha = grad_2 / (
+            2 * grad_2 + (grad_3 * self.hook_a).sum(axis=(0), keepdims=True) + EPS
+        )
 
         # Apply pixel coefficient in each weight
         return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(axis=(0))

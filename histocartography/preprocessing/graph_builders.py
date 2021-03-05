@@ -226,6 +226,10 @@ class RAGGraphBuilder(BaseGraphBuilder):
             graph (dgl.DGLGraph): Graph to add the edges to
         """
         instance_ids = np.sort(pd.unique(np.ravel(instance_map))).astype(int)
+        # background = 0
+        if 0 in instance_ids:
+            instance_ids = np.delete(instance_ids, np.where(instance_ids == 0))
+
         kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
         adjacency = np.zeros(shape=(len(instance_ids), len(instance_ids)))
         for instance_id in instance_ids:

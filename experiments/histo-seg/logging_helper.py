@@ -1,10 +1,11 @@
+import datetime
 import logging
 import os
 import tempfile
 import time
 from http.client import RemoteDisconnected
 from pathlib import Path
-from typing import DefaultDict
+from typing import DefaultDict, Optional
 
 import matplotlib.pyplot as plt
 import mlflow
@@ -12,9 +13,8 @@ import numpy as np
 import torch
 import yaml
 from matplotlib.colors import ListedColormap
-from sklearn.metrics import cohen_kappa_score
 
-from metrics import sum_up_gleason
+from metrics import Metric
 from utils import dynamic_import_from, fix_seeds
 
 with os.popen("hostname") as subprocess:
@@ -93,7 +93,9 @@ def log_preprocessing_parameters(graph_path: Path):
                         robust_mlflow(mlflow.log_param, f"{i}_{stage_name}", v["class"])
                         robust_mlflow(
                             mlflow.log_params,
-                            flatten(v.get("params", {}), parent_key=f"{i}_{stage_name}"),
+                            flatten(
+                                v.get("params", {}), parent_key=f"{i}_{stage_name}"
+                            ),
                         )
 
 
@@ -110,7 +112,7 @@ def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):
 
 
 def prepare_experiment(
-    model: dict, data: dict, params: dict, config_path: str, **kwargs
+    model: dict, data: dict, params: dict, config_path: Optional[str] = None, **kwargs
 ):
     logging.info(f"Unmatched arguments for MLflow logging: {kwargs}")
 
@@ -124,7 +126,8 @@ def prepare_experiment(
         mlflow.set_tags(experiment_tags)
 
     # Artifacts
-    robust_mlflow(mlflow.log_artifact, config_path, "config")
+    if config_path is not None:
+        robust_mlflow(mlflow.log_artifact, config_path, "config")
     log_sources()
     log_dependencies()
 
@@ -135,6 +138,7 @@ def prepare_experiment(
 class LoggingHelper:
     def __init__(self, metrics_config, prefix="", **kwargs) -> None:
         self.metrics_config = metrics_config
+        self.variable_size = False
         self.prefix = prefix
         self._reset_epoch_stats()
         self.best_loss = float("inf")
@@ -163,10 +167,14 @@ class LoggingHelper:
         if logits is not None:
             if isinstance(logits, torch.Tensor):
                 logits = logits.detach().cpu()
+            else:
+                logits = torch.as_tensor(logits)
             self.logits.append(logits)
         if labels is not None:
             if isinstance(labels, torch.Tensor):
                 labels = labels.detach().cpu()
+            else:
+                labels = torch.as_tensor(labels)
             self.labels.append(labels)
         for name, value in kwargs.items():
             self.extra_info[name].extend(value)
@@ -174,18 +182,35 @@ class LoggingHelper:
     def _log(self, name, value, step):
         if isinstance(value, torch.Tensor):
             value = value.detach().cpu().mean().item()
-        robust_mlflow(mlflow.log_metric, f"{self.prefix}.{name}", value, step)
+        try:
+            robust_mlflow(mlflow.log_metric, f"{self.prefix}.{name}", value, step)
+        except mlflow.exceptions.MlflowException as e:
+            print(f"Could not log {self.prefix}.{name} at {step}: {value}")
+            raise e
 
     def _log_metrics(self, step):
         if len(self.logits) == 0 or len(self.labels) == 0:
             return list()
-        logits = torch.cat(self.logits)
-        labels = torch.cat(self.labels)
+        if not self.variable_size:
+            logits = torch.cat(self.logits)
+            labels = torch.cat(self.labels)
+        else:
+            logits = [item for sublist in self.logits for item in sublist]
+            labels = [item for sublist in self.labels for item in sublist]
         metric_values = list()
+        name: str
+        metric: Metric
         for name, metric in zip(self.metric_names, self.metrics):
             metric_value = metric(logits, labels, **self.extra_info)
-            self._log(name, metric_value, step)
-            metric_values.append(metric_value)
+            if metric.is_per_class:
+                for i in range(len(metric_value)):
+                    self._log(f"{name}_class_{i}", metric_value[i], step)
+                mean_metric_value = np.nanmean(metric_value)
+                self._log(f"Mean{name}", mean_metric_value, step)
+                metric_values.append(mean_metric_value)
+            else:
+                self._log(name, metric_value, step)
+                metric_values.append(metric_value)
         return metric_values
 
     def _log_loss(self, step):
@@ -193,7 +218,7 @@ class LoggingHelper:
         self._log("loss", mean_loss, step)
         return mean_loss
 
-    def log_and_clear(self, step, model=None):
+    def log_and_clear(self, step=None, model=None):
         if len(self.losses) > 0:
             current_loss = self._log_loss(step)
             if current_loss < self.best_loss:
@@ -205,89 +230,60 @@ class LoggingHelper:
                     )
         if len(self.logits) > 0:
             current_values = self._log_metrics(step)
-            all_information = zip(
-                self.metric_names, self.metrics, self.best_metric_values, current_values
-            )
-            for i, (name, metric, best_value, current_value) in enumerate(
-                all_information
-            ):
-                if metric.is_better(current_value, best_value):
-                    self._log(f"best.{name}", current_value, step)
-                    if model is not None:
-                        robust_mlflow(
-                            mlflow.pytorch.log_model,
-                            model,
-                            f"best.{self.prefix}.{name}",
-                        )
-                    self.best_metric_values[i] = current_value
+            if step is not None:
+                all_information = zip(
+                    self.metric_names,
+                    self.metrics,
+                    self.best_metric_values,
+                    current_values,
+                )
+                metric: Metric
+                for i, (name, metric, best_value, current_value) in enumerate(
+                    all_information
+                ):
+                    if metric.is_better(current_value, best_value):
+                        self._log(f"best.{name}", current_value, step)
+                        if metric.logs_model and model is not None:
+                            if metric.is_per_class:
+                                name = f"Mean{name}"
+                            robust_mlflow(
+                                mlflow.pytorch.log_model,
+                                model,
+                                f"best.{self.prefix}.{name}",
+                            )
+                        self.best_metric_values[i] = current_value
         self._reset_epoch_stats()
 
 
-class GraphClassificationLoggingHelper:
+class SegmentationLoggingHelper(LoggingHelper):
     def __init__(
         self, metrics_config, prefix, background_label, leading_zeros=6, **kwargs
     ) -> None:
         kwargs["background_label"] = background_label
-        self.graph_logger = LoggingHelper(
-            metrics_config.get("graph", {}), f"{prefix}.graph", **kwargs
-        )
-        self.node_logger = LoggingHelper(
-            metrics_config.get("node", {}), f"{prefix}.node", **kwargs
-        )
-        self.combined_logger = LoggingHelper({}, f"{prefix}.loss")
-        self.segmentation_logger = LoggingHelper(
-            metrics_config.get("segmentation", {}), f"{prefix}.segmentation", **kwargs
-        )
+        super().__init__(metrics_config, prefix=prefix, **kwargs)
         self.cmap = ListedColormap(["green", "blue", "yellow", "red", "white"])
-        self.prefix = prefix
-        self.background_label = background_label
         self.leading_zeros = leading_zeros
-        self.gleason_grade_ground_truth = list()
-        self.gleason_grade_prediction = list()
-        self.gleason_agreement_name = "GleasonScoreKappa"
-        self.best_agreement = 0.0
+        self.background_label = background_label
+        self.variable_size = True
 
-    def add_iteration_outputs(
-        self,
-        loss=None,
-        graph_logits=None,
-        node_logits=None,
-        graph_labels=None,
-        node_labels=None,
-        node_associations=None,
-        annotation=None,
-        predicted_segmentation=None,
-        tissue_masks=None,
-    ):
-        if graph_logits is not None and graph_labels is not None:
-            self.graph_logger.add_iteration_outputs(
-                loss=None, logits=graph_logits, labels=graph_labels
-            )
-        if node_logits is not None and node_labels is not None:
-            self.node_logger.add_iteration_outputs(
-                loss=None,
-                logits=node_logits,
-                labels=node_labels,
-                node_associations=node_associations,
-            )
-        if loss is not None:
-            self.combined_logger.add_iteration_outputs(loss=loss)
-        if annotation is not None and predicted_segmentation is not None:
-            for ground_truth, prediction, tissue_mask in zip(
-                annotation, predicted_segmentation, tissue_masks
-            ):
-                self.gleason_grade_ground_truth.append(sum_up_gleason(ground_truth))
-                prediction_masked = prediction.clone()
-                prediction_masked[~tissue_mask.astype(bool)] = self.background_label
-                self.gleason_grade_prediction.append(
-                    sum_up_gleason(prediction_masked, thres=0.25)
-                )
-            predicted_segmentation[
-                annotation == self.background_label
-            ] = self.background_label
-            self.segmentation_logger.add_iteration_outputs(
-                logits=predicted_segmentation, labels=annotation
-            )
+    def _reset_epoch_stats(self):
+        self.masks = list()
+        super()._reset_epoch_stats()
+
+    def add_iteration_outputs(self, logits, labels, mask=None, loss=None, **kwargs):
+        assert logits.shape == labels.shape, f"{logits.shape}, {labels.shape}"
+        assert labels.shape == mask.shape, f"{labels.shape}, {mask.shape}"
+        if mask is not None:
+            if isinstance(mask, torch.Tensor):
+                mask = mask.detach().cpu()
+            self.masks.append(mask)
+        return super().add_iteration_outputs(
+            loss=loss,
+            logits=logits,
+            labels=labels,
+            tissue_mask=list(mask) if mask is not None else None,
+            **kwargs,
+        )
 
     def create_segmentation_maps(self, actual, predicted):
         fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 5))
@@ -304,13 +300,18 @@ class GraphClassificationLoggingHelper:
         return fig, ax
 
     def save_segmentation_masks(self, step):
-        if len(self.segmentation_logger.labels) > 0:
-            random_batch = np.random.randint(
-                low=0, high=len(self.segmentation_logger.labels)
-            )
-            annotations = self.segmentation_logger.labels[random_batch]
-            segmentation_maps = self.segmentation_logger.logits[random_batch]
-            batch_leading_zeros = (annotations.shape[0] // 10) + 1
+        if len(self.labels) > 0:
+            random_batch = np.random.randint(low=0, high=len(self.labels))
+            annotations = self.labels[random_batch]
+            segmentation_maps = self.logits[random_batch]
+            if len(self.masks) > 0:
+                segmentation_maps[
+                    torch.as_tensor(~(self.masks[random_batch].astype(bool)))
+                ] = self.background_label
+            if self.variable_size:
+                batch_leading_zeros = 1
+            else:
+                batch_leading_zeros = (annotations.shape[0] // 10) + 1
             run_id = robust_mlflow(mlflow.active_run).info.run_id
             with tempfile.TemporaryDirectory(
                 prefix=run_id, dir=str(SCRATCH_PATH)
@@ -333,37 +334,63 @@ class GraphClassificationLoggingHelper:
                     plt.close(fig=fig)
                     plt.clf()
 
-    def log_and_clear(self, step, model=None):
-        self.graph_logger.log_and_clear(step, model)
-        self.node_logger.log_and_clear(step, model)
-        self.combined_logger.log_and_clear(step, model)
+    def log_and_clear(self, step, model):
         self.save_segmentation_masks(step)
-        self.segmentation_logger.log_and_clear(step, model)
-        if len(self.gleason_grade_ground_truth) > 0:
-            current_agreement = cohen_kappa_score(
-                self.gleason_grade_ground_truth,
-                self.gleason_grade_prediction,
-                weights="quadratic",
+        return super().log_and_clear(step, model=model)
+
+
+class GraphLoggingHelper:
+    def __init__(self, name, metrics_config, prefix, **kwargs) -> None:
+        self.classification_helper = LoggingHelper(
+            metrics_config.get(name, {}), f"{prefix}.{name}", **kwargs
+        )
+        self.segmentation_helper = SegmentationLoggingHelper(
+            metrics_config.get("segmentation", {}),
+            f"{prefix}.{name}.segmentation",
+            **kwargs,
+        )
+
+    def add_iteration_outputs(
+        self,
+        loss=None,
+        logits=None,
+        targets=None,
+        annotation=None,
+        predicted_segmentation=None,
+        tissue_masks=None,
+        **kwargs,
+    ):
+        self.classification_helper.add_iteration_outputs(
+            loss=loss, logits=logits, labels=targets, **kwargs
+        )
+        if (
+            predicted_segmentation is not None
+            and annotation is not None
+            and tissue_masks is not None
+        ):
+            self.segmentation_helper.add_iteration_outputs(
+                logits=predicted_segmentation, labels=annotation, mask=tissue_masks
             )
-            robust_mlflow(
-                mlflow.log_metric,
-                f"{self.prefix}.{self.gleason_agreement_name}",
-                current_agreement,
-                step,
-            )
-            if current_agreement > self.best_agreement:
-                robust_mlflow(
-                    mlflow.log_metric,
-                    f"{self.prefix}.best.{self.gleason_agreement_name}",
-                    current_agreement,
-                    step,
-                )
-                if model is not None:
-                    robust_mlflow(
-                        mlflow.pytorch.log_model,
-                        model,
-                        f"best.{self.prefix}.{self.gleason_agreement_name}",
-                    )
-                self.best_agreement = current_agreement
-        self.gleason_grade_ground_truth = list()
-        self.gleason_grade_prediction = list()
+
+    def log_and_clear(self, step, model=None):
+        self.classification_helper.log_and_clear(step, model)
+        self.segmentation_helper.log_and_clear(step, model)
+
+
+class MLflowTimer:
+    def __init__(self, name, step) -> None:
+        self.name = name
+        self.step = step
+
+    def __enter__(self):
+        self.time_before = datetime.datetime.now()
+        return self
+
+    def __exit__(self, *exc_info):
+        duration = (datetime.datetime.now() - self.time_before).total_seconds()
+        robust_mlflow(
+            mlflow.log_metric,
+            self.name,
+            duration,
+            step=self.step,
+        )

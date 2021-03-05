@@ -52,11 +52,14 @@ train:
       class: "Adam"
       params:
         lr: 0.0001
-      scheduler: null
+      scheduler:
+        class: "ExponentialLR"
+        params:
+          gamma: 0.95
     loss:
       class: "MultiLabelBCELoss"
     batch_size: 32
-    nr_epochs: 2000
+    nr_epochs: 600
     num_workers: 24
     clip_gradient_norm: null
     dataset: "eth"
@@ -79,7 +82,7 @@ test:
         - 0.026320
         - 0.017309
   model:
-    architecture: "s3://mlflow/633/734fc44a6db048f5a081c33d0ba07428/artifacts/best.valid.MultiLabelBalancedAccuracy"
+    architecture: 's3://mlflow/633/19a9b40d174f40c4b217ddf84eb63e3b/artifacts/best.valid.MultiLabelBalancedAccuracy'
   params:
     experiment_name: "anv_wsss_test_cnn"
     experiment_tags: null
@@ -90,6 +93,6 @@ test:
     num_workers: 8
     overlap: 200
     operation: argmax
-    inference_mode: hacky
+    inference_mode: patch_based
     local_save_path: '/dataP/anv/data/ETH/cnn_test_masks'
     mlflow_save_path: 'cnn_test_masks'

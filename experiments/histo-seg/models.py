@@ -316,7 +316,7 @@ class SegmentationFromCNN(nn.Module):
         self.post_process = nn.Sequential(
             nn.AvgPool2d(7, 1, padding=3),
             nn.Conv2d(1280, 4, 1),
-            nn.Upsample(scale_factor=32, mode="bicubic"),
+            nn.Upsample(scale_factor=32, mode="nearest"),
         )
         self.post_process[1].weight.data = last_layer_weights.unsqueeze(2).unsqueeze(3)
         self.post_process[1].bias.data = last_layer_bias

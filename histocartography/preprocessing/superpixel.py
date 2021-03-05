@@ -34,10 +34,11 @@ class SuperpixelExtractor(PipelineStep):
         self.downsampling_factor = downsampling_factor
         super().__init__(**kwargs)
 
-    def process(self, input_image: np.ndarray) -> np.ndarray:
+    def process(self, input_image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
         """Return the superpixels of a given input image
         Args:
             input_image (np.array): Input image
+            tissue_mask (None, np.array): Input tissue mask
         Returns:
             np.array: Extracted superpixels
         """
@@ -46,17 +47,18 @@ class SuperpixelExtractor(PipelineStep):
         if self.downsampling_factor != 1:
             input_image = self._downsample(input_image, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
-        superpixels = self._extract_superpixels(input_image)
+        superpixels = self._extract_superpixels(input_image, tissue_mask)
         if self.downsampling_factor != 1:
             superpixels = self._upsample(superpixels, original_height, original_width)
             logging.debug("Upsampled to %s", superpixels.shape)
         return superpixels
 
     @abstractmethod
-    def _extract_superpixels(self, image: np.ndarray) -> np.ndarray:
+    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
         """Perform the superpixel extraction
         Args:
             image (np.array): Input tensor
+            tissue_mask (np.array): Tissue mask tensor
         Returns:
             np.array: Output tensor
         """
@@ -105,6 +107,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
     def __init__(
         self,
         nr_superpixels: int,
+        dynamic_superpixels: bool = False,
         blur_kernel_size: float = 0,
         max_iter: int = 10,
         compactness: int = 30,
@@ -118,6 +121,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             compactness (int, optional): Compactness of the superpixels. Defaults to 30.
         """
         self.nr_superpixels = nr_superpixels
+        self.dynamic_superpixels = dynamic_superpixels
         self.blur_kernel_size = blur_kernel_size
         self.max_iter = max_iter
         self.compactness = compactness
@@ -133,10 +137,19 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         """
         if self.color_space == "hed":
             image = rgb2hed(image)
+        if self.dynamic_superpixels:
+            nr_superpixels = (
+                image.shape[0]
+                * image.shape[1]
+                * self.downsampling_factor
+                * self.downsampling_factor
+            ) // self.nr_superpixels
+        else:
+            nr_superpixels = self.nr_superpixels
         superpixels = slic(
             image,
             sigma=self.blur_kernel_size,
-            n_segments=self.nr_superpixels,
+            n_segments=nr_superpixels,
             max_iter=self.max_iter,
             compactness=self.compactness,
         )
@@ -435,6 +448,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
     def __init__(
         self,
         nr_superpixels: int,
+        dynamic_superpixels: bool = False,
         blur_kernel_size: float = 0,
         compactness: int = 30,
         threshold: float = 0.06,
@@ -451,6 +465,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             connectivity (int, optional): Connectivity for merging graph. Defaults to 2.
         """
         self.nr_superpixels = nr_superpixels
+        self.dynamic_superpixels = dynamic_superpixels
         self.blur_kernel_size = blur_kernel_size
         self.compactness = compactness
         self.threshold = threshold
@@ -458,18 +473,46 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         super().__init__(**kwargs)
 
     def _extract_initial_superpixels(self, image: np.ndarray) -> np.ndarray:
+        if self.dynamic_superpixels:
+            nr_superpixels = (
+                image.shape[0]
+                * image.shape[1]
+                * self.downsampling_factor
+                * self.downsampling_factor
+            ) // self.nr_superpixels
+        else:
+            nr_superpixels = self.nr_superpixels
         superpixels = slic(
             image,
             sigma=self.blur_kernel_size,
-            n_segments=self.nr_superpixels,
+            n_segments=nr_superpixels,
             compactness=self.compactness,
         )
         superpixels += 1  # Handle regionprops that ignores all values of 0
         return superpixels
 
     def _merge_superpixels(
-        self, input_image: np.ndarray, initial_superpixels: np.ndarray
+        self, input_image: np.ndarray, initial_superpixels: np.ndarray, tissue_mask: np.ndarray=None
     ) -> np.ndarray:
+        if tissue_mask is not None:
+            # Remove superpixels belonging to background or having < 10% tissue content
+            ids_initial = np.unique(initial_superpixels, return_counts=True)
+            ids_masked = np.unique(tissue_mask * initial_superpixels, return_counts=True)
+
+            ctr = 1
+            superpixels = np.zeros_like(initial_superpixels)
+            for i in range(len(ids_initial[0])):
+                id = ids_initial[0][i]
+                if id in ids_masked[0]:
+                    idx = np.where(id == ids_masked[0])[0]
+                    ratio = ids_masked[1][idx] / ids_initial[1][i]
+                    if ratio >= 0.1:
+                        superpixels[initial_superpixels == id] = ctr
+                        ctr += 1
+
+            initial_superpixels = superpixels
+
+        # Merge superpixels within tissue region
         g = self._generate_graph(input_image, initial_superpixels)
         merged_superpixels = graph.merge_hierarchical(
             initial_superpixels,
@@ -481,6 +524,9 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             weight_func=self._weighting_function,
         )
         merged_superpixels += 1  # Handle regionprops that ignores all values of 0
+        mask = np.zeros_like(initial_superpixels)
+        mask[initial_superpixels != 0] = 1
+        merged_superpixels = merged_superpixels * mask
         return merged_superpixels
 
     @abstractmethod
@@ -548,21 +594,21 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         )
         return {k: np.array(v) for k, v in translator.items()}
 
-    def _extract_superpixels(self, image: np.ndarray) -> np.ndarray:
+    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
         initial_superpixels = self._extract_initial_superpixels(image)
-        merged_superpixels = self._merge_superpixels(image, initial_superpixels)
+        merged_superpixels = self._merge_superpixels(image, initial_superpixels, tissue_mask)
         translator = self._get_translator(initial_superpixels, merged_superpixels)
         self._check_translator_consistency(
             initial_superpixels, merged_superpixels, translator
         )
         return merged_superpixels, initial_superpixels, translator
 
-    def process(self, input_image: np.ndarray) -> np.ndarray:
+    def process(self, input_image: np.ndarray, tissue_mask=None) -> np.ndarray:
         """Return the superpixels of a given input image
 
         Args:
             input_image (np.array): Input image
-
+            tissue_mask (None, np.array): Tissue mask
         Returns:
             np.array: Extracted superpixels
         """
@@ -572,7 +618,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             input_image = self._downsample(input_image, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
         merged_superpixles, initial_superpixels, mapping = self._extract_superpixels(
-            input_image
+            input_image, tissue_mask
         )
         if self.downsampling_factor != 1:
             merged_superpixles = self._upsample(
@@ -711,6 +757,8 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
         self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> np.ndarray:
         g = graph.RAG(superpixels, connectivity=self.connectivity)
+        if 0 in g.nodes:
+            g.remove_node(n=0)      # remove background node
 
         for n in g:
             g.nodes[n].update(
@@ -727,6 +775,8 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
 
         for index in np.ndindex(superpixels.shape):
             current = superpixels[index]
+            if current == 0:
+                continue
             g.nodes[current]["N"] += 1
             g.nodes[current]["x"] += input_image[index]
             g.nodes[current]["y"] = np.vstack(

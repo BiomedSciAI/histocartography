@@ -9,6 +9,7 @@ train:
     patch_size: null
     supervision:
       mode: image_level
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"
@@ -67,7 +68,7 @@ train:
 test:
   data: {}
   model:
-    architecture: 's3://mlflow/652/09df1a1a82684bd48816765c0d0f5d94/artifacts/best.valid.graph.segmentation.fF1Score'
+    architecture: 's3://mlflow/652/45cf249682894b5ebb8879cf2df2a6e9/artifacts/best.valid.graph.segmentation.MeanDatasetDice'
   params:
     experiment_name: "anv_wsss_sicap_wsi_test_gnn"
     experiment_tags: null

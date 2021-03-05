@@ -20,6 +20,7 @@ train:
     supervision:
       mode: tissue_level
     partial_annotation: null
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"

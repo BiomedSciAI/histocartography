@@ -10,6 +10,7 @@ train:
     supervision:
       mode: tissue_level
     partial_annotation: null
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"
@@ -81,7 +82,7 @@ train:
 test:
   data: {}
   model:
-    architecture: 's3://mlflow/631/8956fc6facf14bfa8117723df6be87e6/artifacts/best.valid.segmentation.MeanIoU'
+    architecture: s3://mlflow/656/87a621bf603545d1839b37e164c8a41a/artifacts/best.valid.node.segmentation.MeanF1Score
   params:
     experiment_name: "anv_wsss_sicap_wsi_test_gnn"
     experiment_tags: null

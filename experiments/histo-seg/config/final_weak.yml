@@ -19,6 +19,7 @@ train:
     image_labels_mode: "new_labels"
     supervision:
       mode: image_level
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"

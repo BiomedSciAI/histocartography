@@ -19,6 +19,7 @@ train:
     image_labels_mode: "original_labels"
     supervision:
       mode: tissue_level
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"

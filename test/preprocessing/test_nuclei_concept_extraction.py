@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import cv2
 import h5py
+import os 
 
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.nuclei_concept_extraction import NucleiConceptExtractor
@@ -20,7 +21,9 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
         """Test nuclei extraction with local model."""
 
         # 1. load image
-        image = np.array(load_image('../data/283_dcis_4.png'))
+        base_path = '../data'
+        image_name = '283_dcis_4.png'
+        image = np.array(load_image(os.path.join(base_path, 'images', image_name)))
 
         # 2. detect nuclei
         extractor = NucleiExtractor(
@@ -31,15 +34,10 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
         # 3. extract nuclei concepts
         nuclei_concept_extractor = NucleiConceptExtractor(
             concept_names='area,perimeter,roughness,eccentricity,roundness,shape_factor,mean_crowdedness,std_crowdedness,glcm_dissimilarity,glcm_contrast,glcm_homogeneity,glcm_ASM,glcm_entropy,glcm_dispersion'
-
         )
         concepts = nuclei_concept_extractor.process(image, instance_map)
 
         print('Nuclei concepts:', concepts.shape)
-
-        # 4. save as h5 file
-        with h5py.File('283_dcis_4_concepts.h5', 'w') as hf:
-            hf.create_dataset("concepts",  data=concepts)
 
     def tearDown(self):
         """Tear down the tests."""

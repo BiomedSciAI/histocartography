@@ -359,6 +359,8 @@ def run_forward_pass(model, device, mode, loader, NR_CLASSES) -> pd.DataFrame:
         graph = graph_batch.meta_graph.to(device)
         if mode == "weak_supervision":
             logits = model(graph)
+            if isinstance(logits, tuple):
+                logits = logits[0]
             inferencer = GraphGradCAMBasedInference(NR_CLASSES, model, device=device)
             segmentation_maps = inferencer.predict_batch(
                 graph_batch.meta_graph, graph_batch.instance_maps
@@ -366,6 +368,8 @@ def run_forward_pass(model, device, mode, loader, NR_CLASSES) -> pd.DataFrame:
         else:
             with torch.no_grad():
                 logits = model(graph)
+                if isinstance(logits, tuple):
+                    logits = logits[1]
                 segmentation_maps = get_batched_segmentation_maps(
                     node_logits=logits,
                     node_associations=graph.batch_num_nodes,
@@ -448,58 +452,60 @@ def train_mlp(
         validation_dataset, batch_size=1, shuffle=False, num_workers=0
     )
 
-    f1_scores = list()
-    kappa_scores = list()
-    losses = list()
-    best_epoch = 0
-    best_loss = 1e5
-    for epoch in tqdm(range(nr_epochs)):
-        # A.) train for 1 epoch
-        model.train()
-        for inp, labels in train_loader:
-
-            # 1. forward pass
-            model_output = model(
-                inp.to(device)
-            )  # can be P+S, Final GG or Binary classification.
-
-            # 2. backward pass
-            loss = loss_fn(model_output, labels)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-        # B.) Evaluate
-        model.eval()
-        epoch_labels = list()
-        epoch_logits = list()
-        with torch.no_grad():
-            for inp, labels in valid_loader:
-                model_output = model(inp.to(device))
-                epoch_logits.append(model_output)
-                epoch_labels.append(labels)
-
-        pred_gg, gg_labels, valid_loss = extract_gleason_grades(
-            mode=mode, logits=epoch_logits, labels=epoch_labels, loss_fn=loss_fn
-        )
-
-        if valid_loss < best_loss:
-            best_loss = valid_loss
-            best_epoch = epoch
-            torch.save(model, "best_mlp.pt")
-
-        weighted_f1_score = sklearn.metrics.f1_score(
-            gg_labels, pred_gg, average="weighted"
-        )
-        kappa_score = sklearn.metrics.cohen_kappa_score(
-            gg_labels, pred_gg, weights="quadratic"
-        )
-        f1_scores.append(weighted_f1_score)
-        kappa_scores.append(kappa_score)
-        losses.append(valid_loss.item())
-
     run_id = robust_mlflow(mlflow.active_run).info.run_id
     with tempfile.TemporaryDirectory(prefix=run_id) as tmpdir:
+        best_model_path = os.path.join(tmpdir, "best_mlp.png")
+
+        f1_scores = list()
+        kappa_scores = list()
+        losses = list()
+        best_epoch = 0
+        best_loss = 1e5
+        for epoch in tqdm(range(nr_epochs)):
+            # A.) train for 1 epoch
+            model.train()
+            for inp, labels in train_loader:
+
+                # 1. forward pass
+                model_output = model(
+                    inp.to(device)
+                )  # can be P+S, Final GG or Binary classification.
+
+                # 2. backward pass
+                loss = loss_fn(model_output, labels)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            # B.) Evaluate
+            model.eval()
+            epoch_labels = list()
+            epoch_logits = list()
+            with torch.no_grad():
+                for inp, labels in valid_loader:
+                    model_output = model(inp.to(device))
+                    epoch_logits.append(model_output)
+                    epoch_labels.append(labels)
+
+            pred_gg, gg_labels, valid_loss = extract_gleason_grades(
+                mode=mode, logits=epoch_logits, labels=epoch_labels, loss_fn=loss_fn
+            )
+
+            if valid_loss < best_loss:
+                best_loss = valid_loss
+                best_epoch = epoch
+                torch.save(model, best_model_path)
+
+            weighted_f1_score = sklearn.metrics.f1_score(
+                gg_labels, pred_gg, average="weighted"
+            )
+            kappa_score = sklearn.metrics.cohen_kappa_score(
+                gg_labels, pred_gg, weights="quadratic"
+            )
+            f1_scores.append(weighted_f1_score)
+            kappa_scores.append(kappa_score)
+            losses.append(valid_loss.item())
+
         sns.lineplot(y=losses, x=list(range(len(losses))))
         plt.plot([best_epoch, best_epoch], [min(losses), max(losses)])
         plt.title("Validation Loss")
@@ -524,7 +530,7 @@ def train_mlp(
         plt.close()
         mlflow.log_artifact(local_path)
 
-        mlflow.log_artifact("best_mlp.pt")
+        mlflow.log_artifact(best_model_path)
 
     return model
 

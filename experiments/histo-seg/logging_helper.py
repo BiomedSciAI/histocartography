@@ -266,6 +266,7 @@ class LoggingHelper:
             if metric.is_per_class:
                 for i in range(len(metric_value)):
                     self._log(f"{name}_class_{i}", metric_value[i], step)
+                metric_value[metric_value != metric_value] = 0.0
                 mean_metric_value = np.nanmean(metric_value)
                 self._log(f"Mean{name}", mean_metric_value, step)
                 metric_values.append(mean_metric_value)

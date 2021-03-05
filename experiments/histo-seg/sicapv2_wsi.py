@@ -46,7 +46,8 @@ IMAGE_PATH = BASE_PATH / "wsi"
 ANNOTATION_PATH = BASE_PATH / "wsi_masks"
 TRAIN_PARTIAL_ANNOTATION_PATHS = {
     50: BASE_PATH / "wsi_masks_partial" / "wsi_masks_50",
-    25: BASE_PATH / "wsi_masks_partial" / "wsi_masks_25"
+    25: BASE_PATH / "wsi_masks_partial" / "wsi_masks_25",
+    10: BASE_PATH / "wsi_masks_partial" / "wsi_masks_10"
 }
 LABELS_PATH = BASE_PATH / "wsi_labels.xlsx"
 PREPROCESS_PATH = BASE_PATH / "preprocess"
@@ -55,7 +56,8 @@ IMAGES_DF = BASE_PATH / "images.pickle"
 ANNOTATIONS_DF = BASE_PATH / "annotations.pickle"
 PARTIAL_ANNOTATIONS_DFS = {
     50: BASE_PATH / "annotations50.pickle",
-    25: BASE_PATH / "annotations25.pickle"
+    25: BASE_PATH / "annotations25.pickle",
+    10: BASE_PATH / "annotations10.pickle"
 }
 LABELS_DF = BASE_PATH / "image_level_annotations.pickle"
 
@@ -194,6 +196,7 @@ def prepare_graph_datasets(
     supervision: Optional[dict] = None,
     patch_size: Optional[int] = None,
     partial_annotation: Optional[int] = None,
+    node_dropout: float = 0.0,
     additional_training_arguments: dict = {},
     additional_validation_arguments: dict = {},
 ) -> Tuple[Dataset, Dataset]:
@@ -225,7 +228,8 @@ def prepare_graph_datasets(
         "background_index": BACKGROUND_CLASS,
         "centroid_features": centroid_features,
         "image_label_mapper": label_mapper,
-        "patch_size": patch_size_augmentation
+        "patch_size": patch_size_augmentation,
+        "node_dropout": node_dropout,
     }
     training_arguments.update(additional_training_arguments)
     validation_arguments = {

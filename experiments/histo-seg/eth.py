@@ -402,6 +402,7 @@ def prepare_graph_datasets(
     image_labels_mode: Optional[str] = "original_labels",
     supervision: Optional[dict] = None,
     partial_annotation: Optional[int] = None,
+    node_dropout: float = 0.0,
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -493,6 +494,7 @@ def prepare_graph_datasets(
         "mean": precomputed_mean,
         "std": precomputed_std,
         "image_label_mapper": training_label_mapper,
+        "node_dropout": node_dropout,
     }
     validation_arguments = {
         "patch_size": patch_size_augmentation if use_patches_for_validation else None,

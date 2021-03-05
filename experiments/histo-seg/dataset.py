@@ -353,6 +353,7 @@ class GraphClassificationDataset(BaseDataset):
         image_label_mapper: Optional[Dict[str, np.ndarray]] = None,
         min_subgraph_ratio: float = 1.0,
         max_subgraph_tries: float = 100,
+        node_dropout: float = 0.0,
         **kwargs,
     ) -> None:
         assert centroid_features in [
@@ -406,6 +407,7 @@ class GraphClassificationDataset(BaseDataset):
         else:
             self._graph_labels = self._compute_graph_labels()
         self._node_weights = self._compute_node_weights()
+        self.node_dropout = node_dropout
 
     def _initalize_loading(self):
         pass
@@ -690,6 +692,20 @@ class GraphClassificationDataset(BaseDataset):
                 max_tries -= 1
             return graph_candidate, node_label_candidate
 
+    def _get_node_dropout_subgraph(
+        self, graph: dgl.DGLGraph, node_labels: torch.Tensor
+    ) -> Tuple[dgl.DGLGraph, torch.Tensor]:
+        node_mask = torch.rand(graph.number_of_nodes()) > self.node_dropout
+        subgraph = self._generate_subgraph(graph, torch.where(node_mask)[0])
+        if node_labels is not None:
+            subgraph_node_labels = node_labels[node_mask]
+        else:
+            subgraph_node_labels = None
+        assert (
+            node_labels is None or subgraph.number_of_nodes() == subgraph_node_labels.shape[0]
+        ), f"Dropout graph node labels do not correspond to the number of nodes. Graph size: {subgraph.number_of_nodes()}, labels: {subgraph_node_labels.shape}"
+        return subgraph, subgraph_node_labels
+
     def __getitem__(self, index: int) -> GraphDatapoint:
         """Returns a sample (patch) of graph i
 
@@ -716,6 +732,8 @@ class GraphClassificationDataset(BaseDataset):
             graph, node_labels = self._get_minsize_random_subgraph(
                 graph, node_labels, image_size
             )
+        if self.node_dropout > 0:
+            graph, node_labels = self._get_node_dropout_subgraph(graph, node_labels)
 
         return self._build_datapoint(graph, node_labels, index)
 
@@ -887,6 +905,9 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
             augmented_graph, node_labels = self._get_minsize_random_subgraph(
                 augmented_graph, node_labels, image_size
             )
+
+        if self.node_dropout > 0:
+            graph, node_labels = self._get_node_dropout_subgraph(graph, node_labels)
 
         return self._build_datapoint(augmented_graph, node_labels, index)
 
@@ -1140,7 +1161,7 @@ class GleasonPercentageDataset(Dataset):
         self.primaries = np.array(primaries)
         self.secondaries = np.array(secondaries)
         self.names = np.array(names)
-        
+
         if isinstance(normalize, bool):
             self.normalize = normalize
             self.mean = self.percentages.mean(dim=0)

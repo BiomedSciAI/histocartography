@@ -30,7 +30,7 @@ from dataset import (
 )
 from logging_helper import LoggingHelper, MLflowTimer
 from models import SegmentationFromCNN
-from utils import fast_mode, get_segmentation_map
+from utils import fast_mode, get_segmentation_map, extract_count
 
 
 class BaseInference:
@@ -305,12 +305,49 @@ class GraphGradCAMBasedInference(BaseInference):
         return np.stack(segmentation_maps)
 
 
+# GNN Classification Inference
+
+
+class AreaNodeProbabilityBasedInference(BaseInference):
+    def predict(self, graph, superpixels, **kwargs):
+        graph = graph.to(self.device)
+        node_logits = self.model(graph)
+        if isinstance(node_logits, tuple):
+            node_logits = node_logits[1]
+
+        node_weights = node_logits.sigmoid().detach().cpu().numpy()
+        node_counts = extract_count(superpixels)
+
+        class_areas = (node_weights * node_counts[:, np.newaxis]).sum(axis=0)
+        return class_areas
+
+
+class AreaGraphCAMProbabilityBasedInference(BaseInference):
+    def __init__(self, NR_CLASSES, model, **kwargs) -> None:
+        super().__init__(model=model, **kwargs)
+        self.NR_CLASSES = NR_CLASSES
+        self.explainer = GraphGradCAMExplainer(model=model)
+
+    def predict(self, graph, superpixels, **kwargs):
+        graph = graph.to(self.device)
+        importances, logits = self.explainer.process_all(
+            graph, list(range(self.NR_CLASSES))
+        )
+        node_importances = (
+            importances * torch.as_tensor(logits)[0].sigmoid().numpy()[:, np.newaxis]
+        )
+
+        node_counts = extract_count(superpixels)
+        class_areas = (node_importances * node_counts[np.newaxis, :]).sum(axis=1)
+        return class_areas
+
+
 # Dataset Segmentation Inferencer
 
 
 class DatasetBaseInference:
     def __init__(
-        self, inferencer: BaseInference, callbacks: Optional[Callable]
+        self, inferencer: BaseInference, callbacks: Optional[Callable] = []
     ) -> None:
         self.inferencer = inferencer
         self.callbacks = callbacks
@@ -390,17 +427,17 @@ class GraphDatasetInference(DatasetBaseInference):
         )
         if logger is not None:
             logger.add_iteration_outputs(
-                logits=prediction.copy()[np.newaxis, :, :],
-                labels=datapoint.segmentation_mask[np.newaxis, :, :],
-                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
-                image_labels=datapoint.graph_label[np.newaxis, :],
+                logits=prediction.copy()[np.newaxis, ...],
+                labels=datapoint.segmentation_mask[np.newaxis, ...],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, ...],
+                image_labels=datapoint.graph_label[np.newaxis, ...],
             )
         if additional_logger is not None:
             additional_logger.add_iteration_outputs(
-                logits=prediction.copy()[np.newaxis, :, :],
-                labels=datapoint.additional_segmentation_mask[np.newaxis, :, :],
-                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
-                image_labels=datapoint.graph_label[np.newaxis, :],
+                logits=prediction.copy()[np.newaxis, ...],
+                labels=datapoint.additional_segmentation_mask[np.newaxis, ...],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, ...],
+                image_labels=datapoint.graph_label[np.newaxis, ...],
             )
         return prediction
 

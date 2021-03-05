@@ -22,6 +22,7 @@ import yaml
 import itertools
 from PIL import Image
 from skimage.segmentation import mark_boundaries
+from skimage.measure import regionprops
 
 
 def fast_mode(input_array: np.ndarray, nr_values: int, axis: int = 0) -> np.ndarray:
@@ -61,6 +62,14 @@ def fast_confusion_matrix(y_true: Union[np.ndarray, torch.Tensor], y_pred: Union
         y = torch.cat((y, torch.zeros(nr_classes * nr_classes - len(y), dtype=torch.long)))
     y = y.reshape(nr_classes, nr_classes)
     return y.numpy()
+
+
+def extract_count(instance_map):
+    regions = regionprops(instance_map)
+    output = np.ones(instance_map.max(), dtype=np.int64) * -1
+    for region in regions:
+        output[region.label-1] = region.area
+    return output
 
 
 def read_image(image_path: str) -> np.ndarray:

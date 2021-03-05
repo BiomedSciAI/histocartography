@@ -17,6 +17,8 @@ from inference import (
     GraphNodeBasedInference,
     NodeBasedInference,
     TTAGraphInference,
+    AreaGraphCAMProbabilityBasedInference,
+    AreaNodeProbabilityBasedInference,
 )
 from logging_helper import (
     LoggingHelper,
@@ -134,12 +136,18 @@ def test_gnn(
         inferencer = GraphGradCAMBasedInference(
             model=model, device=device, NR_CLASSES=NR_CLASSES, **kwargs
         )
+        area_inferencer = AreaGraphCAMProbabilityBasedInference(
+            model=model, device=device, NR_CLASSES=NR_CLASSES, **kwargs
+        )
     else:
         inferencer = GraphNodeBasedInference(
             model=model,
             device=device,
             NR_CLASSES=NR_CLASSES,
             **kwargs,
+        )
+        area_inferencer = AreaNodeProbabilityBasedInference(
+            model=model, device=device, **kwargs
         )
 
     run_id = robust_mlflow(mlflow.active_run).info.run_id
@@ -152,7 +160,16 @@ def test_gnn(
         save_path.mkdir()
 
     logger_pathologist_1 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1", "fIoU", "fF1Score", "DatasetDice", "DatasetIoU"],
+        [
+            "IoU",
+            "F1Score",
+            "GleasonScoreKappa",
+            "GleasonScoreF1",
+            "fIoU",
+            "fF1Score",
+            "DatasetDice",
+            "DatasetIoU",
+        ],
         prefix="pathologist1",
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
@@ -164,7 +181,7 @@ def test_gnn(
             partial(
                 log_confusion_matrix,
                 classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
-                name="test.pathologist1.summed"
+                name="test.pathologist1.summed",
             )
         ],
     )
@@ -178,7 +195,7 @@ def test_gnn(
                 "fIoU",
                 "fF1Score",
                 "DatasetDice",
-                "DatasetIoU"
+                "DatasetIoU",
             ],
             prefix="pathologist2",
             nr_classes=NR_CLASSES,
@@ -188,12 +205,19 @@ def test_gnn(
             threshold=THRESHOLD,
             wsi_fix=WSI_FIX,
             callbacks=[
-            partial(
-                log_confusion_matrix,
-                classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
-                name="test.pathologist2.summed"
-            )
-        ],
+                partial(
+                    log_confusion_matrix,
+                    classes=[
+                        "Benign",
+                        "Grade6",
+                        "Grade7",
+                        "Grade8",
+                        "Grade9",
+                        "Grade10",
+                    ],
+                    name="test.pathologist2.summed",
+                )
+            ],
         )
     else:
         logger_pathologist_2 = None
@@ -225,11 +249,17 @@ def test_gnn(
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
             )
-        
+
         # Set title to be DICE score
-        metric = F1Score(nr_classes=NR_CLASSES, discard_threshold=DISCARD_THRESHOLD, background_label=BACKGROUND_CLASS)
+        metric = F1Score(
+            nr_classes=NR_CLASSES,
+            discard_threshold=DISCARD_THRESHOLD,
+            background_label=BACKGROUND_CLASS,
+        )
         metric_value = metric(prediction=[prediction], ground_truth=[ground_truth])
-        fig.suptitle(f"Benign: {metric_value[0]}, Grade 3: {metric_value[1]}, Grade 4: {metric_value[2]}, Grade 5: {metric_value[3]}")
+        fig.suptitle(
+            f"Benign: {metric_value[0]}, Grade 3: {metric_value[1]}, Grade 4: {metric_value[2]}, Grade 5: {metric_value[3]}"
+        )
 
         file_name = save_path / f"{datapoint.name}.png"
         fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
@@ -253,20 +283,54 @@ def test_gnn(
     if mode in ["weak_supervision", "semi_strong_supervision"]:
         classification_inferencer = GraphBasedInference(model=model, device=device)
         graph_logger = LoggingHelper(
-            ["MultiLabelBalancedAccuracy", "MultiLabelF1Score", "GraphClassificationGleasonScoreKappa", "GraphClassificationGleasonScoreF1"],
+            [
+                "MultiLabelBalancedAccuracy",
+                "MultiLabelF1Score",
+                "GraphClassificationGleasonScoreKappa",
+                "GraphClassificationGleasonScoreF1",
+            ],
             prefix="graph",
             nr_classes=NR_CLASSES,
             background_label=BACKGROUND_CLASS,
             callbacks=[
                 partial(
                     log_confusion_matrix,
-                    classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
-                    name="test.pathologist1.graph"
+                    classes=[
+                        "Benign",
+                        "Grade6",
+                        "Grade7",
+                        "Grade8",
+                        "Grade9",
+                        "Grade10",
+                    ],
+                    name="test.pathologist1.graph",
                 )
             ],
         )
         classification_inferencer.predict(test_dataset, graph_logger)
 
+    # Area Based Inference
+    area_logger = LoggingHelper(
+        ["AreaBasedGleasonScoreKappa", "AreaBasedGleasonScoreF1"],
+        prefix="area",
+        callbacks=[
+            partial(
+                log_confusion_matrix,
+                classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
+                name="test.area.summed",
+            )
+        ],
+        variable_size=VARIABLE_SIZE,
+        wsi_fix=WSI_FIX,
+    )
+    inference_runner = GraphDatasetInference(inferencer=area_inferencer)
+    inference_runner(
+        dataset=test_dataset,
+        logger=area_logger,
+        operation=operation,
+    )
+
+    # Segmentation Inference
     if use_tta:
         inference_runner = TTAGraphInference(
             inferencer=inferencer,

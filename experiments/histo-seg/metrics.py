@@ -2,6 +2,7 @@ from functools import partial
 import logging
 from abc import abstractmethod
 from typing import Any, List, Union
+import mlflow
 
 import numpy as np
 import sklearn.metrics
@@ -228,6 +229,10 @@ class ConfusionMatrixMetric(Metric):
 
 
 class DatasetDice(ConfusionMatrixMetric):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.smooth = 1e-12
+
     def _aggregate(self, confusion_matrix):
         scores = np.empty(self.nr_classes)
         indices = np.arange(self.nr_classes)
@@ -241,9 +246,9 @@ class DatasetDice(ConfusionMatrixMetric):
             index[:, indices == i] = True
             index[i, i] = False
             FN = confusion_matrix[index.astype(bool)].sum()
-            recall = TP / (FN + TP)
-            precision = TP / (TP + FP)
-            scores[i] = 2 * 1 / (1 / recall + 1 / precision)
+            recall = TP / (FN + TP + self.smooth)
+            precision = TP / (TP + FP + self.smooth)
+            scores[i] = 2 * 1 / (1 / (recall + self.smooth) + 1 / (precision + self.smooth) + self.smooth)
         return scores
 
     @staticmethod
@@ -865,11 +870,17 @@ def assign_group(primary, secondary):
         return np.array(gg)
 
 
-def gleason_summary_wsum(y_pred, thres=None):
+def gleason_summary_wsum(y_pred, thres=None, wsi_fix=False):
+    assert len(y_pred) == 4, f"Expected length 4, but got {len(y_pred)}: {y_pred}"
+
     gleason_scores = y_pred.copy()
     # remove outlier predictions
     if thres is not None:
         gleason_scores[gleason_scores < thres] = 0
+    
+    if wsi_fix and sum(gleason_scores[1:] != 0) > 1:
+        gleason_scores[0] = 0
+
     # and assign overall grade
     idx = np.argsort(gleason_scores)[::-1]
     primary_class = int(idx[0])
@@ -885,6 +896,7 @@ class GraphClassificationGleasonScore(Metric):
         nr_classes: int,
         background_label: int,
         threshold: float = 0.25,
+        wsi_fix=False,
         callbacks=[],
         **kwargs,
     ) -> None:
@@ -897,6 +909,7 @@ class GraphClassificationGleasonScore(Metric):
         self.background_label = background_label
         self.f = f
         self.threshold = threshold
+        self.wsi_fix = wsi_fix
         self.callbacks = callbacks
         self.enabled_callbacks = False
         super().__init__(**kwargs)
@@ -917,7 +930,7 @@ class GraphClassificationGleasonScore(Metric):
 
             gleason_grade_ground_truth.append(gleason_summary_wsum(labels.numpy()))
             gleason_grade_prediction.append(
-                gleason_summary_wsum(logits, thres=self.threshold)
+                gleason_summary_wsum(logits, thres=self.threshold, wsi_fix=self.wsi_fix)
             )
         if self.enabled_callbacks:
             for callback in self.callbacks:
@@ -956,5 +969,79 @@ class GraphClassificationGleasonScoreF1(GraphClassificationGleasonScore):
             f=partial(sklearn.metrics.f1_score, average="weighted"),
             nr_classes=nr_classes,
             background_label=background_label,
+            **kwargs,
+        )
+
+
+class AreaBasedGleasonScoreMetric(Metric):
+    def __init__(
+        self,
+        f,
+        callbacks=[],
+        wsi_fix=False,
+        threshold=0.25,
+        **kwargs,
+    ) -> None:
+        """Create a IoU calculator for a certain number of classes
+
+        Args:
+            nr_classes (int, optional): Number of classes to use
+        """
+        self.f = f
+        self.callbacks = callbacks
+        self.wsi_fix = wsi_fix
+        self.enabled_callbacks = False
+        self.threshold=threshold,
+        super().__init__(**kwargs)
+
+    def __call__(
+        self,
+        prediction: np.ndarray,
+        ground_truth: np.ndarray,
+        image_labels: np.ndarray,
+        **kwargs,
+    ) -> Any:
+        assert len(prediction) == len(image_labels)
+        gleason_grade_ground_truth = list()
+        gleason_grade_prediction = list()
+        for predicted_area, actual_area in zip(prediction, image_labels):
+            if isinstance(actual_area, torch.Tensor):
+                actual_area = actual_area.detach().cpu().numpy()
+            if isinstance(predicted_area, torch.Tensor):
+                predicted_area = predicted_area.detach().cpu().numpy()
+            gleason_grade_ground_truth.append(gleason_summary_wsum(actual_area))
+            gleason_grade_prediction.append(
+                gleason_summary_wsum(predicted_area, thres=self.threshold, wsi_fix=self.wsi_fix)
+            )
+
+        if self.enabled_callbacks:
+            for callback in self.callbacks:
+                callback(
+                    prediction=gleason_grade_prediction,
+                    ground_truth=gleason_grade_ground_truth,
+                )
+        return self.f(
+            gleason_grade_ground_truth,
+            gleason_grade_prediction,
+        )
+
+    @staticmethod
+    def is_better(value: Any, comparison: Any) -> bool:
+        return value >= comparison
+
+
+class AreaBasedGleasonScoreKappa(AreaBasedGleasonScoreMetric):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(
+            f=partial(sklearn.metrics.cohen_kappa_score, weights="quadratic"),
+            **kwargs,
+        )
+        self.enabled_callbacks = True
+
+
+class AreaBasedGleasonScoreF1(AreaBasedGleasonScoreMetric):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(
+            f=partial(sklearn.metrics.f1_score, average="weighted"),
             **kwargs,
         )

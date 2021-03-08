@@ -1,8 +1,9 @@
 from typing import List
 import torch
+import torch.nn.functional as F
+import math 
 
 
-__all__ = ["GradCAM", "GradCAMpp"]
 EPS = 10e-7
 
 
@@ -79,21 +80,20 @@ class BaseCAM(object):
             )
 
     def __call__(self, class_idx, scores=None, normalized=True):
-        # Integrity check
-        self._precheck(class_idx, scores)
+        """
+        Compute the CAM for a specific output class
 
-        # Compute CAM
-        return self.compute_cams(class_idx, scores, normalized)
-
-    def compute_cams(self, class_idx, scores=None, normalized=True):
-        """Compute the CAM for a specific output class
         Args:
             class_idx (int): output class index of the target class whose CAM will be computed
             scores (torch.Tensor[1, K], optional): forward output scores of the hooked model
             normalized (bool, optional): whether the CAM should be normalized
+
         Returns:
             torch.Tensor[M, N]: class activation map of hooked conv layer
         """
+
+        # Integrity check
+        self._precheck(class_idx, scores)
 
         # Get map weight
         weights = self._get_weights(class_idx, scores)
@@ -155,6 +155,7 @@ class GradCAM(BaseCAM):
         # Backpropagate
         self._backprop(scores, class_idx)
         grads = torch.stack(list(reversed(self.hook_g)), dim=2)
+        print('Grads', grads.shape)
         return grads.mean(axis=0)
 
     def __call__(self, *args, **kwargs):
@@ -180,6 +181,7 @@ class GradCAMpp(BaseCAM):
 
         # Backpropagate
         self._backprop(scores, class_idx)
+
         # Compute alpha 
         grad_2 = [f.pow(2) for f in self.hook_g]
         grad_3 = [f.pow(3) for f in self.hook_g]
@@ -187,8 +189,10 @@ class GradCAMpp(BaseCAM):
             2 * g2 + (g3 * a).sum(axis=(0), keepdims=True) + EPS
         ) for g2, g3, a in zip(grad_2, grad_3, self.hook_a)
         ]
+
         weights = [a.squeeze_(0).mul_(torch.relu(g.squeeze(0))).sum(axis=(0)) for a, g in zip(alpha, self.hook_g)]
-        weights = torch.stack(weights)
+        weights = torch.stack(weights, dim=1)
+
         return weights
 
     def __call__(self, *args, **kwargs):

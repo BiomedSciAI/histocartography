@@ -57,7 +57,6 @@ class GraphGradCAMExplainer(BaseExplainer):
             graph_copy.ndata[k] = v.clone()
         for k, v in graph.edata.items():
             graph_copy.edata[k] = v.clone()
-        #graph_copy = deepcopy(graph)
         self.extractor = GradCAM(
             getattr(self.model, self.gnn_layer_name).layers, self.gnn_layer_ids
         )

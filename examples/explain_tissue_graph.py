@@ -8,6 +8,7 @@ from tqdm import tqdm
 import h5py
 
 from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
+from histocartography.interpretability.saliency_explainer.graph_gradcampp_explainer import GraphGradCAMPPExplainer
 from histocartography.utils.graph import set_graph_on_cuda
 from histocartography.utils.io import load_image, h5_to_tensor
 from histocartography.preprocessing.superpixel import ColorMergedSuperpixelExtractor
@@ -66,7 +67,7 @@ class TGExplainer:
         os.makedirs(os.path.join(out_path, 'explainer_viz'), exist_ok=True)
         os.makedirs(os.path.join(out_path, 'explainers'), exist_ok=True)
 
-        self.explainer = GraphGradCAMExplainer(
+        self.explainer = GraphGradCAMPPExplainer(
             model_path=BASE_S3 + 'a47b5c2fdf4d49b388e67b63c3c7a8fc/artifacts/model_best_val_weighted_f1_score_0'  
         )
 
@@ -109,7 +110,7 @@ class TGExplainer:
                 tissue_graph = set_graph_on_cuda(tissue_graph)
 
             # 2. run the explainer
-            importance_scores, logits = self.explainer.process([tissue_graph])
+            importance_scores, logits = self.explainer.process(tissue_graph)
 
             # 3. print output
             if self.verbose:

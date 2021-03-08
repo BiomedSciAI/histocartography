@@ -121,3 +121,11 @@ def to_device(x):
     if isinstance(x, dgl.DGLGraph):
         return set_graph_on_cuda(x)
 
+
+def copy_graph(x):
+    graph_copy = dgl.DGLGraph(graph_data=x)
+    for k, v in graph.ndata.items():
+        graph_copy.ndata[k] = v.clone()
+    for k, v in graph.edata.items():
+        graph_copy.edata[k] = v.clone()
+    return graph_copy

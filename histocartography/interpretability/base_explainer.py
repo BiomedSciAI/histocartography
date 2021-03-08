@@ -21,7 +21,7 @@ class BaseExplainer(PipelineStep):
         model: Optional[torch.nn.Module] = None,
         **kwargs
     ) -> None:
-        """Abstract class that define the base explainer.
+        """Abstract class that defines an explainer.
 
         Args:
             model_path (Optional[str], optional): Model path to pre-trained model. The path can be local or an MLflow URL. Defaults to None.
@@ -51,11 +51,11 @@ class BaseExplainer(PipelineStep):
 
     @abstractmethod
     def process(
-        self, graph: dgl.DGLGraph, label: int = None
+        self, graph: dgl.DGLGraph, class_idx: Optional[int] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Explain a graph
 
         Args:
             graph (dgl.DGLGraph): Input graph to explain
-            label (int): Label attached to the graph. Default to None.
+            class_idx (int): Class to explain. If None, use the winning class. Default to None.
         """

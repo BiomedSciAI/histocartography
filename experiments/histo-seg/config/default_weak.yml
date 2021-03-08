@@ -19,6 +19,7 @@ train:
     image_labels_mode: "new_labels"
     supervision:
       mode: image_level
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"
@@ -41,11 +42,14 @@ train:
     graph:
       - "MultiLabelBalancedAccuracy"
       - "MultiLabelF1Score"
+      - "GraphClassificationGleasonScoreKappa"
+      - "GraphClassificationGleasonScoreF1"
     segmentation:
       - "GleasonScoreKappa"
       - "GleasonScoreF1"
-      - "F1Score"
-      - "IoU"
+      - "DatasetDice"
+      - "DatasetIoU"
+      - "fF1Score"
   params:
     experiment_name: "anv_wsss_gnn_weakly_supervised"
     experiment_tags: null
@@ -57,6 +61,7 @@ train:
     loss:
       graph:
         class: "GraphBCELoss"
+        params: {}
     batch_size: 8
     nr_epochs: 500
     num_workers: 8
@@ -65,10 +70,14 @@ train:
     seed: null
     validation_frequency: 5
     autotest: True
+    use_weighted_loss: False
+    use_log_frequency_weights: True
+    focused_metric: "MeanDatasetDice"
+    balanced_sampling: False
 test:
   data: {}
   model:
-    architecture: s3://mlflow/631/b7cecc7a7988472482be6544c661384f/artifacts/best.valid.segmentation.MeanIoU
+    architecture: s3://mlflow/644/4396cfe73c654e9ead2e8aa1bf393d29/artifacts/best.valid.graph.segmentation.fF1Score
   params:
     experiment_name: "anv_wsss_test_gnn"
     experiment_tags: null

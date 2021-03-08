@@ -1,7 +1,4 @@
-from typing import Any, Callable, List, Optional
-from dataset import AugmentedGraphClassificationDataset, GraphDatapoint, ImageDatapoint
 import sys
-
 
 # Fake it till you make it: fake SimpleITK dependency to avoid installing ITK on the cluster.
 class SimpleITK(object):
@@ -11,26 +8,33 @@ class SimpleITK(object):
 
 sys.modules["SimpleITK"] = SimpleITK()
 
+from abc import abstractmethod
+from typing import Any, Callable, List, Optional
+
 import cv2
+import dgl
 import numpy as np
 import torch
 import torchio as tio
-from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
-from abc import abstractmethod
-
-from models import SegmentationFromCNN
 from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import (
     GraphGradCAMExplainer,
 )
+from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
+
+from dataset import (
+    AugmentedGraphClassificationDataset, GraphClassificationDataset,
+    GraphDatapoint,
+    ImageDatapoint,
+    collate_graphs,
+)
 from logging_helper import LoggingHelper, MLflowTimer
-from utils import get_segmentation_map, fast_mode
-import dgl
-from torch.utils.data import Dataset
+from models import SegmentationFromCNN
+from utils import fast_mode, get_segmentation_map, extract_count
 
 
 class BaseInference:
-    def __init__(self, model, device=None) -> None:
+    def __init__(self, model, device=None, **kwargs) -> None:
         super().__init__()
         self.model = model.eval()
         if device is not None:
@@ -44,7 +48,89 @@ class BaseInference:
         pass
 
 
-# CNN Inference
+# GNN Classification Inference
+
+
+class ClassificationInference(BaseInference):
+    def __init__(
+        self, model, device, criterion=None
+    ) -> None:
+        super().__init__(model, device=device)
+        if criterion is not None:
+            self.criterion = criterion.to(self.device)
+        else:
+            self.criterion = None
+
+
+class NodeBasedInference(ClassificationInference):
+    def predict(self, dataset: GraphClassificationDataset, logger: LoggingHelper):
+        old_state = dataset.return_segmentation_info
+        dataset.return_segmentation_info = False
+        dataset_loader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            collate_fn=collate_graphs,
+            num_workers=0,
+        )
+        with torch.no_grad():
+            for graph_batch in tqdm(dataset_loader, total=len(dataset_loader)):
+                graph = graph_batch.meta_graph.to(self.device)
+                labels = graph_batch.node_labels.to(self.device)
+                logits = self.model(graph)
+                if isinstance(logits, tuple):
+                    logits = logits[1]
+                if self.criterion is not None:
+                    loss_information = {
+                        "logits": logits,
+                        "targets": labels,
+                        "node_associations": graph.batch_num_nodes,
+                    }
+                    loss = self.criterion(**loss_information)
+                else:
+                    loss = None
+                logger.add_iteration_outputs(
+                    loss=loss,
+                    logits=logits,
+                    labels=labels,
+                    node_associations=graph.batch_num_nodes,
+                )
+        logger.log_and_clear()
+        dataset.return_segmentation_info = old_state
+
+
+class GraphBasedInference(ClassificationInference):
+    def predict(self, dataset: GraphClassificationDataset, logger: LoggingHelper):
+        old_state = dataset.return_segmentation_info
+        dataset.return_segmentation_info = False
+        dataset_loader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            collate_fn=collate_graphs,
+            num_workers=0,
+        )
+        with torch.no_grad():
+            for graph_batch in tqdm(dataset_loader, total=len(dataset_loader)):
+                graph = graph_batch.meta_graph.to(self.device)
+                labels = graph_batch.graph_labels.to(self.device)
+                logits = self.model(graph)
+                if isinstance(logits, tuple):
+                    logits = logits[0]
+                if self.criterion is not None:
+                    loss_information = {
+                        "logits": logits,
+                        "targets": labels,
+                    }
+                    loss = self.criterion(**loss_information)
+                else:
+                    loss = None
+                logger.add_iteration_outputs(loss=loss, logits=logits, labels=labels)
+        logger.log_and_clear()
+        dataset.return_segmentation_info = old_state
+
+
+# CNN Segmentation Inference
 
 
 class PatchBasedInference(BaseInference):
@@ -168,12 +254,12 @@ class ImageInferenceModel(BaseInference):
         )
 
 
-# GNN Inference
+# GNN Segmentation Inference
 
 
 class GraphNodeBasedInference(BaseInference):
-    def __init__(self, model, device, NR_CLASSES) -> None:
-        super().__init__(model, device=device)
+    def __init__(self, model, device, NR_CLASSES, **kwargs) -> None:
+        super().__init__(model, device=device, **kwargs)
         self.NR_CLASSES = NR_CLASSES
 
     def predict(self, graph, superpixels, operation="argmax"):
@@ -219,12 +305,49 @@ class GraphGradCAMBasedInference(BaseInference):
         return np.stack(segmentation_maps)
 
 
-# Dataset Inferencer
+# GNN Classification Inference
+
+
+class AreaNodeProbabilityBasedInference(BaseInference):
+    def predict(self, graph, superpixels, **kwargs):
+        graph = graph.to(self.device)
+        node_logits = self.model(graph)
+        if isinstance(node_logits, tuple):
+            node_logits = node_logits[1]
+
+        node_weights = node_logits.sigmoid().detach().cpu().numpy()
+        node_counts = extract_count(superpixels)
+
+        class_areas = (node_weights * node_counts[:, np.newaxis]).sum(axis=0)
+        return class_areas
+
+
+class AreaGraphCAMProbabilityBasedInference(BaseInference):
+    def __init__(self, NR_CLASSES, model, **kwargs) -> None:
+        super().__init__(model=model, **kwargs)
+        self.NR_CLASSES = NR_CLASSES
+        self.explainer = GraphGradCAMExplainer(model=model)
+
+    def predict(self, graph, superpixels, **kwargs):
+        graph = graph.to(self.device)
+        importances, logits = self.explainer.process_all(
+            graph, list(range(self.NR_CLASSES))
+        )
+        node_importances = (
+            importances * torch.as_tensor(logits)[0].sigmoid().numpy()[:, np.newaxis]
+        )
+
+        node_counts = extract_count(superpixels)
+        class_areas = (node_importances * node_counts[np.newaxis, :]).sum(axis=1)
+        return class_areas
+
+
+# Dataset Segmentation Inferencer
 
 
 class DatasetBaseInference:
     def __init__(
-        self, inferencer: BaseInference, callbacks: Optional[Callable]
+        self, inferencer: BaseInference, callbacks: Optional[Callable] = []
     ) -> None:
         self.inferencer = inferencer
         self.callbacks = callbacks
@@ -304,15 +427,17 @@ class GraphDatasetInference(DatasetBaseInference):
         )
         if logger is not None:
             logger.add_iteration_outputs(
-                logits=prediction.copy()[np.newaxis, :, :],
-                labels=datapoint.segmentation_mask[np.newaxis, :, :],
-                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+                logits=prediction.copy()[np.newaxis, ...],
+                labels=datapoint.segmentation_mask[np.newaxis, ...],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, ...],
+                image_labels=datapoint.graph_label[np.newaxis, ...],
             )
         if additional_logger is not None:
             additional_logger.add_iteration_outputs(
-                logits=prediction.copy()[np.newaxis, :, :],
-                labels=datapoint.additional_segmentation_mask[np.newaxis, :, :],
-                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, :, :],
+                logits=prediction.copy()[np.newaxis, ...],
+                labels=datapoint.additional_segmentation_mask[np.newaxis, ...],
+                tissue_mask=datapoint.tissue_mask.astype(bool)[np.newaxis, ...],
+                image_labels=datapoint.graph_label[np.newaxis, ...],
             )
         return prediction
 

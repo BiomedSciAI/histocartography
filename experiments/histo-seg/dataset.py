@@ -26,6 +26,7 @@ from torchvision.transforms import (
 from tqdm.auto import tqdm
 
 from constants import CENTROID, FEATURES, FEATURES2, GNN_NODE_FEAT_IN, LABEL
+from metrics import inverse_frequency, inverse_log_frequency
 from utils import read_image
 
 
@@ -350,6 +351,10 @@ class GraphClassificationDataset(BaseDataset):
         return_segmentation_info: bool = False,
         segmentation_downsample_ratio: int = 1,
         image_label_mapper: Optional[Dict[str, np.ndarray]] = None,
+        min_subgraph_ratio: float = 1.0,
+        max_subgraph_tries: float = 100,
+        node_dropout: float = 0.0,
+        **kwargs,
     ) -> None:
         assert centroid_features in [
             "no",
@@ -367,6 +372,8 @@ class GraphClassificationDataset(BaseDataset):
         self.USE_ANNOTATION2 = (
             tissue_metadata is not None and "annotation2_path" in tissue_metadata
         )
+        self.min_subgraph_ratio = min_subgraph_ratio
+        self.max_subgraph_tries = max_subgraph_tries
         self.patch_size = patch_size
         self.mean = mean
         self.std = std
@@ -385,7 +392,7 @@ class GraphClassificationDataset(BaseDataset):
                 self._load(image_metadata)
                 self._image_indices = np.arange(0, len(self._graphs))
             else:
-                self._image_indices = []
+                self._image_indices = np.arange(0, len(self._graphs))
         else:
             super().__init__(image_metadata, num_classes, background_index)
             self._tissue_indices = []
@@ -399,6 +406,8 @@ class GraphClassificationDataset(BaseDataset):
             self._graph_labels = self._load_image_level_labels(image_label_mapper)
         else:
             self._graph_labels = self._compute_graph_labels()
+        self._node_weights = self._compute_node_weights()
+        self.node_dropout = node_dropout
 
     def _initalize_loading(self):
         pass
@@ -448,6 +457,24 @@ class GraphClassificationDataset(BaseDataset):
         for name in self._names:
             labels.append((label_mapper[name]))
         return torch.as_tensor(labels)
+
+    def _compute_node_weight(self, node_labels: torch.Tensor) -> np.ndarray:
+        class_counts = fast_histogram(node_labels, nr_values=self.num_classes)
+        return inverse_log_frequency(class_counts.astype(np.float32)[np.newaxis, :])[0]
+
+    def _compute_node_weights(self) -> np.ndarray:
+        node_weights = list()
+        for graph in self._graphs:
+            if self.mode == "tissue":
+                node_labels = graph.ndata[LABEL]
+                node_weights.append(self._compute_node_weight(node_labels))
+            else:
+                node_weights.append(None)
+        return np.array(node_weights)
+
+    @property
+    def node_weights(self):
+        return self._node_weights
 
     @property
     def graphs(self):
@@ -575,9 +602,19 @@ class GraphClassificationDataset(BaseDataset):
         Returns:
             Tuple[int, int, int, int]: A bounding box of the patch
         """
-        x_min = np.random.randint(full_size[0] - patch_size[0])
-        y_min = np.random.randint(full_size[1] - patch_size[1])
-        return (x_min, y_min, x_min + patch_size[0], y_min + patch_size[1])
+        if full_size[0] <= patch_size[0]:
+            size_x = full_size[0]
+            x_min = 0
+        else:
+            size_x = patch_size[0]
+            x_min = np.random.randint(full_size[0] - patch_size[0])
+        if full_size[1] <= patch_size[1]:
+            size_y = full_size[1]
+            y_min = 0
+        else:
+            size_y = patch_size[1]
+            y_min = np.random.randint(full_size[1] - patch_size[1])
+        return (x_min, y_min, x_min + size_x, y_min + size_y)
 
     def _build_datapoint(self, graph, node_labels, index):
         if self.mode == "tissue":
@@ -633,6 +670,42 @@ class GraphClassificationDataset(BaseDataset):
         ), f"Dataset mode must be from {valid_modes}, but is {mode}"
         self.mode = mode
 
+    def _get_minsize_random_subgraph(
+        self, graph: dgl.DGLGraph, node_labels, image_size
+    ):
+        if self.min_subgraph_ratio is None:
+            return self._get_random_subgraph(graph, node_labels, image_size)
+        else:
+            graph_size = 0
+            max_tries = self.max_subgraph_tries
+            min_target_size = int(
+                graph.number_of_nodes()
+                / (image_size[0] * image_size[1])
+                * (self.patch_size[0] * self.patch_size[1])
+                * self.min_subgraph_ratio
+            )
+            while max_tries > 0 and graph_size < min_target_size:
+                graph_candidate, node_label_candidate = self._get_random_subgraph(
+                    graph, node_labels, image_size
+                )
+                graph_size = graph_candidate.number_of_nodes()
+                max_tries -= 1
+            return graph_candidate, node_label_candidate
+
+    def _get_node_dropout_subgraph(
+        self, graph: dgl.DGLGraph, node_labels: torch.Tensor
+    ) -> Tuple[dgl.DGLGraph, torch.Tensor]:
+        node_mask = torch.rand(graph.number_of_nodes()) > self.node_dropout
+        subgraph = self._generate_subgraph(graph, torch.where(node_mask)[0])
+        if node_labels is not None:
+            subgraph_node_labels = node_labels[node_mask]
+        else:
+            subgraph_node_labels = None
+        assert (
+            node_labels is None or subgraph.number_of_nodes() == subgraph_node_labels.shape[0]
+        ), f"Dropout graph node labels do not correspond to the number of nodes. Graph size: {subgraph.number_of_nodes()}, labels: {subgraph_node_labels.shape}"
+        return subgraph, subgraph_node_labels
+
     def __getitem__(self, index: int) -> GraphDatapoint:
         """Returns a sample (patch) of graph i
 
@@ -656,9 +729,11 @@ class GraphClassificationDataset(BaseDataset):
         # Random patch sampling
         if self.patch_size is not None:
             image_size = self.image_sizes[index]
-            graph, node_labels = self._get_random_subgraph(
+            graph, node_labels = self._get_minsize_random_subgraph(
                 graph, node_labels, image_size
             )
+        if self.node_dropout > 0:
+            graph, node_labels = self._get_node_dropout_subgraph(graph, node_labels)
 
         return self._build_datapoint(graph, node_labels, index)
 
@@ -673,6 +748,49 @@ class GraphClassificationDataset(BaseDataset):
         elif self.mode == "image":
             assert len(self.graphs) == len(self._image_indices)
             return len(self.graphs)
+
+    def get_labels(self) -> torch.Tensor:
+        if self.mode == "tissue":
+            node_labels = list()
+            nr_datapoints = self.__len__()
+            for i in range(nr_datapoints):
+                datapoint = self.__getitem__(i)
+                node_labels.append(datapoint.node_labels)
+            return torch.cat(node_labels)
+        elif self.mode == "image":
+            graph_labels = list()
+            nr_datapoints = self.__len__()
+            for i in range(nr_datapoints):
+                datapoint = self.__getitem__(i)
+                graph_labels.append(datapoint.graph_label)
+            return torch.stack(graph_labels)
+        else:
+            raise NotImplementedError
+
+    def get_overall_loss_weights(self, log=True) -> torch.Tensor:
+        labels = self.get_labels()
+        if self.mode == "tissue":
+            class_counts = fast_histogram(labels, self.num_classes)
+        else:
+            class_counts = labels.sum(dim=0).numpy()
+        if log:
+            class_weights = inverse_log_frequency(
+                class_counts.astype(np.float32)[np.newaxis, :]
+            )[0]
+        else:
+            class_weights = inverse_frequency(
+                class_counts.astype(np.float32)[np.newaxis, :]
+            )[0]
+        return torch.as_tensor(class_weights)
+
+    def get_graph_size_weights(self) -> torch.Tensor:
+        graph: dgl.DGLGraph
+        nr_nodes = list()
+        for graph in self.graphs:
+            nr_nodes.append(graph.number_of_nodes())
+        nr_nodes = np.array(nr_nodes)
+        nr_nodes = nr_nodes / nr_nodes.sum()
+        return torch.as_tensor(nr_nodes)
 
 
 class AugmentedGraphClassificationDataset(GraphClassificationDataset):
@@ -784,9 +902,12 @@ class AugmentedGraphClassificationDataset(GraphClassificationDataset):
         # Random patch sampling
         if self.patch_size is not None:
             image_size = self.image_sizes[index]
-            augmented_graph, node_labels = self._get_random_subgraph(
+            augmented_graph, node_labels = self._get_minsize_random_subgraph(
                 augmented_graph, node_labels, image_size
             )
+
+        if self.node_dropout > 0:
+            graph, node_labels = self._get_node_dropout_subgraph(graph, node_labels)
 
         return self._build_datapoint(augmented_graph, node_labels, index)
 
@@ -908,8 +1029,10 @@ class PatchClassificationDataset(ImageDataset):
         self.augmentor = self._get_augmentor(augmentations, mean, std)
 
     def _generate_patches(self):
-        patches = self.images.unfold(1, self.patch_size, self.stride).unfold(
-            2, self.patch_size, self.stride
+        patches = (
+            torch.as_tensor(self.images)
+            .unfold(1, self.patch_size, self.stride)
+            .unfold(2, self.patch_size, self.stride)
         )
         patches = patches.reshape([-1, 3, self.patch_size, self.patch_size])
         return patches
@@ -921,8 +1044,10 @@ class PatchClassificationDataset(ImageDataset):
         return self._to_onehot_with_ignore(unique_annotation).sum(axis=0).numpy()
 
     def _generate_labels(self):
-        labels = self.annotations.unfold(1, self.patch_size, self.stride).unfold(
-            2, self.patch_size, self.stride
+        labels = (
+            torch.as_tensor(self.annotations)
+            .unfold(1, self.patch_size, self.stride)
+            .unfold(2, self.patch_size, self.stride)
         )
         self.patch_annotations = labels.reshape([-1, self.patch_size, self.patch_size])
         return torch.as_tensor(
@@ -933,8 +1058,10 @@ class PatchClassificationDataset(ImageDataset):
         )
 
     def _generate_tissue_masks(self):
-        masks = self.tissue_masks.unfold(1, self.patch_size, self.stride).unfold(
-            2, self.patch_size, self.stride
+        masks = (
+            torch.as_tensor(self.tissue_masks)
+            .unfold(1, self.patch_size, self.stride)
+            .unfold(2, self.patch_size, self.stride)
         )
         masks = masks.reshape([-1, self.patch_size, self.patch_size])
         masks = masks // 255
@@ -1012,3 +1139,66 @@ class PatchClassificationDataset(ImageDataset):
         )
         frequencies = 1 / counts.to(torch.float32)
         return frequencies[classes]
+
+
+class GleasonPercentageDataset(Dataset):
+    GG_SUM_TO_LABEL = {0: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
+
+    def __init__(self, percentage_df, label_df, mode, normalize=False):
+        self.mode = mode
+        names = list()
+        percentages = list()
+        primaries = list()
+        secondaries = list()
+        for name, row in percentage_df.iterrows():
+            names.append(name)
+            percentage = row.to_numpy()
+            percentage = percentage / percentage.sum()
+            percentages.append(percentage)
+            primaries.append(label_df.loc[name, "Gleason_primary"])
+            secondaries.append(label_df.loc[name, "Gleason_secondary"])
+        self.percentages = torch.as_tensor(np.array(percentages)).to(torch.float32)
+        self.primaries = np.array(primaries)
+        self.secondaries = np.array(secondaries)
+        self.names = np.array(names)
+
+        if isinstance(normalize, bool):
+            self.normalize = normalize
+            self.mean = self.percentages.mean(dim=0)
+            self.std = self.percentages.std(dim=0)
+        else:
+            self.normalize = True
+            self.mean = normalize.mean
+            self.std = normalize.std
+
+    def _ps_to_multilabel(self, p, s):
+        one_hot = np.array([0] * 4)
+        one_hot[p] = 1
+        one_hot[s] = 1
+        return one_hot
+
+    def _ps_to_finalgleasonscore(self, p, s):
+        return self.GG_SUM_TO_LABEL[p + s]
+
+    def __getitem__(self, index):
+        if self.mode == "multihead":
+            label = (self.primaries[index], self.secondaries[index])
+        elif self.mode == "multilabel":
+            label = self._ps_to_multilabel(
+                self.primaries[index], self.secondaries[index]
+            )
+        elif self.mode == "finalgleasonscore":
+            label = self._ps_to_finalgleasonscore(
+                self.primaries[index], self.secondaries[index]
+            )
+        else:
+            raise NotImplementedError
+
+        if self.normalize:
+            percentage = (self.percentages[index] - self.mean) / self.std
+        else:
+            percentage = self.percentages[index]
+        return percentage, label
+
+    def __len__(self):
+        return len(self.percentages)

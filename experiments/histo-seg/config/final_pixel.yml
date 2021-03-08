@@ -19,6 +19,7 @@ train:
     image_labels_mode: "original_labels"
     supervision:
       mode: tissue_level
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"
@@ -43,14 +44,17 @@ train:
     graph:
       - "MultiLabelBalancedAccuracy"
       - "MultiLabelF1Score"
+      - "GraphClassificationGleasonScoreKappa"
+      - "GraphClassificationGleasonScoreF1"
     node:
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
     segmentation:
       - "GleasonScoreKappa"
       - "GleasonScoreF1"
-      - "F1Score"
-      - "IoU"
+      - "DatasetDice"
+      - "DatasetIoU"
+      - "fF1Score"
   params:
     experiment_name: "anv_wsss_gnn_strongly_supervised"
     experiment_tags: null
@@ -60,22 +64,24 @@ train:
         lr: 0.00003
       scheduler: null
     loss:
-      graph:
-        class: "GraphBCELoss"
       node:
         class: "NodeStochasticCrossEntropy"
         params:
           background_label: 4
           drop_probability: 0.0
-      node_weight: 0.5
+          nodes_to_keep: null
     batch_size: 8
-    nr_epochs: 500
+    nr_epochs: 1000
     num_workers: 8
     clip_gradient_norm: null
     dataset: "eth"
     seed: null
     validation_frequency: 5
     autotest: True
+    use_weighted_loss: False
+    use_log_frequency_weights: True
+    focused_metric: "MeanDatasetDice"
+    balanced_sampling: False
 test:
   data: {}
   model:

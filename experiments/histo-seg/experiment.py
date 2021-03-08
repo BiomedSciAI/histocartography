@@ -73,7 +73,8 @@ class Experiment:
         queue="prod.med",
         disable_multithreading=False,
         no_save=False,
-        base=None,
+        base=BASE,
+        path=PATH,
     ) -> None:
         self.name = name
         self.cores = cores
@@ -85,18 +86,13 @@ class Experiment:
         self.no_save = no_save
         self.main_file = main_file
 
-        self.target_directory = Path(PATH) / self.name
+        self.target_directory = Path(path) / self.name
         if not self.target_directory.exists():
             self.target_directory.mkdir()
         else:
             shutil.rmtree(self.target_directory)
             self.target_directory.mkdir()
-
-        if base is None:
-            global BASE
-            self.base = BASE
-        else:
-            self.base = base
+        self.base = base
 
     @staticmethod
     def _path_exists(config, path):
@@ -211,7 +207,7 @@ class Experiment:
 
 class PretrainingExperiment(Experiment):
     def __init__(
-        self, name, queue="prod.med", cores=3, base="config/pretrain.yml"
+        self, name, queue="prod.med", cores=3, base="config/pretrain.yml", path=PATH, 
     ) -> None:
         super().__init__(
             "pretraining_" + name,
@@ -224,6 +220,7 @@ class PretrainingExperiment(Experiment):
             disable_multithreading=False,
             no_save=False,
             base=base,
+            path=path,
         )
         self.name = name
         self.cores = cores
@@ -246,7 +243,7 @@ class PretrainingExperiment(Experiment):
 
 
 class MNISTExperiment(Experiment):
-    def __init__(self, name, queue="prod.med") -> None:
+    def __init__(self, name, queue="prod.med", path=PATH) -> None:
         super().__init__(
             "mnist_" + name,
             cores=1,
@@ -258,6 +255,7 @@ class MNISTExperiment(Experiment):
             disable_multithreading=False,
             no_save=False,
             base="config/mnist.yml",
+            path=path
         )
         self.name = name
 
@@ -327,7 +325,7 @@ class PreprocessingExperiment(Experiment):
 
 class GPUPreprocessingExperiment(PreprocessingExperiment):
     def __init__(
-        self, name, workers=24, queue="prod.med", base="config/preprocess.yml"
+        self, name, workers=24, queue="prod.med", base="config/preprocess.yml", **kwargs
     ) -> None:
         self.workers = workers
         super().__init__(
@@ -340,6 +338,7 @@ class GPUPreprocessingExperiment(PreprocessingExperiment):
             disable_multithreading=False,
             no_save=False,
             base=base,
+            **kwargs,
         )
 
     def generate(
@@ -365,7 +364,7 @@ class GPUPreprocessingExperiment(PreprocessingExperiment):
 
 class CPUPreprocessingExperiment(PreprocessingExperiment):
     def __init__(
-        self, name, cores=4, queue="prod.med", base="config/preprocess.yml"
+        self, name, cores=4, queue="prod.med", base="config/preprocess.yml", **kwargs
     ) -> None:
         super().__init__(
             name,
@@ -378,6 +377,7 @@ class CPUPreprocessingExperiment(PreprocessingExperiment):
             disable_multithreading=True,
             no_save=False,
             base=base,
+            **kwargs,
         )
         self.name = name
         self.cores = cores
@@ -403,7 +403,7 @@ class CPUPreprocessingExperiment(PreprocessingExperiment):
 
 class GraphClassifierExperiment(Experiment):
     def __init__(
-        self, name, queue="prod.med", base="config/default.yml", main_file="train"
+        self, name, queue="prod.med", base="config/default.yml", main_file="train", **kwargs
     ) -> None:
         super().__init__(
             "graph_" + name,
@@ -416,6 +416,7 @@ class GraphClassifierExperiment(Experiment):
             disable_multithreading=False,
             no_save=False,
             base=base,
+            **kwargs
         )
         self.name = name
 
@@ -437,39 +438,42 @@ class GraphClassifierExperiment(Experiment):
 
 
 class WeaklySupervisedGraphClassificationExperiment(GraphClassifierExperiment):
-    def __init__(self, name, queue="prod.med", base="config/default_weak.yml") -> None:
+    def __init__(self, name, queue="prod.med", base="config/default_weak.yml", **kwargs) -> None:
         super().__init__(
             "image_" + name,
             queue=queue,
             base=base,
             main_file="train_weak",
+            **kwargs
         )
 
 
 class StronglySupervisedGraphClassificationExperiment(GraphClassifierExperiment):
     def __init__(
-        self, name, queue="prod.med", base="config/default_strong.yml"
+        self, name, queue="prod.med", base="config/default_strong.yml", **kwargs
     ) -> None:
         super().__init__(
             "tissue_" + name,
             queue=queue,
             base=base,
             main_file="train_strong",
+            **kwargs, 
         )
 
 
 class SemiSupervisedGraphClassificationExperiment(GraphClassifierExperiment):
-    def __init__(self, name, queue="prod.med", base="config/default_semi.yml") -> None:
+    def __init__(self, name, queue="prod.med", base="config/default_semi.yml", **kwargs) -> None:
         super().__init__(
             "semi_" + name,
             queue=queue,
             base=base,
             main_file="train_semi",
+            **kwargs
         )
 
 
 class CNNTestingExperiment(Experiment):
-    def __init__(self, name, queue="prod.short", cores=1) -> None:
+    def __init__(self, name, queue="prod.short", cores=1, **kwargs) -> None:
         super().__init__(
             "test_cnn_" + name,
             cores=cores,
@@ -481,6 +485,7 @@ class CNNTestingExperiment(Experiment):
             disable_multithreading=False,
             no_save=False,
             base="config/pretrain.yml",
+            **kwargs
         )
         self.name = name
         self.cores = cores
@@ -504,7 +509,7 @@ class CNNTestingExperiment(Experiment):
 
 class GNNTestingExperiment(Experiment):
     def __init__(
-        self, name, queue="prod.short", cores=1, base="config/default.yml"
+        self, name, queue="prod.short", cores=1, base="config/default.yml", **kwargs
     ) -> None:
         super().__init__(
             "test_gnn_" + name,
@@ -517,6 +522,7 @@ class GNNTestingExperiment(Experiment):
             disable_multithreading=False,
             no_save=False,
             base=base,
+            **kwargs
         )
         self.name = name
         self.cores = cores

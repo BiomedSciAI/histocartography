@@ -1,17 +1,13 @@
-from logging_helper import robust_mlflow
-import mlflow
-from utils import dynamic_import_from
-import torch
-import dgl
-from utils import get_config
 import logging
-from logging_helper import prepare_experiment, log_parameters
-from test_gnn import test_gnn, fill_missing_information
-from models import (
-    SemiSuperPixelTissueClassifier,
-    ImageTissueClassifier,
-    SuperPixelTissueClassifier,
-)
+
+import dgl
+import mlflow
+import torch
+
+from logging_helper import log_parameters, prepare_experiment, robust_mlflow, log_device
+from test_gnn import fill_missing_information, test_gnn
+from utils import dynamic_import_from, get_config
+from postprocess import create_dataset, run_mlp, train_mlp
 
 
 def prepare_training(default="default.yml"):
@@ -68,21 +64,25 @@ def auto_test(config, tags, model_uri, default="default.yml"):
             **test_config["params"],
         )
 
+        if test_config["params"].get('dataset', "eth") == "sicapv2_wsi":
+            # Create percentage datasets
+            training_dataset, validation_dataset, testing_dataset = create_dataset(
+                model_config=test_config["model"],
+                data_config=test_config["data"],
+                **test_config["params"],
+            )
 
-def log_nr_parameters(model):
-    nr_trainable_total_params = sum(
-        p.numel() for p in model.parameters() if p.requires_grad
-    )
-    robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
-    if isinstance(model, ImageTissueClassifier):
-        mode = "weak_supervision"
-    elif isinstance(model, SuperPixelTissueClassifier):
-        mode = "strong_supervision"
-    elif isinstance(model, SemiSuperPixelTissueClassifier):
-        mode = "combined_supervision"
-    else:
-        mode = "unknown"
-    robust_mlflow(mlflow.log_param, "supervision", mode)
+            device = log_device()
+            # Train MLP
+            model = train_mlp(
+                training_dataset=training_dataset,
+                validation_dataset=validation_dataset,
+                device=device,
+                **test_config["params"],
+            )
+
+            # Evaluate on testset
+            run_mlp(model=model, device=device, testing_dataset=testing_dataset)
 
 
 def get_optimizer(optimizer, model):
@@ -99,12 +99,3 @@ def get_optimizer(optimizer, model):
     else:
         scheduler = None
     return optim, scheduler
-
-
-def log_device():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    if torch.cuda.is_available():
-        robust_mlflow(mlflow.log_param, "device", torch.cuda.get_device_name(0))
-    else:
-        robust_mlflow(mlflow.log_param, "device", "CPU")
-    return device

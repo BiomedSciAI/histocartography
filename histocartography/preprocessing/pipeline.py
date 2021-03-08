@@ -62,15 +62,10 @@ class PipelineStep(ABC):
                 logging.info("Link already exists: overwriting...")
                 os.remove(link_directory)
             else:
-                logging.critical(
-                    "Link exists, but points nowhere. Ignoring..."
-                )
+                logging.critical("Link exists, but points nowhere. Ignoring...")
                 return
-        else:
-            logging.critical(
-                    "Link does not exist, but there is a file. Ignoring..."
-                )
-            return
+        elif os.path.exists(link_directory):
+            os.remove(link_directory)
         os.symlink(self.output_dir, link_directory, target_is_directory=True)
 
     def precompute(self, final_path) -> None:
@@ -121,12 +116,20 @@ class PipelineStep(ABC):
             logging.info(
                 f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )
-            with h5py.File(output_path, "r") as input_file:
-                output = self._get_outputs(input_file=input_file)
+            try:
+                with h5py.File(output_path, "r") as input_file:
+                    output = self._get_outputs(input_file=input_file)
+            except OSError as e:
+                print(f"\n\nCould not read from {output_path}!\n\n")
+                raise e
         else:
             output = self.process(*args, **kwargs)
-            with h5py.File(output_path, "w") as output_file:
-                self._set_outputs(output_file=output_file, outputs=output)
+            try:
+                with h5py.File(output_path, "w") as output_file:
+                    self._set_outputs(output_file=output_file, outputs=output)
+            except OSError as e:
+                print(f"\n\nCould not write to {output_path}!\n\n")
+                raise e
         return output
 
 

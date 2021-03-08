@@ -37,14 +37,28 @@ MASK_VALUE_TO_COLOR = {0: "green", 1: "blue", 2: "yellow", 3: "red", 4: "white"}
 NR_CLASSES = 4
 BACKGROUND_CLASS = 4
 VARIABLE_SIZE = True
+ADDITIONAL_ANNOTATION = False
+DISCARD_THRESHOLD = 5000
+THRESHOLD = 0.003
+WSI_FIX = True
 
 IMAGE_PATH = BASE_PATH / "wsi"
 ANNOTATION_PATH = BASE_PATH / "wsi_masks"
+TRAIN_PARTIAL_ANNOTATION_PATHS = {
+    50: BASE_PATH / "wsi_masks_partial" / "wsi_masks_50",
+    25: BASE_PATH / "wsi_masks_partial" / "wsi_masks_25",
+    10: BASE_PATH / "wsi_masks_partial" / "wsi_masks_10"
+}
 LABELS_PATH = BASE_PATH / "wsi_labels.xlsx"
 PREPROCESS_PATH = BASE_PATH / "preprocess"
 OUTPUT_PATH = PREPROCESS_PATH / "outputs"
 IMAGES_DF = BASE_PATH / "images.pickle"
 ANNOTATIONS_DF = BASE_PATH / "annotations.pickle"
+PARTIAL_ANNOTATIONS_DFS = {
+    50: BASE_PATH / "annotations50.pickle",
+    25: BASE_PATH / "annotations25.pickle",
+    10: BASE_PATH / "annotations10.pickle"
+}
 LABELS_DF = BASE_PATH / "image_level_annotations.pickle"
 
 TEST_SPLIT_PATH = BASE_PATH / "partition" / "Test" / "Test.csv"
@@ -76,6 +90,18 @@ def generate_annotations_meta_df():
         "name"
     )
     anntation_df.to_pickle(ANNOTATIONS_DF)
+
+
+def generate_partial_annotations_meta_df():
+    for key, value in TRAIN_PARTIAL_ANNOTATION_PATHS.items():
+        anntation_df = list()
+        for path in value.iterdir():
+            name = path.name.split(".")[0]
+            anntation_df.append((name, path))
+        anntation_df = pd.DataFrame(anntation_df, columns=["name", "path"]).set_index(
+            "name"
+        )
+        anntation_df.to_pickle(PARTIAL_ANNOTATIONS_DFS[key])
 
 
 def generate_labels():
@@ -136,14 +162,20 @@ def to_mapper(df):
     return mapper
 
 
-def get_metadata(graph_directory):
+def get_metadata(graph_directory, partial_annotation=None):
     graph_directory = OUTPUT_PATH / graph_directory
     superpixel_directory = graph_directory / "superpixels"
     tissue_mask_directory = graph_directory / "tissue_masks"
     log_preprocessing_parameters(graph_directory)
+    image_metadata = pd.read_pickle(IMAGES_DF)
+    if partial_annotation is None:
+        annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+    else:
+        assert partial_annotation in PARTIAL_ANNOTATIONS_DFS, f"Partial Annotation {partial_annotation} not supported. Only {PARTIAL_ANNOTATIONS_DFS.keys()}"
+        annotation_metadata = pd.read_pickle(PARTIAL_ANNOTATIONS_DFS[partial_annotation])
     all_metadata = merge_metadata(
-        pd.read_pickle(IMAGES_DF),
-        pd.read_pickle(ANNOTATIONS_DF),
+        image_metadata=image_metadata,
+        annotation_metadata=annotation_metadata,
         graph_directory=graph_directory,
         superpixel_directory=superpixel_directory,
         tissue_mask_directory=tissue_mask_directory,
@@ -162,13 +194,18 @@ def prepare_graph_datasets(
     downsample_segmentation_maps: int = 1,
     augmentation_mode: Optional[str] = None,
     supervision: Optional[dict] = None,
+    patch_size: Optional[int] = None,
+    partial_annotation: Optional[int] = None,
+    node_dropout: float = 0.0,
+    additional_training_arguments: dict = {},
+    additional_validation_arguments: dict = {},
 ) -> Tuple[Dataset, Dataset]:
     assert fold in VALID_FOLDS, f"Fold must be in {VALID_FOLDS} but is {fold}"
-    all_metadata, label_mapper = get_metadata(graph_directory)
-    training_names = pd.read_csv(TRAIN_SPLIT_PATHS[fold], index_col=0)[
+    all_metadata, label_mapper = get_metadata(graph_directory, partial_annotation)
+    training_names = pd.read_csv(TRAIN_SPLIT_PATHS[fold-1], index_col=0)[
         "wsi_name"
     ].values
-    validation_names = pd.read_csv(VALID_SPLIT_PATHS[fold], index_col=0)[
+    validation_names = pd.read_csv(VALID_SPLIT_PATHS[fold-1], index_col=0)[
         "wsi_name"
     ].values
     assert set(training_names).isdisjoint(
@@ -181,12 +218,20 @@ def prepare_graph_datasets(
         training_metadata = training_metadata.sample(2)
         validation_metadata = validation_metadata.sample(2)
 
+    if patch_size is None:
+        patch_size_augmentation = None
+    else:
+        patch_size_augmentation = (patch_size, patch_size)
+
     training_arguments = {
         "num_classes": NR_CLASSES,
         "background_index": BACKGROUND_CLASS,
         "centroid_features": centroid_features,
         "image_label_mapper": label_mapper,
+        "patch_size": patch_size_augmentation,
+        "node_dropout": node_dropout,
     }
+    training_arguments.update(additional_training_arguments)
     validation_arguments = {
         "num_classes": NR_CLASSES,
         "background_index": BACKGROUND_CLASS,
@@ -195,6 +240,7 @@ def prepare_graph_datasets(
         "segmentation_downsample_ratio": downsample_segmentation_maps,
         "image_label_mapper": label_mapper,
     }
+    validation_arguments.update(additional_validation_arguments)
 
     supervision_mode = (
         supervision.get("mode", "tissue_level")
@@ -264,7 +310,7 @@ def show_class_acivation(per_class_output):
     return fig
 
 
-def show_segmentation_masks(output, annotation=None):
+def show_segmentation_masks(output, annotation=None, **kwargs):
     height = 4
     width = 5
     ncols = 1
@@ -294,7 +340,7 @@ def show_segmentation_masks(output, annotation=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["cleanup", "labels"], default="cleanup")
+    parser.add_argument("command", choices=["cleanup", "labels", "partial_annotations"], default="cleanup")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -307,3 +353,5 @@ if __name__ == "__main__":
         generate_images_meta_df()
         generate_annotations_meta_df()
         generate_labels()
+    elif args.command == "partial_annotations":
+        generate_partial_annotations_meta_df()

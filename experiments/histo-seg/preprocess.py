@@ -19,13 +19,19 @@ def preprocessing(
     save: bool = True,
     test: bool = False,
     link_directory: Optional[str] = None,
+    partial_annotation: Optional[int] = None
 ):
     PREPROCESS_PATH = dynamic_import_from(dataset, "PREPROCESS_PATH")
     IMAGES_DF = dynamic_import_from(dataset, "IMAGES_DF")
     metadata = pd.read_pickle(IMAGES_DF)
     if labels:
-        ANNOTATIONS_DF = dynamic_import_from(dataset, "ANNOTATIONS_DF")
-        annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+        if partial_annotation is None:
+            ANNOTATIONS_DF = dynamic_import_from(dataset, "ANNOTATIONS_DF")
+            annotation_metadata = pd.read_pickle(ANNOTATIONS_DF)
+        else:
+            PARTIAL_ANNOTATIONS_DFS = dynamic_import_from(dataset, "PARTIAL_ANNOTATIONS_DFS")
+            assert partial_annotation in PARTIAL_ANNOTATIONS_DFS, f"Partial Annotation {partial_annotation} not supported. Only {PARTIAL_ANNOTATIONS_DFS.keys()}"
+            annotation_metadata = pd.read_pickle(PARTIAL_ANNOTATIONS_DFS[partial_annotation])
         metadata = merge_metadata(metadata, annotation_metadata)
     if save and not PREPROCESS_PATH.exists():
         PREPROCESS_PATH.mkdir()

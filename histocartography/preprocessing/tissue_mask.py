@@ -1,14 +1,80 @@
-from pathlib import Path
-
-from numpy.lib.function_base import gradient
-from .pipeline import PipelineStep
-from typing import Union, Any
-from PIL import Image
 import logging
-import numpy as np
-import cv2
 import math
-from histomicstk.saliency.tissue_detection import get_tissue_mask
+from pathlib import Path
+from typing import Any, Tuple, Union
+
+import cv2
+import numpy as np
+from PIL import Image
+from scipy import ndimage
+from skimage.filters import gaussian, threshold_otsu
+
+from .pipeline import PipelineStep
+
+
+def get_tissue_mask(
+    image: np.ndarray,
+    n_thresholding_steps: int = 1,
+    sigma: float = 0.0,
+    min_size: int = 500,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Get binary tissue mask
+
+    Args:
+        image (np.ndarray):
+            (m, n, 3) nd array of thumbnail RGB image
+            or (m, n) nd array of thumbnail grayscale image
+        n_thresholding_steps (int, optional): number of gaussian smoothign steps. Defaults to 1.
+        sigma (float, optional): sigma of gaussian filter. Defaults to 0.0.
+        min_size (int, optional): minimum size (in pixels) of contiguous tissue regions to keep. Defaults to 500.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]:
+            np int32 array
+                each unique value represents a unique tissue region
+            np bool array
+                largest contiguous tissue region.
+    """
+    if len(image.shape) == 3:
+        # grayscale thumbnail (inverted)
+        thumbnail = 255 - cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    else:
+        thumbnail = image
+
+    for _ in range(n_thresholding_steps):
+
+        # gaussian smoothing of grayscale thumbnail
+        if sigma > 0.0:
+            thumbnail = gaussian(
+                thumbnail, sigma=sigma, output=None, mode="nearest", preserve_range=True
+            )
+
+        # get threshold to keep analysis region
+        try:
+            thresh = threshold_otsu(thumbnail[thumbnail > 0])
+        except ValueError:  # all values are zero
+            thresh = 0
+
+        # replace pixels outside analysis region with upper quantile pixels
+        thumbnail[thumbnail < thresh] = 0
+
+    # convert to binary
+    mask = 0 + (thumbnail > 0)
+
+    # find connected components
+    labeled, _ = ndimage.label(mask)
+
+    # only keep
+    unique, counts = np.unique(labeled[labeled > 0], return_counts=True)
+    discard = np.in1d(labeled, unique[counts < min_size])
+    discard = discard.reshape(labeled.shape)
+    labeled[discard] = 0
+
+    # largest tissue region
+    mask = labeled == unique[np.argmax(counts)]
+
+    return labeled, mask
 
 
 class TissueMask(PipelineStep):
@@ -55,47 +121,9 @@ class TissueMask(PipelineStep):
             self._link_to_path(Path(final_path) / "tissue_masks")
 
 
-class BrightnessThresholdTissueMask(TissueMask):
-    def __init__(
-        self,
-        base_path: Union[None, str, Path],
-        blur_size=25,
-        dilation_steps=5,
-        erosion_steps=10,
-        kernel_size=20,
-    ) -> None:
-        self.blur_size = blur_size
-        self.dilation_steps = dilation_steps
-        self.erosion_steps = erosion_steps
-        self.kernel_size = kernel_size
-        super().__init__(base_path=base_path)
-        self.kernel = np.ones((self.kernel_size, self.kernel_size), "uint8")
-
-    def process(self, image) -> Any:
-        """According to https://github.com/eiriniar/gleason_CNN/blob/master/utils/create_tissue_masks.py"""
-        grey_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        blur = cv2.GaussianBlur(grey_image, (self.blur_size, self.blur_size), 0)
-        ret, img_thres = cv2.threshold(
-            blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-        )
-        # add padding to avoid weird borders afterwards
-        bb = self.dilation_steps * 2 + self.erosion_steps + 2 * self.kernel_size + 40
-        img_thres = cv2.copyMakeBorder(
-            img_thres, bb, bb, bb, bb, cv2.BORDER_CONSTANT, value=0
-        )
-        # dilation to fill black holes
-        img = cv2.dilate(img_thres, self.kernel, iterations=self.dilation_steps)
-        # followed by erosion to restore borders, eat up small objects
-        img = cv2.erode(img, self.kernel, iterations=self.erosion_steps)
-        # then dilate again
-        img = cv2.dilate(img, self.kernel, iterations=self.dilation_steps)
-        # crop to restore original image
-        ws = np.array(img)[bb:-bb, bb:-bb]
-        return ws
-
-      
-class HistomicstkTissueMask(TissueMask):
+class GaussianTissueMask(TissueMask):
     """Helper class to extract tissue mask from images"""
+
     def __init__(
         self,
         base_path: Union[None, str, Path],
@@ -105,8 +133,7 @@ class HistomicstkTissueMask(TissueMask):
         kernel_size=20,
         dilation_steps=1,
         background_gray_value=228,
-        deconvolve_first=False,
-        downsampling_factor=4
+        downsampling_factor=4,
     ) -> None:
         """
         Args:
@@ -124,7 +151,6 @@ class HistomicstkTissueMask(TissueMask):
                                                  resolution. Defaults to 1.
         """
         self.n_thresholding_steps = n_thresholding_steps
-        self.deconvolve_first = deconvolve_first
         self.sigma = sigma
         self.min_size = min_size
         self.kernel_size = kernel_size
@@ -151,6 +177,21 @@ class HistomicstkTissueMask(TissueMask):
         )
         return downsampled_image
 
+    @staticmethod
+    def _upsample(image: np.ndarray, new_height: int, new_width: int) -> np.ndarray:
+        """Upsample an input image to a speficied new height and width
+        Args:
+            image (np.array): Input tensor
+            new_height (int): Target height
+            new_width (int): Target width
+        Returns:
+            np.array: Output tensor
+        """
+        upsampled_image = cv2.resize(
+            image, (new_width, new_height), interpolation=cv2.INTER_NEAREST
+        )
+        return upsampled_image
+
     def process(self, image) -> Any:
         """Return the superpixels of a given input image
         Args:
@@ -159,6 +200,7 @@ class HistomicstkTissueMask(TissueMask):
             np.array: Extracted superpixels
         """
         # Downsample image
+        original_height, original_width = image.shape[0], image.shape[1]
         if self.downsampling_factor != 1:
             image = self._downsample(image, self.downsampling_factor)
 
@@ -167,14 +209,15 @@ class HistomicstkTissueMask(TissueMask):
 
         # Detect tissue region
         while True:
-            _, mask_ = get_tissue_mask(image,
-                                       deconvolve_first=self.deconvolve_first,
-                                       n_thresholding_steps=self.n_thresholding_steps,
-                                       sigma=self.sigma,
-                                       min_size=self.min_size)
-            mask_ = cv2.dilate(mask_.astype(np.uint8),
-                               self.kernel,
-                               iterations=self.dilation_steps)
+            _, mask_ = get_tissue_mask(
+                image,
+                n_thresholding_steps=self.n_thresholding_steps,
+                sigma=self.sigma,
+                min_size=self.min_size,
+            )
+            mask_ = cv2.dilate(
+                mask_.astype(np.uint8), self.kernel, iterations=self.dilation_steps
+            )
             image_masked = mask_ * image_gray
 
             if image_masked[image_masked > 0].mean() < self.background_gray_value:
@@ -183,6 +226,8 @@ class HistomicstkTissueMask(TissueMask):
             else:
                 break
         tissue_mask = tissue_mask.astype(np.uint8)
+
+        tissue_mask = self._upsample(tissue_mask, original_height, original_width)
         return tissue_mask
 
 

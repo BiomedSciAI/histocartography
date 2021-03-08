@@ -17,6 +17,7 @@ train:
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
     augmentation_mode: node
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"
@@ -51,6 +52,8 @@ train:
       - "GleasonScoreKappa"
       - "F1Score"
       - "IoU"
+      - "DatasetDice"
+      - "DatasetIoU"
   params:
     experiment_name: "anv_wsss_train_classifier"
     experiment_tags: null

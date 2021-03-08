@@ -4,25 +4,23 @@ from typing import Dict, Optional
 
 import mlflow
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import WeightedRandomSampler
 from tqdm.auto import trange
 
-from dataset import GraphBatch, collate_graphs
+from dataset import GraphBatch, GraphClassificationDataset, collate_graphs
 from logging_helper import (
     GraphLoggingHelper,
+    log_device,
+    log_nr_parameters,
     robust_mlflow,
 )
 from losses import get_loss, get_lr
 from models import SuperPixelTissueClassifier
+from postprocess import extract_all
+from train_utils import auto_test, end_run, get_optimizer, prepare_training
 from utils import dynamic_import_from, get_batched_segmentation_maps
-from train_utils import (
-    end_run,
-    log_nr_parameters,
-    get_optimizer,
-    log_device,
-    prepare_training,
-    auto_test,
-)
 
 
 def train_node_classifier(
@@ -38,7 +36,11 @@ def train_node_classifier(
     test: bool,
     validation_frequency: int,
     clip_gradient_norm: Optional[float] = None,
-    **kwargs,
+    use_weighted_loss: bool = False,
+    use_log_frequency_weights: bool = True,
+    focused_metric: str = "fF1Score",
+    balanced_sampling: bool = False,
+    ** kwargs,
 ) -> None:
     """Train the classification model for a given number of epochs.
 
@@ -54,15 +56,28 @@ def train_node_classifier(
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE")
+    DISCARD_THRESHOLD = dynamic_import_from(dataset, "DISCARD_THRESHOLD")
+    THRESHOLD = dynamic_import_from(dataset, "THRESHOLD")
+    WSI_FIX = dynamic_import_from(dataset, "WSI_FIX")
     prepare_graph_datasets = dynamic_import_from(dataset, "prepare_graph_datasets")
 
     # Data loaders
+    training_dataset: GraphClassificationDataset
+    validation_dataset: GraphClassificationDataset
     training_dataset, validation_dataset = prepare_graph_datasets(**data_config)
+    if balanced_sampling:
+        training_sample_weights = training_dataset.get_graph_size_weights()
+        sampler = WeightedRandomSampler(
+            training_sample_weights, len(training_dataset), replacement=True
+        )
+    else:
+        sampler = None
     assert training_dataset.mode == "tissue"
     training_loader = DataLoader(
         training_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=not balanced_sampling,
+        sampler=sampler,
         collate_fn=collate_graphs,
         num_workers=num_workers,
     )
@@ -87,6 +102,9 @@ def train_node_classifier(
         prefix="valid",
         background_label=BACKGROUND_CLASS,
         nr_classes=NR_CLASSES,
+        discard_threshold=DISCARD_THRESHOLD,
+        threshold=THRESHOLD,
+        wsi_fix=WSI_FIX,
     )
 
     # Compute device
@@ -98,6 +116,10 @@ def train_node_classifier(
     log_nr_parameters(model)
 
     # Loss function
+    if use_weighted_loss:
+        loss["node"]["params"]["weight"] = training_dataset.get_overall_loss_weights(
+            log=use_log_frequency_weights
+        )
     criterion = get_loss(loss, "node", device)
 
     # Optimizer
@@ -138,7 +160,7 @@ def train_node_classifier(
                 loss=loss.item(), **loss_information
             )
 
-        if scheduler is not None:
+        if scheduler is not None and not isinstance(scheduler, ReduceLROnPlateau):
             robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
             scheduler.step()
 
@@ -189,10 +211,11 @@ def train_node_classifier(
                     annotation=torch.as_tensor(graph_batch.segmentation_masks),
                     predicted_segmentation=segmentation_maps,
                     tissue_masks=graph_batch.tissue_masks.astype(bool),
+                    image_labels=graph_batch.graph_labels,
                     **loss_information,
                 )
 
-            validation_metric_logger.log_and_clear(
+            current_metrics = validation_metric_logger.log_and_clear(
                 step=epoch, model=model if not test else None
             )
             validation_epoch_duration = (
@@ -205,11 +228,19 @@ def train_node_classifier(
                 step=epoch,
             )
 
+            if scheduler is not None and isinstance(scheduler, ReduceLROnPlateau):
+                robust_mlflow(mlflow.log_metric, "current_lr", get_lr(optim), epoch)
+                if focused_metric in current_metrics:
+                    scheduler.step(current_metrics[focused_metric])
+                else:
+                    scheduler.step(current_metrics[focused_metric[4:]])
+
     mlflow.pytorch.log_model(model, "latest")
 
 
 if __name__ == "__main__":
     config, tags = prepare_training(default="default_strong.yml")
+    focused_metric = config["params"].get("focused_metric", "MeanIoU")
     train_node_classifier(
         model_config=config["model"],
         data_config=config["data"],
@@ -217,6 +248,13 @@ if __name__ == "__main__":
         **config["params"],
     )
     experiment_id, run_id = end_run()
-    checkpoint = "best.valid.node.segmentation.MeanIoU"
+    checkpoint = f"best.valid.node.segmentation.{focused_metric}"
     model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/{checkpoint}"
     auto_test(config, tags, default="default_strong.yml", model_uri=model_uri)
+    robust_mlflow(mlflow.log_param, "focus", focused_metric)
+    end_run()
+
+    checkpoint = f"best.valid.node.segmentation.GleasonScoreF1"
+    model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/{checkpoint}"
+    auto_test(config, tags, default="default_strong.yml", model_uri=model_uri)
+    robust_mlflow(mlflow.log_param, "focus", "GleasonScoreF1")

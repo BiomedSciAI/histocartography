@@ -1,7 +1,7 @@
 import datetime
 import logging
-from typing import Dict, Optional
 from copy import deepcopy
+from typing import Dict, Optional
 
 import mlflow
 import torch
@@ -10,15 +10,17 @@ from tqdm.auto import trange
 
 from logging_helper import (
     LoggingHelper,
+    log_device,
+    log_nr_parameters,
+    log_parameters,
     prepare_experiment,
     robust_mlflow,
-    log_parameters,
 )
 from losses import get_loss, get_lr
 from models import PatchTissueClassifier
+from test_cnn import fill_missing_information, test_cnn
+from train_utils import get_optimizer
 from utils import dynamic_import_from, get_config
-from test_cnn import test_cnn, fill_missing_information
-from train_utils import log_device, log_nr_parameters, get_optimizer
 
 
 def train_patch_classifier(
@@ -78,7 +80,7 @@ def train_patch_classifier(
     )
 
     # Compute device
-    device = log_device
+    device = log_device()
 
     # Model
     model = PatchTissueClassifier(num_classes=NR_CLASSES, **model_config)
@@ -237,7 +239,7 @@ if __name__ == "__main__":
         # End training run
         run_id = robust_mlflow(mlflow.active_run).info.run_id
         experiment_id = robust_mlflow(mlflow.active_run).info.experiment_id
-        model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/best.valid.MultiLabelBalancedAccuracy"
+        model_uri = f"s3://mlflow/{experiment_id}/{run_id}/artifacts/best.valid.MeanMultiLabelBalancedAccuracy"
         robust_mlflow(mlflow.end_run)
 
         # Start testing run

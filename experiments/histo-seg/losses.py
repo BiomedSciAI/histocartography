@@ -10,9 +10,10 @@ from utils import dynamic_import_from
 class MultiLabelBCELoss(nn.Module):
     """Binary Cross Entropy loss over each label seperately, then averaged"""
 
-    def __init__(self) -> None:
+    def __init__(self, weight=None) -> None:
         super().__init__()
-        self.bce = nn.BCEWithLogitsLoss()
+        self.weight = weight
+        self.bce = nn.BCEWithLogitsLoss(reduction="none" if weight is not None else "mean")
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """Compute the loss of the logit and targets
@@ -24,7 +25,12 @@ class MultiLabelBCELoss(nn.Module):
         Returns:
             torch.Tensor: Graph loss
         """
-        return self.bce(input=logits, target=targets.to(torch.float32))
+        if self.weight is None:
+            return self.bce(input=logits, target=targets.to(torch.float32))
+        else:
+            loss = self.bce(input=logits, target=targets.to(torch.float32))
+            weighted_loss = loss * self.weight.to(loss.device)
+            return weighted_loss.mean()
 
 
 class GraphSoftMacroF1Loss(nn.Module):
@@ -59,13 +65,14 @@ class GraphSoftMacroF1Loss(nn.Module):
 
 
 class NodeStochasticCrossEntropy(nn.Module):
-    def __init__(self, drop_probability=0.0, background_label=4) -> None:
+    def __init__(self, drop_probability=0.0, nodes_to_keep=None, background_label=4, weight=None) -> None:
         super().__init__()
         assert (
             0.0 <= drop_probability <= 1.0
         ), f"drop_probability must be valid proability but is {drop_probability}"
         self.drop_probability = drop_probability
-        self.cross_entropy = nn.CrossEntropyLoss(ignore_index=background_label)
+        self.cross_entropy = nn.CrossEntropyLoss(ignore_index=background_label, weight=weight)
+        self.nodes_to_keep = nodes_to_keep
 
     def forward(
         self, logits: torch.Tensor, targets: torch.Tensor, node_associations: List[int]
@@ -80,7 +87,19 @@ class NodeStochasticCrossEntropy(nn.Module):
         Returns:
             torch.Tensor: Node loss
         """
-        if self.drop_probability > 0:
+        if self.nodes_to_keep is not None:
+            to_keep_mask = list()
+            start = 0
+            for n in node_associations:
+                indices = torch.arange(start, start+n).to(torch.float32)
+                num_samples = min(len(indices), self.nodes_to_keep)
+                samples = torch.multinomial(torch.ones_like(indices), num_samples=num_samples)
+                to_keep_mask.append(indices[samples].to(torch.int64))
+                start += n
+            to_keep_mask = torch.cat(to_keep_mask)
+            targets = targets[to_keep_mask]
+            logits = logits[to_keep_mask]
+        elif self.drop_probability > 0:
             to_keep_mask = torch.rand(targets.shape[0]) > self.drop_probability
             targets = targets[to_keep_mask]
             logits = logits[to_keep_mask]

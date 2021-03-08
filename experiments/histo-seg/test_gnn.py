@@ -1,4 +1,6 @@
+from functools import partial
 import logging
+from metrics import F1Score
 from pathlib import Path
 from typing import Dict
 
@@ -9,17 +11,28 @@ import torch
 
 from dataset import GraphDatapoint
 from inference import (
+    GraphBasedInference,
     GraphDatasetInference,
     GraphGradCAMBasedInference,
     GraphNodeBasedInference,
+    NodeBasedInference,
     TTAGraphInference,
+    AreaGraphCAMProbabilityBasedInference,
+    AreaNodeProbabilityBasedInference,
 )
-from logging_helper import LoggingHelper, prepare_experiment, robust_mlflow
+from logging_helper import (
+    LoggingHelper,
+    log_device,
+    prepare_experiment,
+    robust_mlflow,
+    log_confusion_matrix,
+)
 from models import (
     ImageTissueClassifier,
     SemiSuperPixelTissueClassifier,
     SuperPixelTissueClassifier,
 )
+from postprocess import create_dataset, run_mlp, train_mlp
 from utils import dynamic_import_from, get_config
 
 
@@ -45,7 +58,10 @@ def fill_missing_information(model_config, data_config):
         df = mlflow.search_runs(experiment_id)
         df = df.set_index("run_id")
 
-        if "use_augmentation_dataset" not in data_config:
+        if (
+            "use_augmentation_dataset" not in data_config
+            and "params.data.use_augmentation_dataset" in df
+        ):
             data_config["use_augmentation_dataset"] = (
                 df.loc[run_id, "params.data.use_augmentation_dataset"] == "True"
             )
@@ -57,10 +73,15 @@ def fill_missing_information(model_config, data_config):
             data_config["centroid_features"] = df.loc[
                 run_id, "params.data.centroid_features"
             ]
-        if "normalize_features" not in data_config:
+        if (
+            "normalize_features" not in data_config
+            and "params.data.normalize_features" in df
+        ):
             data_config["normalize_features"] = (
                 df.loc[run_id, "params.data.normalize_features"] == "True"
             )
+        if "fold" not in data_config and "params.data.fold" in df:
+            data_config["fold"] = int(df.loc[run_id, "params.data.fold"])
 
 
 def test_gnn(
@@ -80,6 +101,11 @@ def test_gnn(
 
     NR_CLASSES = dynamic_import_from(dataset, "NR_CLASSES")
     BACKGROUND_CLASS = dynamic_import_from(dataset, "BACKGROUND_CLASS")
+    ADDITIONAL_ANNOTATION = dynamic_import_from(dataset, "ADDITIONAL_ANNOTATION")
+    VARIABLE_SIZE = dynamic_import_from(dataset, "VARIABLE_SIZE")
+    DISCARD_THRESHOLD = dynamic_import_from(dataset, "DISCARD_THRESHOLD")
+    THRESHOLD = dynamic_import_from(dataset, "THRESHOLD")
+    WSI_FIX = dynamic_import_from(dataset, "WSI_FIX")
     prepare_graph_testset = dynamic_import_from(dataset, "prepare_graph_testset")
     show_class_acivation = dynamic_import_from(dataset, "show_class_acivation")
     show_segmentation_masks = dynamic_import_from(dataset, "show_segmentation_masks")
@@ -110,12 +136,18 @@ def test_gnn(
         inferencer = GraphGradCAMBasedInference(
             model=model, device=device, NR_CLASSES=NR_CLASSES, **kwargs
         )
+        area_inferencer = AreaGraphCAMProbabilityBasedInference(
+            model=model, device=device, NR_CLASSES=NR_CLASSES, **kwargs
+        )
     else:
         inferencer = GraphNodeBasedInference(
             model=model,
             device=device,
             NR_CLASSES=NR_CLASSES,
             **kwargs,
+        )
+        area_inferencer = AreaNodeProbabilityBasedInference(
+            model=model, device=device, **kwargs
         )
 
     run_id = robust_mlflow(mlflow.active_run).info.run_id
@@ -128,17 +160,67 @@ def test_gnn(
         save_path.mkdir()
 
     logger_pathologist_1 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
+        [
+            "IoU",
+            "F1Score",
+            "GleasonScoreKappa",
+            "GleasonScoreF1",
+            "fIoU",
+            "fF1Score",
+            "DatasetDice",
+            "DatasetIoU",
+        ],
         prefix="pathologist1",
         nr_classes=NR_CLASSES,
         background_label=BACKGROUND_CLASS,
+        variable_size=VARIABLE_SIZE,
+        discard_threshold=DISCARD_THRESHOLD,
+        threshold=THRESHOLD,
+        wsi_fix=WSI_FIX,
+        callbacks=[
+            partial(
+                log_confusion_matrix,
+                classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
+                name="test.pathologist1.summed",
+            )
+        ],
     )
-    logger_pathologist_2 = LoggingHelper(
-        ["IoU", "F1Score", "GleasonScoreKappa", "GleasonScoreF1"],
-        prefix="pathologist2",
-        nr_classes=NR_CLASSES,
-        background_label=BACKGROUND_CLASS,
-    )
+    if ADDITIONAL_ANNOTATION:
+        logger_pathologist_2 = LoggingHelper(
+            [
+                "IoU",
+                "F1Score",
+                "GleasonScoreKappa",
+                "GleasonScoreF1",
+                "fIoU",
+                "fF1Score",
+                "DatasetDice",
+                "DatasetIoU",
+            ],
+            prefix="pathologist2",
+            nr_classes=NR_CLASSES,
+            background_label=BACKGROUND_CLASS,
+            variable_size=VARIABLE_SIZE,
+            discard_threshold=DISCARD_THRESHOLD,
+            threshold=THRESHOLD,
+            wsi_fix=WSI_FIX,
+            callbacks=[
+                partial(
+                    log_confusion_matrix,
+                    classes=[
+                        "Benign",
+                        "Grade6",
+                        "Grade7",
+                        "Grade8",
+                        "Grade9",
+                        "Grade10",
+                    ],
+                    name="test.pathologist2.summed",
+                )
+            ],
+        )
+    else:
+        logger_pathologist_2 = None
 
     def log_segmentation_mask(
         prediction: np.ndarray,
@@ -146,6 +228,13 @@ def test_gnn(
     ):
         tissue_mask = datapoint.tissue_mask
         prediction[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        ground_truth = datapoint.segmentation_mask.copy()
+        ground_truth[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        if ADDITIONAL_ANNOTATION:
+            ground_truth2 = datapoint.additional_segmentation_mask.copy()
+            ground_truth2[~tissue_mask.astype(bool)] = BACKGROUND_CLASS
+        else:
+            ground_truth2 = None
 
         # Save figure
         if operation == "per_class":
@@ -153,13 +242,25 @@ def test_gnn(
         elif operation == "argmax":
             fig = show_segmentation_masks(
                 prediction,
-                annotation=datapoint.segmentation_mask,
-                annotation2=datapoint.additional_segmentation_mask,
+                annotation=ground_truth,
+                annotation2=ground_truth2,
             )
         else:
             raise NotImplementedError(
                 f"Only support operation [per_class, argmax], but got {operation}"
             )
+
+        # Set title to be DICE score
+        metric = F1Score(
+            nr_classes=NR_CLASSES,
+            discard_threshold=DISCARD_THRESHOLD,
+            background_label=BACKGROUND_CLASS,
+        )
+        metric_value = metric(prediction=[prediction], ground_truth=[ground_truth])
+        fig.suptitle(
+            f"Benign: {metric_value[0]}, Grade 3: {metric_value[1]}, Grade 4: {metric_value[2]}, Grade 5: {metric_value[3]}"
+        )
+
         file_name = save_path / f"{datapoint.name}.png"
         fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
         if mlflow_save_path is not None:
@@ -170,6 +271,66 @@ def test_gnn(
             )
         plt.close(fig=fig)
 
+    if mode in ["strong_supervision", "semi_strong_supervision"]:
+        classification_inferencer = NodeBasedInference(model=model, device=device)
+        node_logger = LoggingHelper(
+            ["NodeClassificationBalancedAccuracy", "NodeClassificationF1Score"],
+            prefix="node",
+            nr_classes=NR_CLASSES,
+            background_label=BACKGROUND_CLASS,
+        )
+        classification_inferencer.predict(test_dataset, node_logger)
+    if mode in ["weak_supervision", "semi_strong_supervision"]:
+        classification_inferencer = GraphBasedInference(model=model, device=device)
+        graph_logger = LoggingHelper(
+            [
+                "MultiLabelBalancedAccuracy",
+                "MultiLabelF1Score",
+                "GraphClassificationGleasonScoreKappa",
+                "GraphClassificationGleasonScoreF1",
+            ],
+            prefix="graph",
+            nr_classes=NR_CLASSES,
+            background_label=BACKGROUND_CLASS,
+            callbacks=[
+                partial(
+                    log_confusion_matrix,
+                    classes=[
+                        "Benign",
+                        "Grade6",
+                        "Grade7",
+                        "Grade8",
+                        "Grade9",
+                        "Grade10",
+                    ],
+                    name="test.pathologist1.graph",
+                )
+            ],
+        )
+        classification_inferencer.predict(test_dataset, graph_logger)
+
+    # Area Based Inference
+    area_logger = LoggingHelper(
+        ["AreaBasedGleasonScoreKappa", "AreaBasedGleasonScoreF1"],
+        prefix="area",
+        callbacks=[
+            partial(
+                log_confusion_matrix,
+                classes=["Benign", "Grade6", "Grade7", "Grade8", "Grade9", "Grade10"],
+                name="test.area.summed",
+            )
+        ],
+        variable_size=VARIABLE_SIZE,
+        wsi_fix=WSI_FIX,
+    )
+    inference_runner = GraphDatasetInference(inferencer=area_inferencer)
+    inference_runner(
+        dataset=test_dataset,
+        logger=area_logger,
+        operation=operation,
+    )
+
+    # Segmentation Inference
     if use_tta:
         inference_runner = TTAGraphInference(
             inferencer=inferencer,
@@ -202,3 +363,24 @@ if __name__ == "__main__":
         test=test,
         **config["params"],
     )
+
+    if config["params"].get("dataset", "eth") == "sicapv2_wsi":
+        # Create percentage datasets
+        training_dataset, validation_dataset, testing_dataset = create_dataset(
+            model_config=config["model"],
+            data_config=config["data"],
+            test=test,
+            **config["params"],
+        )
+
+        device = log_device()
+        # Train MLP
+        model = train_mlp(
+            training_dataset=training_dataset,
+            validation_dataset=validation_dataset,
+            device=device,
+            **config["params"],
+        )
+
+        # Evaluate on testset
+        run_mlp(model=model, device=device, testing_dataset=testing_dataset)

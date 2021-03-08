@@ -326,3 +326,48 @@ class SegmentationFromCNN(nn.Module):
         x = self.base_model.classifier(x)
         x = self.post_process(x)
         return x
+
+
+class MLPModel(nn.Module):
+    def __init__(self, num_classes=4, mode='multihead'):
+        """
+        Model constructor
+        Args:
+            num_classes (int): Number of classes. Typically 4 if multi-label
+                                  learning or multi-head learning, 6 if final
+                                  gleason grade prediction. 
+            mode (str): Classification mode. 3 options:
+                            - multihead: as in SICAPv2 paper (P+S) classification, then sum 
+                            - multilabel: as in the ETH paper, ie independent binary classification.
+                            - finalgleasonscore: directly predicting the final gleason grade (ie, 0, 6, 7, 8, 9, 10). 
+        """
+        super(MLPModel, self).__init__()
+        self.backbone = nn.Sequential(
+          nn.Linear(4, 8),
+          nn.ReLU(),
+          nn.Linear(8, 16),
+          nn.ReLU()
+        )
+        self.mode = mode
+
+        if self.mode == 'multihead':
+            self.primary_classifier = nn.Linear(16, num_classes)
+            self.secondary_classifier = nn.Linear(16, num_classes)
+        elif self.mode == 'multilabel' or self.mode == 'finalgleasonscore':
+            self.classifier = nn.Linear(16, num_classes)
+        else:
+            raise ValueError('Unsupported mode')
+
+    def forward(self, x):
+        """
+        Forward-pass
+        :param x: (torch.FloatTensor)
+        """
+        x = self.backbone(x)
+        if self.mode == 'multihead':
+            primary = self.primary_classifier(x)
+            secondary = self.secondary_classifier(x)
+            return primary, secondary
+        else:
+            logits = self.classifier(x)
+            return logits

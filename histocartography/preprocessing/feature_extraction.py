@@ -69,8 +69,15 @@ class FeatureExtractor(PipelineStep):
             str: Architecture name to use for the save path
         """
         if architecture.startswith("s3://mlflow"):
-            _, experiment_id, run_id, _, metric = architecture[5:].split("/")
-            return f"MLflow({experiment_id},{run_id},{metric})"
+            processed_architecture = architecture[5:].split("/")
+            if len(processed_architecture) == 5:
+                _, experiment_id, run_id, _, metric = processed_architecture
+                return f"MLflow({experiment_id},{run_id},{metric})"
+            elif len(processed_architecture) == 4:
+                _, experiment_id, _, name = processed_architecture
+                return f"MLflow({experiment_id},{name})"
+            else:
+                return f"MLflow({','.join(processed_architecture)})"
         elif architecture.endswith(".pth"):
             return f"Local({architecture.replace('/', '_')})"
         else:
@@ -975,13 +982,16 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         self.architecture = self._preprocess_architecture(architecture)
         self.patch_size = patch_size
         self.stride = stride
-        self.verbose = verbose
+        if verbose:
+            self.verbose = verbose
         self.downsample_factor = downsample_factor
         if normalizer is not None:
             self.normalizer = normalizer.get("type", "unknown")
         else:
             self.normalizer = None
         super().__init__(**kwargs)
+        if not verbose:
+            self.verbose = verbose
 
         # Handle GPU
         cuda = torch.cuda.is_available()

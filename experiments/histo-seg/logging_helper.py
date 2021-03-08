@@ -13,8 +13,15 @@ import numpy as np
 import torch
 import yaml
 from matplotlib.colors import ListedColormap
+from sklearn.metrics import confusion_matrix
+from utils import plot_confusion_matrix
 
 from metrics import Metric
+from models import (
+    ImageTissueClassifier,
+    SemiSuperPixelTissueClassifier,
+    SuperPixelTissueClassifier,
+)
 from utils import dynamic_import_from, fix_seeds
 
 with os.popen("hostname") as subprocess:
@@ -99,6 +106,31 @@ def log_preprocessing_parameters(graph_path: Path):
                         )
 
 
+def log_device():
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        robust_mlflow(mlflow.log_param, "device", torch.cuda.get_device_name(0))
+    else:
+        robust_mlflow(mlflow.log_param, "device", "CPU")
+    return device
+
+
+def log_nr_parameters(model):
+    nr_trainable_total_params = sum(
+        p.numel() for p in model.parameters() if p.requires_grad
+    )
+    robust_mlflow(mlflow.log_param, "nr_parameters", nr_trainable_total_params)
+    if isinstance(model, ImageTissueClassifier):
+        mode = "weak_supervision"
+    elif isinstance(model, SuperPixelTissueClassifier):
+        mode = "strong_supervision"
+    elif isinstance(model, SemiSuperPixelTissueClassifier):
+        mode = "combined_supervision"
+    else:
+        mode = "unknown"
+    robust_mlflow(mlflow.log_param, "supervision", mode)
+
+
 def robust_mlflow(f, *args, max_tries=8, delay=1, backoff=2, **kwargs):
     while max_tries > 1:
         try:
@@ -135,10 +167,32 @@ def prepare_experiment(
     log_parameters(data, model, seed=seed, **params)
 
 
+def save_fig_to_mlflow(fig, mlflow_dir, name):
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        file_name = Path(temp_dir_name) / f"{name}.png"
+        fig.savefig(str(file_name), dpi=300, bbox_inches="tight")
+        robust_mlflow(
+            mlflow.log_artifact,
+            str(file_name),
+            artifact_path=mlflow_dir,
+        )
+        plt.close(fig=fig)
+
+
+def log_confusion_matrix(prediction, ground_truth, classes, name):
+    cm = confusion_matrix(
+        y_true=ground_truth, y_pred=prediction, labels=np.arange(len(classes))
+    )
+    fig = plot_confusion_matrix(cm, classes, figname=None, normalize=False)
+    save_fig_to_mlflow(fig, "confusion_plots", name)
+
+
 class LoggingHelper:
-    def __init__(self, metrics_config, prefix="", **kwargs) -> None:
+    def __init__(
+        self, metrics_config, prefix="", variable_size=False, **kwargs
+    ) -> None:
         self.metrics_config = metrics_config
-        self.variable_size = False
+        self.variable_size = variable_size
         self.prefix = prefix
         self._reset_epoch_stats()
         self.best_loss = float("inf")
@@ -201,10 +255,18 @@ class LoggingHelper:
         name: str
         metric: Metric
         for name, metric in zip(self.metric_names, self.metrics):
-            metric_value = metric(logits, labels, **self.extra_info)
+            try:
+                metric_value = metric(logits, labels, **self.extra_info)
+            except TypeError as e:
+                print(
+                    f"Got type error in metric {metric.__class__.__name__} __call__ function"
+                )
+                print(f"extra_info passed: {self.extra_info}")
+                raise e
             if metric.is_per_class:
                 for i in range(len(metric_value)):
                     self._log(f"{name}_class_{i}", metric_value[i], step)
+                metric_value[metric_value != metric_value] = 0.0
                 mean_metric_value = np.nanmean(metric_value)
                 self._log(f"Mean{name}", mean_metric_value, step)
                 metric_values.append(mean_metric_value)
@@ -252,7 +314,11 @@ class LoggingHelper:
                                 f"best.{self.prefix}.{name}",
                             )
                         self.best_metric_values[i] = current_value
+            return_metrics = dict(zip(self.metric_names, current_values))
+        else:
+            return_metrics = None
         self._reset_epoch_stats()
+        return return_metrics
 
 
 class SegmentationLoggingHelper(LoggingHelper):
@@ -286,7 +352,10 @@ class SegmentationLoggingHelper(LoggingHelper):
         )
 
     def create_segmentation_maps(self, actual, predicted):
-        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 5))
+        width = 10
+        height = 4
+
+        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(width, height))
         ax[0].imshow(
             actual, cmap=self.cmap, vmin=-0.5, vmax=4.5, interpolation="nearest"
         )
@@ -305,7 +374,12 @@ class SegmentationLoggingHelper(LoggingHelper):
             annotations = self.labels[random_batch]
             segmentation_maps = self.logits[random_batch]
             if len(self.masks) > 0:
+                annotations = annotations.clone()
+                segmentation_maps = segmentation_maps.clone()
                 segmentation_maps[
+                    torch.as_tensor(~(self.masks[random_batch].astype(bool)))
+                ] = self.background_label
+                annotations[
                     torch.as_tensor(~(self.masks[random_batch].astype(bool)))
                 ] = self.background_label
             if self.variable_size:
@@ -325,7 +399,7 @@ class SegmentationLoggingHelper(LoggingHelper):
                         str(step).zfill(self.leading_zeros),
                         str(i).zfill(batch_leading_zeros),
                     )
-                    fig.savefig(str(name), bbox_inches="tight")
+                    fig.savefig(str(name), bbox_inches="tight", dpi=300)
                     robust_mlflow(
                         mlflow.log_artifact,
                         str(name),
@@ -369,12 +443,22 @@ class GraphLoggingHelper:
             and tissue_masks is not None
         ):
             self.segmentation_helper.add_iteration_outputs(
-                logits=predicted_segmentation, labels=annotation, mask=tissue_masks
+                logits=predicted_segmentation,
+                labels=annotation,
+                mask=tissue_masks,
+                **kwargs,
             )
 
     def log_and_clear(self, step, model=None):
-        self.classification_helper.log_and_clear(step, model)
-        self.segmentation_helper.log_and_clear(step, model)
+        return_dict = self.classification_helper.log_and_clear(step, model)
+        segmentation_return_dict = self.segmentation_helper.log_and_clear(step, model)
+        if return_dict is None and segmentation_return_dict is not None:
+            return segmentation_return_dict
+        if return_dict is not None and segmentation_return_dict is None:
+            return return_dict
+        if return_dict is not None and segmentation_return_dict is not None:
+            return_dict.update(segmentation_return_dict)
+            return return_dict
 
 
 class MLflowTimer:

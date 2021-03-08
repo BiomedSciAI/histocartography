@@ -32,6 +32,8 @@ train:
     image_labels_mode: "new_labels"
     supervision:
       mode: tissue_level
+    partial_annotation: null
+    node_dropout: 0.0
   model:
     gnn_config:
       activation: "PReLU"
@@ -60,14 +62,17 @@ train:
     graph:
       - "MultiLabelBalancedAccuracy"
       - "MultiLabelF1Score"
+      - "GraphClassificationGleasonScoreKappa"
+      - "GraphClassificationGleasonScoreF1"
     node:
       - "NodeClassificationBalancedAccuracy"
       - "NodeClassificationF1Score"
     segmentation:
       - "GleasonScoreKappa"
       - "GleasonScoreF1"
-      - "F1Score"
-      - "IoU"
+      - "DatasetDice"
+      - "DatasetIoU"
+      - "fF1Score"
   params:
     experiment_name: "anv_wsss_gnn_semi_supervised"
     experiment_tags: null
@@ -79,11 +84,13 @@ train:
     loss:
       graph:
         class: "GraphBCELoss"
+        params: {}
       node:
         class: "NodeStochasticCrossEntropy"
         params:
           background_label: 4
           drop_probability: 0.0
+          nodes_to_keep: null
       node_weight: 0.5
     batch_size: 8
     nr_epochs: 500
@@ -93,10 +100,14 @@ train:
     seed: null
     validation_frequency: 5
     autotest: True
+    use_weighted_loss: False
+    use_log_frequency_weights: True
+    focused_metric: "MeanDatasetDice"
+    balanced_sampling: False
 test:
   data: {}
   model:
-    architecture: s3://mlflow/631/b7cecc7a7988472482be6544c661384f/artifacts/best.valid.segmentation.MeanIoU
+    architecture: s3://mlflow/646/40edc5a3eccb4d939ca954cc047b4f66/artifacts/best.valid.node.segmentation.MeanIoU
   params:
     experiment_name: "anv_wsss_test_gnn"
     experiment_tags: null

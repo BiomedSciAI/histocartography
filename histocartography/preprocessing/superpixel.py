@@ -3,6 +3,7 @@
 
 import logging
 import math
+import sys
 import warnings
 from abc import abstractmethod
 from collections import defaultdict
@@ -34,7 +35,9 @@ class SuperpixelExtractor(PipelineStep):
         self.downsampling_factor = downsampling_factor
         super().__init__(**kwargs)
 
-    def process(self, input_image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
+    def process(
+        self, input_image: np.ndarray, tissue_mask: np.ndarray = None
+    ) -> np.ndarray:
         """Return the superpixels of a given input image
         Args:
             input_image (np.array): Input image
@@ -47,14 +50,18 @@ class SuperpixelExtractor(PipelineStep):
         if self.downsampling_factor != 1:
             input_image = self._downsample(input_image, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
-        superpixels = self._extract_superpixels(input_image, tissue_mask)
+        superpixels = self._extract_superpixels(
+            image=input_image, tissue_mask=tissue_mask
+        )
         if self.downsampling_factor != 1:
             superpixels = self._upsample(superpixels, original_height, original_width)
             logging.debug("Upsampled to %s", superpixels.shape)
         return superpixels
 
     @abstractmethod
-    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
+    def _extract_superpixels(
+        self, image: np.ndarray, tissue_mask: np.ndarray = None
+    ) -> np.ndarray:
         """Perform the superpixel extraction
         Args:
             image (np.array): Input tensor
@@ -128,7 +135,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         self.color_space = color_space
         super().__init__(**kwargs)
 
-    def _extract_superpixels(self, image: np.ndarray) -> np.ndarray:
+    def _extract_superpixels(self, image: np.ndarray, *args, **kwargs) -> np.ndarray:
         """Perform the superpixel extraction
         Args:
             image (np.array): Input tensor
@@ -492,12 +499,17 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         return superpixels
 
     def _merge_superpixels(
-        self, input_image: np.ndarray, initial_superpixels: np.ndarray, tissue_mask: np.ndarray=None
+        self,
+        input_image: np.ndarray,
+        initial_superpixels: np.ndarray,
+        tissue_mask: np.ndarray = None,
     ) -> np.ndarray:
         if tissue_mask is not None:
             # Remove superpixels belonging to background or having < 10% tissue content
             ids_initial = np.unique(initial_superpixels, return_counts=True)
-            ids_masked = np.unique(tissue_mask * initial_superpixels, return_counts=True)
+            ids_masked = np.unique(
+                tissue_mask * initial_superpixels, return_counts=True
+            )
 
             ctr = 1
             superpixels = np.zeros_like(initial_superpixels)
@@ -594,9 +606,13 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         )
         return {k: np.array(v) for k, v in translator.items()}
 
-    def _extract_superpixels(self, image: np.ndarray, tissue_mask: np.ndarray=None) -> np.ndarray:
+    def _extract_superpixels(
+        self, image: np.ndarray, tissue_mask: np.ndarray = None
+    ) -> np.ndarray:
         initial_superpixels = self._extract_initial_superpixels(image)
-        merged_superpixels = self._merge_superpixels(image, initial_superpixels, tissue_mask)
+        merged_superpixels = self._merge_superpixels(
+            image, initial_superpixels, tissue_mask
+        )
         translator = self._get_translator(initial_superpixels, merged_superpixels)
         self._check_translator_consistency(
             initial_superpixels, merged_superpixels, translator
@@ -645,21 +661,51 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             logging.info(
                 f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )
-            with h5py.File(superpixel_output_path, "r") as input_file:
-                merged_superpixels, initial_superpixels = self._get_outputs(
-                    input_file=input_file
+            try:
+                with h5py.File(superpixel_output_path, "r") as input_file:
+                    merged_superpixels, initial_superpixels = self._get_outputs(
+                        input_file=input_file
+                    )
+            except OSError as e:
+                print(
+                    f"\n\nCould not read from {superpixel_output_path}!\n\n",
+                    file=sys.stderr,
+                    flush=True,
                 )
-            mapping = joblib.load(mapping_output_path)
+                print(
+                    f"\n\nCould not read from {superpixel_output_path}!\n\n", flush=True
+                )
+                raise e
+            try:
+                mapping = joblib.load(mapping_output_path)
+            except OSError as e:
+                print(
+                    f"\n\nCould not read from {mapping_output_path}!\n\n",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                print(f"\n\nCould not read from {mapping_output_path}!\n\n", flush=True)
+                raise e
         else:
             merged_superpixels, initial_superpixels, mapping = self.process(
                 *args, **kwargs
             )
-            with h5py.File(superpixel_output_path, "w") as output_file:
-                self._set_outputs(
-                    output_file=output_file,
-                    outputs=(merged_superpixels, initial_superpixels),
+            try:
+                with h5py.File(superpixel_output_path, "w") as output_file:
+                    self._set_outputs(
+                        output_file=output_file,
+                        outputs=(merged_superpixels, initial_superpixels),
+                    )
+            except OSError as e:
+                print(
+                    f"\n\nCould not write to {superpixel_output_path}!\n\n", flush=True
                 )
-            joblib.dump(mapping, mapping_output_path)
+                raise e
+            try:
+                joblib.dump(mapping, mapping_output_path)
+            except OSError as e:
+                print(f"\n\nCould not write to {mapping_output_path}!\n\n", flush=True)
+                raise e
         return merged_superpixels, initial_superpixels, mapping
 
 
@@ -758,7 +804,7 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
     ) -> np.ndarray:
         g = graph.RAG(superpixels, connectivity=self.connectivity)
         if 0 in g.nodes:
-            g.remove_node(n=0)      # remove background node
+            g.remove_node(n=0)  # remove background node
 
         for n in g:
             g.nodes[n].update(

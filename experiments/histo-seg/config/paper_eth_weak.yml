@@ -9,16 +9,17 @@ train:
     validation_slides:
       - 76
     patch_size: null
-    graph_directory:  "outputs/v11_mobilenet_high_13x"
+    graph_directory:  "outputs/v12_mobilenet_low_13x"
     centroid_features: "cat"
     use_patches_for_validation: false
     normalize_features: false
     downsample_segmentation_maps: 16
     use_augmentation_dataset: true
     augmentation_mode: "graph"
-    image_labels_mode: "new_labels"
+    image_labels_mode: "p+s"
     supervision:
       mode: image_level
+    partial_annotation: null
     node_dropout: 0.0
   model:
     gnn_config:
@@ -59,11 +60,14 @@ train:
     optimizer:
       class: "Adam"
       params:
-        lr: 0.0001
+        lr: 0.001
       scheduler: 
-        class: ExponentialLR
+        class: ReduceLROnPlateau
         params:
-          gamma: 0.995
+          mode: max
+          factor: 0.5
+          patience: 5
+          min_lr: 0.000001
     loss:
       graph:
         class: "GraphBCELoss"
@@ -76,7 +80,7 @@ train:
     seed: null
     validation_frequency: 5
     autotest: True
-    use_weighted_loss: False
+    use_weighted_loss: True
     use_log_frequency_weights: True
     focused_metric: "MeanDatasetDice"
     balanced_sampling: False

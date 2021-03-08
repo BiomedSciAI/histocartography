@@ -14,6 +14,7 @@ from PIL import Image
 import bisect 
 from skimage.measure import regionprops
 from typing import Tuple, List, Dict 
+from skimage.segmentation import mark_boundaries
 
 from ..utils.io import show_image, save_image, complete_path, check_for_dir
 from ..utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle, rgb
@@ -23,44 +24,6 @@ from ..preprocessing.pipeline import PipelineStep
 
 
 N_BUCKETS = 10
-
-
-class tSNE:
-    def __init__(self, num_dims=2):
-        print('Initialize t-SNE')
-        self.tsne_op = TSNE(n_components=num_dims)
-
-    def __call__(self, data):
-        data_embedded = self.tsne_op.fit_transform(data)
-        return data_embedded
-
-
-def overlay_mask(img, mask, colormap='jet', alpha=0.3):
-    """Overlay a colormapped mask on a background image
-
-    Args:
-        img (PIL.Image.Image): background image
-        mask (PIL.Image.Image): mask to be overlayed in grayscale
-        colormap (str, optional): colormap to be applied on the mask
-        alpha (float, optional): transparency of the background image
-
-    Returns:
-        PIL.Image.Image: overlayed image
-    """
-
-    if not isinstance(img, Image.Image) or not isinstance(mask, Image.Image):
-        raise TypeError('img and mask arguments need to be PIL.Image')
-
-    if not isinstance(alpha, float) or alpha < 0 or alpha >= 1:
-        raise ValueError('alpha argument is expected to be of type float between 0 and 1')
-
-    cmap = cm.get_cmap(colormap)
-    # Resize mask and apply colormap
-    overlay = mask.resize(img.size, resample=Image.BICUBIC)
-    overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, 1:]).astype(np.uint8)
-    # Overlay the image with the mask
-    overlayed_img = Image.fromarray((alpha * np.asarray(img) + (1 - alpha) * overlay).astype(np.uint8))
-    return overlayed_img
 
 
 class GraphVisualization(PipelineStep):
@@ -79,7 +42,7 @@ class GraphVisualization(PipelineStep):
 
         Args:
             show_centroid (bool, Optional): If a circle around each centroid is drawn. Default to True.
-            show_edges (bool, Optional): if the edges are drawn. Default to False,
+            show_edges (bool, Optional): if the edges are drawn. Default to False.
             centroid_outline (Tuple[int, int, int], Optional): Centroid outline color. Default to (0, 0, 255),
             centroid_fill (Tuple[int, int, int], Optional): Centroid fill color.  Default to (0, 0, 255),
             alpha (float, Optional): Transparency of the overlaid segmentation mask. Default to 0.3.
@@ -125,7 +88,7 @@ class GraphVisualization(PipelineStep):
             self.draw_centroid(cent_cg, draw, (255, 0, 0), node_importance)
         
         if instance_map is not None:
-            if np.sum(instance_map == 0) == 0:  # we have dense segmentation masks 
+            if np.sum(instance_map == 0) == 0:  # we have dense segmentation masks
                 canvas = self._draw_dense_instance_map(image, instance_map, node_importance)
             else:
                 instance_map = instance_map.squeeze()
@@ -172,7 +135,7 @@ class GraphVisualization(PipelineStep):
             mask = np.vectorize(mp2, signature='()->(n)')(mask)
             canvas = Image.fromarray((self.alpha * np.asarray(image) + (1 - self.alpha) * mask).astype(np.uint8))
         else:
-            canvas = overlay_mask(image, Image.fromarray(mask), alpha=self.alpha)
+            canvas = Image.fromarray((mark_boundaries(np.array(image), mask)*255).astype(np.uint8))
         return canvas 
 
     def draw_centroid(self, centroids, draw_bd, fill, node_importance=None):

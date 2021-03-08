@@ -37,7 +37,7 @@ class GraphGradCAMExplainer(BaseExplainer):
             logits (np.ndarray): Prediction logits
         """
         node_importances, logits = self.process_all(graph, [class_idx])
-        return node_importances.unsqueeze(0), logits
+        return node_importances, logits
 
     def process_all(
         self, graph: dgl.DGLGraph, classes: List[int]

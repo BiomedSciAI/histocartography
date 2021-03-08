@@ -7,8 +7,7 @@ import argparse
 from tqdm import tqdm 
 import h5py
 
-from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
-from histocartography.interpretability.saliency_explainer.graph_gradcampp_explainer import GraphGradCAMPPExplainer
+from histocartography.interpretability.grad_cam import GraphGradCAMExplainer, GraphGradCAMPPExplainer
 from histocartography.utils.graph import set_graph_on_cuda
 from histocartography.utils.io import load_image, h5_to_tensor
 from histocartography.preprocessing.superpixel import ColorMergedSuperpixelExtractor

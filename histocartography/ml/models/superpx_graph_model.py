@@ -57,14 +57,12 @@ class SuperpxGraphModel(BaseModel):
         :param superpx_graph: (DGLGraph) superpx graph
         """
 
-        # # 1. GNN layers over the high level graph (super pixel graph)
-        # superpx_graph = data[0]
-        # feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
-        # graph_embeddings = self.superpx_gnn(superpx_graph, feats)
-
-        if isinstance(data[0], dgl.DGLGraph):
+        if isinstance(data, dgl.DGLGraph) or isinstance(data[0], dgl.DGLGraph):
             # 1. GNN layers over the low level graph
-            superpx_graph = data[0]
+            if isinstance(data, list):
+                superpx_graph = data[0]
+            else:
+                superpx_graph = data
             feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
             graph_embeddings = self.superpx_gnn(superpx_graph, feats)
         else:

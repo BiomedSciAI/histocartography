@@ -2,9 +2,8 @@ import torch
 from copy import deepcopy
 import dgl 
 
-from ..utils.io import get_device
 from .base_explainer import BaseExplainer
-from ..utils.torch import torch_to_list, torch_to_numpy
+from ..utils.torch import torch_to_numpy
 
 
 class LRPGNNExplainer(BaseExplainer):

@@ -2,8 +2,6 @@
 
 from abc import abstractmethod
 from typing import Optional, Tuple
-import logging
-import h5py
 import dgl
 import numpy as np
 import torch

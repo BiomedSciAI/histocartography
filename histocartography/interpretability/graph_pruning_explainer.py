@@ -12,7 +12,6 @@ from ..ml.layers.constants import GNN_NODE_FEAT_IN
 from .base_explainer import BaseExplainer
 from ..utils.torch import torch_to_numpy
 from ..utils.io import get_device
-from ..utils.graph import set_graph_on_cpu
 
 
 class GraphPruningExplainer(BaseExplainer):

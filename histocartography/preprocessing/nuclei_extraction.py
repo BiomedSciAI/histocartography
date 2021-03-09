@@ -17,7 +17,7 @@ from skimage.measure import regionprops
 from tqdm import tqdm
 
 from ..utils import dynamic_import_from
-from .pipeline import PipelineStep
+from ..pipeline import PipelineStep
 from ..utils.image import extract_patches_from_image
 from ..utils.hover import process_instance
 from ..utils.io import is_mlflow_url

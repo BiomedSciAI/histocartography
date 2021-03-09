@@ -9,7 +9,7 @@ from PIL import Image
 from scipy import ndimage
 from skimage.filters import gaussian, threshold_otsu
 
-from .pipeline import PipelineStep
+from ..pipeline import PipelineStep
 
 
 def get_tissue_mask(

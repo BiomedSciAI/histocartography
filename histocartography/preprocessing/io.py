@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any
 
-from .pipeline import PipelineStep
+from ..pipeline import PipelineStep
 from .utils import load_image
 
 

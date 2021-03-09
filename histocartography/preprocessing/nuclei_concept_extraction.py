@@ -15,7 +15,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from .pipeline import PipelineStep
+from ..pipeline import PipelineStep
 from .feature_extraction import HandcraftedFeatureExtractor, HANDCRAFTED_FEATURES_NAMES
 
 

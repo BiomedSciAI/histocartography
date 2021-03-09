@@ -20,7 +20,7 @@ from ..utils.io import show_image, save_image, complete_path, check_for_dir
 from ..utils.draw_utils import draw_ellipse, draw_line, draw_poly, draw_large_circle, rgb
 from ..ml.layers.constants import CENTROID
 from ..utils.vector import create_buckets
-from ..preprocessing.pipeline import PipelineStep
+from ..pipeline import PipelineStep
 
 
 N_BUCKETS = 10

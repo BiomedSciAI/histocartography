@@ -25,7 +25,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from .pipeline import PipelineStep
+from ..pipeline import PipelineStep
 
 
 class FeatureExtractor(PipelineStep):

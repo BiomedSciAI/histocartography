@@ -15,7 +15,7 @@ from histocartography.utils.io import read_params, write_json, complete_path
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE
 from constants import AVAILABLE_EXPLAINABILITY_METHODS, INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN, MODEL_TO_MLFLOW_ID
-from histocartography.utils.arg_parser import parse_arguments
+from arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.dataloader.constants import get_label_to_tumor_type

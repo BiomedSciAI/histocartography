@@ -20,7 +20,7 @@ from histocartography.dataloader.cell_dataloader import make_data_loader
 from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1
 from histocartography.evaluation.confusion_matrix import ConfusionMatrix
 from histocartography.evaluation.classification_report import ClassificationReport, PerClassWeightedF1Score
-from histocartography.utils.arg_parser import parse_arguments
+from arg_parser import parse_arguments
 from histocartography.ml.layers.multi_layer_gnn import MultiLayerGNN
 from histocartography.utils.io import (
     get_device, check_for_dir,

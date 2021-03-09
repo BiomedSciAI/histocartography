@@ -6,7 +6,7 @@ from .base_explainer import BaseExplainer
 from ..utils.torch import torch_to_numpy
 
 
-class LRPGNNExplainer(BaseExplainer):
+class GraphLRPExplainer(BaseExplainer):
     """
     Layerwise-Relevance Propagation. This module will only work
     if the model was built with the ml library provided. 

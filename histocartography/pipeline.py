@@ -32,10 +32,10 @@ class PipelineStep(ABC):
             self.output_key = "default_key"
 
     def __repr__(self) -> str:
-        """Representation of a graph builder
+        """Representation of a pipeline step. 
 
         Returns:
-            str: Representation of a graph builder
+            str: Representation of a pipeline step. 
         """
         variables = ",".join([f"{k}={v}" for k, v in sorted(self.__dict__.items())])
         return (

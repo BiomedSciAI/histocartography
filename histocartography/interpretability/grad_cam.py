@@ -197,18 +197,38 @@ class GradCAMpp(BaseCAM):
 
 
 class BaseGraphGradCAMExplainer(BaseExplainer):
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+            self,
+            gnn_layer_name: List[str] = None,
+            gnn_layer_ids: List[str] = None,
+            **kwargs
+        ) -> None:
         """
         BaseGraphGradCAMExplainer explainer constructor.
+
+        Args:
+            gnn_layer_name (List[str]): List of reference layers to use for computing CAM
+                                        Default to None. If None try to automatically infer
+                                        from the model. 
+            gnn_layer_ids: (List[str]): List of reference layer IDs to use for computing CAM
+                                        Default to None. If None try to automatically infer
+                                        from the model. 
         """
         super().__init__(**kwargs)
-        all_param_names = [name for name, _ in self.model.named_parameters()]
-        self.gnn_layer_ids = list(
-            filter(
-                lambda x: x.isdigit(), set([p.split(".")[2] for p in all_param_names])
+        if gnn_layer_name is None and gnn_layer_ids:
+            all_param_names = [name for name, _ in self.model.named_parameters()]
+            self.gnn_layer_ids = list(
+                filter(
+                    lambda x: x.isdigit(), set([p.split(".")[2] for p in all_param_names])
+                )
             )
-        )
-        self.gnn_layer_name = all_param_names[0].split(".")[0]
+            self.gnn_layer_name = all_param_names[0].split(".")[0]
+        else:
+            self.gnn_layer_ids = gnn_layer_ids
+            self.gnn_layer_name = gnn_layer_name
+
+        assert self.gnn_layer_ids is None
+        assert self.gnn_layer_name is None 
 
     def process(
         self, graph: dgl.DGLGraph, class_idx: Optional[int] = None

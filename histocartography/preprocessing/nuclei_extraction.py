@@ -1,22 +1,17 @@
 """Detect and Classify nuclei from an image with the HoverNet model."""
 
-from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 
-import cv2
 import numpy as np
 import torch
-import torchvision
 from PIL import Image
-from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from mlflow.pytorch import load_model
 from skimage.measure import regionprops
 from tqdm import tqdm
 
-from ..utils import dynamic_import_from
 from ..pipeline import PipelineStep
 from ..utils.image import extract_patches_from_image
 from ..utils.hover import process_instance

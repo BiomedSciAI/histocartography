@@ -1,12 +1,10 @@
 # feature extraction 
 from .feature_extraction import HandcraftedFeatureExtractor
-from .feature_extraction import DeepFeatureExtractor
-from .feature_extraction import AugmentedDeepFeatureExtractor
+from .feature_extraction import DeepInstanceFeatureExtractor
+from .feature_extraction import AugmentedDeepInstanceFeatureExtractor
 from .feature_extraction import FeatureMerger
-from .feature_extraction import AverageFeatureMerger
-from .feature_extraction import GridDeepFeatureExtractor
-from .feature_extraction import AugmentedGridDeepFeatureExtractor
-from .feature_extraction import GridFeatureMerger
+from .feature_extraction import DeepTissueFeatureExtractor
+from .feature_extraction import AugmentedDeepTissueFeatureExtractor
 
 # graph builders 
 from .graph_builders import RAGGraphBuilder
@@ -41,13 +39,11 @@ from .tissue_mask import GaussianTissueMask
 
 __all__ = [
     'HandcraftedFeatureExtractor',
-    'DeepFeatureExtractor',
-    'AugmentedDeepFeatureExtractor',
+    'DeepInstanceFeatureExtractor',
+    'AugmentedDeepInstanceFeatureExtractor',
     'FeatureMerger',
-    'AverageFeatureMerger',
-    'GridDeepFeatureExtractor',
-    'AugmentedGridDeepFeatureExtractor',
-    'GridFeatureMerger',
+    'DeepTissueFeatureExtractor',
+    'AugmentedDeepTissueFeatureExtractor',
     'RAGGraphBuilder',
     'KNNGraphBuilder',
     'FileLoader',

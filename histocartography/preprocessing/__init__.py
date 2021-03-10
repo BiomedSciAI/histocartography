@@ -25,7 +25,6 @@ from .stain_normalizers import MacenkoStainNormalizer
 from .stain_normalizers import VahadaneStainNormalizer
 
 # stats 
-from .stats import StatsComputer
 from .stats import GraphDiameter
 from .stats import SuperpixelCounter
 
@@ -51,7 +50,6 @@ __all__ = [
     'NucleiExtractor',
     'MacenkoStainNormalizer',
     'VahadaneStainNormalizer',
-    'StatsComputer',
     'GraphDiameter',
     'SuperpixelCounter',
     'ColorMergedSuperpixelExtractor',

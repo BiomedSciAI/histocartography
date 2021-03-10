@@ -1,0 +1,20 @@
+
+inputs:
+- image_path
+outputs:
+- tissue_mask
+stages:
+  - io:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - nuclei_extraction:
+      class: "GaussianTissueMask"
+      inputs:
+      - image
+      outputs:
+      - tissue_mask
+      params:
+        kernel_size: 5

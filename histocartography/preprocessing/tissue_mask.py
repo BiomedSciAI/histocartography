@@ -78,14 +78,6 @@ def get_tissue_mask(
 
 
 class TissueMask(PipelineStep):
-    def mkdir(self) -> Path:
-        """Create path to output files"""
-        assert (
-            self.base_path is not None
-        ), "Can only create directory if base_path was not None when constructing the object"
-        if not self.output_dir.exists():
-            self.output_dir.mkdir()
-        return self.base_path
 
     def process_and_save(self, output_name: str, *args, **kwargs) -> np.ndarray:
         """Process and save in the provided path as a png image
@@ -111,6 +103,7 @@ class TissueMask(PipelineStep):
                 raise error
         else:
             output = self.process(*args, **kwargs)
+            # with Image.fromarray(np.uint8(output*255)) as output_image:
             with Image.fromarray(output) as output_image:
                 output_image.save(output_path)
         return output
@@ -126,7 +119,6 @@ class GaussianTissueMask(TissueMask):
 
     def __init__(
         self,
-        base_path: Union[None, str, Path],
         n_thresholding_steps=1,
         sigma=20,
         min_size=10,
@@ -134,21 +126,18 @@ class GaussianTissueMask(TissueMask):
         dilation_steps=1,
         background_gray_value=228,
         downsampling_factor=4,
+        **kwargs
     ) -> None:
         """
         Args:
-            n_thresholding_steps (int): Number of gaussian smoothing steps
-            deconvolve_first (bool): Use hematoxylin channel to find cellular areas?
-                                     This will make things ever-so-slightly slower but is better in
-                                     getting rid of sharpie marker (if it's green, for example).
-                                     Sometimes things work better without it, though.
-            sigma (int): Sigma of gaussian filter
-            min_size (int): Minimum size (in pixels) of contiguous tissue regions to keep
-            kernel_size (int): Dilation kernel size
-            dilation_steps (int): Number of dilation steps
-            background_gray_value (int): Gray value of background pixels (usually high)
+            n_thresholding_steps (int, optional): Number of gaussian smoothing steps. Default to 1.
+            sigma (int, optional): Sigma of gaussian filter. Default to 20.
+            min_size (int, optional): Minimum size (in pixels) of contiguous tissue regions to keep. Default to 10.
+            kernel_size (int, optional): Dilation kernel size. Default to 20.
+            dilation_steps (int, optional): Number of dilation steps. Default to 1.
+            background_gray_value (int, optional): Gray value of background pixels (usually high). Default to 228.
             downsampling_factor (int, optional): Downsampling factor from the input image
-                                                 resolution. Defaults to 1.
+                                                 resolution. Defaults to 4.
         """
         self.n_thresholding_steps = n_thresholding_steps
         self.sigma = sigma
@@ -157,7 +146,7 @@ class GaussianTissueMask(TissueMask):
         self.dilation_steps = dilation_steps
         self.background_gray_value = background_gray_value
         self.downsampling_factor = downsampling_factor
-        super().__init__(base_path=base_path)
+        super().__init__(**kwargs)
         self.kernel = np.ones((self.kernel_size, self.kernel_size), "uint8")
 
     @staticmethod
@@ -197,7 +186,7 @@ class GaussianTissueMask(TissueMask):
         Args:
             image (np.array): Input image
         Returns:
-            np.array: Extracted superpixels
+            np.array: Extracted tissue mask
         """
         # Downsample image
         original_height, original_width = image.shape[0], image.shape[1]

@@ -339,18 +339,8 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
                     f"\n\nCould not read from {superpixel_output_path}!\n\n", flush=True
                 )
                 raise e
-            try:
-                mapping = joblib.load(mapping_output_path)
-            except OSError as e:
-                print(
-                    f"\n\nCould not read from {mapping_output_path}!\n\n",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                print(f"\n\nCould not read from {mapping_output_path}!\n\n", flush=True)
-                raise e
         else:
-            merged_superpixels, initial_superpixels, mapping = self.process(
+            merged_superpixels, initial_superpixels = self.process(
                 *args, **kwargs
             )
             try:
@@ -364,12 +354,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
                     f"\n\nCould not write to {superpixel_output_path}!\n\n", flush=True
                 )
                 raise e
-            try:
-                joblib.dump(mapping, mapping_output_path)
-            except OSError as e:
-                print(f"\n\nCould not write to {mapping_output_path}!\n\n", flush=True)
-                raise e
-        return merged_superpixels, initial_superpixels, mapping
+        return merged_superpixels, initial_superpixels
 
 
 class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):

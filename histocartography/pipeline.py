@@ -158,9 +158,9 @@ class PipelineRunner:
         self.stage_configs = list()
         path = output_path if save else None
         for stage in stages:
-            name, config = list(stage.items())[0]
+            _, config = list(stage.items())[0]
             stage_class = dynamic_import_from(
-                f"histocartography.preprocessing.{name}", config.pop("class")
+                f"histocartography.preprocessing", config.pop("class")
             )
             pipeline_stage = partial(
                 stage_class,
@@ -170,6 +170,7 @@ class PipelineRunner:
             self.stages.append(pipeline_stage())
             self.stage_configs.append(config)
             path = pipeline_stage().mkdir() if save else None
+            # path = pipeline_stage().output_dir if save else None
         self.final_path = path
 
     def precompute(self) -> None:

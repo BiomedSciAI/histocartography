@@ -354,6 +354,7 @@ class GraphClassificationDataset(BaseDataset):
         min_subgraph_ratio: float = 1.0,
         max_subgraph_tries: float = 100,
         node_dropout: float = 0.0,
+        normalize: bool = False,
         **kwargs,
     ) -> None:
         assert centroid_features in [
@@ -399,6 +400,9 @@ class GraphClassificationDataset(BaseDataset):
             self._image_indices = np.arange(0, len(self._graphs))
         self._manual_finish_loading()
 
+        if normalize:
+            self._compute_normalizer_weights()
+
         # Post processing
         self.name_to_index = dict(zip(self.names, range(len(self.names))))
         self._select_graph_features(centroid_features)
@@ -434,6 +438,19 @@ class GraphClassificationDataset(BaseDataset):
             self._tissue_masks = np.array(self._tissue_masks)
             if self.USE_ANNOTATION2:
                 self._annotations2 = np.array(self._annotations2)
+
+    def _compute_normalizer_weights(self):
+        all_features = list()
+        for graph in self._graphs:
+            feature_key = FEATURES if FEATURES in graph.ndata else FEATURES2
+            features = graph.ndata[feature_key]
+            if len(features.shape) == 2:
+                all_features.append(features)
+            else:
+                all_features.append(features[:, 0])
+        all_features = torch.cat(all_features)
+        self.mean = all_features.mean(dim=0)
+        self.std = all_features.std(dim=0)
 
     @staticmethod
     def _load_graph(i, row):

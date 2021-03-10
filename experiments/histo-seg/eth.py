@@ -403,6 +403,7 @@ def prepare_graph_datasets(
     supervision: Optional[dict] = None,
     partial_annotation: Optional[int] = None,
     node_dropout: float = 0.0,
+    normalize: bool = False
 ) -> Tuple[Dataset, Dataset]:
     """Create the datset from the hardcoded values in this file as well as dynamic information
 
@@ -495,6 +496,7 @@ def prepare_graph_datasets(
         "std": precomputed_std,
         "image_label_mapper": training_label_mapper,
         "node_dropout": node_dropout,
+        "normalize": normalize,
     }
     validation_arguments = {
         "patch_size": patch_size_augmentation if use_patches_for_validation else None,
@@ -506,6 +508,7 @@ def prepare_graph_datasets(
         "return_segmentation_info": True,
         "segmentation_downsample_ratio": downsample_segmentation_maps,
         "image_label_mapper": validation_label_mapper,
+        "normalize": normalize
     }
 
     # Handle supervision modes
@@ -550,6 +553,7 @@ def prepare_graph_testset(
     use_augmentation_dataset: bool = False,
     augmentation_mode: Optional[bool] = False,
     image_labels_mode: Optional[str] = "original_labels",
+    normalize: bool = False,
     **kwargs,
 ) -> Dataset:
     graph_directory = PREPROCESS_PATH / graph_directory
@@ -607,6 +611,7 @@ def prepare_graph_testset(
         "std": precomputed_std,
         "return_segmentation_info": True,
         "image_label_mapper": label_mapper,
+        "normalize": normalize
     }
     test_arguments.update(kwargs)
     if use_augmentation_dataset:

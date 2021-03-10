@@ -63,7 +63,14 @@ def fill_missing_information(model_config, data_config):
             and "params.data.use_augmentation_dataset" in df
         ):
             data_config["use_augmentation_dataset"] = (
-                df.loc[run_id, "params.data.use_augmentation_dataset"] == "True"
+                df.loc[run_id, "params.data.use_augmentation_dataset"] != "False"
+            )
+        if (
+            "normalize" not in data_config
+            and "params.data.normalize" in df
+        ):
+            data_config["normalize"] = (
+                df.loc[run_id, "params.data.normalize"] != "False"
             )
         if "graph_directory" not in data_config:
             data_config["graph_directory"] = df.loc[

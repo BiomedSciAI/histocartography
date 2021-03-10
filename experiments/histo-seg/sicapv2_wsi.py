@@ -13,7 +13,7 @@ import torch
 from matplotlib.colors import ListedColormap
 from torch.utils.data import Dataset
 
-from dataset import AugmentedGraphClassificationDataset
+from dataset import AugmentedGraphClassificationDataset, GraphClassificationDataset
 from logging_helper import log_preprocessing_parameters
 from utils import merge_metadata
 
@@ -199,6 +199,8 @@ def prepare_graph_datasets(
     node_dropout: float = 0.0,
     additional_training_arguments: dict = {},
     additional_validation_arguments: dict = {},
+    use_augmentation_dataset: bool = True,
+    normalize: bool = False,
 ) -> Tuple[Dataset, Dataset]:
     assert fold in VALID_FOLDS, f"Fold must be in {VALID_FOLDS} but is {fold}"
     all_metadata, label_mapper = get_metadata(graph_directory, partial_annotation)
@@ -230,6 +232,7 @@ def prepare_graph_datasets(
         "image_label_mapper": label_mapper,
         "patch_size": patch_size_augmentation,
         "node_dropout": node_dropout,
+        "normalize": normalize,
     }
     training_arguments.update(additional_training_arguments)
     validation_arguments = {
@@ -239,6 +242,7 @@ def prepare_graph_datasets(
         "return_segmentation_info": True,
         "segmentation_downsample_ratio": downsample_segmentation_maps,
         "image_label_mapper": label_mapper,
+        "normalize": normalize,
     }
     validation_arguments.update(additional_validation_arguments)
 
@@ -260,12 +264,16 @@ def prepare_graph_datasets(
     else:
         raise NotImplementedError
 
-    training_dataset = AugmentedGraphClassificationDataset(
-        augmentation_mode=augmentation_mode, **training_arguments
-    )
-    validation_dataset = AugmentedGraphClassificationDataset(
-        augmentation_mode=None, **validation_arguments
-    )
+    if use_augmentation_dataset:
+        training_dataset = AugmentedGraphClassificationDataset(
+            augmentation_mode=augmentation_mode, **training_arguments
+        )
+        validation_dataset = AugmentedGraphClassificationDataset(
+            augmentation_mode=None, **validation_arguments
+        )
+    else:
+        training_dataset = GraphClassificationDataset(**training_arguments)
+        validation_dataset = GraphClassificationDataset(**validation_arguments)
     return training_dataset, validation_dataset
 
 
@@ -273,6 +281,8 @@ def prepare_graph_testset(
     graph_directory: str,
     test: bool = False,
     centroid_features: str = "no",
+    use_augmentation_dataset: bool = False,
+    normalize: bool = False,
     **kwargs,
 ) -> Dataset:
     all_metadata, label_mapper = get_metadata(graph_directory)
@@ -289,11 +299,17 @@ def prepare_graph_testset(
         "return_segmentation_info": True,
         "image_label_mapper": label_mapper,
         "augmentation_mode": None,
+        "normalize": normalize
     }
     test_arguments.update(kwargs)
-    test_dataset = AugmentedGraphClassificationDataset(
-        tissue_metadata=test_metadata, **test_arguments
-    )
+    if use_augmentation_dataset:
+        test_dataset = AugmentedGraphClassificationDataset(
+            tissue_metadata=test_metadata, **test_arguments
+        )
+    else:
+        test_dataset = GraphClassificationDataset(
+            tissue_metadata=test_metadata, **test_arguments
+        )
     return test_dataset
 
 

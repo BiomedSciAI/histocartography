@@ -39,3 +39,18 @@ def load_image(image_path: Path) -> np.ndarray:
         logging.critical("Could not open %s", image_path)
         raise OSError(e)
     return image
+
+
+def save_image(image_path: Path, image: np.ndarray) -> None:
+    """Saves a provided image to a given path. 
+
+    Args:
+        image_path (Path): Path of the image
+        image (np.ndarray): Image to save
+    """
+    try:
+        with open(image_path, 'w') as f:
+            image.save(f)
+    except OSError as e:
+        logging.critical("Could not write to %s", image_path)
+        raise OSError(e)

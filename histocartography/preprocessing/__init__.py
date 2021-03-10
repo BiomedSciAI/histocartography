@@ -11,7 +11,6 @@ from .graph_builders import RAGGraphBuilder
 from .graph_builders import KNNGraphBuilder
 
 # io 
-from .io import FileLoader
 from .io import ImageLoader
 from .io import DGLGraphLoader
 
@@ -46,7 +45,6 @@ __all__ = [
     'AugmentedDeepTissueFeatureExtractor',
     'RAGGraphBuilder',
     'KNNGraphBuilder',
-    'FileLoader',
     'ImageLoader',
     'DGLGraphLoader',
     'NucleiConceptExtractor',

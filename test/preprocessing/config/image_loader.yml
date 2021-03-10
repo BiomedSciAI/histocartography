@@ -1,0 +1,12 @@
+
+inputs:
+- image_path
+outputs:
+- image
+stages:
+  - io:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image

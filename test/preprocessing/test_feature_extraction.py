@@ -21,7 +21,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         self.data_path = os.path.join('..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
-        self.out_path = os.path.join(self.data_path, 'superpixel_test')
+        self.out_path = os.path.join(self.data_path, 'feature_extraction_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
         os.makedirs(self.out_path)

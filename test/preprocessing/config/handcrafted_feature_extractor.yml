@@ -1,0 +1,28 @@
+inputs:
+- image_path
+outputs:
+- features
+stages:
+  - io:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - superpixel:
+      class: "ColorMergedSuperpixelExtractor"
+      inputs:
+      - image
+      outputs:
+      - superpixels
+      - initial_superpixels
+      params:
+        nr_superpixels: 100
+        downsampling_factor: 4
+  - feature_extraction:
+      class: "HandcraftedFeatureExtractor"
+      inputs:
+      - image
+      - superpixels
+      outputs:
+      - features

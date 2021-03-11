@@ -1,0 +1,54 @@
+inputs:
+- image_path
+outputs:
+- features
+stages:
+  - io:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - superpixel:
+      class: "ColorMergedSuperpixelExtractor"
+      inputs:
+      - image
+      outputs:
+      - superpixels
+      - initial_superpixels
+      params:
+        nr_superpixels: 100
+        downsampling_factor: 4
+  - feature_extraction:
+      class: AugmentedDeepTissueFeatureExtractor
+      inputs:
+      - image
+      outputs:
+      - raw_features
+      params:
+        architecture: mobilenet_v2
+        num_workers: 8
+        rotations:
+          - 0
+        flips:
+          - 'n'
+        normalizer:
+          type: imagenet
+          mean:
+            - 0.485
+            - 0.456
+            - 0.406
+          std:
+            - 0.229
+            - 0.224
+            - 0.225
+        patch_size: 224
+        stride: 32
+        downsample_factor: 2
+  - feature_extraction:
+      class: FeatureMerger
+      inputs:
+      - raw_features
+      - superpixels
+      outputs:
+      - features

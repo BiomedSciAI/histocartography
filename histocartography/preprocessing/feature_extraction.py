@@ -247,6 +247,13 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
 
     @staticmethod
     def _compute_crowdedness(centroids, k=10):
+        n_centroids = len(centroids)
+        if n_centroids < 3:
+            mean_crow = np.array([[0]] * n_centroids)
+            std_crow = np.array([[0]] * n_centroids)
+            return mean_crow, std_crow
+        if n_centroids < k:
+            k = n_centroids - 2
         dist = euclidean_distances(centroids, centroids)
         idx = np.argpartition(dist, kth=k + 1, axis=-1)
         x = np.take_along_axis(dist, idx, axis=-1)[:, : k + 1]

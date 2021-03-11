@@ -27,25 +27,25 @@ class GraphBuilderTestCase(unittest.TestCase):
             shutil.rmtree(self.out_path) 
         os.makedirs(self.out_path)
 
-    # def test_rag_builder_with_pipeline_runner(self):
-    #     """
-    #     Test rag builder with pipeline runner.
-    #     """
+    def test_rag_builder_with_pipeline_runner(self):
+        """
+        Test rag builder with pipeline runner.
+        """
 
-    #     with open('config/rag_graph_builder.yml', 'r') as file:
-    #         config = yaml.load(file)
+        with open('config/rag_graph_builder.yml', 'r') as file:
+            config = yaml.load(file)
 
-    #     pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
-    #     pipeline.precompute()
-    #     output = pipeline.run(
-    #         name=self.image_name.replace('.png', ''),
-    #         image_path=os.path.join(self.image_path, self.image_name)
-    #     )
-    #     graph = output['graph']
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        graph = output['graph']
 
-    #     self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-    #     self.assertEqual(graph.number_of_nodes(), 9)  # check number of tissue instances
-    #     self.assertEqual(graph.number_of_edges(), 24)  # check number of augmentations
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
+        self.assertEqual(graph.number_of_nodes(), 9)  # check number of tissue instances
+        self.assertEqual(graph.number_of_edges(), 24)  # check number of augmentations
 
     def test_rag_builder(self):
         """

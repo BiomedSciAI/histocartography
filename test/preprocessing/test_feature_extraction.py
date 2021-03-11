@@ -192,27 +192,6 @@ class FeatureExtractionTestCase(unittest.TestCase):
         self.assertEqual(features.shape[1], 1)  # check number of augmentations
         self.assertEqual(features.shape[2], 1280)  # check number horizontal patches 
 
-    def test_deep_tissue_feature_extractor(self):
-        """
-        Test Deep Tissue feature extractor. 
-        """
-
-        # 1. load the image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-
-        # 2. run deep tissue feature extraction
-        feature_extractor = AugmentedDeepTissueFeatureExtractor(
-            architecture='mobilenet_v2',
-            downsample_factor=2
-        )
-        features = feature_extractor.process(image)
-
-        self.assertTrue(isinstance(features, torch.Tensor))  # check type 
-        self.assertEqual(features.shape[0], 1)  # check number of augmentations (only 1 expected)
-        self.assertEqual(features.shape[1], 10)  # check number horizontal patches 
-        self.assertEqual(features.shape[2], 10)  # check number horizontal patches 
-        self.assertEqual(features.shape[3], 1280)  # check number horizontal patches 
-
     def tearDown(self):
         """Tear down the tests."""
 

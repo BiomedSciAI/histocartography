@@ -6,7 +6,7 @@ import os
 from PIL import Image
 import shutil
 
-from histocartography.pipeline import PipelineRunner
+from histocartography import PipelineRunner
 from histocartography.preprocessing import SLICSuperpixelExtractor, ColorMergedSuperpixelExtractor
 
 

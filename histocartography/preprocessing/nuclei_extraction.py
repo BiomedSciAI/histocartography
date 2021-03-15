@@ -2,14 +2,15 @@
 
 from pathlib import Path
 from typing import Tuple
+from mlflow.pytorch import load_model
+from tqdm import tqdm
 
 import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from mlflow.pytorch import load_model
-from tqdm import tqdm
+import cv2 
 
 from skimage.measure import regionprops
 from skimage.morphology import remove_small_objects, watershed
@@ -27,7 +28,6 @@ class NucleiExtractor(PipelineStep):
     def __init__(
         self,
         model_path: str,
-        size: int = 256,
         batch_size: int = 32,
         **kwargs,
     ) -> None:
@@ -35,14 +35,12 @@ class NucleiExtractor(PipelineStep):
 
         Args:
             model_path (str): Path to the pre-trained model or mlflow URL
-            size (int, optional): Desired size of patches. Defaults to 224.
             batch_size (int, optional): Batch size. Defaults to 32.
         """
         super().__init__(**kwargs)
 
         # set class attributes 
         self.model_path = model_path
-        self.size = size
         self.batch_size = batch_size
 
         # handle GPU
@@ -84,7 +82,7 @@ class NucleiExtractor(PipelineStep):
             Tuple[np.ndarray, np.ndarray]: instance_map, instance_centroids 
         """
 
-        image_dataset = ImageToPatchDataset(input_image, self.size)
+        image_dataset = ImageToPatchDataset(input_image)
 
         def collate(batch):
             coords = [x[0] for x in batch]
@@ -145,20 +143,17 @@ class ImageToPatchDataset(Dataset):
     def __init__(
         self,
         image: np.ndarray,
-        size: int,
     ) -> None:
         """Create a dataset for a given image and extracted instance maps with desired patches.
-           Patches have shape of (3, size, size).
+           Patches have shape of (3, 256, 256) as defined by HoverNet model.
 
         Args:
             image (np.ndarray): RGB input image
-            size (int): Desired size of patches
         """
         self.image = image
         self.dataset_transform = transforms.Compose(
             [
                 transforms.ToTensor(),
-                # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
         self.im_h = image.shape[0] 

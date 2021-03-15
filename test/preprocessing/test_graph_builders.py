@@ -13,6 +13,13 @@ from histocartography.preprocessing import HandcraftedFeatureExtractor, DeepTiss
 from histocartography.preprocessing import AugmentedDeepTissueFeatureExtractor, FeatureMerger
 from histocartography.preprocessing import ColorMergedSuperpixelExtractor, RAGGraphBuilder
 
+from histocartography.preprocessing import DeepInstanceFeatureExtractor
+from histocartography.preprocessing import AugmentedDeepInstanceFeatureExtractor
+from histocartography.preprocessing import KNNGraphBuilder, NucleiExtractor
+
+from histocartography.visualisation import GraphVisualization
+from histocartography.utils.io import save_image
+
 
 class GraphBuilderTestCase(unittest.TestCase):
     """GraphBuilderTestCase class."""
@@ -81,6 +88,39 @@ class GraphBuilderTestCase(unittest.TestCase):
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
         self.assertEqual(graph.number_of_nodes(), 9)  # check number of tissue instances
         self.assertEqual(graph.number_of_edges(), 24)  # check number of augmentations
+
+    def test_knn_builder(self):
+        """
+        Test KNN builder. 
+        """
+
+        # 1. load the image
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+
+        # 2. run nuclei detection
+        extractor = NucleiExtractor(
+            model_path='../checkpoints/hovernet_monusac.pt'
+        )
+        instance_map, instance_centroids = extractor.process(image)
+
+        # 3. extract deep features
+        feature_extractor = AugmentedDeepInstanceFeatureExtractor(
+            architecture='mobilenet_v2',
+            downsample_factor=1
+        )
+        features = feature_extractor.process(image, instance_map)
+
+        # 5. build the RAG
+        knn_builder = KNNGraphBuilder()
+        graph = knn_builder.process(instance_centroids, features)
+
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
+        self.assertEqual(graph.number_of_nodes(), 134)  # check number of tissue instances
+        self.assertEqual(graph.number_of_edges(), 670)  # check number of augmentations
+
+        # visualizer = GraphVisualization()
+        # out = visualizer.process(image, graph, instance_map=instance_map)
+        # save_image('cg_viz.png', out)
 
     def tearDown(self):
         """Tear down the tests."""

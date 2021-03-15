@@ -4,12 +4,10 @@ import cv2
 import os
 import glob 
 
-# STEP_SIZE = [164, 164]
-# MASK_SIZE = [164, 164]
-STEP_SIZE = [80, 80]
-MASK_SIZE = [80, 80]
-# WIN_SIZE = [256, 256]
-WIN_SIZE = [270, 270]
+
+STEP_SIZE = [164, 164]
+MASK_SIZE = [164, 164]
+WIN_SIZE = [256, 256]
 
 
 def get_last_steps(length, msk_size, step_size):

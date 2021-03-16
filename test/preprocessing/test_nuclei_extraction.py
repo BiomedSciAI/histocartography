@@ -6,11 +6,10 @@ import os
 import shutil
 from PIL import Image
 import matplotlib
+import yaml
 
+from histocartography import PipelineRunner
 from histocartography.preprocessing import NucleiExtractor
-from histocartography.visualisation import GraphVisualization
-from histocartography.utils.io import load_image
-from histocartography.utils.hover import visualize_instances
 
 
 class NucleiExtractionTestCase(unittest.TestCase):
@@ -26,11 +25,31 @@ class NucleiExtractionTestCase(unittest.TestCase):
             shutil.rmtree(self.out_path) 
         os.makedirs(self.out_path)
 
+    def test_nuclei_extractor_with_pipeline_runner(self):
+        """Test nuclei extraction with local model."""
+
+        with open('config/nuclei_extractor.yml', 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        instance_map = output['instance_map']
+        instance_centroids = output['instance_centroids']
+
+        # 3. run tests 
+        self.assertTrue(isinstance(instance_map, np.ndarray))
+        self.assertTrue(isinstance(instance_centroids, np.ndarray))
+        self.assertEqual(len(instance_centroids), 134)
+
     def test_nuclei_extractor_with_local_model(self):
         """Test nuclei extraction with local model."""
 
         # 1. load an image
-        image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract nuclei
         extractor = NucleiExtractor(
@@ -47,7 +66,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
         """Test nuclei extraction with local model."""
 
         # 1. load an image
-        image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract nuclei
         extractor = NucleiExtractor(

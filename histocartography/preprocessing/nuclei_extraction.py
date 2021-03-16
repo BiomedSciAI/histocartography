@@ -11,6 +11,7 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 import cv2 
+import os
 
 from skimage.measure import regionprops
 from skimage.morphology import remove_small_objects, watershed
@@ -19,7 +20,16 @@ from scipy.ndimage.morphology import binary_fill_holes
 
 from ..pipeline import PipelineStep
 from ..utils.image import extract_patches_from_image
-from ..utils.io import is_mlflow_url
+from ..utils.io import is_mlflow_url, download_box_link
+
+
+DATASET_TO_BOX_URL = {
+    'pannuke': 'https://ibm.box.com/shared/static/hrt04i3dcv1ph1veoz8x6g8a72u0uw58.pt',
+    'monusac': 'https://ibm.box.com/shared/static/u563aoydow9w2kpgw0l8esuklegdtdij.pt'
+}
+
+CHECKPOINT_PATH = '../../checkpoints'
+
 
 
 class NucleiExtractor(PipelineStep):
@@ -27,34 +37,40 @@ class NucleiExtractor(PipelineStep):
 
     def __init__(
         self,
-        model_path: str,
+        pretrained_data: str = 'pannuke',
+        model_path: str = None,
         batch_size: int = 32,
         **kwargs,
     ) -> None:
         """Create a nuclei extractor
 
         Args:
-            model_path (str): Path to the pre-trained model or mlflow URL
+            pretrained_data (str): Load checkpoint pretrained on some data. Options are 'pannuke' or 'monusac'. Default to 'pannuke'.
+            model_path (str): Path to a pre-trained model or mlflow URL. If none, the checkpoint specified in pretrained_data will be used. Default to None. 
             batch_size (int, optional): Batch size. Defaults to 32.
         """
         super().__init__(**kwargs)
 
         # set class attributes 
-        self.model_path = model_path
         self.batch_size = batch_size
-
-        # handle GPU
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
 
-        # load nuclei extraction model 
+        if model_path is None:
+            assert pretrained_data in ['pannuke', 'monusac'], 'Unsupported pretrained data checkpoint. Options are "pannuke" and "monusac".'
+            model_path = os.path.join(CHECKPOINT_PATH, pretrained_data + '.pt')
+            download_box_link(DATASET_TO_BOX_URL[pretrained_data], model_path)
+
+        self._load_model_from_path(model_path)
+        self.model = self.model.to(self.device)
+        self.model.eval()
+
+    def _load_model_from_path(self, model_path):
+        """Load nuclei extraction model from provided model."""
         if is_mlflow_url(model_path):
             self.model = load_model(model_path,  map_location=torch.device('cpu'))
         else:
             self.model = torch.load(model_path)
-
-        self.model.eval()
-        self.model = self.model.to(self.device)
 
     def process(
         self,
@@ -199,47 +215,39 @@ def process_np_hv_channels(pred):
          pred_instance (np.ndarray): instance map 
     """
 
-    blb_raw = pred[:, :, 0]  # extract proba maps
-    h_dir_raw = pred[:, :, 1]  # extract horizontal map
-    v_dir_raw = pred[:, :, 2]  # extract vertical map
+    # post-process probability map    
+    proba_map = np.copy(pred[:, :, 0])  # extract proba maps
+    proba_map[proba_map >= 0.5] = 1
+    proba_map[proba_map <  0.5] = 0
+    proba_map = measurements.label(proba_map)[0]
+    proba_map = remove_small_objects(proba_map, min_size=10)
+    proba_map[proba_map > 0] = 1
 
-    # Processing @TODO: use one-liner
-    blb = np.copy(blb_raw)
-    blb[blb >= 0.5] = 1
-    blb[blb <  0.5] = 0
+    h_dir = pred[:, :, 1]  # extract horizontal map
+    v_dir = pred[:, :, 2]  # extract vertical map
 
-    blb = measurements.label(blb)[0]
-    blb = remove_small_objects(blb, min_size=10)
-    blb[blb > 0] = 1 # background is 0 already
+    # normalizing 
+    h_dir = cv2.normalize(h_dir, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    v_dir = cv2.normalize(v_dir, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
-    # @TODO: over-write variable, ie get rid of clear variables 
-    h_dir = cv2.normalize(h_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    v_dir = cv2.normalize(v_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    h_dir_raw = None  # clear variable
-    v_dir_raw = None  # clear variable
-
+    # apply sobel filtering
     sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=21)
     sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=21)
-    h_dir = None  # clear variable
-    v_dir = None  # clear variable
 
     sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
     sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
 
+    # binarize
     overall = np.maximum(sobelh, sobelv)
-    sobelh = None  # clear variable
-    sobelv = None  # clear variable
-    overall = overall - (1 - blb)
+    overall = overall - (1 - proba_map)
     overall[overall < 0] = 0
 
-    dist = (1.0 - overall) * blb
-    # nuclei values form peaks so inverse to get basins
+    dist = (1.0 - overall) * proba_map
     dist = -cv2.GaussianBlur(dist,(3, 3),0)
 
     overall[overall >= 0.5] = 1
     overall[overall <  0.5] = 0
-    marker = blb - overall
-    overall = None # clear variable
+    marker = proba_map - overall
     marker[marker < 0] = 0
     marker = binary_fill_holes(marker).astype('uint8')
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5, 5))
@@ -247,7 +255,8 @@ def process_np_hv_channels(pred):
     marker = measurements.label(marker)[0]
     marker = remove_small_objects(marker, min_size=10)
  
-    pred_inst = watershed(dist, marker, mask=blb, watershed_line=False)
+    pred_inst = watershed(dist, marker, mask=proba_map, watershed_line=False)
+    
     return pred_inst
 
 

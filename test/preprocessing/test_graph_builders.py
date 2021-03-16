@@ -17,8 +17,8 @@ from histocartography.preprocessing import DeepInstanceFeatureExtractor
 from histocartography.preprocessing import AugmentedDeepInstanceFeatureExtractor
 from histocartography.preprocessing import KNNGraphBuilder, NucleiExtractor
 
-from histocartography.visualisation import GraphVisualization
-from histocartography.utils.io import save_image
+# from histocartography.visualisation import GraphVisualization
+# from histocartography.utils.io import save_image
 
 
 class GraphBuilderTestCase(unittest.TestCase):
@@ -51,8 +51,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = output['graph']
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-        self.assertEqual(graph.number_of_nodes(), 9)  # check number of tissue instances
-        self.assertEqual(graph.number_of_edges(), 24)  # check number of augmentations
+        self.assertEqual(graph.number_of_nodes(), 9)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 24)  # check number of edges
 
     def test_rag_builder(self):
         """
@@ -86,8 +86,28 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = rag_builder.process(superpixels, features)
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-        self.assertEqual(graph.number_of_nodes(), 9)  # check number of tissue instances
-        self.assertEqual(graph.number_of_edges(), 24)  # check number of augmentations
+        self.assertEqual(graph.number_of_nodes(), 9)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 24)  # check number of edges
+
+    def test_knn_builder_with_pipeline_runner(self):
+        """
+        Test knn builder with pipeline runner.
+        """
+
+        with open('config/knn_graph_builder.yml', 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        graph = output['graph']
+
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
+        self.assertEqual(graph.number_of_nodes(), 134)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 670)  # check number of edges
 
     def test_knn_builder(self):
         """
@@ -115,8 +135,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = knn_builder.process(instance_centroids, features)
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-        self.assertEqual(graph.number_of_nodes(), 134)  # check number of tissue instances
-        self.assertEqual(graph.number_of_edges(), 670)  # check number of augmentations
+        self.assertEqual(graph.number_of_nodes(), 134)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 670)  # check number of edges
 
         # visualizer = GraphVisualization()
         # out = visualizer.process(image, graph, instance_map=instance_map)

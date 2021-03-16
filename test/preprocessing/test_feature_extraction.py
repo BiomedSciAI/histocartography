@@ -10,7 +10,8 @@ import shutil
 from histocartography import PipelineRunner
 from histocartography.preprocessing import HandcraftedFeatureExtractor, DeepTissueFeatureExtractor
 from histocartography.preprocessing import AugmentedDeepTissueFeatureExtractor, FeatureMerger
-from histocartography.preprocessing import ColorMergedSuperpixelExtractor
+from histocartography.preprocessing import ColorMergedSuperpixelExtractor, NucleiExtractor
+from histocartography.preprocessing import AugmentedDeepInstanceFeatureExtractor
 
 
 class FeatureExtractionTestCase(unittest.TestCase):
@@ -191,6 +192,50 @@ class FeatureExtractionTestCase(unittest.TestCase):
         self.assertEqual(features.shape[0], 9)  # check number of tissue instances
         self.assertEqual(features.shape[1], 1)  # check number of augmentations
         self.assertEqual(features.shape[2], 1280)  # check number horizontal patches 
+
+    def test_deep_instance_feature_extractor_with_pipeline_runner(self):
+        """Test deep instance feature extractor with pipeline runner."""
+
+        with open('config/deep_instance_feature_extractor.yml', 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        features = output['features']
+        
+        # 4. run tests 
+        self.assertEqual(features.shape[0], 134)
+        self.assertEqual(features.shape[1], 1)
+        self.assertEqual(features.shape[2], 1280)
+
+
+    def test_deep_instance_feature_extractor(self):
+        """Test deep instance feature extractor."""
+
+        # 1. load an image
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+
+        # 2. extract nuclei
+        extractor = NucleiExtractor(
+            model_path='../checkpoints/hovernet_monusac.pt'
+        )
+        instance_map, instance_centroids = extractor.process(image)
+
+        # 3. extract features 
+        feature_extractor = AugmentedDeepInstanceFeatureExtractor(
+            architecture='mobilenet_v2',
+            downsample_factor=1
+        )
+        features = feature_extractor.process(image, instance_map)
+
+        # 4. run tests 
+        self.assertEqual(features.shape[0], 134)
+        self.assertEqual(features.shape[1], 1)
+        self.assertEqual(features.shape[2], 1280)
 
     def tearDown(self):
         """Tear down the tests."""

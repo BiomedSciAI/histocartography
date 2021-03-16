@@ -9,15 +9,13 @@ stages:
       - image_path
       outputs:
       - image
-  - superpixel:
+  - nuclei_extractor:
       class: "NucleiExtractor"
       inputs:
       - image
       outputs:
       - instance_map
       - instance_centroids
-      params:
-        model_path: '../checkpoints/hovernet_monusac.pt'
   - feature_extraction:
       class: AugmentedDeepInstanceFeatureExtractor
       inputs:

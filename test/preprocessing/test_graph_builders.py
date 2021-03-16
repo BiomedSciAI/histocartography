@@ -106,8 +106,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = output['graph']
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-        self.assertEqual(graph.number_of_nodes(), 134)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 670)  # check number of edges
+        self.assertEqual(graph.number_of_nodes(), 331)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 1655)  # check number of edges
 
     def test_knn_builder(self):
         """
@@ -118,9 +118,7 @@ class GraphBuilderTestCase(unittest.TestCase):
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. run nuclei detection
-        extractor = NucleiExtractor(
-            model_path='../checkpoints/hovernet_monusac.pt'
-        )
+        extractor = NucleiExtractor()
         instance_map, instance_centroids = extractor.process(image)
 
         # 3. extract deep features
@@ -135,8 +133,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = knn_builder.process(instance_centroids, features)
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-        self.assertEqual(graph.number_of_nodes(), 134)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 670)  # check number of edges
+        self.assertEqual(graph.number_of_nodes(), 331)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 1655)  # check number of edges
 
         # visualizer = GraphVisualization()
         # out = visualizer.process(image, graph, instance_map=instance_map)

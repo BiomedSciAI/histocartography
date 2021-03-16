@@ -208,10 +208,9 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
         
         # 4. run tests 
-        self.assertEqual(features.shape[0], 134)
+        self.assertEqual(features.shape[0], 331)
         self.assertEqual(features.shape[1], 1)
         self.assertEqual(features.shape[2], 1280)
-
 
     def test_deep_instance_feature_extractor(self):
         """Test deep instance feature extractor."""
@@ -220,9 +219,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract nuclei
-        extractor = NucleiExtractor(
-            model_path='../checkpoints/hovernet_monusac.pt'
-        )
+        extractor = NucleiExtractor()
         instance_map, instance_centroids = extractor.process(image)
 
         # 3. extract features 
@@ -233,7 +230,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = feature_extractor.process(image, instance_map)
 
         # 4. run tests 
-        self.assertEqual(features.shape[0], 134)
+        self.assertEqual(features.shape[0], 331)
         self.assertEqual(features.shape[1], 1)
         self.assertEqual(features.shape[2], 1280)
 

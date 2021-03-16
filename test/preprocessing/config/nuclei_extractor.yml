@@ -18,4 +18,4 @@ stages:
       - instance_map
       - instance_centroids
       params:
-        model_path: '../checkpoints/hovernet_monusac.pt'
+        pretrained_data: 'pannuke'

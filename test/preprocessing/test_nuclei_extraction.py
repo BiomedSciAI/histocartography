@@ -43,17 +43,17 @@ class NucleiExtractionTestCase(unittest.TestCase):
         # 3. run tests 
         self.assertTrue(isinstance(instance_map, np.ndarray))
         self.assertTrue(isinstance(instance_centroids, np.ndarray))
-        self.assertEqual(len(instance_centroids), 134)
+        self.assertEqual(len(instance_centroids), 331)
 
-    def test_nuclei_extractor_with_local_model(self):
-        """Test nuclei extraction with local model."""
+    def test_nuclei_extractor_with_monusac(self):
+        """Test nuclei extraction with monusac model."""
 
         # 1. load an image
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract nuclei
         extractor = NucleiExtractor(
-            model_path='../checkpoints/hovernet_monusac.pt'
+            pretrained_data='monusac'
         )
         instance_map, instance_centroids = extractor.process(image)
 
@@ -62,22 +62,22 @@ class NucleiExtractionTestCase(unittest.TestCase):
         self.assertEqual(instance_map.shape[1], image.shape[1])
         self.assertEqual(len(instance_centroids), 134)
 
-    def test_nuclei_extractor_with_mlflow_model(self):
-        """Test nuclei extraction with local model."""
+    def test_nuclei_extractor_with_pannuke(self):
+        """Test nuclei extraction with pannuke model."""
 
         # 1. load an image
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract nuclei
         extractor = NucleiExtractor(
-            model_path='s3://mlflow/7cca220ddbff4fef85c600c3606c2cf9/artifacts/hovernet_monusac'
+            pretrained_data='pannuke'
         )
         instance_map, instance_centroids = extractor.process(image)
 
         # 3. run tests 
         self.assertEqual(instance_map.shape[0], image.shape[0])
         self.assertEqual(instance_map.shape[1], image.shape[1])
-        self.assertEqual(len(instance_centroids), 134)
+        self.assertEqual(len(instance_centroids), 331)
 
     def tearDown(self):
         """Tear down the tests."""

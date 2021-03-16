@@ -9,13 +9,14 @@ import io
 import pickle
 import csv
 import importlib
+import requests
 
 
 def get_device(cuda=False):
     """
     Get device (cpu or gpu)
     """
-    return'cuda:0' if cuda else 'cpu'
+    return 'cuda:0' if cuda else 'cpu'
 
 
 def is_mlflow_url(candidate):
@@ -29,9 +30,10 @@ def is_mlflow_url(candidate):
     if candidate.find('models:/') != -1:
         return True
     # is it a local run
-    if os.path.exists(os.path.join(candidate,'MLmodel')):
+    if os.path.exists(os.path.join(candidate, 'MLmodel')):
         return True
     return False
+
 
 def buffer_plot_and_get(fig):
     buf = io.BytesIO()
@@ -67,6 +69,7 @@ def get_device(cuda=False):
     Get device (cpu or gpu)
     """
     return 'cuda:0' if cuda else 'cpu'
+
 
 def get_files_in_folder(path, extension, with_ext=True):
     """Returns all the file names in a folder, (Relative to the parent folder)
@@ -178,7 +181,9 @@ def load_h5_fnames(base_path, tumor_type, extension, split, fold_id=None):
     if fold_id is not None:
         text_path = complete_path(text_path, 'data_split_' + str(fold_id + 1))
     fname = split + '_list_' + tumor_type + '.txt'
-    h5_files = read_txt(text_path, fname, extension)  # Loads all the .h5 files in the text file
+    h5_files = read_txt(
+        text_path, fname, extension
+    )  # Loads all the .h5 files in the text file
     h5_files.sort(key=lambda x: int(x.split('_')[0]))
     if h5_files is None:
         h5_files = []
@@ -209,15 +214,21 @@ def flatten_dict(d):
     return d
 
 
+def download_box_link(url, filename='box.file'):
+
+    r = requests.get(url, stream=True)
+
+    with open(filename, "wb") as large_file:
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk:
+                large_file.write(chunk)
+    return filename
+
+
 DATATYPE_TO_SAVEFN = {
     dict: write_json,
     np.ndarray: np.savetxt,
     Image.Image: save_image
 }
 
-
-DATATYPE_TO_EXT = {
-    dict: '.json',
-    np.ndarray: '.txt',
-    Image.Image: '.png'
-}
+DATATYPE_TO_EXT = {dict: '.json', np.ndarray: '.txt', Image.Image: '.png'}

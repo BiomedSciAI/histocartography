@@ -60,7 +60,7 @@ def check_for_dir(path):
     """
     Checks if directory exists, if not, makes a new directory
     """
-    if not os.path.exists(path):
+    if path and not os.path.exists(path):
         os.makedirs(path)
 
 
@@ -214,15 +214,20 @@ def flatten_dict(d):
     return d
 
 
-def download_box_link(url, filename='box.file'):
+def download_box_link(url, out_fname='box.file'):
+    out_dir = os.path.dirname(out_fname)
+    check_for_dir(out_dir)
+    if os.path.isfile(out_fname):
+        print('File already downloaded.')
+        return out_fname
 
     r = requests.get(url, stream=True)
 
-    with open(filename, "wb") as large_file:
+    with open(out_fname, "wb") as large_file:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk:
                 large_file.write(chunk)
-    return filename
+    return out_fname
 
 
 DATATYPE_TO_SAVEFN = {

@@ -8,6 +8,7 @@ from copy import deepcopy
 from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Tuple, Union
+import inspect
 
 import h5py
 import pandas as pd
@@ -158,9 +159,10 @@ class PipelineRunner:
         self.stage_configs = list()
         path = output_path if save else None
         for stage in stages:
-            _, config = list(stage.items())[0]
+            name, config = list(stage.items())[0]
+            print('Name:', name, 'Config:', config)
             stage_class = dynamic_import_from(
-                f"histocartography.preprocessing", config.pop("class")
+                f"histocartography.{name}", config.pop("class")
             )
             pipeline_stage = partial(
                 stage_class,

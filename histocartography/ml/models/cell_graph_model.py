@@ -55,9 +55,12 @@ class CellGraphModel(BaseModel):
         :param data: tuple with (DGLGraph), cell graph
         """
 
-        if isinstance(data[0], dgl.DGLGraph):
+        if isinstance(data, dgl.DGLGraph) or isinstance(data[0], dgl.DGLGraph):
             # 1. GNN layers over the low level graph
-            cell_graph = data[0]
+            if isinstance(data, list):
+                cell_graph = data[0]
+            else:
+                cell_graph = data
             feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
             graph_embeddings = self.cell_graph_gnn(cell_graph, feats)
         else:

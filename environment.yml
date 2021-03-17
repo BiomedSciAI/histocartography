@@ -1,6 +1,6 @@
 name: histocartography
 dependencies:
-  - python>=3.8
+  - python>=3.7
   - pip
   - pip:
     - torch==1.4.0

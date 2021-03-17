@@ -9,12 +9,12 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   # create and activate the build/test environment
-  - conda env create -q -f environment.yml
+  - conda env create -q -n histocartography python=$TRAVIS_PYTHON_VERSION pip cmake
   - source activate histocartography
   - pip install -U pip==20.2.4
 install:
   # install rdkit
-  #- conda install -q -c rdkit rdkit
+  - conda env update --file environment.yml
   # install development dependencies
   #- pip install -r dev_requirements.txt
   # install dependencies

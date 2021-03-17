@@ -54,7 +54,7 @@ class GraphGradCAMTestCase(unittest.TestCase):
         # 3. tests 
         self.assertIsInstance(importance_scores, np.ndarray)
         self.assertIsInstance(logits, np.ndarray)
-        self.assertEqual(graph.number_of_nodes(), importance_scores.shape[1])
+        self.assertEqual(graph.number_of_nodes(), importance_scores.shape[0])
 
     def test_graphgradcampp(self):
         """
@@ -80,12 +80,11 @@ class GraphGradCAMTestCase(unittest.TestCase):
         # 3. tests 
         self.assertIsInstance(importance_scores, np.ndarray)
         self.assertIsInstance(logits, np.ndarray)
-        self.assertEqual(graph.number_of_nodes(), importance_scores.shape[1])
+        self.assertEqual(graph.number_of_nodes(), importance_scores.shape[0])
 
     def tearDown(self):
         """Tear down the tests."""
 
 
 if __name__ == "__main__":
-
     unittest.main()

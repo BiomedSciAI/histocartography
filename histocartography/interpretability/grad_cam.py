@@ -278,7 +278,7 @@ class BaseGraphGradCAMExplainer(BaseExplainer):
             self.extractor.clear_hooks()
         logits = original_logits.cpu().detach().numpy()
         node_importances = torch.stack(all_class_importances)
-        node_importances = node_importances.cpu().detach().numpy()
+        node_importances = node_importances.cpu().detach().squeeze(dim=0).numpy()
         return node_importances, logits
 
         

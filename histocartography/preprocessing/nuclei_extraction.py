@@ -31,7 +31,6 @@ DATASET_TO_BOX_URL = {
 CHECKPOINT_PATH = '../../checkpoints'
 
 
-
 class NucleiExtractor(PipelineStep):
     """Nuclei extraction"""
 
@@ -59,7 +58,7 @@ class NucleiExtractor(PipelineStep):
 
         if model_path is None:
             assert pretrained_data in ['pannuke', 'monusac'], 'Unsupported pretrained data checkpoint. Options are "pannuke" and "monusac".'
-            model_path = os.path.join(CHECKPOINT_PATH, pretrained_data + '.pt')
+            model_path = os.path.join(os.path.dirname(__file__), CHECKPOINT_PATH, pretrained_data + '.pt')
             download_box_link(DATASET_TO_BOX_URL[pretrained_data], model_path)
 
         self._load_model_from_path(model_path)

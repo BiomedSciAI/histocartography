@@ -16,14 +16,14 @@ before_install:
 install:
   # install rdkit
   - conda env update -q --file environment.yml
-  # install other dependencies
+  # install style dependencies
   - pip install black pep8 
   # install the module
   - pip install -e .
 script:
   # style checking
-  - python -m black histocartography --check --diff --color
-  - python -m pep8 --ignore=E501 histocartography
+  # - python -m black histocartography --check --diff --color
+  # - python -m pep8 --ignore=E501 histocartography
   # static type checking
   # - python -m mypy histocartography
   # tests

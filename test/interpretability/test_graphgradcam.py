@@ -1,4 +1,4 @@
-"""Unit test for interpretability.saliency_explainer.graph_gradcam_explainer"""
+"""Unit test for interpretability.gradcam"""
 import unittest
 import numpy as np
 import cv2
@@ -7,9 +7,10 @@ import yaml
 from copy import deepcopy
 import h5py
 import os 
+import shutil
 from dgl.data.utils import load_graphs
 
-from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
+from histocartography.interpretability import GraphGradCAMExplainer, GraphGradCAMPPExplainer
 from histocartography.utils.graph import set_graph_on_cuda
 
 BASE_S3 = 's3://mlflow/'
@@ -19,49 +20,72 @@ IS_CUDA = torch.cuda.is_available()
 class GraphGradCAMTestCase(unittest.TestCase):
     """GraphGradCAMTestCase class."""
 
-    def setUp(self):
-        """Setting up the test."""
+    @classmethod
+    def setUpClass(self):
+        self.data_path = os.path.join('..', 'data')
+        self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
+        self.graph_name = '283_dcis_4_tg.bin'
+        self.out_path = os.path.join(self.data_path, 'graph_graphcam_test')
+        if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
+            shutil.rmtree(self.out_path) 
+        os.makedirs(self.out_path)
 
     def test_graphgradcam(self):
-        """Test Graph GradCAM.
+        """
+        Test Graph GradCAM.
         """
 
-        base_path = '../data'
-        cg_fnames = ['283_dcis_4_cg.bin', '1238_adh_10_cg.bin', '1286_udh_35_cg.bin', '1937_benign_4_cg.bin', '311_fea_25_cg.bin']
-        os.makedirs(os.path.join(base_path, 'visualization'), exist_ok=True)
-        os.makedirs(os.path.join(base_path, 'explainers'), exist_ok=True)
+        # 1. load a graph
+        graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        graph = graph[0]
+        graph.ndata['feat'] = torch.cat(
+            (graph.ndata['feat'].float(),
+            (graph.ndata['centroid']).float()),
+            dim=1
+        )
+        graph = set_graph_on_cuda(graph) if IS_CUDA else graph
 
-        for cg_name in cg_fnames:
-            print('*** Testing cell graph explainer GraphGradCAM {}'.format(cg_name))
+        # 2. run the explainer
+        explainer = GraphGradCAMExplainer(
+            model_path='https://ibm.box.com/shared/static/ufo9esvv6oqujy344w6wxap8w422vbuw.pt'
+        )
+        importance_scores, logits = explainer.process(graph)
 
-            # 1. load a cell graph
-            cell_graph, label_dict = load_graphs(os.path.join(base_path, 'cell_graphs', cg_name))
-            cell_graph = set_graph_on_cuda(cell_graph[0]) if IS_CUDA else cell_graph[0]
+        # 3. tests 
+        self.assertIsInstance(importance_scores, np.ndarray)
+        self.assertIsInstance(logits, np.ndarray)
+        self.assertEqual(graph.number_of_nodes(), importance_scores.shape[1])
 
-            # 2. run the explainer
-            explainer = GraphGradCAMExplainer(
-                model_path=BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0'
-            )
+    def test_graphgradcampp(self):
+        """
+        Test Graph GradCAM++.
+        """
 
-            importance_scores, logits = explainer.process(cell_graph)
+        # 1. load a graph
+        graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        graph = graph[0]
+        graph.ndata['feat'] = torch.cat(
+            (graph.ndata['feat'].float(),
+            (graph.ndata['centroid']).float()),
+            dim=1
+        )
+        graph = set_graph_on_cuda(graph) if IS_CUDA else graph
 
-            # 3. print output
-            print('Number of nodes:', cell_graph.number_of_nodes())
-            print('Number of edges:', cell_graph.number_of_edges())
-            print('Node features:', cell_graph.ndata['feat'].shape)
-            print('Node centroids:', cell_graph.ndata['centroid'].shape)
-            print('Importance scores:', importance_scores.shape)
-            print('Logits:', logits.shape)
+        # 2. run the explainer
+        explainer = GraphGradCAMPPExplainer(
+            model_path='https://ibm.box.com/shared/static/ufo9esvv6oqujy344w6wxap8w422vbuw.pt'
+        )
+        importance_scores, logits = explainer.process(graph)
 
-            # 4. save as h5 file
-            with h5py.File(os.path.join(base_path, 'explainers', cg_name.replace('.bin', '_gradcam_importance.h5')), 'w') as hf:
-                hf.create_dataset("importance",  data=importance_scores)
-
+        # 3. tests 
+        self.assertIsInstance(importance_scores, np.ndarray)
+        self.assertIsInstance(logits, np.ndarray)
+        self.assertEqual(graph.number_of_nodes(), importance_scores.shape[1])
 
     def tearDown(self):
         """Tear down the tests."""
 
 
 if __name__ == "__main__":
-    model = GraphGradCAMTestCase()
-    model.test_graphgradcam()
+
+    unittest.main()

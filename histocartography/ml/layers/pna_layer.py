@@ -169,6 +169,9 @@ class PNALayer(nn.Module):
             h_out = h_in + h_out  # residual connection
         return h_out
 
+    def set_rlp(self, with_rlp):
+        raise NotImplementedError('LRP not implemented for PNA layers. Use a GIN-based model.')
+
 
 def __repr__(self):
     return '{}(in_channels={}, out_channels={})'.format(self.__class__.__name__, self.node_dim, self.out_dim)

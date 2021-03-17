@@ -17,7 +17,8 @@ class NucleiExtractionTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.data_path = os.path.join('..', 'data')
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'nuclei_extraction_test')
@@ -28,7 +29,8 @@ class NucleiExtractionTestCase(unittest.TestCase):
     def test_nuclei_extractor_with_pipeline_runner(self):
         """Test nuclei extraction with local model."""
 
-        with open('config/nuclei_extractor.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'nuclei_extractor.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)

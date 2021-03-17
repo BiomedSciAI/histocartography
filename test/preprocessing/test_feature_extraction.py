@@ -19,7 +19,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.data_path = os.path.join('..', 'data')
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'feature_extraction_test')
@@ -31,8 +32,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         """
         Test handcrafted feature extractor with pipeline runner.
         """
-
-        with open('config/handcrafted_feature_extractor.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'handcrafted_feature_extractor.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
@@ -84,8 +85,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         """
         Test deep tissue feature extractor with pipeline runner.
         """
-
-        with open('config/deep_tissue_feature_extractor.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'deep_tissue_feature_extractor.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
@@ -136,8 +137,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         """
         Test feature merger with pipeline runner.
         """
-
-        with open('config/feature_merger.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'feature_merger.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
@@ -195,8 +196,9 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
     def test_deep_instance_feature_extractor_with_pipeline_runner(self):
         """Test deep instance feature extractor with pipeline runner."""
-
-        with open('config/deep_instance_feature_extractor.yml', 'r') as file:
+        
+        config_fname = os.path.join(self.current_path, 'config', 'deep_instance_feature_extractor.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)

@@ -15,7 +15,8 @@ class TissueMaskTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.data_path = os.path.join('..', 'data')
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '16B0001851_Block_Region_3.jpg'
         self.out_path = os.path.join(self.data_path, 'tissue_mask_test')
@@ -29,7 +30,8 @@ class TissueMaskTestCase(unittest.TestCase):
         """
 
         # 1. Tissue mask detection with saving 
-        with open('config/tissue_mask.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'tissue_mask.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
         pipeline.precompute()

@@ -17,7 +17,8 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.data_path = os.path.join('..', 'data')
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'nuclei_concept_extraction_test')

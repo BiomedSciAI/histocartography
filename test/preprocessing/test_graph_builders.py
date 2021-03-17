@@ -17,16 +17,14 @@ from histocartography.preprocessing import DeepInstanceFeatureExtractor
 from histocartography.preprocessing import AugmentedDeepInstanceFeatureExtractor
 from histocartography.preprocessing import KNNGraphBuilder, NucleiExtractor
 
-# from histocartography.visualisation import GraphVisualization
-# from histocartography.utils.io import save_image
-
 
 class GraphBuilderTestCase(unittest.TestCase):
     """GraphBuilderTestCase class."""
 
     @classmethod
     def setUpClass(self):
-        self.data_path = os.path.join('..', 'data')
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'graph_builder_test')
@@ -39,7 +37,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         Test rag builder with pipeline runner.
         """
 
-        with open('config/rag_graph_builder.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'rag_graph_builder.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
@@ -94,7 +93,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         Test knn builder with pipeline runner.
         """
 
-        with open('config/knn_graph_builder.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'knn_graph_builder.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
@@ -135,10 +135,6 @@ class GraphBuilderTestCase(unittest.TestCase):
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
         self.assertEqual(graph.number_of_nodes(), 331)  # check number of nodes
         self.assertEqual(graph.number_of_edges(), 1655)  # check number of edges
-
-        # visualizer = GraphVisualization()
-        # out = visualizer.process(image, graph, instance_map=instance_map)
-        # save_image('cg_viz.png', out)
 
     def tearDown(self):
         """Tear down the tests."""

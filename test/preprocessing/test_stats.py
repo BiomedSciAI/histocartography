@@ -14,7 +14,8 @@ class StatsTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.data_path = os.path.join('..', 'data')
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '16B0001851_Block_Region_3.jpg'
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
@@ -29,7 +30,8 @@ class StatsTestCase(unittest.TestCase):
         Test graph diameter with pipeline runner.
         """
 
-        with open('config/graph_diameter.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'graph_diameter.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
         pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
         pipeline.precompute()
@@ -45,8 +47,10 @@ class StatsTestCase(unittest.TestCase):
         Test superpixel counter with pipeline runner.
         """
 
-        with open('config/superpixel_counter.yml', 'r') as file:
+        config_fname = os.path.join(self.current_path, 'config', 'superpixel_counter.yml')
+        with open(config_fname, 'r') as file:
             config = yaml.load(file)
+            
         pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
         pipeline.precompute()
         output = pipeline.run(
@@ -61,5 +65,4 @@ class StatsTestCase(unittest.TestCase):
 
 
 if __name__ == "__main__":
-
     unittest.main()

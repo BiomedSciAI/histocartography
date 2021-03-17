@@ -35,6 +35,13 @@ def is_mlflow_url(candidate):
     return False
 
 
+def is_box_url(candidate):
+    # check if IBM box static link
+    if 'https://ibm.box.com/shared/static/' in candidate:
+        return True
+    return False
+
+
 def buffer_plot_and_get(fig):
     buf = io.BytesIO()
     fig.savefig(buf, dpi=200)

@@ -160,7 +160,6 @@ class PipelineRunner:
         path = output_path if save else None
         for stage in stages:
             name, config = list(stage.items())[0]
-            print('Name:', name, 'Config:', config)
             stage_class = dynamic_import_from(
                 f"histocartography.{name}", config.pop("class")
             )

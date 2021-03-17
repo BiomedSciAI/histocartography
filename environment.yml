@@ -16,4 +16,4 @@ dependencies:
     - opencv-python 
     - boto3 
     - scikit-image
-    - dgl==0.4.3.post2
+    - dgl==0.4.3

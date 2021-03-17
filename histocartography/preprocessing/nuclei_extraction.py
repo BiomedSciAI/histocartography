@@ -39,7 +39,7 @@ class NucleiExtractor(PipelineStep):
         self,
         pretrained_data: str = 'pannuke',
         model_path: str = None,
-        batch_size: int = 32,
+        batch_size: int = None,
         **kwargs,
     ) -> None:
         """Create a nuclei extractor
@@ -47,14 +47,15 @@ class NucleiExtractor(PipelineStep):
         Args:
             pretrained_data (str): Load checkpoint pretrained on some data. Options are 'pannuke' or 'monusac'. Default to 'pannuke'.
             model_path (str): Path to a pre-trained model or mlflow URL. If none, the checkpoint specified in pretrained_data will be used. Default to None. 
-            batch_size (int, optional): Batch size. Defaults to 32.
+            batch_size (int, optional): Batch size. Defaults to None.
         """
         super().__init__(**kwargs)
 
         # set class attributes 
-        self.batch_size = batch_size
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
+        if batch_size is None:
+            self.batch_size = 32 if cuda else 2  # bs set to 32 if GPU, otherwise 2. 
 
         if model_path is None:
             assert pretrained_data in ['pannuke', 'monusac'], 'Unsupported pretrained data checkpoint. Options are "pannuke" and "monusac".'

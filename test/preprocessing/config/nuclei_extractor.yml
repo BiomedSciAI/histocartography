@@ -4,13 +4,13 @@ outputs:
 - instance_map
 - instance_centroids
 stages:
-  - io:
+  - preprocessing:
       class: "ImageLoader"
       inputs:
       - image_path
       outputs:
       - image
-  - superpixel:
+  - preprocessing:
       class: "NucleiExtractor"
       inputs:
       - image

@@ -3,13 +3,13 @@ inputs:
 outputs:
 - features
 stages:
-  - io:
+  - preprocessing:
       class: "ImageLoader"
       inputs:
       - image_path
       outputs:
       - image
-  - superpixel:
+  - preprocessing:
       class: "ColorMergedSuperpixelExtractor"
       inputs:
       - image
@@ -19,7 +19,7 @@ stages:
       params:
         nr_superpixels: 100
         downsampling_factor: 4
-  - feature_extraction:
+  - preprocessing:
       class: "HandcraftedFeatureExtractor"
       inputs:
       - image

@@ -3,20 +3,20 @@ inputs:
 outputs:
 - graph
 stages:
-  - io:
+  - preprocessing:
       class: "ImageLoader"
       inputs:
       - image_path
       outputs:
       - image
-  - nuclei_extractor:
+  - preprocessing:
       class: "NucleiExtractor"
       inputs:
       - image
       outputs:
       - instance_map
       - instance_centroids
-  - feature_extraction:
+  - preprocessing:
       class: AugmentedDeepInstanceFeatureExtractor
       inputs:
       - image
@@ -42,7 +42,7 @@ stages:
             - 0.225
         size: 76
         downsample_factor: 1
-  - graph_builders:
+  - preprocessing:
       class: KNNGraphBuilder
       inputs:
       - instance_centroids

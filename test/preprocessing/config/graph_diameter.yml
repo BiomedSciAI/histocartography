@@ -4,13 +4,13 @@ inputs:
 outputs:
 - diameter
 stages:
-  - io:
+  - preprocessing:
       class: "DGLGraphLoader"
       inputs:
       - graph_path
       outputs:
       - graph
-  - graph_diameter:
+  - preprocessing:
       class: "GraphDiameter"
       inputs:
       - graph

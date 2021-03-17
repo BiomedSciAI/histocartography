@@ -4,13 +4,13 @@ inputs:
 outputs:
 - tissue_mask
 stages:
-  - io:
+  - preprocessing:
       class: "ImageLoader"
       inputs:
       - image_path
       outputs:
       - image
-  - nuclei_extraction:
+  - preprocessing:
       class: "GaussianTissueMask"
       inputs:
       - image

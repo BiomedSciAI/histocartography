@@ -4,7 +4,7 @@ inputs:
 outputs:
 - graph
 stages:
-  - io:
+  - preprocessing:
       class: "DGLGraphLoader"
       inputs:
       - graph_path

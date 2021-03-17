@@ -4,13 +4,13 @@ outputs:
 - superpixels
 - initial_superpixels
 stages:
-  - io:
+  - preprocessing:
       class: "ImageLoader"
       inputs:
       - image_path
       outputs:
       - image
-  - superpixel:
+  - preprocessing:
       class: "ColorMergedSuperpixelExtractor"
       inputs:
       - image

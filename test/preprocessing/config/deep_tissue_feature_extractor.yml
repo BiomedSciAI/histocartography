@@ -3,13 +3,13 @@ inputs:
 outputs:
 - features
 stages:
-  - io:
+  - preprocessing:
       class: "ImageLoader"
       inputs:
       - image_path
       outputs:
       - image
-  - feature_extraction:
+  - preprocessing:
       class: AugmentedDeepTissueFeatureExtractor
       inputs:
       - image

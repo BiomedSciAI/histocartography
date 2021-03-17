@@ -4,7 +4,7 @@ inputs:
 outputs:
 - image
 stages:
-  - io:
+  - preprocessing:
       class: "ImageLoader"
       inputs:
       - image_path

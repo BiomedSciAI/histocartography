@@ -15,6 +15,7 @@ before_install:
 install:
   # install rdkit
   - conda env update --file environment.yml
+  - pip install https://files.pythonhosted.org/packages/b2/f9/e6d6b55583078f62ead8b3785109832e1d0b4ae6cddbf1bfe9a5f767de6a/dgl-0.4.3.post2-cp37-cp37m-manylinux1_x86_64.whl
   # install development dependencies
   #- pip install -r dev_requirements.txt
   # install dependencies

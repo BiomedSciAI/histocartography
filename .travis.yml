@@ -15,11 +15,9 @@ before_install:
   - pip install -U pip==20.2.4
 install:
   # install rdkit
-  - conda env update --file environment.yml
-  # install development dependencies
-  #- pip install -r dev_requirements.txt
-  # install dependencies
-  #- pip install -r requirements.txt
+  - conda env update -q --file environment.yml
+  # install other dependencies
+  - pip install black pep8 
   # install the module
   - pip install -e .
 script:

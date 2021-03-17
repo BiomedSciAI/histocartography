@@ -22,7 +22,8 @@ class GraphGradCAMTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.data_path = os.path.join('..', 'data')
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
         self.graph_name = '283_dcis_4_tg.bin'
         self.out_path = os.path.join(self.data_path, 'graph_graphcam_test')

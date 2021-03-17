@@ -1,9 +1,9 @@
 name: histocartography
 dependencies:
-  - python>=3.6
+  - python>=3.8
   - pip
   - pip:
-    - torch
+    - torch==1.4
     - tqdm>=4.35.0
     - mlflow>=1.6.0
     - pandas>=0.24.2
@@ -16,5 +16,4 @@ dependencies:
     - opencv-python 
     - boto3 
     - scikit-image
-    - dgl
-    - spams
+    - dgl==0.4.3.post2

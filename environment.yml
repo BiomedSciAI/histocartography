@@ -11,7 +11,7 @@ dependencies:
     - h5py>=2.9.0
     - sklearn
     - seaborn>=0.9.0
-    - torchvision
+    - torchvision==0.4.0
     - pillow
     - opencv-python 
     - boto3 

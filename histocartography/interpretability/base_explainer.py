@@ -46,7 +46,7 @@ class BaseExplainer(PipelineStep):
         elif is_mlflow_url(model_path):
             self.model = load_model(model_path, map_location=torch.device("cpu"))
         elif is_box_url(model_path):
-            local_path = os.path.join(CHECKPOINT_PATH, os.path.basename(model_path))
+            local_path = os.path.join(os.path.dirname(__file__), CHECKPOINT_PATH, os.path.basename(model_path))
             download_box_link(model_path, local_path)
             self.model = torch.load(local_path)
         else:

@@ -51,4 +51,4 @@ script:
 #- docker build -t histocartography:test .
 #- docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
 notifications:
-  slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg
+  slack: ibm-research:Ffs4Jurpvx5oThkOEsdG4zB5

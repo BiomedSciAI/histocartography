@@ -9,7 +9,7 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   # create and activate the build/test environment
-  - conda create -q -f envinronment.yml
+  - conda create -q -f environment.yml
   - source activate histocartography
   - pip install -U pip==20.2.4
 install:

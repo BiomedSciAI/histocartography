@@ -33,7 +33,7 @@ class BaseCAM(object):
             self.hook_handles.append(
                 self.model._modules.get(conv_layer).register_forward_hook(self._set_forward_hook)
             )
-        # Backward hook
+        # Backward hooks
         for conv_layer in conv_layers:
             self.hook_handles.append(
                 self.model._modules.get(conv_layer).register_backward_hook(self._set_backward_hook)
@@ -208,14 +208,14 @@ class BaseGraphGradCAMExplainer(BaseExplainer):
 
         Args:
             gnn_layer_name (List[str]): List of reference layers to use for computing CAM
-                                        Default to None. If None try to automatically infer
+                                        Default to None. If None tries to automatically infer
                                         from the model. 
             gnn_layer_ids: (List[str]): List of reference layer IDs to use for computing CAM
-                                        Default to None. If None try to automatically infer
+                                        Default to None. If None tries to automatically infer
                                         from the model. 
         """
         super().__init__(**kwargs)
-        if gnn_layer_name is None and gnn_layer_ids:
+        if gnn_layer_name is None and gnn_layer_ids is None:
             all_param_names = [name for name, _ in self.model.named_parameters()]
             self.gnn_layer_ids = list(
                 filter(
@@ -227,8 +227,8 @@ class BaseGraphGradCAMExplainer(BaseExplainer):
             self.gnn_layer_ids = gnn_layer_ids
             self.gnn_layer_name = gnn_layer_name
 
-        assert self.gnn_layer_ids is None
-        assert self.gnn_layer_name is None 
+        assert self.gnn_layer_ids is not None
+        assert self.gnn_layer_name is not None 
 
     def process(
         self, graph: dgl.DGLGraph, class_idx: Optional[int] = None

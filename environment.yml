@@ -17,3 +17,4 @@ dependencies:
     - boto3 
     - scikit-image
     - dgl==0.4.3.post2
+    - spams

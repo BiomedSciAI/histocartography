@@ -1,4 +1,4 @@
-torch==1.2.0
+torch==1.4.0
 tqdm>=4.35.0
 mlflow>=1.6.0
 pandas>=0.24.2

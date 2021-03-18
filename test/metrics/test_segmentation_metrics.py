@@ -34,6 +34,10 @@ class SegmentationMetricsTestCase(unittest.TestCase):
             self.assertLessEqual(entry, 1.)
         for entry in out:
             self.assertGreaterEqual(entry, 0.)
+        
+        out = evaluator(pred, pred)
+        for entry in out[1:]:
+            self.assertAlmostEqual(entry, 1.)
 
     def test_dice_computation_with_tissue_mask(self):
         """
@@ -55,6 +59,10 @@ class SegmentationMetricsTestCase(unittest.TestCase):
         for entry in out:
             self.assertGreaterEqual(entry, 0.)  # but always greater than 0
 
+        out = evaluator(pred, pred, tissue_mask=tissue_mask)
+        for entry in out[1:]:
+            self.assertAlmostEqual(entry, 1.)
+    
     def test_iou_computation(self):
         """
         Test IoU score computation.
@@ -73,6 +81,10 @@ class SegmentationMetricsTestCase(unittest.TestCase):
             self.assertLessEqual(entry, 1.)
         for entry in out:
             self.assertGreaterEqual(entry, 0.)
+
+        out = evaluator(pred, pred)
+        for entry in out[1:]:
+            self.assertAlmostEqual(entry, 1.)
 
     def test_iou_computation_with_tissue_mask(self):
         """
@@ -93,6 +105,10 @@ class SegmentationMetricsTestCase(unittest.TestCase):
             self.assertLessEqual(entry, 1.)  # always less than 1
         for entry in out:
             self.assertGreaterEqual(entry, 0.)  # but always greater than 0
+
+        out = evaluator(pred, pred, tissue_mask=tissue_mask)
+        for entry in out[1:]:
+            self.assertAlmostEqual(entry, 1.)
 
     def test_mean_dice_computation(self):
         """

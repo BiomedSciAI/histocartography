@@ -1,0 +1,27 @@
+
+inputs:
+- image_path
+outputs:
+- counter
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - preprocessing:
+      class: "SLICSuperpixelExtractor"
+      inputs:
+      - image
+      outputs:
+      - superpixels
+      params:
+        nr_superpixels: 100
+        downsampling_factor: 4
+  - preprocessing:
+      class: "SuperpixelCounter"
+      inputs:
+      - superpixels
+      outputs:
+      - counter

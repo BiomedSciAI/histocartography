@@ -9,66 +9,44 @@ import io
 import pickle
 import csv
 import importlib
-from mlflow.pytorch import load_model
-
-from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES
-from histocartography.interpretability.constants import MODEL_TO_MLFLOW_ID
-from histocartography.dataloader.constants import get_number_of_classes
+import requests
 
 
 def get_device(cuda=False):
     """
     Get device (cpu or gpu)
     """
-    return'cuda:0' if cuda else 'cpu'
+    return 'cuda:0' if cuda else 'cpu'
 
 
 def is_mlflow_url(candidate):
+    # is it stored on s3 ?
     if candidate.find('s3://mlflow/') != -1:
         return True
+    # is it a remote mlflow run ?
+    if candidate.find('runs:/') != -1:
+        return True
+    # is it a remote mlflow model ?
+    if candidate.find('models:/') != -1:
+        return True
+    # is it a local run
+    if os.path.exists(os.path.join(candidate, 'MLmodel')):
+        return True
     return False
+
+
+def is_box_url(candidate):
+    # check if IBM box static link
+    if 'https://ibm.box.com/shared/static/' in candidate:
+        return True
+    return False
+
 
 def buffer_plot_and_get(fig):
     buf = io.BytesIO()
     fig.savefig(buf, dpi=200)
     buf.seek(0)
     return PIL.Image.open(buf)
-
-
-def plain_model_loading(config):
-    num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])
-    model = load_model(MODEL_TO_MLFLOW_ID[str(num_classes) + '_class_scenario'][config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
-    return model
-
-
-def tentative_model_loading(config):
-    # build model from config
-    module = importlib.import_module(MODEL_MODULE.format(config['model_type']))
-    model = getattr(module, AVAILABLE_MODEL_TYPES[config['model_type']])(config['model_params'], config['data_params']['input_feature_dims'])
-
-    # buid mlflow model and copy manually the weigths
-    num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])
-    mlflow_model = load_model(MODEL_TO_MLFLOW_ID[str(num_classes) + '_class_scenario'][config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
-
-    def is_int(s):
-        try:
-            int(s)
-            return True
-        except:
-            return False
-
-    for n, p in mlflow_model.named_parameters():
-        split = n.split('.')
-        to_eval = 'model'
-        for s in split:
-            if is_int(s):
-                to_eval += '[' + s + ']'
-            else:
-                to_eval += '.'
-                to_eval += s
-        exec(to_eval + '=' + 'p')
-
-    return model
 
 
 def complete_path(folder, fname):
@@ -89,7 +67,7 @@ def check_for_dir(path):
     """
     Checks if directory exists, if not, makes a new directory
     """
-    if not os.path.exists(path):
+    if path and not os.path.exists(path):
         os.makedirs(path)
 
 
@@ -98,6 +76,7 @@ def get_device(cuda=False):
     Get device (cpu or gpu)
     """
     return 'cuda:0' if cuda else 'cpu'
+
 
 def get_files_in_folder(path, extension, with_ext=True):
     """Returns all the file names in a folder, (Relative to the parent folder)
@@ -209,7 +188,9 @@ def load_h5_fnames(base_path, tumor_type, extension, split, fold_id=None):
     if fold_id is not None:
         text_path = complete_path(text_path, 'data_split_' + str(fold_id + 1))
     fname = split + '_list_' + tumor_type + '.txt'
-    h5_files = read_txt(text_path, fname, extension)  # Loads all the .h5 files in the text file
+    h5_files = read_txt(
+        text_path, fname, extension
+    )  # Loads all the .h5 files in the text file
     h5_files.sort(key=lambda x: int(x.split('_')[0]))
     if h5_files is None:
         h5_files = []
@@ -240,15 +221,26 @@ def flatten_dict(d):
     return d
 
 
+def download_box_link(url, out_fname='box.file'):
+    out_dir = os.path.dirname(out_fname)
+    check_for_dir(out_dir)
+    if os.path.isfile(out_fname):
+        print('File already downloaded.')
+        return out_fname
+
+    r = requests.get(url, stream=True)
+
+    with open(out_fname, "wb") as large_file:
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk:
+                large_file.write(chunk)
+    return out_fname
+
+
 DATATYPE_TO_SAVEFN = {
     dict: write_json,
     np.ndarray: np.savetxt,
     Image.Image: save_image
 }
 
-
-DATATYPE_TO_EXT = {
-    dict: '.json',
-    np.ndarray: '.txt',
-    Image.Image: '.png'
-}
+DATATYPE_TO_EXT = {dict: '.json', np.ndarray: '.txt', Image.Image: '.png'}

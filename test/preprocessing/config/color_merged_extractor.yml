@@ -1,0 +1,22 @@
+inputs:
+- image_path
+outputs:
+- superpixels
+- initial_superpixels
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - preprocessing:
+      class: "ColorMergedSuperpixelExtractor"
+      inputs:
+      - image
+      outputs:
+      - superpixels
+      - initial_superpixels
+      params:
+        nr_superpixels: 100
+        downsampling_factor: 4

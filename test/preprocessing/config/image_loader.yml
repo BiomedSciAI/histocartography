@@ -1,0 +1,12 @@
+
+inputs:
+- image_path
+outputs:
+- image
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image

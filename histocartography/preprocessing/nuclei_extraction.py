@@ -1,27 +1,34 @@
 """Detect and Classify nuclei from an image with the HoverNet model."""
 
-from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple
-
-import cv2
-import numpy as np
-import torch
-import torchvision
-from PIL import Image
-from torch import nn
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
+from typing import Tuple
 from mlflow.pytorch import load_model
-from skimage.measure import regionprops
 from tqdm import tqdm
 
-from ..utils import dynamic_import_from
-from .pipeline import PipelineStep
+import numpy as np
+import torch
+from PIL import Image
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
+import cv2 
+import os
+
+from skimage.measure import regionprops
+from skimage.morphology import remove_small_objects, watershed
+from scipy.ndimage import measurements
+from scipy.ndimage.morphology import binary_fill_holes
+
+from ..pipeline import PipelineStep
 from ..utils.image import extract_patches_from_image
-from ..utils.hover import process_instance
-from ..utils.io import is_mlflow_url
-# from ..ml.models.hovernet import HoVerNet
+from ..utils.io import is_mlflow_url, download_box_link
+
+
+DATASET_TO_BOX_URL = {
+    'pannuke': 'https://ibm.box.com/shared/static/hrt04i3dcv1ph1veoz8x6g8a72u0uw58.pt',
+    'monusac': 'https://ibm.box.com/shared/static/u563aoydow9w2kpgw0l8esuklegdtdij.pt'
+}
+
+CHECKPOINT_PATH = '../../checkpoints'
 
 
 class NucleiExtractor(PipelineStep):
@@ -29,70 +36,69 @@ class NucleiExtractor(PipelineStep):
 
     def __init__(
         self,
-        model_path: str,
-        size: int = 256,
-        batch_size: int = 32,
-        num_workers: int = 0,
+        pretrained_data: str = 'pannuke',
+        model_path: str = None,
+        batch_size: int = None,
         **kwargs,
     ) -> None:
         """Create a nuclei extractor
 
         Args:
-            model_path (str): Path to the pre-trained model or mlflow URL
-            size (int, optional): Desired size of patches. Defaults to 224.
-            batch_size (int, optional): Batch size. Defaults to 32.
-            num_workers (int, 0): Number of workers. Defaults to 0. 
+            pretrained_data (str): Load checkpoint pretrained on some data. Options are 'pannuke' or 'monusac'. Default to 'pannuke'.
+            model_path (str): Path to a pre-trained model or mlflow URL. If none, the checkpoint specified in pretrained_data will be used. Default to None. 
+            batch_size (int, optional): Batch size. Defaults to None.
         """
         super().__init__(**kwargs)
 
         # set class attributes 
-        self.model_path = model_path
-        self.size = size
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        if self.num_workers in [0, 1]:
-            torch.set_num_threads(1)
-
-        # handle GPU
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
+        if batch_size is None:
+            self.batch_size = 32 if cuda else 2  # bs set to 32 if GPU, otherwise 2. 
 
-        # load nuclei extraction model 
+        if model_path is None:
+            assert pretrained_data in ['pannuke', 'monusac'], 'Unsupported pretrained data checkpoint. Options are "pannuke" and "monusac".'
+            model_path = os.path.join(os.path.dirname(__file__), CHECKPOINT_PATH, pretrained_data + '.pt')
+            download_box_link(DATASET_TO_BOX_URL[pretrained_data], model_path)
+
+        self._load_model_from_path(model_path)
+        self.model = self.model.to(self.device)
+        self.model.eval()
+
+    def _load_model_from_path(self, model_path):
+        """Load nuclei extraction model from provided model."""
         if is_mlflow_url(model_path):
             self.model = load_model(model_path,  map_location=torch.device('cpu'))
         else:
             self.model = torch.load(model_path)
 
-        self.model.eval()
-        self.model = self.model.to(self.device)
-
     def process(
         self,
         input_image: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Extract nuclei from the input_image
 
         Args:
             input_image (np.array): Original RGB image
 
         Returns:
-            Tuple[np.ndarray, np.ndarray, np.ndarray]: instance_map, , instance_labels, instance_centroids  
+            Tuple[np.ndarray, np.ndarray, np.ndarray]: instance_map, instance_centroids  
         """
         return self._extract_nuclei(input_image)
 
     def _extract_nuclei(
         self, input_image: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Extract features from the input_image for the defined structure
 
         Args:
             input_image (np.array): Original RGB image
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: instance_map, instance_labels, instance_centroids 
+            Tuple[np.ndarray, np.ndarray]: instance_map, instance_centroids 
         """
 
-        image_dataset = ImageToPatchDataset(input_image, self.size)
+        image_dataset = ImageToPatchDataset(input_image)
 
         def collate(batch):
             coords = [x[0] for x in batch]
@@ -103,7 +109,6 @@ class NucleiExtractor(PipelineStep):
             image_dataset,
             shuffle=False,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
             collate_fn=collate
         )
         pred_map = torch.empty(
@@ -127,7 +132,7 @@ class NucleiExtractor(PipelineStep):
         pred_map = pred_map.cpu().detach().numpy()
         pred_map = pred_map[:image_dataset.im_h,:image_dataset.im_w, :]
 
-        # post process instance map and labels 
+        # post process instance map 
         instance_map = process_instance(pred_map)
 
         # extract the centroid location in the instance map
@@ -154,20 +159,17 @@ class ImageToPatchDataset(Dataset):
     def __init__(
         self,
         image: np.ndarray,
-        size: int,
     ) -> None:
         """Create a dataset for a given image and extracted instance maps with desired patches.
-           Patches have shape of (3, size, size).
+           Patches have shape of (3, 256, 256) as defined by HoverNet model.
 
         Args:
             image (np.ndarray): RGB input image
-            size (int): Desired size of patches
         """
         self.image = image
         self.dataset_transform = transforms.Compose(
             [
                 transforms.ToTensor(),
-                # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
         self.im_h = image.shape[0] 
@@ -198,3 +200,79 @@ class ImageToPatchDataset(Dataset):
             int: Length of the dataset
         """
         return self.nr_patches
+
+
+def process_np_hv_channels(pred):
+    """
+    Process Nuclei Prediction with XY Coordinate Map
+
+    Args:
+        pred (np.ndarray): HoverNet model output, that contains: 
+                            - channel 0 contain probability map of nuclei
+                            - channel 1 contains X-map
+                            - channel 2 contains Y-map
+    Returns:
+         pred_instance (np.ndarray): instance map 
+    """
+
+    # post-process probability map    
+    proba_map = np.copy(pred[:, :, 0])  # extract proba maps
+    proba_map[proba_map >= 0.5] = 1
+    proba_map[proba_map <  0.5] = 0
+    proba_map = measurements.label(proba_map)[0]
+    proba_map = remove_small_objects(proba_map, min_size=10)
+    proba_map[proba_map > 0] = 1
+
+    h_dir = pred[:, :, 1]  # extract horizontal map
+    v_dir = pred[:, :, 2]  # extract vertical map
+
+    # normalizing 
+    h_dir = cv2.normalize(h_dir, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    v_dir = cv2.normalize(v_dir, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
+    # apply sobel filtering
+    sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=21)
+    sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=21)
+
+    sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+    sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+
+    # binarize
+    overall = np.maximum(sobelh, sobelv)
+    overall = overall - (1 - proba_map)
+    overall[overall < 0] = 0
+
+    dist = (1.0 - overall) * proba_map
+    dist = -cv2.GaussianBlur(dist,(3, 3),0)
+
+    overall[overall >= 0.5] = 1
+    overall[overall <  0.5] = 0
+    marker = proba_map - overall
+    marker[marker < 0] = 0
+    marker = binary_fill_holes(marker).astype('uint8')
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5, 5))
+    marker = cv2.morphologyEx(marker, cv2.MORPH_OPEN, kernel)
+    marker = measurements.label(marker)[0]
+    marker = remove_small_objects(marker, min_size=10)
+ 
+    pred_inst = watershed(dist, marker, mask=proba_map, watershed_line=False)
+    
+    return pred_inst
+
+
+def process_instance(pred_map, output_dtype='uint16'):
+    """
+    Post processing script for image tiles
+
+    Args:
+        pred_map (np.ndarray): commbined output of np and hv branches
+        output_dtype (str): data type of output
+    
+    Returns:
+        pred_inst (np.ndarray): pixel-wise nuclear instance segmentation prediction
+    """
+
+    pred_inst = np.squeeze(pred_map)
+    pred_inst = process_np_hv_channels(pred_inst)
+    pred_inst = pred_inst.astype(output_dtype)
+    return pred_inst

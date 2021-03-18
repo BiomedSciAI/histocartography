@@ -1,0 +1,12 @@
+
+inputs:
+- graph_path
+outputs:
+- graph
+stages:
+  - preprocessing:
+      class: "DGLGraphLoader"
+      inputs:
+      - graph_path
+      outputs:
+      - graph

@@ -2,14 +2,17 @@
 
 from abc import abstractmethod
 from typing import Optional, Tuple
-
 import dgl
 import numpy as np
 import torch
+import os 
 from mlflow.pytorch import load_model
 
-from ..preprocessing.pipeline import PipelineStep
-from ..utils.io import is_mlflow_url
+from ..pipeline import PipelineStep
+from ..utils.io import is_mlflow_url, is_box_url, download_box_link
+
+
+CHECKPOINT_PATH = '../../checkpoints'
 
 
 class BaseExplainer(PipelineStep):
@@ -21,7 +24,7 @@ class BaseExplainer(PipelineStep):
         model: Optional[torch.nn.Module] = None,
         **kwargs
     ) -> None:
-        """Abstract class that define the base explainer.
+        """Abstract class that defines an explainer.
 
         Args:
             model_path (Optional[str], optional): Model path to pre-trained model. The path can be local or an MLflow URL. Defaults to None.
@@ -37,25 +40,33 @@ class BaseExplainer(PipelineStep):
         self.cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if self.cuda else "cpu")
 
-        # load model
-
-        if model_path is None:
-            self.model = model
-        elif is_mlflow_url(model_path):
-            self.model = load_model(model_path, map_location=torch.device("cpu"))
-        else:
-            self.model = torch.load(model_path)
+        # set model
+        self._load_model(model, model_path)
         self.model.eval()
         self.model = self.model.to(self.device)
         self.model.zero_grad()
 
+    def _load_model(self, model, model_path):
+        if model_path is None:
+            self.model = model
+        elif is_mlflow_url(model_path):
+            self.model = load_model(model_path, map_location=torch.device("cpu"))
+        elif is_box_url(model_path):
+            local_path = os.path.join(os.path.dirname(__file__), CHECKPOINT_PATH, os.path.basename(model_path))
+            download_box_link(model_path, local_path)
+            self.model = torch.load(local_path)
+        else:
+            self.model = torch.load(model_path)
+
     @abstractmethod
     def process(
-        self, graph: dgl.DGLGraph, label: int = None
+        self, graph: dgl.DGLGraph, class_idx: Optional[int] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Explain a graph
 
         Args:
             graph (dgl.DGLGraph): Input graph to explain
-            label (int): Label attached to the graph. Default to None.
+            class_idx (int): Class to explain. If None, use the winning class. Default to None.
         """
+
+

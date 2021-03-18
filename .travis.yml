@@ -1,54 +1,34 @@
-dist: xenial
-env:
-  global:
-  # do not load /etc/boto.cfg with Python 3 incompatible plugin
-  # https://github.com/travis-ci/travis-ci/issues/5246#issuecomment-166460882
-  - BOTO_CONFIG=/doesnotexist
-services:
-- docker
 language: python
 python:
-- 3.6
+  - 3.7
 before_install:
-- sudo apt update
-- sudo apt-get install libopenjpeg5 libtiff-tools libopenjpeg-dev #openslide-tools
-- wget https://github.com/openslide/openslide/releases/download/v3.4.1/openslide-3.4.1.tar.gz
-- tar xvf openslide-3.4.1.tar.gz
-- cd openslide-3.4.1
-- ./configure && make && sudo make install
-- cd ..
-- sudo apt-get install libopencv-dev python-opencv
-- sudo apt-get install python3-openslide
-- sudo apt-get update
-# We do this conditionally because it saves us some downloading if the
-# version is the same.
-- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-    wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
-  else
-    wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-  fi
-- bash miniconda.sh -b -p $HOME/miniconda
-- source "$HOME/miniconda/etc/profile.d/conda.sh"
-- hash -r
-- conda config --set always_yes yes --set changeps1 no
-- conda update -q conda
-# Useful for debugging any issues with conda
-- conda info -a
+  # download and install miniconda
+  - wget http://repo.continuum.io/miniconda/Miniconda3-4.1.11-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/conda
+  - export PATH="$HOME/conda/bin:$PATH"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # create and activate the build/test environment
+  - conda create -q -n histocartography python=$TRAVIS_PYTHON_VERSION pip cmake
+  - source activate histocartography
+  - python --version
+  - pip install -U pip==20.2.4
 install:
-- pip3 install -U pip
-- pip3 install --progress-bar off --no-deps pytorch_lightning==0.4.8
-- pip3 install --progress-bar off boto3 tqdm>=4.35.0 
-- pip3 install --progress-bar off -r requirements.txt
-- pip3 install .
+  # install rdkit
+  - conda env update -q --file environment.yml
+  # install style dependencies
+  - pip install black pep8 
+  # install the module
+  - pip install -e .
 script:
-- python3 -c "import histocartography"
-- python3 -c "import cv2 as cv"
-- python3 -m unittest discover  -v
-# And now, make travis train
-- export MLFLOW_TRACKING_URI=http://experiments.traduce.zc2.ibm.com:5000                
-- export MLFLOW_S3_ENDPOINT_URL=http://data.digital-pathology.zc2.ibm.com:9000
-- mlflow run --no-conda experiments/fra_gleason2019 -P bucket=test-data -P epochs=1
-#- docker build -t histocartography:test .
-#- docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t histocartography:test python3 -m unittest discover  -v
+  # style checking
+  # - python -m black histocartography --check --diff --color
+  # - python -m pep8 --ignore=E501 histocartography
+  # static type checking
+  # - python -m mypy histocartography
+  # tests
+  - python -m unittest discover -s test -p "test_*" -v
+  # build the docs
+  #  cd docs && make html && cd ..
 notifications:
-  slack: ibm-research:IQCmAJFXrlp1SfvqWsNfYpTg
+  slack: ibm-research:Ffs4Jurpvx5oThkOEsdG4zB5

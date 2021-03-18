@@ -1,21 +1,9 @@
 """Extract features from images for a given structure"""
 
-from abc import abstractmethod
-from typing import Optional, Tuple
-
-import cv2
 import numpy as np
 import torch
-import torchvision
-from tqdm import tqdm
-from histocartography.utils import dynamic_import_from
-from PIL import Image
-from scipy.stats import skew
-from torch import nn
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
 
-from .pipeline import PipelineStep
+from ..pipeline import PipelineStep
 from .feature_extraction import HandcraftedFeatureExtractor, HANDCRAFTED_FEATURES_NAMES
 
 

@@ -2,55 +2,88 @@
 import unittest
 import numpy as np
 import cv2 
+import os 
+import shutil
+from PIL import Image
+import matplotlib
+import yaml
 
-from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
-from histocartography.utils.io import load_image
-from histocartography.utils.hover import visualize_instances
+from histocartography import PipelineRunner
+from histocartography.preprocessing import NucleiExtractor
 
 
 class NucleiExtractionTestCase(unittest.TestCase):
     """NucleiExtractionTestCase class."""
 
-    def setUp(self):
-        """Setting up the test."""
+    @classmethod
+    def setUpClass(self):
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
+        self.image_path = os.path.join(self.data_path, 'images')
+        self.image_name = '283_dcis_4.png'
+        self.out_path = os.path.join(self.data_path, 'nuclei_extraction_test')
+        if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
+            shutil.rmtree(self.out_path) 
+        os.makedirs(self.out_path)
 
-    def test_nuclei_extractor_with_mlflow(self):
-        """Test nuclei extraction with MLflow model."""
-
-        # 1. load an image
-        image = np.array(load_image('../data/283_dcis_4.png'))
-
-        # 2. create a nuclei extractor 
-        extractor = NucleiExtractor(
-            model_path='s3://mlflow/90a7e42bf0224683933bdc4bcb496a24/artifacts/hovernet_kumar_notype'
-        )
-
-        # 3. process the image 
-        instance_map, instance_centroids = extractor.process(image)
-
-        # 4. viz the output
-        overlaid_output = visualize_instances(image, instance_map)
-        overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-        cv2.imwrite('283_dcis_4_nuclei_prediction.png', overlaid_output)
-
-    def test_nuclei_extractor_with_local(self):
+    def test_nuclei_extractor_with_pipeline_runner(self):
         """Test nuclei extraction with local model."""
 
-        image = np.array(load_image('../data/283_dcis_4.png'))
+        config_fname = os.path.join(self.current_path, 'config', 'nuclei_extractor.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        instance_map = output['instance_map']
+        instance_centroids = output['instance_centroids']
+
+        # 3. run tests 
+        self.assertTrue(isinstance(instance_map, np.ndarray))
+        self.assertTrue(isinstance(instance_centroids, np.ndarray))
+        self.assertEqual(len(instance_centroids), 331)
+
+    def test_nuclei_extractor_with_monusac(self):
+        """Test nuclei extraction with monusac model."""
+
+        # 1. load an image
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+
+        # 2. extract nuclei
         extractor = NucleiExtractor(
-            model_path='checkpoints/hovernet_kumar_notype.pth'
+            pretrained_data='monusac'
         )
         instance_map, instance_centroids = extractor.process(image)
 
-        overlaid_output = visualize_instances(image, instance_map)
-        overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-        cv2.imwrite('283_dcis_4_nuclei_prediction.png', overlaid_output)
+        # 3. run tests 
+        self.assertEqual(instance_map.shape[0], image.shape[0])
+        self.assertEqual(instance_map.shape[1], image.shape[1])
+        self.assertEqual(len(instance_centroids), 134)
+
+    def test_nuclei_extractor_with_pannuke(self):
+        """Test nuclei extraction with pannuke model."""
+
+        # 1. load an image
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+
+        # 2. extract nuclei
+        extractor = NucleiExtractor(
+            pretrained_data='pannuke'
+        )
+        instance_map, instance_centroids = extractor.process(image)
+
+        # 3. run tests 
+        self.assertEqual(instance_map.shape[0], image.shape[0])
+        self.assertEqual(instance_map.shape[1], image.shape[1])
+        self.assertEqual(len(instance_centroids), 331)
 
     def tearDown(self):
         """Tear down the tests."""
 
 
 if __name__ == "__main__":
-    model = NucleiExtractionTestCase()
-    model.test_nuclei_extractor_with_local()
-    model.test_nuclei_extractor_with_mlflow()
+    unittest.main()

@@ -1,0 +1,18 @@
+
+inputs:
+- graph_path
+outputs:
+- diameter
+stages:
+  - preprocessing:
+      class: "DGLGraphLoader"
+      inputs:
+      - graph_path
+      outputs:
+      - graph
+  - preprocessing:
+      class: "GraphDiameter"
+      inputs:
+      - graph
+      outputs:
+      - diameter

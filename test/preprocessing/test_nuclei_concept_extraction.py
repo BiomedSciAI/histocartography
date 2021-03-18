@@ -3,48 +3,53 @@ import unittest
 import numpy as np
 import cv2
 import h5py
+import os 
+import shutil
+from PIL import Image
 
-from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
-from histocartography.preprocessing.nuclei_concept_extraction import NucleiConceptExtractor
-from histocartography.utils.io import load_image
-from histocartography.utils.hover import visualize_instances
+from histocartography import PipelineRunner
+from histocartography.preprocessing import NucleiExtractor
+from histocartography.preprocessing import NucleiConceptExtractor
 
 
 class NucleiConceptExtractionTestCase(unittest.TestCase):
     """NucleiConceptExtractionTestCase class."""
 
-    def setUp(self):
-        """Setting up the test."""
+    @classmethod
+    def setUpClass(self):
+        self.current_path = os.path.dirname(__file__)
+        self.data_path = os.path.join(self.current_path, '..', 'data')
+        self.image_path = os.path.join(self.data_path, 'images')
+        self.image_name = '283_dcis_4.png'
+        self.out_path = os.path.join(self.data_path, 'nuclei_concept_extraction_test')
+        if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
+            shutil.rmtree(self.out_path) 
+        os.makedirs(self.out_path)
 
     def test_concept_extractor(self):
         """Test nuclei extraction with local model."""
 
-        # 1. load image
-        image = np.array(load_image('../data/283_dcis_4.png'))
+        # 1. load an image
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
-        # 2. detect nuclei
+        # 2. extract nuclei
         extractor = NucleiExtractor(
-            model_path='checkpoints/hovernet_kumar_notype.pth'
+            pretrained_data='pannuke'
         )
-        instance_map, _ = extractor.process(image)
+        instance_map, instance_centroids = extractor.process(image)
 
         # 3. extract nuclei concepts
         nuclei_concept_extractor = NucleiConceptExtractor(
             concept_names='area,perimeter,roughness,eccentricity,roundness,shape_factor,mean_crowdedness,std_crowdedness,glcm_dissimilarity,glcm_contrast,glcm_homogeneity,glcm_ASM,glcm_entropy,glcm_dispersion'
-
         )
         concepts = nuclei_concept_extractor.process(image, instance_map)
 
-        print('Nuclei concepts:', concepts.shape)
-
-        # 4. save as h5 file
-        with h5py.File('283_dcis_4_concepts.h5', 'w') as hf:
-            hf.create_dataset("concepts",  data=concepts)
+        self.assertEqual(concepts.shape[0], 331)  # check number of instances
+        self.assertEqual(concepts.shape[1], 14)  # check number of node features
 
     def tearDown(self):
         """Tear down the tests."""
 
 
 if __name__ == "__main__":
-    model = NucleiConceptExtractionTestCase()
-    model.test_concept_extractor()
+    unittest.main()

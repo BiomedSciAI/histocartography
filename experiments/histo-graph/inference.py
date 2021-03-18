@@ -24,7 +24,7 @@ from histocartography.dataloader.constants import CLASS_SPLIT_TO_MODEL_URL, TREE
 from histocartography.evaluation.evaluator import AccuracyEvaluator, WeightedF1, ExpectedClassShiftWithHardPred, ExpectedClassShiftWithLogits
 from histocartography.evaluation.confusion_matrix import ConfusionMatrix
 from histocartography.evaluation.classification_report import ClassificationReport, PerClassWeightedF1Score
-from histocartography.utils.arg_parser import parse_arguments
+from arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import (
     get_device, check_for_dir,

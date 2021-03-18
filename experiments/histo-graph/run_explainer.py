@@ -9,17 +9,18 @@ import mlflow
 import numpy as np
 from tqdm import tqdm 
 import torch
+from mlflow.pytorch import load_model
 
 from histocartography.utils.io import read_params, write_json, complete_path
 from histocartography.dataloader.pascale_dataloader import make_data_loader
 from histocartography.ml.models.constants import AVAILABLE_MODEL_TYPES, MODEL_TYPE
-from histocartography.interpretability.constants import AVAILABLE_EXPLAINABILITY_METHODS, INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN
-from histocartography.utils.arg_parser import parse_arguments
+from constants import AVAILABLE_EXPLAINABILITY_METHODS, INTERPRETABILITY_MODEL_TYPE_TO_LOAD_FN, MODEL_TO_MLFLOW_ID
+from arg_parser import parse_arguments
 from histocartography.ml.models.constants import load_superpx_graph, load_cell_graph
 from histocartography.utils.io import get_device, flatten_dict
 from histocartography.dataloader.constants import get_label_to_tumor_type
-# from histocartography.interpretability.meta_explanation import MetaGraphExplanation
-
+from histocartography.ml.models.constants import MODEL_MODULE, AVAILABLE_MODEL_TYPES
+from histocartography.dataloader.constants import get_number_of_classes
 
 # flush warnings
 import warnings
@@ -39,6 +40,42 @@ INTERPRETABILITY_METHOD_TO_META_OBJ = {
     'saliency_explainer.image_gradcampp_explainer': 'MetaImageExplanation',
     'saliency_explainer.image_deeplift_explainer': 'MetaImageExplanation'
 }
+
+def plain_model_loading(config):
+    num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])
+    model = load_model(MODEL_TO_MLFLOW_ID[str(num_classes) + '_class_scenario'][config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+    return model
+
+
+def tentative_model_loading(config):
+    # build model from config
+    module = importlib.import_module(MODEL_MODULE.format(config['model_type']))
+    model = getattr(module, AVAILABLE_MODEL_TYPES[config['model_type']])(config['model_params'], config['data_params']['input_feature_dims'])
+
+    # buid mlflow model and copy manually the weigths
+    num_classes = get_number_of_classes(config['explanation_params']['model_params']['class_split'])
+    mlflow_model = load_model(MODEL_TO_MLFLOW_ID[str(num_classes) + '_class_scenario'][config['model_type']][config['explanation_params']['explanation_type']],  map_location=torch.device('cpu'))
+
+    def is_int(s):
+        try:
+            int(s)
+            return True
+        except:
+            return False
+
+    for n, p in mlflow_model.named_parameters():
+        split = n.split('.')
+        to_eval = 'model'
+        for s in split:
+            if is_int(s):
+                to_eval += '[' + s + ']'
+            else:
+                to_eval += '.'
+                to_eval += s
+        exec(to_eval + '=' + 'p')
+
+    return model
+
 
 
 def main(args):
@@ -144,9 +181,6 @@ def main(args):
             all_explanations.append(explanation)
             
         counter += 1
-
-        # if counter >= 5:
-        #     break
 
     # wrap all the explanations in object and write 
     meta_module = importlib.import_module('histocartography.interpretability.meta_explanation')

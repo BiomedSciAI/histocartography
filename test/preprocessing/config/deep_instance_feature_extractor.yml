@@ -1,0 +1,46 @@
+inputs:
+- image_path
+outputs:
+- features
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - preprocessing:
+      class: "NucleiExtractor"
+      inputs:
+      - image
+      outputs:
+      - instance_map
+      - instance_centroids
+      params:
+        pretrained_data: 'pannuke'
+  - preprocessing:
+      class: AugmentedDeepInstanceFeatureExtractor
+      inputs:
+      - image
+      - instance_map
+      outputs:
+      - features
+      params:
+        architecture: mobilenet_v2
+        num_workers: 8
+        rotations:
+          - 0
+        flips:
+          - 'n'
+        normalizer:
+          type: imagenet
+          mean:
+            - 0.485
+            - 0.456
+            - 0.406
+          std:
+            - 0.229
+            - 0.224
+            - 0.225
+        size: 76
+        downsample_factor: 1

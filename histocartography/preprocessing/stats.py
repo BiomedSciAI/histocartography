@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from networkx.algorithms.distance_measures import diameter
 
-from .pipeline import PipelineStep
+from ..pipeline import PipelineStep
 
 
 class StatsComputer(PipelineStep):

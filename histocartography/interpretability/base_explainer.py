@@ -40,7 +40,13 @@ class BaseExplainer(PipelineStep):
         self.cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if self.cuda else "cpu")
 
-        # load model
+        # set model
+        self._load_model(model, model_path)
+        self.model.eval()
+        self.model = self.model.to(self.device)
+        self.model.zero_grad()
+
+    def _load_model(self, model, model_path):
         if model_path is None:
             self.model = model
         elif is_mlflow_url(model_path):
@@ -51,9 +57,6 @@ class BaseExplainer(PipelineStep):
             self.model = torch.load(local_path)
         else:
             self.model = torch.load(model_path)
-        self.model.eval()
-        self.model = self.model.to(self.device)
-        self.model.zero_grad()
 
     @abstractmethod
     def process(

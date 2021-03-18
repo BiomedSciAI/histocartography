@@ -3,15 +3,20 @@ from copy import deepcopy
 import dgl 
 import math
 from scipy.stats import entropy
+import os 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F 
+import importlib
 
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
-from .base_explainer import BaseExplainer
+from .base_explainer import BaseExplainer, CHECKPOINT_PATH
 from ..utils.torch import torch_to_numpy
 from ..utils.io import get_device
+from ..utils.io import is_mlflow_url, is_box_url, download_box_link
+from ..ml.models.constants import MODEL_MODULE
+from ..dataloader.constants import get_number_of_classes
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -52,6 +57,9 @@ class GraphPruningExplainer(BaseExplainer):
     
         super(GraphPruningExplainer, self).__init__(**kwargs)
 
+        # GNNExplainer needs to work with dense layers, and not with DGL objects. 
+        self.model = self._convert_to_dense_gnn_model()
+
         self.node_thresh = node_thresh
         self.train_params = {
             'num_epochs': num_epochs,
@@ -72,6 +80,64 @@ class GraphPruningExplainer(BaseExplainer):
         self.node_feats_explanation = None
         self.probs_explanation = None
         self.node_importance = None
+
+    def _convert_to_dense_gnn_model(self):
+
+        # load DGL-based model 
+        mlflow_model = self.model
+
+        print('mlflow model:', mlflow_model, str(type(mlflow_model)))
+
+        # build model from config
+        model_type = str(type(mlflow_model)).split('.')[3]
+        model_name = mlflow_model.__class__.__name__
+
+        model_params = {
+            "activation": "relu",
+            "class_split": "benign+pathologicalbenign+udhVSadh+feaVSdcis+malignant",
+            "dropout": 0.0,
+            "gnn_params": {
+                "cell_gnn": {
+                    "activation": "relu",
+                    "agg_operator": "none",
+                    "hidden_dim": 64,
+                    "layer_type": "dense_gin_layer",
+                    "n_layers": 3,
+                    "output_dim": 64,
+                    "neighbor_pooling_type": "mean",
+                    "graph_norm": False,
+                    "with_rlp": False
+                }
+            },
+            "readout": {
+                "hidden_dim": 128,
+                "num_layers": 2
+            },
+            "use_bn": False
+        }
+        input_feature_dims = (514, 0)
+        module = importlib.import_module(MODEL_MODULE.format(model_type))
+        model = getattr(module, model_name)(model_params, input_feature_dims)
+
+        def is_int(s):
+            try:
+                int(s)
+                return True
+            except:
+                return False
+
+        for n, p in mlflow_model.named_parameters():
+            split = n.split('.')
+            to_eval = 'model'
+            for s in split:
+                if is_int(s):
+                    to_eval += '[' + s + ']'
+                else:
+                    to_eval += '.'
+                    to_eval += s
+            exec(to_eval + '=' + 'p')
+
+        return model
 
     def process(self, graph: dgl.DGLGraph, label: int = None):
         """

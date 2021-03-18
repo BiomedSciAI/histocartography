@@ -77,139 +77,6 @@ class Metric:
         return False
 
 
-class SegmentationMetric(Metric):
-    """Base class for segmentation metrics"""
-
-    def __init__(self, background_label, **kwargs):
-        """Constructor of Metric"""
-        self.background_label = background_label
-        super().__init__(**kwargs)
-
-    @abstractmethod
-    def _compute_metric(
-        self, ground_truth: torch.Tensor, prediction: torch.Tensor
-    ) -> torch.Tensor:
-        """Actual metric computation
-
-        Args:
-            ground_truth (torch.Tensor): Ground truth tensor. Shape: (B x H x W)
-            prediction (torch.Tensor): Prediction tensor. Shape: (B x H x W)
-
-            Returns:
-               torch.Tensor: Computed metric. Shape: (B)
-        """
-
-    def __call__(
-        self,
-        prediction: Union[torch.Tensor, np.ndarray],
-        ground_truth: Union[torch.Tensor, np.ndarray],
-        tissue_mask=None,
-        **kwargs,
-    ) -> torch.Tensor:
-        """From either a batched, unbatched calculate the metric accordingly and take the average over the samples
-
-        Args:
-            ground_truth (Union[torch.Tensor, np.ndarray]): Ground truth tensor. Shape: (H x W, B x H x W)
-            prediction (Union[torch.Tensor, np.ndarray]): Prediction tensor. Shape: (same shape as ground truth)
-
-        Returns:
-            torch.Tensor: Computed metric
-        """
-        if isinstance(ground_truth, list):
-            assert len(ground_truth) == len(prediction)
-            prediction_copy = list()
-            ground_truth_copy = list()
-            for i, (sample_gt, sample_pred) in enumerate(zip(ground_truth, prediction)):
-                if isinstance(sample_gt, torch.Tensor):
-                    sample_gt = sample_gt.detach().cpu().numpy()
-                if isinstance(sample_pred, torch.Tensor):
-                    sample_pred = sample_pred.detach().cpu().numpy()
-                assert isinstance(
-                    sample_gt, np.ndarray
-                ), f"Ground truth sample must be np.ndarray but got {type(sample_gt)}"
-                assert isinstance(
-                    sample_pred, np.ndarray
-                ), f"Prediction must be of np.ndarray but got {type(sample_pred)}"
-                sample_pred = sample_pred.copy()
-                sample_gt = sample_gt.copy()
-                if tissue_mask is not None:
-                    assert isinstance(tissue_mask, np.ndarray) or isinstance(
-                        tissue_mask, list
-                    ), f"Tissue mask must be of type np.ndarray or list but got {type(tissue_mask)}"
-                    assert isinstance(
-                        tissue_mask[i], np.ndarray
-                    ), f"Tissue mask entry must be of type np.ndarray, but got {type(tissue_mask[i])}"
-                    assert (
-                        tissue_mask[i].dtype == bool
-                    ), f"Tissue mask must be of dtype bool, but is {tissue_mask[i].dtype}"
-                    assert (
-                        sample_gt.shape == tissue_mask[i].shape
-                    ), f"Shape of sample and mask mismatch: {sample_gt.shape}, {tissue_mask[i].shape}"
-                    sample_gt[~tissue_mask[i]] = self.background_label
-                sample_pred[sample_gt == self.background_label] = self.background_label
-                prediction_copy.append(sample_pred)
-                ground_truth_copy.append(sample_gt)
-            assert len(prediction) == len(prediction_copy)
-            assert len(ground_truth) == len(ground_truth_copy)
-            metric = self._compute_metric(
-                ground_truth=ground_truth_copy, prediction=prediction_copy
-            )
-        else:
-            if isinstance(ground_truth, torch.Tensor):
-                ground_truth = ground_truth.detach().cpu().numpy()
-            if isinstance(prediction, torch.Tensor):
-                prediction = prediction.detach().cpu().numpy()
-            assert ground_truth.shape == prediction.shape
-
-            if len(prediction.shape) == 2:
-                prediction = prediction[np.newaxis, :, :]
-                ground_truth = ground_truth[np.newaxis, :, :]
-            # Now we have shape BATCH x H x W
-
-            # Discard background class
-            ground_truth = ground_truth.copy()
-            ground_truth[~np.asarray(tissue_mask)] = self.background_label
-            prediction_copy = prediction.copy()
-            prediction_copy[
-                ground_truth == self.background_label
-            ] = self.background_label
-
-            metric = self._compute_metric(
-                ground_truth=ground_truth, prediction=prediction_copy
-            )
-        return np.nanmean(metric, axis=0)
-
-    def _get_class_counts(
-        self, ground_truth: Union[np.ndarray, List[np.ndarray]]
-    ) -> np.ndarray:
-        """Computed class counts for each class and datapoint
-
-        Args:
-            ground_truth (Union[np.ndarray, List[np.ndarray]]):
-                Ground truth tensor of shape B x H x W
-                or list of length B of tensors of shape H x W
-
-        Returns:
-            np.ndarray: Class weights of shape: B x C
-        """
-        if isinstance(ground_truth, np.ndarray):
-            class_counts = np.empty((ground_truth.shape[0], self.nr_classes))
-            for class_label in range(self.nr_classes):
-                class_ground_truth = ground_truth == class_label
-                class_counts[:, class_label] = class_ground_truth.sum(axis=(1, 2))
-
-        else:  # Iterative version to support jagged tensors
-            class_counts = list()
-            for gt in ground_truth:
-                sample_class_counts = np.empty(self.nr_classes)
-                for class_label in range(self.nr_classes):
-                    class_ground_truth = gt == class_label
-                    sample_class_counts[class_label] = class_ground_truth.sum()
-                class_counts.append(sample_class_counts)
-            class_counts = np.stack(class_counts)
-        return class_counts
-
-
 class ConfusionMatrixMetric(Metric):
     def __init__(self, nr_classes: int, background_label: int, **kwargs) -> None:
         self.nr_classes = nr_classes
@@ -223,9 +90,17 @@ class ConfusionMatrixMetric(Metric):
         self,
         prediction: Union[torch.Tensor, np.ndarray],
         ground_truth: Union[torch.Tensor, np.ndarray],
-        tissue_mask=None,
+        tissue_mask: Union[torch.Tensor, np.ndarray] = None,
         **kwargs,
     ) -> Any:
+        """
+        Compute confusion matrix.
+
+        Args:
+            prediction (Union[torch.Tensor, np.ndarray]): List of pixel-level predictions. 
+            ground_truth (Union[torch.Tensor, np.ndarray]): List of pixel-level ground truth
+            tissue_mask (Union[torch.Tensor, np.ndarray]): List of tissue masks. Default to None. 
+        """
         assert len(ground_truth) == len(prediction)
 
         confusion_matrix = np.zeros((self.nr_classes, self.nr_classes), dtype=np.int64)
@@ -249,7 +124,7 @@ class ConfusionMatrixMetric(Metric):
         return self._aggregate(confusion_matrix.T)
 
 
-class DatasetDice(ConfusionMatrixMetric):
+class Dice(ConfusionMatrixMetric):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.smooth = 1e-12
@@ -285,7 +160,7 @@ class DatasetDice(ConfusionMatrixMetric):
         return True
 
 
-class DatasetIoU(ConfusionMatrixMetric):
+class IoU(ConfusionMatrixMetric):
     def _aggregate(self, confusion_matrix):
         scores = np.empty(self.nr_classes)
         indices = np.arange(self.nr_classes)
@@ -315,85 +190,6 @@ class DatasetIoU(ConfusionMatrixMetric):
         return True
 
 
-class IoU(SegmentationMetric):
-    """Compute the class IoU"""
-
-    def __init__(
-        self,
-        nr_classes: int,
-        background_label: int,
-        discard_threshold: int = 0,
-        **kwargs,
-    ) -> None:
-        """Create a IoU calculator for a certain number of classes
-
-        Args:
-            nr_classes (int, optional): Number of classes to use
-        """
-        self.nr_classes = nr_classes
-        self.discard_threshold = discard_threshold
-        self.smooth = 1e-12
-        super().__init__(background_label=background_label, **kwargs)
-
-    def _compute_sample_metric(
-        self,
-        ground_truth: np.ndarray,
-        prediction: np.ndarray,
-        nan: float = float("nan"),
-    ):
-        assert (
-            ground_truth.shape == prediction.shape
-        ), f"Prediction and ground truth must have same shape, but is {ground_truth.shape}, {prediction.shape}"
-        assert (
-            len(ground_truth.shape) == 2
-        ), f"Expected 2D tensor but got {ground_truth.shape}"
-        class_iou = np.empty(self.nr_classes)
-        for class_label in range(self.nr_classes):
-            class_ground_truth = ground_truth == class_label
-            if class_ground_truth.sum() <= self.discard_threshold:
-                class_iou[class_label] = nan
-                continue
-            class_prediction = prediction == class_label
-            class_intersection = (class_ground_truth & class_prediction).sum(
-                axis=(0, 1)
-            )
-            class_union = (class_ground_truth | class_prediction).sum(axis=(0, 1))
-            class_iou[class_label] = class_intersection / (class_union + self.smooth)
-        return class_iou
-
-    def _compute_metric(
-        self,
-        ground_truth: torch.Tensor,
-        prediction: torch.Tensor,
-        nan: float = float("nan"),
-    ) -> torch.Tensor:
-        """Computes the intersection over union per class
-
-        Args:
-            ground_truth (torch.Tensor): Ground truth tensor
-            prediction (torch.Tensor): Prediction tensor
-            nan (float, optional): Value to use for non-existant class. Defaults to float('nan').
-
-        Returns:
-            torch.Tensor: Computed IoU
-        """
-        class_ious = list()
-        for pred, gt in zip(prediction, ground_truth):
-            class_ious.append(
-                self._compute_sample_metric(prediction=pred, ground_truth=gt, nan=nan)
-            )
-        return np.stack(class_ious)
-
-    @staticmethod
-    def is_better(value: Any, comparison: Any) -> bool:
-        """Higher is better"""
-        return value >= comparison
-
-    @property
-    def is_per_class(self):
-        return True
-
-
 class MeanIoU(IoU):
     """Mean class IoU"""
 
@@ -410,117 +206,8 @@ class MeanIoU(IoU):
         return False
 
 
-class fIoU(IoU):
-    """Inverse Log Frequency Weighted IoU as defined in the paper:
-    HistoSegNet: Semantic Segmentation of Histological Tissue Typein Whole Slide Images
-    Code at: https://github.com/lyndonchan/hsn_v1/
-    """
-
-    def _compute_metric(
-        self,
-        ground_truth: Union[np.ndarray, List[np.ndarray]],
-        prediction: Union[np.ndarray, List[np.ndarray]],
-    ) -> float:
-        """Computes the metric according to the implementation:
-           https://github.com/lyndonchan/hsn_v1/blob/4356e68fc2a94260ab06e2ceb71a7787cba8178c/hsn_v1/hsn_v1.py#L184
-
-        Args:
-            ground_truth (Union[np.ndarray, List[np.ndarray]]): Ground truth tensor or list of tensors
-            prediction (Union[np.ndarray, List[np.ndarray]]): Prediction tensor or list of tensors
-
-        Returns:
-            float: Inverse Log Frequency Weighted IoU
-        """
-        class_ious = super()._compute_metric(ground_truth, prediction, np.NaN)
-        class_counts = self._get_class_counts(ground_truth)
-        class_weights = inverse_log_frequency(class_counts)
-        return np.nansum(class_weights * class_ious, axis=1)
-
-    @property
-    def is_per_class(self):
-        return False
-
-
-class F1Score(SegmentationMetric):
-    """Compute the class F1 score"""
-
-    def __init__(
-        self, nr_classes: int = 5, discard_threshold: int = 0, **kwargs
-    ) -> None:
-        """Create a F1 calculator for a certain number of classes
-
-        Args:
-            nr_classes (int, optional): Number of classes to use. Defaults to 5.
-        """
-        self.nr_classes = nr_classes
-        self.smooth = 1e-12
-        self.discard_threshold = discard_threshold
-        super().__init__(**kwargs)
-
-    def _compute_sample_metric(
-        self,
-        ground_truth: np.ndarray,
-        prediction: np.ndarray,
-        nan: float = float("nan"),
-    ):
-        class_f1 = np.empty(self.nr_classes)
-        for class_label in range(self.nr_classes):
-            class_ground_truth = ground_truth == class_label
-            if class_ground_truth.sum() <= self.discard_threshold:
-                class_f1[class_label] = nan
-                continue
-            class_prediction = prediction == class_label
-            true_positives = (class_ground_truth & class_prediction).sum(axis=(0, 1))
-            false_positives = (
-                np.logical_not(class_ground_truth) & class_prediction
-            ).sum(axis=(0, 1))
-            false_negatives = (
-                class_ground_truth & np.logical_not(class_prediction)
-            ).sum(axis=(0, 1))
-            precision = true_positives / (
-                true_positives + false_positives + self.smooth
-            )
-            recall = true_positives / (true_positives + false_negatives + self.smooth)
-            class_f1[class_label] = (2.0 * precision * recall) / (
-                precision + recall + self.smooth
-            )
-        return class_f1
-
-    def _compute_metric(
-        self,
-        ground_truth: np.ndarray,
-        prediction: np.ndarray,
-        nan: float = float("nan"),
-    ) -> torch.Tensor:
-        """Computes the f1 score per class
-
-        Args:
-            ground_truth (torch.Tensor): Ground truth tensor
-            prediction (torch.Tensor): Prediction tensor
-            nan (float, optional): Value to use for non-existant class. Defaults to float('nan').
-
-        Returns:
-            torch.Tensor: Computed F1 scores
-        """
-        class_f1s = list()
-        for pred, gt in zip(prediction, ground_truth):
-            class_f1s.append(
-                self._compute_sample_metric(prediction=pred, ground_truth=gt, nan=nan)
-            )
-        return np.stack(class_f1s)
-
-    @staticmethod
-    def is_better(value: Any, comparison: Any) -> bool:
-        """Higher is better"""
-        return value >= comparison
-
-    @property
-    def is_per_class(self):
-        return True
-
-
-class MeanF1Score(F1Score):
-    """Mean class F1 score"""
+class MeanDice(Dice):
+    """Mean class IoU"""
 
     def __call__(
         self,
@@ -529,26 +216,6 @@ class MeanF1Score(F1Score):
         **kwargs,
     ) -> torch.Tensor:
         return np.nanmean(super().__call__(prediction, ground_truth, **kwargs))
-
-    @property
-    def is_per_class(self):
-        return False
-
-
-class fF1Score(F1Score):
-    """Inverse Log Frequency Weighted Dice Score
-    Conceptually the same as the fIoU
-    """
-
-    def _compute_metric(
-        self,
-        ground_truth: Union[np.ndarray, List[np.ndarray]],
-        prediction: Union[np.ndarray, List[np.ndarray]],
-    ) -> float:
-        class_f1s = super()._compute_metric(ground_truth, prediction, np.NaN)
-        class_counts = self._get_class_counts(ground_truth)
-        class_weights = inverse_log_frequency(class_counts)
-        return np.nansum(class_weights * class_f1s, axis=1)
 
     @property
     def is_per_class(self):

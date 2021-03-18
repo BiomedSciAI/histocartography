@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Optional, Tuple, Union, List
 import inspect
 
 import h5py
@@ -296,7 +296,7 @@ class BatchPipelineRunner:
         tmp_runner = self._build_pipeline_runner()
         tmp_runner.cleanup()
 
-    def run(self, metadata: pd.DataFrame, cores: int = 1) -> None:
+    def run(self, metadata: pd.DataFrame, cores: int = 1, return_out: bool = False) -> List[Dict[str, Any]]:
         """Runs the pipeline for the provided metadata dataframe and a specified
            number of cores for multiprocessing.
            Does not support saving of outputs
@@ -304,7 +304,15 @@ class BatchPipelineRunner:
         Args:
             metadata (pd.DataFrame): Dataframe with the columns as defined in the config inputs
             cores (int, optional): Number of cores to use for multiprocessing. Defaults to 1.
+            return_out (bool, optional): If the method should also return the output batch data.
+                                         If True, make sure you have enough memory. Only supported
+                                         for single-core processing. Default to False. 
+
+        Returns:
+            batched_out (List[Dict[str, Any]]): If return_out is True, returns the processed output. 
         """
+        assert not(return_out and cores > 1), "Option to return output only supported with single-core processing."
+        batched_out = []
         if cores == 1:
             pipeline = self._build_pipeline_runner()
             self.final_path = pipeline.final_path
@@ -312,7 +320,9 @@ class BatchPipelineRunner:
             for name, row in tqdm(
                 metadata.iterrows(), total=len(metadata), file=sys.stdout
             ):
-                pipeline.run(name=name, **row)
+                out = pipeline.run(name=name, **row)
+                if return_out:
+                    batched_out.append(out)
             pipeline.cleanup()
         else:
             self._precompute()
@@ -329,3 +339,4 @@ class BatchPipelineRunner:
             worker_pool.close()
             worker_pool.join()
             self._cleanup()
+        return batched_out

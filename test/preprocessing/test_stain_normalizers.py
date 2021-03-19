@@ -21,6 +21,9 @@ class StainNormalizationTestCase(unittest.TestCase):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
+        # @TODO: you need to push the images...
+        # @TODO: as these images will be on GitHub, can you make sure that you don't pick large ones 
+        # ideally, only small ones actually. 
         self.target_name = '16B0001851.png'
         self.image_name = '16B0006669.png'
         self.out_path = os.path.join(self.data_path, 'stain_normalization_test')

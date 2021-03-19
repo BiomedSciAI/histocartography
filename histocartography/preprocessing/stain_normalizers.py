@@ -29,6 +29,10 @@ class StainNormalizer(PipelineStep):
         """Create a stain normalizer
 
         Args:
+        @TODO:
+            - merge target and target_path in on argument that is directly the path to the target image 
+            - complete missing docs, eg precomputed_normalizer
+            - precomputed_normalizer is a str?
             target (str, optional): Name of the target image for identification
             target_path (str, optional): Path of the target image for identification
         """
@@ -36,6 +40,9 @@ class StainNormalizer(PipelineStep):
         self.target_path = target_path
         super().__init__(**kwargs)
 
+        # @TODO: can we have a better naming than status?
+        # @TODO: i think the mkdir part should be handled by the mkdir function in pipeline, no?
+        # @TODO: the idea is to modify a bit the pipeline step construtor, st mkdir and precompute are IN the constructor as private methods
         self.status = -1
         if self.target_path is not None and \
            precomputed_normalizer is None:
@@ -246,6 +253,11 @@ class MacenkoStainNormalizer(StainNormalizer):
         self.beta = beta
         super().__init__(**kwargs)
         # Hidden fields
+        # @TODO: PEP8 --> no lower case in variable names 
+        # Function and Variable Names:
+        # Function names should be lowercase, with words separated by underscores as necessary to improve readability.
+        # Variable names follow the same convention as function names.
+        # mixedCase is allowed only in contexts where that's already the prevailing style (e.g. threading.py), to retain backwards compatibility.
         self.stain_matrix_key = "stain_matrix"
         self.max_C_target_key = "maxC_target"
         self.stain_matrix_target = None
@@ -293,6 +305,7 @@ class MacenkoStainNormalizer(StainNormalizer):
         Returns:
             np.array: Extracted stains
         """
+        # @TODO: PEP8 --> no lower cased var names 
         OD = self._RGB_to_OD(input_image).reshape((-1, 3))
         OD = OD[(OD > self.beta).any(axis=1), :]
         _, V = np.linalg.eigh(np.cov(OD, rowvar=False))
@@ -326,6 +339,7 @@ class MacenkoStainNormalizer(StainNormalizer):
         source_concentrations = self._get_concentrations(
             input_image, stain_matrix_source
         )
+        # @TODO: PEP8 --> no upper cased variable names 
         maxC_source = np.percentile(source_concentrations, 99, axis=0).reshape((1, 2))
         maxC_target = self.max_C_target
         source_concentrations *= maxC_target / maxC_source

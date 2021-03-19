@@ -31,6 +31,7 @@ class PipelineStep(ABC):
         if self.base_path is not None:
             self.output_dir = Path(self.base_path) / name
             self.output_key = "default_key"
+            self.mkdir()
 
     def __repr__(self) -> str:
         """Representation of a pipeline step. 
@@ -173,7 +174,6 @@ class PipelineRunner:
             self.stages.append(pipeline_stage())
             self.stage_configs.append(config)
             path = pipeline_stage().mkdir() if save else None
-            # path = pipeline_stage().output_dir if save else None
         self.final_path = path
 
     def precompute(self) -> None:

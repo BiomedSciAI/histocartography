@@ -21,11 +21,8 @@ class StainNormalizationTestCase(unittest.TestCase):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
-        # @TODO: you need to push the images...
-        # @TODO: as these images will be on GitHub, can you make sure that you don't pick large ones 
-        # ideally, only small ones actually. 
-        self.target_name = '16B0001851.png'
-        self.image_name = '16B0006669.png'
+        self.target_name = '17B0031061.png'
+        self.image_name = '18B000646H.png'
         self.out_path = os.path.join(self.data_path, 'stain_normalization_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
@@ -56,7 +53,6 @@ class StainNormalizationTestCase(unittest.TestCase):
 
         stain_normalizer = MacenkoStainNormalizer(
             base_path=self.out_path,
-            target=self.target_name.replace('.png', ''),
             target_path=os.path.join(self.image_path, self.target_name)
         )
         stain_normalizer.precompute(self.image_path)
@@ -90,7 +86,6 @@ class StainNormalizationTestCase(unittest.TestCase):
 
         stain_normalizer = VahadaneStainNormalizer(
             base_path=self.out_path,
-            target=self.target_name.replace('.png', ''),
             target_path=os.path.join(self.image_path, self.target_name)
         )
         stain_normalizer.precompute(self.image_path)
@@ -105,7 +100,7 @@ class StainNormalizationTestCase(unittest.TestCase):
         """
         stain_normalizer = VahadaneStainNormalizer(
             base_path=self.out_path,
-            precomputed_normalizer='./temp.h5'
+            precomputed_normalizer_path='./temp.h5'
         )
         with self.assertRaises(FileNotFoundError):
             stain_normalizer.precompute(self.image_path)

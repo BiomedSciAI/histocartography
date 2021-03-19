@@ -752,8 +752,8 @@ class GridPatchDataset(Dataset):
             basic_transforms.append(transforms.Normalize(mean, std))
         self.dataset_transform = transforms.Compose(basic_transforms)
 
-        x_top_pad, x_bottom_pad = get_pad_size(image.size[0], patch_size, stride)
-        y_top_pad, y_bottom_pad = get_pad_size(image.size[1], patch_size, stride)
+        x_top_pad, x_bottom_pad = get_pad_size(image.shape[0], patch_size, stride)
+        y_top_pad, y_bottom_pad = get_pad_size(image.shape[1], patch_size, stride)
         pad = torch.nn.ConstantPad2d(
             (x_bottom_pad, x_top_pad, y_bottom_pad, y_top_pad), 255
         )

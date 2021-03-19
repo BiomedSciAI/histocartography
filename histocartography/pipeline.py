@@ -43,6 +43,8 @@ class PipelineStep(ABC):
             f"{self.__class__.__name__}({variables})".replace(" ", "")
             .replace('"', "")
             .replace("'", "")
+            .replace("..", "")
+            .replace("/", "_")
         )
 
     def mkdir(self) -> Path:

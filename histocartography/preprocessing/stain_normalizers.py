@@ -5,11 +5,12 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Optional
 
+import os
 import h5py
 import numpy as np
-import spams
 from PIL import Image
 from skimage.color import rgb2lab
+from sklearn.decomposition import DictionaryLearning
 
 from ..pipeline import PipelineStep
 from .utils import load_image
@@ -20,30 +21,32 @@ class StainNormalizer(PipelineStep):
 
     def __init__(
         self,
-        target: str,
-        lambda_c: float = 0.01,
-        precomputed_normalizer: Optional[str] = None,
+        target: Optional[str] = None,
         target_path: Optional[str] = None,
+        precomputed_normalizer: Optional[str] = None,
         **kwargs,
     ) -> None:
         """Create a stain normalizer
 
         Args:
-            target (str): Name of the target image for identification
-            lambda_c (float, optional): lambda parameter for getting the concentration.
-                                        Defaults to 0.01.
+            target (str, optional): Name of the target image for identification
+            target_path (str, optional): Path of the target image for identification
         """
-        self.lambda_c = lambda_c
         self.target = target
-        super().__init__(**kwargs)
         self.target_path = target_path
-        if self.base_path is not None:
+        super().__init__(**kwargs)
+
+        self.status = -1
+        if self.target_path is not None and \
+           precomputed_normalizer is None:
+            if not os.path.isdir(self.output_dir):
+                os.mkdir(self.output_dir)
             self.save_path = self.output_dir / "normalizer.h5"
-        else:
-            assert (
-                precomputed_normalizer is not None
-            ), "Must either save or provide a precomputed normalizer"
+            self.status = 1
+        elif self.target_path is None and \
+             precomputed_normalizer is not None:
             self.save_path = Path(precomputed_normalizer)
+            self.status = 2
 
     @staticmethod
     def _standardize_brightness(input_image: np.ndarray) -> np.ndarray:
@@ -100,19 +103,9 @@ class StainNormalizer(PipelineStep):
         Returns:
             np.array: Extracted stains of all pixels (vectorized image)
         """
-        optical_density = self._RGB_to_OD(input_image).reshape((-1, 3))
-        return (
-            spams.lasso(
-                optical_density.T,
-                D=stain_matrix.T,
-                mode=2,
-                lambda1=self.lambda_c,
-                pos=True,
-                numThreads=1,
-            )
-            .toarray()
-            .T
-        )
+        optical_density = self._RGB_to_OD(input_image).reshape((-1, 3)).astype(np.float32)
+        stain_matrix = stain_matrix.astype(np.float32)
+        return np.linalg.lstsq(stain_matrix.T, optical_density.T, rcond=-1)[0].T
 
     @abstractmethod
     def fit(self, target_image: np.ndarray):
@@ -168,7 +161,6 @@ class StainNormalizer(PipelineStep):
         Returns:
             np.array: The stain normalized image
         """
-        self._load_precomputed()
         standardized_image = self._standardize_brightness(input_image)
         normalized_image = self._normalize_image(standardized_image)
         return normalized_image
@@ -203,9 +195,29 @@ class StainNormalizer(PipelineStep):
 
     def precompute(self, final_path) -> None:
         """Precompute all necessary information"""
-        if not self.save_path.exists():
-            target_image = load_image(Path(self.target_path))
-            self.fit(target_image)
+        if self.status == 1:
+            if not self.save_path.exists():
+                target_image = load_image(Path(self.target_path))
+                self.fit(target_image)
+            self._load_precomputed()
+        elif self.status == 2:
+            if not self.save_path.exists():
+                raise FileNotFoundError(
+                    "Precomputed normalizer does not exist."
+                    )
+            self._load_precomputed()
+        else:
+            self.max_C_target = []
+            self.stain_matrix_target = np.array(
+                [
+                    [0.5626, 0.7201, 0.4062],
+                    [0.2159, 0.8012, 0.5581]
+                ]
+            ).astype(np.float32)
+            self.max_C_target = np.array(
+                [1.9705, 1.0308]
+            ).astype(np.float32)
+
         if self.base_path is not None:
             self._link_to_path(Path(final_path) / "normalized_images")
 
@@ -245,8 +257,13 @@ class MacenkoStainNormalizer(StainNormalizer):
         Args:
             file (h5py.File): Opened file to load from
         """
-        self.stain_matrix_target = file[self.stain_matrix_key][()]
-        self.max_C_target = file[self.max_C_target_key][()]
+        try:
+            self.stain_matrix_target = file[self.stain_matrix_key][()]
+            self.max_C_target = file[self.max_C_target_key][()]
+        except ValueError:
+            print(f"Invalid stain matrix keys. Expected keys are "
+                  f"{self.stain_matrix_key} and "
+                  f"{self.max_C_target_key}.")
 
     def _save_values(self, file: h5py.File) -> None:
         """Save values needed to reproduce fit
@@ -305,7 +322,6 @@ class MacenkoStainNormalizer(StainNormalizer):
         Returns:
             np.array: Normalized image
         """
-        self._load_precomputed()
         stain_matrix_source = self._get_stain_matrix(input_image)
         source_concentrations = self._get_concentrations(
             input_image, stain_matrix_source
@@ -370,7 +386,11 @@ class VahadaneStainNormalizer(StainNormalizer):
         Args:
             file (h5py.File): Opened file to load from
         """
-        self.stain_matrix_target = file[self.stain_matrix_key][()]
+        try:
+            self.stain_matrix_target = file[self.stain_matrix_key][()]
+        except ValueError:
+            print(f"Invalid stain matrix keys. Expected key is "
+                  f"{self.stain_matrix_key}.")
 
     def _save_values(self, file: h5py.File) -> None:
         """Save values needed to reproduce fit
@@ -413,20 +433,20 @@ class VahadaneStainNormalizer(StainNormalizer):
         mask = self._notwhite_mask(input_image, threshold=self.thres).reshape((-1,))
         optical_density = self._RGB_to_OD(input_image).reshape((-1, 3))
         optical_density = optical_density[mask]
+        n_features = optical_density.T.shape[1]
 
-        # solves for min_{D in C} (1/n) sum_{i=1}^n (1/2)||x_i-Dalpha_i||_2^2 + ...
-        # + lambda1||alpha_i||_1 + lambda_2||alpha_i||_2^2
-        dictionary = spams.trainDL(
-            optical_density.T,
-            K=2,  # Find two stains
-            lambda1=self.lambda_s,  # Constraint for 1-norm of alphas
-            mode=2,
-            modeD=0,  # {W in Real^{m x n}  s.t.  for all j,  ||d_j||_2^2 <= 1 }
-            posAlpha=True,  # Positive stains
-            posD=True,  # Positive staining matrix
-            verbose=False,
-            numThreads=1,
-        ).T
+        dict_learner = DictionaryLearning(
+            n_components = 2,
+            alpha=self.lambda_s,
+            max_iter=10,
+            fit_algorithm='lars',
+            transform_algorithm = 'lasso_lars',
+            transform_n_nonzero_coefs=n_features,
+            random_state = 0,
+            positive_dict=True
+        )
+        dictionary = dict_learner.fit_transform(optical_density.T).T
+
         if dictionary[0, 0] < dictionary[1, 0]:
             dictionary = dictionary[[1, 0], :]
         dictionary = self._normalize_rows(dictionary)

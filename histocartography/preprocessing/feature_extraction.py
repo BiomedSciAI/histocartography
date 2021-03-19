@@ -712,7 +712,15 @@ class AugmentedDeepInstanceFeatureExtractor(DeepInstanceFeatureExtractor):
                 features[j, i, :] = embeddings
         return features.cpu().detach()
 
+      
+def get_pad_size(size, patch_size, stride):
+    target = math.ceil((size - patch_size) / stride + 1)
+    pad_size = ((target - 1) * stride + patch_size) - size
+    top_pad = pad_size // 2
+    bottom_pad = pad_size - top_pad
+    return top_pad, bottom_pad
 
+  
 class GridPatchDataset(Dataset):
     def __init__(
         self,
@@ -722,6 +730,7 @@ class GridPatchDataset(Dataset):
         downsample_factor: int,
         mean: Optional[List[float]] = None,
         std: Optional[List[float]] = None,
+        transform: Optional[Callable] = None,
     ) -> None:
         super().__init__()
         if downsample_factor != 1:
@@ -734,29 +743,41 @@ class GridPatchDataset(Dataset):
                 new_size,
                 interpolation=cv2.INTER_CUBIC,
             )
-        basic_transforms = [
-            transforms.Pad(patch_size // 2 - stride, fill=(255, 255, 255)),
-            transforms.ToTensor(),
-        ]
+
+        basic_transforms = list()
+        if transform is not None:
+            basic_transforms.append(transform)
+        basic_transforms.append(transforms.ToTensor())
         if mean is not None and std is not None:
             basic_transforms.append(transforms.Normalize(mean, std))
         self.dataset_transform = transforms.Compose(basic_transforms)
-        self.image = self.dataset_transform(Image.fromarray(image))
+
+        x_top_pad, x_bottom_pad = get_pad_size(image.size[0], patch_size, stride)
+        y_top_pad, y_bottom_pad = get_pad_size(image.size[1], patch_size, stride)
+        pad = torch.nn.ConstantPad2d(
+            (x_bottom_pad, x_top_pad, y_bottom_pad, y_top_pad), 255
+        )
+        self.image = pad(torch.as_tensor(np.array(image)).permute([2, 0, 1])).permute(
+            [1, 2, 0]
+        )
+
         self.patch_size = patch_size
         self.stride = stride
         self.patches = self._generate_patches()
 
     def _generate_patches(self):
-        patches = self.image.unfold(1, self.patch_size, self.stride).unfold(
-            2, self.patch_size, self.stride
+        patches = self.image.unfold(0, self.patch_size, self.stride).unfold(
+            1, self.patch_size, self.stride
         )
-        patches = patches.permute([1, 2, 0, 3, 4])
         self.outshape = (patches.shape[0], patches.shape[1])
         patches = patches.reshape([-1, 3, self.patch_size, self.patch_size])
         return patches
 
     def __getitem__(self, index: int):
-        return index, self.patches[index]
+        patch = self.dataset_transform(
+            Image.fromarray(self.patches[index].numpy().transpose([1, 2, 0]))
+        )
+        return index, patch
 
     def __len__(self) -> int:
         return len(self.patches)
@@ -811,7 +832,9 @@ class DeepTissueFeatureExtractor(FeatureExtractor):
     def process(self, input_image: np.ndarray) -> torch.Tensor:
         return self._extract_features(input_image)
 
-    def _extract_features(self, input_image: np.ndarray) -> torch.Tensor:
+    def _extract_features(
+        self, input_image: np.ndarray, transform: Optional[Callable] = None
+    ) -> torch.Tensor:
         """Extract features for a given RGB image in patches
         Args:
             input_image (np.ndarray): RGB input image
@@ -825,6 +848,7 @@ class DeepTissueFeatureExtractor(FeatureExtractor):
             downsample_factor=self.downsample_factor,
             mean=self.normalizer_mean,
             std=self.normalizer_std,
+            transform=transform,
         )
         patch_loader = DataLoader(
             patch_dataset,
@@ -837,7 +861,9 @@ class DeepTissueFeatureExtractor(FeatureExtractor):
             dtype=torch.float32,
             device=self.device,
         )
-        for i, patch_batch in tqdm(patch_loader, total=len(patch_loader), disable=not self.verbose):
+        for i, patch_batch in tqdm(
+            patch_loader, total=len(patch_loader), disable=not self.verbose
+        ):
             embeddings = self.patch_feature_extractor(patch_batch)
             features[i, :] = embeddings
         return (
@@ -877,8 +903,7 @@ class AugmentedDeepTissueFeatureExtractor(DeepTissueFeatureExtractor):
         """
         all_features = list()
         for transform in self.transforms:
-            augmented_input_image = np.array(transform(Image.fromarray(input_image)))
-            features = super()._extract_features(augmented_input_image)
+            features = super()._extract_features(input_image, transform=transform)
             all_features.append(features)
         return torch.stack(all_features)
 

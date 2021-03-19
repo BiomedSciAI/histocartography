@@ -172,7 +172,7 @@ if __name__ == "__main__":
                 [0.0, 0.2, 0.4, 0.6, 0.8],
             )
         ],
-    )
+    ) 
     WeaklySupervisedGraphClassificationExperiment(
         name="sicap_gnn_depth", base="config/sicapv2_wsi_weak.yml", path=PATH
     ).generate(
@@ -2158,3 +2158,654 @@ if __name__ == "__main__":
             ]
         ],
     )
+
+    # ABLATIONS
+
+    # GNN Layers
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_gnn_3",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 3),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_gnn_2",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "model", "gnn_config", "n_layers"], 2),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_semi_normal",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+
+    # Handcrafted Features
+    CPUPreprocessingExperiment(
+        name="sicapv2_wsi_handcrafted",
+        base="config/preprocessing_sicap_wsi_handcrafted.yml",
+        queue="prod.long",
+        cores=4,
+        path=PATH,
+    ).generate(
+        fixed=[ 
+            Parameter(
+                ["params", "link_directory"],
+                "v0_4000_low_handcrafted",
+            )
+        ]
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_handcrafted",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_low_handcrafted"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "use_augmentation_dataset"], False),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 65),
+            Parameter(["train", "data", "normalize"], True)
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_paper_handcrafted",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_low_handcrafted"),
+            Parameter(["train", "data", "use_augmentation_dataset"], False),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 65),
+            Parameter(["train", "data", "normalize"], True)
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_paper_handcrafted",
+        base="config/paper_sicap_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_4000_low_handcrafted"),
+            Parameter(["train", "data", "use_augmentation_dataset"], False),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 67),
+            Parameter(["train", "data", "normalize"], True)
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    # Grid Graph
+    CPUPreprocessingExperiment(
+        name="sicapv2_wsi_grid",
+        base="config/preprocessing_sicap_wsi.yml",
+        queue="prod.long",
+        cores=4,
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["superpixel", "params", "compactness"], 10000
+            ),
+            Parameter(
+                ["params", "link_directory"],
+                "v0_4000_low_grid",
+            )
+        ]
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_grid",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_low_grid"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_paper_grid",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_low_grid"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_paper_grid",
+        base="config/paper_sicap_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_4000_low_grid"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    # Grid no
+    CPUPreprocessingExperiment(
+        name="sicapv2_wsi_grid_no",
+        base="config/preprocessing_sicap_wsi.yml",
+        queue="prod.long",
+        cores=4,
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["superpixel", "params", "compactness"], 10000
+            ),
+            Parameter(["superpixel", "params", "threshold"], 0.0),
+            Parameter(
+                ["params", "link_directory"],
+                "v0_4000_no_grid",
+            )
+        ]
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_grid_no",
+        base="config/paper_sicap_strong.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_no_grid"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_paper_grid_no",
+        base="config/paper_sicap_semi.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_no_grid"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_paper_grid_no",
+        base="config/paper_sicap_weak.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_4000_no_grid"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    # ResNet
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_resnet",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "data", "graph_directory"], "v0_low_4000_resnet34"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 512)
+
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_paper_resnet",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "graph_directory"], "v0_low_4000_resnet34"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 512)
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_paper_resnet",
+        base="config/paper_sicap_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_low_4000_resnet34"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 514)
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    # No merging
+    CPUPreprocessingExperiment(
+        name="sicapv2_wsi_no",
+        base="config/preprocessing_sicap_wsi.yml",
+        queue="prod.long",
+        cores=4,
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["superpixel", "params", "threshold"], 0.0
+            ),
+            Parameter(
+                ["params", "link_directory"],
+                "v0_4000_no",
+            )
+        ]
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_no",
+        base="config/paper_sicap_strong.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_no"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_paper_no",
+        base="config/paper_sicap_semi.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "node"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "graph_directory"], "v0_4000_no"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_paper_no",
+        base="config/paper_sicap_weak.yml",
+        queue="prod.long",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "graph_directory"], "v0_4000_no"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+
+    # No GNN
+    for DIM in [24, 32, 48, 64]:
+        StronglySupervisedGraphClassificationExperiment(
+            name=f"sicap_paper_no_gnn_{DIM}",
+            base="config/paper_sicap_strong.yml",
+            queue="prod.long",
+            path=PATH,
+        ).generate(
+            fixed=[
+                Parameter(
+                    ["train", "params", "optimizer", "scheduler"],
+                    {
+                        "class": "ReduceLROnPlateau",
+                        "params": {
+                            "mode": "max",
+                            "factor": 0.5,
+                            "patience": 10,
+                            "min_lr": 0.000005,
+                        },
+                    },
+                ),
+                Parameter(
+                    ["train", "params", "optimizer", "params", "lr"],
+                    0.0001,
+                ),
+                Parameter(["train", "model", "gnn_config", "n_layers"], 2),
+                Parameter(["train", "model", "gnn_config", "output_dim"], DIM),
+                Parameter(["train", "model", "gnn_config", "hidden_dim"], DIM),
+                Parameter(["train", "model", "node_classifier_config", "hidden_dim"], DIM),
+                Parameter(["train", "params", "nr_epochs"], 3000),
+
+            ],
+            grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        )
+        SemiSupervisedGraphClassificationExperiment(
+            name=f"sicap_paper_no_gnn_{DIM}",
+            base="config/paper_sicap_semi.yml",
+            queue="prod.long",
+            path=PATH,
+        ).generate(
+            fixed=[
+                Parameter(["train", "data", "centroid_features"], "no"),
+                Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+                Parameter(["train", "params", "use_weighted_loss"], True),
+                Parameter(["train", "data", "augmentation_mode"], "node"),
+                Parameter(["train", "params", "nr_epochs"], 3000),
+                Parameter(["train", "model", "gnn_config", "n_layers"], 2),
+                Parameter(["train", "model", "gnn_config", "output_dim"], DIM),
+                Parameter(["train", "model", "gnn_config", "hidden_dim"], DIM),
+                Parameter(["train", "model", "node_classifier_config", "hidden_dim"], DIM),
+                Parameter(["train", "model", "graph_classifier_config", "hidden_dim"], DIM),
+            ],
+            grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+            sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+        )
+        WeaklySupervisedGraphClassificationExperiment(
+            name=f"sicap_paper_no_gnn_{DIM}",
+            base="config/paper_sicap_weak.yml",
+            queue="prod.long",
+            path=PATH,
+        ).generate(
+            fixed=[
+                Parameter(["train", "data", "graph_directory"], "v0_4000_no"),
+                Parameter(["train", "model", "gnn_config", "output_dim"], DIM),
+                Parameter(["train", "model", "gnn_config", "hidden_dim"], DIM),
+                Parameter(["train", "model", "graph_classifier_config", "hidden_dim"], DIM),
+            ],
+            grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        )
+
+    for thres in [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25]:
+        GNNTestingExperiment(
+            name=f"sicap_paper_thres_{thres}",
+            base="config/sicapv2_wsi_strong.yml",
+            path=PATH,
+        ).generate(
+            fixed=[
+                Parameter(["test", "params", "threshold"], thres)
+            ],
+            sequential=[
+                [
+                    ParameterList(
+                        ["test", "params", "experiment_tags"],
+                        [
+                            {"grid_search": x}
+                            for x in [
+                                f"tissue_sicap_paper_thres_{thres}",
+                            ]*4
+                        ],
+                    ),
+                    ParameterList(
+                        ["test", "model", "architecture"],
+                        [
+                            f"s3://mlflow/650/{run_id}/artifacts/best.valid.node.segmentation.GleasonScoreF1"
+                            for run_id in [
+                            "e07d11ddc4f446e3a5ed3e4b0bb78d78",
+                            "b7297c5d0d1e4d92a77f115f0e2d271a",
+                            "27f250a920a9419a9bca303b3554e4be",
+                            "5a7dd480a8fb48cf94868d50d03ea447"
+                            ]
+                        ],
+                    ),
+                ]
+            ],
+        )
+
+    # Augmentations
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_graph_aug",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_paper_graph_aug",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "graph"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_paper_graph_aug",
+        base="config/paper_sicap_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "augmentation_mode"], "graph")
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    StronglySupervisedGraphClassificationExperiment(
+        name="sicap_paper_no_aug",
+        base="config/paper_sicap_strong.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(
+                ["train", "params", "optimizer", "scheduler"],
+                {
+                    "class": "ReduceLROnPlateau",
+                    "params": {
+                        "mode": "max",
+                        "factor": 0.5,
+                        "patience": 10,
+                        "min_lr": 0.000005,
+                    },
+                },
+            ),
+            Parameter(
+                ["train", "params", "optimizer", "params", "lr"],
+                0.0001,
+            ),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+            Parameter(["train", "data", "augmentation_mode"], "no"),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    SemiSupervisedGraphClassificationExperiment(
+        name="sicap_paper_no_aug",
+        base="config/paper_sicap_semi.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "centroid_features"], "no"),
+            Parameter(["train", "model", "gnn_config", "input_dim"], 1280),
+            Parameter(["train", "params", "use_weighted_loss"], True),
+            Parameter(["train", "data", "augmentation_mode"], "no"),
+            Parameter(["train", "params", "nr_epochs"], 3000),
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+        sequential=[ParameterList(["train", "params", "loss", "node_weight"], [0.5])],
+    )
+    WeaklySupervisedGraphClassificationExperiment(
+        name="sicap_paper_no_aug",
+        base="config/paper_sicap_weak.yml",
+        path=PATH,
+    ).generate(
+        fixed=[
+            Parameter(["train", "data", "augmentation_mode"], "no")
+        ],
+        grid=[ParameterList(["train", "data", "fold"], [1, 2, 3, 4])],
+    )
+    

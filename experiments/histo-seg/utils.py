@@ -252,11 +252,13 @@ def merge_metadata(
 
 
 def compute_graph_overlay(
-    graph: dgl.DGLGraph,
+    graph: dgl.DGLGraph = None,
     path: Optional[str] = None,
     image: Optional[np.ndarray] = None,
     superpixels: Optional[np.ndarray] = None,
     scale_factor: float = 1.0,
+    dpi: int = 100,
+    alpha: float = 0.5,
 ) -> Optional[Tuple[mpl.figure.Figure, mpl.axes.Axes]]:
     """Creates a plot of the graph, optionally with labels, overlayed with the image or even with the image and superpixels. Saves to name if not None.
 
@@ -273,7 +275,7 @@ def compute_graph_overlay(
     fig, ax = plt.subplots(figsize=(30, 30))
     if image is not None:
         new_dim = (
-            int(image.shape[0] * scale_factor),
+            int(image.shape[1] * scale_factor),
             int(image.shape[0] * scale_factor),
         )
         image = cv2.resize(image, new_dim, interpolation=cv2.INTER_NEAREST)
@@ -282,42 +284,44 @@ def compute_graph_overlay(
                 superpixels, new_dim, interpolation=cv2.INTER_NEAREST
             )
             image = mark_boundaries(image, superpixels, color=(0, 1, 1))
-        ax.imshow(image, alpha=0.5)
+        ax.imshow(image, alpha=alpha)
+        ax.axis('off')
 
-    nxgraph = graph.to_networkx()
+    if graph is not None:
+        nxgraph = graph.to_networkx()
 
-    if "label" in graph.ndata:
-        color_map = []
-        for i in range(nxgraph.number_of_nodes()):
-            label = graph.ndata["label"][i].item()
-            if label == 4:
-                color_map.append("gray")
-            if label == 0:
-                color_map.append("lime")
-            if label == 1:
-                color_map.append("mediumblue")
-            if label == 2:
-                color_map.append("gold")
-            if label == 3:
-                color_map.append("darkred")
-    else:
-        color_map = "black"
-    pos = (graph.ndata["centroid"].numpy().copy()) * scale_factor
-    pos[:, [0, 1]] = pos[:, [1, 0]]
-    nx.draw_networkx(
-        nxgraph,
-        pos=pos,
-        node_color=color_map,
-        arrows=False,
-        with_labels=False,
-        ax=ax,
-        node_size=40 * scale_factor,
-        width=0.5 * scale_factor,
-        edge_color="black",
-    )
+        if "label" in graph.ndata:
+            color_map = []
+            for i in range(nxgraph.number_of_nodes()):
+                label = graph.ndata["label"][i].item()
+                if label == 4:
+                    color_map.append("gray")
+                if label == 0:
+                    color_map.append("lime")
+                if label == 1:
+                    color_map.append("mediumblue")
+                if label == 2:
+                    color_map.append("gold")
+                if label == 3:
+                    color_map.append("darkred")
+        else:
+            color_map = "black"
+        pos = (graph.ndata["centroid"].numpy().copy()) * scale_factor
+        pos[:, [0, 1]] = pos[:, [1, 0]]
+        nx.draw_networkx(
+            nxgraph,
+            pos=pos,
+            node_color=color_map,
+            arrows=False,
+            with_labels=False,
+            ax=ax,
+            node_size=40 * scale_factor,
+            width=0.5 * scale_factor,
+            edge_color="black",
+        )
     if path is None:
         return fig, ax
-    fig.savefig(path, dpi=100, bbox_inches="tight")
+    fig.savefig(path, dpi=dpi, bbox_inches="tight")
 
     # Clear the current axes.
     plt.cla()

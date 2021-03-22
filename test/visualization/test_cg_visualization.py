@@ -45,12 +45,18 @@ class GraphVizTestCase(unittest.TestCase):
         edge_attributes["color"] = [0.1, 0.2, 0.8, 0.1, 0.2, 0.3, 0.1, 0.1]
 
         # 4. run the visualization
+        pseudo_instance_map = np.zeros_like(image)
+        pseudo_instance_map = pseudo_instance_map[:,:,0]
+        pseudo_instance_map[0:50,:]=pseudo_instance_map[0:50,:] + 1
+        pseudo_instance_map[:,0:50,]=pseudo_instance_map[:,0:50] + 1
+        pseudo_instance_map = pseudo_instance_map + 1
         visualizer = OverlayGraphVisualization(node_style="fill")
         out = visualizer.process(
             image,
             cell_graph,
             node_attributes=node_attributes,
             edge_attributes=edge_attributes,
+            instance_map=pseudo_instance_map
         )
 
         # 5. save output image

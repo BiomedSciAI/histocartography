@@ -11,14 +11,20 @@ from skimage.segmentation import mark_boundaries
 
 from ..ml.layers.constants import CENTROID
 from ..pipeline import PipelineStep
-from ..utils.draw_utils import draw_circle, draw_ellipse, draw_line, rgb, map_value_to_color
+from ..utils.draw_utils import (
+    draw_circle,
+    draw_ellipse,
+    draw_line,
+    rgb,
+    map_value_to_color,
+)
 from ..utils.vector import create_buckets
 
 N_BUCKETS = 10
 COLOR = "color"
 RADIUS = "radius"
 THICKNESS = "thickness"
-COLORMAP = 'colormap'
+COLORMAP = "colormap"
 
 
 class BaseVisualization(PipelineStep):
@@ -69,13 +75,13 @@ class BaseVisualization(PipelineStep):
         self, canvas: np.ndarray, instance_map: np.ndarray, instance_attributes: dict
     ):
         """
-        draw nodes on the canvas
+        draw edges on the canvas
         """
 
     @abstractmethod
     def graph_preprocessing(self, graph: dgl.DGLGraph):
         """
-        draw nodes on the canvas
+        preprocesses the graph (e.g., to reorganize spatially)
         """
 
 
@@ -88,12 +94,25 @@ class OverlayGraphVisualization(BaseVisualization):
         edge_style: str = "line",
         edge_color: str = "blue",
         edge_thickness: int = 2,
-        colormap = 'viridis',
-        show_colormap = False,
+        colormap="viridis",
+        show_colormap=False,
         **kwargs
     ) -> None:
         """
-        Overlay graph visualization class
+        Overlay graph visualization class. It overlays a graph drawn with
+        PIL on top of an image canvas. Nodes outside of the canvas support will
+        be ignored.
+
+        Args :
+            node_style: str = "outline" or "fill",
+            node_color: str = "yellow",
+            node_radius: int = 5,
+            edge_style: str = "line",
+            edge_color: str = "blue",
+            edge_thickness: int = 2,
+            colormap="viridis",
+            show_colormap=False,
+
         """
         super().__init__(**kwargs)
         self.node_style = node_style
@@ -110,6 +129,16 @@ class OverlayGraphVisualization(BaseVisualization):
     def draw_nodes(
         self, draw: ImageDraw, graph: dgl.DGLGraph, node_attributes: dict = None
     ):
+        """
+        Draws the nodes on top of the canvas.
+        Args:
+
+            draw : ImageDraw canvas
+            graph: dgl.DGLGraph with the information to be added
+            node_attributes: dict with any the following keywords ('color', 'radius', 'colormap')
+
+            'color': sting name of the color for all nodes, an iterable of color_values to map with using a Matplotlib 'colormap'
+        """
 
         # extract centroids
         centroids = graph.ndata[CENTROID]
@@ -157,6 +186,16 @@ class OverlayGraphVisualization(BaseVisualization):
     def draw_edges(
         self, draw: ImageDraw, graph: dgl.DGLGraph, edge_attributes: dict = None
     ):
+        """
+        Draws the nodes on top of the canvas.
+        Args:
+
+            draw : ImageDraw canvas
+            graph: dgl.DGLGraph with the information to be added
+            edge_attributes: dict with any the following keywords ('color', 'thickness', 'colormap')
+
+            'color': sting name of the color for all edges, an iterable of color_values to map with using a Matplotlib 'colormap'
+        """
         # extract centroids
         centroids = graph.ndata[CENTROID]
         src, dst = graph.edges()
@@ -200,9 +239,22 @@ class OverlayGraphVisualization(BaseVisualization):
         instance_map: np.ndarray = None,
         instance_attributes: dict = None,
     ):
+        """
+        Draws the canvas of the image using the instance map.
+        Args:
 
-        image = Image.fromarray(canvas)
+            canvas: np.ndarray,
+            instance_map: np.ndarray = None,
+            instance_attributes: dict = None,
+        """
+
+        if instance_map is not None:
+            canvas = 255*mark_boundaries(canvas, instance_map, color=(
+                0, 0, 0), mode='thick')
+            
+        image = Image.fromarray(canvas.astype(np.uint8))
         viz_canvas = image.copy()
+        
         return viz_canvas
 
 

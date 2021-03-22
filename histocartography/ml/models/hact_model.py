@@ -14,25 +14,25 @@ from histocartography.ml.layers.mlp import MLP
 import time 
 
 
-class MultiLevelGraphModel(BaseModel):
+class HACTModel(BaseModel):
     """
-    Multi-level graph model. The information for grading tumors in WSI lies at different scales. By building 2 graphs,
+    HACT model. The information for grading tumors lies at different scales. By building 2 graphs,
     one at the cell level and one at the object level (modeled with super pixels), we can extract graph embeddings
-    that once combined provide a multi-scale representation of a tumor.
+    that once combined provide a multi-scale representation of a RoI.
 
-    This implementation is using GIN Layers as a graph neural network and a spatial assignment matrix.
+    This implementation is using GNN layers and spatial assignment matrix to fuse the 2 layers.
 
     """
 
     def __init__(self, config, input_feature_dims):
         """
-        MultiLevelGraph model constructor
+        HACTModel model constructor
         :param config: (dict) configuration parameters
         :param ll_node_dim: (int) low level node dim, data specific argument
         :param hl_node_dim: (int) high level node dim, data specific argument
         """
 
-        super(MultiLevelGraphModel, self).__init__(config)
+        super(HACTModel, self).__init__(config)
 
         # 1- set class attributes
         self.config = config

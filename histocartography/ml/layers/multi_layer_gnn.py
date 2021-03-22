@@ -29,7 +29,16 @@ class MultiLayerGNN(nn.Module):
         ) -> None:
         """
         MultiLayer GNN constructor.
-        @TODO: docstring 
+        
+        Args:
+            layer_type (str): GNN layer type. Default to "gin_layer".
+            input_dim (int): Input dimension of the node features. Default to None.
+            hidden_dim (int): Hidden dimension of the node embeddings. Default to 32.
+            output_dim (int): Output dimension of the node embeddings. Default to 32.
+            num_layers (int): Number of GNN layers. Default to 3.
+            activation (str): Activation function used by the GNN. Default to ReLu activation. 
+            readout_op (str): How the intermediate node embeddings are aggregated. Default to "concat".
+            readout_type (str): Global node pooling operation. Default to "mean". 
         """
 
         assert input_dim is not None, "Please provide input node dimensions."
@@ -121,11 +130,12 @@ class MultiLayerGNN(nn.Module):
             return g.ndata.pop(GNN_NODE_FEAT_OUT)
 
         else:
-            # @TODO: add support for LSTM aggregation for dense graphs 
-            # concat
             if self.readout_op == "concat":
                 h_concat = [h.squeeze() for h in h_concat]
                 h = torch.cat(h_concat, dim=-1)
+            elif self.readout_op == "lstm":
+                raise NotImplementedError("LSTM aggregation with LSTM is not supported.")
+
             # readout
             if with_readout:
                 return REDUCE_TYPES[self.readout_type](h, dim=0)

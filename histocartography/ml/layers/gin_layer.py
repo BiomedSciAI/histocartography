@@ -25,7 +25,7 @@ class GINLayer(nn.Module):
             node_dim: int,
             out_dim: int,
             act: str = 'relu',
-            agg_type: str = 'sum',
+            agg_type: str = 'mean',
             hidden_dim: int = 32,
             batch_norm: bool = True,
             graph_norm: bool = False,
@@ -39,7 +39,7 @@ class GINLayer(nn.Module):
             node_dim (int): Input dimension of each node.
             out_dim (int): Output dimension of each node.
             act (str): Activation function of the update function.
-            agg_type (str): Aggreagtion function. Default to 'sum'.
+            agg_type (str): Aggregation function. Default to 'mean'.
             hidden_dim (int): Hidden dimension of the GIN MLP. Default to 32.
             batch_norm (bool): If we should use batch normalization. Default to True.
             graph_norm (bool): If we should use graph normalization. Default to False.

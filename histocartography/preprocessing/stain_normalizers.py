@@ -35,14 +35,21 @@ class StainNormalizer(PipelineStep):
         super().__init__(**kwargs)
 
         self.norm_mode = -1
+        self.save_path = None
         if self.target_path is not None and \
             precomputed_normalizer_path is None:
-            self.save_path = self.output_dir / "normalizer.h5"
             self.norm_mode = 1
+            if self.base_path is not None:
+                self.save_path = self.output_dir / "normalizer.h5"
         elif self.target_path is None and \
             precomputed_normalizer_path is not None:
-            self.save_path = Path(precomputed_normalizer_path)
             self.norm_mode = 2
+            self.save_path = Path(precomputed_normalizer_path)
+        elif self.target_path is not None and \
+             precomputed_normalizer_path is not None:
+            raise ValueError(
+                    "Wrong input, provided both targeted and precomputed normalization."
+                    )
 
     @staticmethod
     def _standardize_brightness(input_image: np.ndarray) -> np.ndarray:
@@ -101,7 +108,8 @@ class StainNormalizer(PipelineStep):
         """
         optical_density = self._rgb_to_od(input_image).reshape((-1, 3)).astype(np.float32)
         stain_matrix = stain_matrix.astype(np.float32)
-        return np.linalg.lstsq(stain_matrix.T, optical_density.T, rcond=-1)[0].T
+        concentration = np.linalg.lstsq(stain_matrix.T, optical_density.T, rcond=-1)[0].T
+        return concentration * (concentration > 0)
 
     @abstractmethod
     def fit(self, target_image: np.ndarray):
@@ -129,13 +137,15 @@ class StainNormalizer(PipelineStep):
 
     def _load_precomputed(self) -> None:
         """Loads the precomputed values of a previous fit"""
-        with h5py.File(self.save_path, "r") as input_file:
-            self._load_values(input_file)
+        if self.save_path is not None:
+            with h5py.File(self.save_path, "r") as input_file:
+                self._load_values(input_file)
 
     def _save_precomputed(self):
         """Saves the precomputed values"""
-        with h5py.File(self.save_path, "w") as output_file:
-            self._save_values(output_file)
+        if self.save_path is not None:
+            with h5py.File(self.save_path, "w") as output_file:
+                self._save_values(output_file)
 
     @abstractmethod
     def _normalize_image(self, input_image: np.ndarray) -> np.ndarray:
@@ -192,10 +202,14 @@ class StainNormalizer(PipelineStep):
     def precompute(self, final_path) -> None:
         """Precompute all necessary information"""
         if self.norm_mode == 1:
-            if not self.save_path.exists():
+            if self.save_path is not None:
+                if not self.save_path.exists():
+                    target_image = load_image(Path(self.target_path))
+                    self.fit(target_image)
+                self._load_precomputed()
+            else:
                 target_image = load_image(Path(self.target_path))
                 self.fit(target_image)
-            self._load_precomputed()
         elif self.norm_mode == 2:
             if not self.save_path.exists():
                 raise FileNotFoundError(

@@ -1,8 +1,7 @@
-
 inputs:
 - image_path
 outputs:
-- tissue_mask
+- normalized_image
 stages:
   - preprocessing:
       class: "ImageLoader"
@@ -11,10 +10,10 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: "GaussianTissueMask"
-      inputs:
-      - image
-      outputs:
-      - tissue_mask
-      params:
-        kernel_size: 5
+        class: "MacenkoStainNormalizer"
+        inputs:
+        - image
+        outputs:
+        - normalized_image
+        params:
+          target_path: "../data/images/18B000646H.png"

@@ -46,9 +46,11 @@ class GraphVizTestCase(unittest.TestCase):
 
         # 4. run the visualization
         pseudo_instance_map = np.zeros_like(image)
-        pseudo_instance_map = pseudo_instance_map[:,:,0]
-        pseudo_instance_map[0:50,:]=pseudo_instance_map[0:50,:] + 1
-        pseudo_instance_map[:,0:50,]=pseudo_instance_map[:,0:50] + 1
+        pseudo_instance_map = pseudo_instance_map[:, :, 0]
+        pseudo_instance_map[0:50, :] = pseudo_instance_map[0:50, :] + 1
+        pseudo_instance_map[:, 0:50] = (
+            pseudo_instance_map[:, 0:50] + 1
+        )
         pseudo_instance_map = pseudo_instance_map + 1
         visualizer = OverlayGraphVisualization(node_style="fill")
         out = visualizer.process(
@@ -56,7 +58,7 @@ class GraphVizTestCase(unittest.TestCase):
             cell_graph,
             node_attributes=node_attributes,
             edge_attributes=edge_attributes,
-            instance_map=pseudo_instance_map
+            instance_map=pseudo_instance_map,
         )
 
         # 5. save output image

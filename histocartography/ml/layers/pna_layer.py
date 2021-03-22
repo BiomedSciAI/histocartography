@@ -7,7 +7,7 @@
 import itertools
 import math
 import numpy as np
-import dgl 
+import dgl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -42,16 +42,16 @@ class PNALayer(nn.Module):
             out_dim (int): Output dimension of each node.
             aggregators (str): Set of aggregation function identifiers. Default to "mean max min std".
             scalers (str): Set of scaling functions identifiers. Default to "identity amplification attenuation".
-            avg_d (int): Average degree of nodes in the training set, used by scalers to normalize. Default to 5. 
+            avg_d (int): Average degree of nodes in the training set, used by scalers to normalize. Default to 5.
             dropout (float): Dropout used. Default to 0.
             graph_norm (bool): Whether to use graph normalisation. Default to False.
-            batch_norm (bool): Whether to use batch normalisation. Default to False. 
-            towers: Number of towers to use. Default to 1. 
-            pretrans_layers: Number of layers in the transformation before the aggregation. Default to 1. 
-            posttrans_layers: Number of layers in the transformation after the aggregation. Default to 1. 
-            divide_input: Whether the input features should be split between towers or not. Default to True. 
-            residual: Whether to add a residual connection. Default to True. 
-            verbose (bool): Verbosity. Default to False. 
+            batch_norm (bool): Whether to use batch normalisation. Default to False.
+            towers: Number of towers to use. Default to 1.
+            pretrans_layers: Number of layers in the transformation before the aggregation. Default to 1.
+            posttrans_layers: Number of layers in the transformation after the aggregation. Default to 1.
+            divide_input: Whether the input features should be split between towers or not. Default to True.
+            residual: Whether to add a residual connection. Default to True.
+            verbose (bool): Verbosity. Default to False.
         """
         super().__init__()
 
@@ -64,10 +64,10 @@ class PNALayer(nn.Module):
             out_dim %
             towers == 0), "the number of towers has to divide the out_dim"
 
-        # retrieve the aggregators, scalers functions and avg degree 
+        # retrieve the aggregators, scalers functions and avg degree
         aggregators = [AGGREGATORS[aggr] for aggr in aggregators.split()]
         scalers = [SCALERS[scale] for scale in scalers.split()]
-        avg_d = {'log': math.log(avg_d+1)} 
+        avg_d = {'log': math.log(avg_d + 1)}
 
         self.divide_input = divide_input
         self.input_tower = node_dim // towers if divide_input else node_dim
@@ -205,7 +205,9 @@ class PNATower(nn.Module):
 
         # graph and batch normalization
         if self.graph_norm:
-            if isinstance(g, dgl.DGLGraph) or isinstance(g, dgl.DGLHeteroGraph):
+            if isinstance(
+                    g, dgl.DGLGraph) or isinstance(
+                    g, dgl.DGLHeteroGraph):
                 num_nodes = [g.number_of_nodes()]
             else:
                 num_nodes = g.batch_num_nodes

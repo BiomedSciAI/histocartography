@@ -8,7 +8,7 @@ Original paper:
 import itertools
 import numpy as np
 import torch
-import torch.nn as nn 
+import torch.nn as nn
 import torch.nn.functional as F
 
 from histocartography.ml.layers.constants import (
@@ -45,14 +45,14 @@ class GINLayer(nn.Module):
             graph_norm (bool): If we should use graph normalization. Default to False.
             with_lrp (bool): If we should use LRP. Default to False.
             dropout (float): If we should use dropout. Default to 0.
-            verbose (bool): Verbosity. Default to False. 
+            verbose (bool): Verbosity. Default to False.
         """
         super().__init__()
 
         if verbose:
             print('Instantiating new GNN layer.')
 
-        self.batch_norm = batch_norm 
+        self.batch_norm = batch_norm
         self.graph_norm = graph_norm
         self.with_lrp = with_lrp
 
@@ -113,16 +113,18 @@ class GINLayer(nn.Module):
         g.update_all(self.msg_fn, self.reduce_fn)
 
         if GNN_AGG_MSG in g.ndata.keys():
-            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_AGG_MSG] + g.ndata[GNN_NODE_FEAT_IN]
+            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_AGG_MSG] + \
+                g.ndata[GNN_NODE_FEAT_IN]
         else:
             g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_NODE_FEAT_IN]
 
         g.apply_nodes(func=self.node_update_fn)
 
-        # apply graph norm and batch norm 
+        # apply graph norm and batch norm
         h = g.ndata[GNN_NODE_FEAT_OUT]
         if self.graph_norm:
-            snorm_n = torch.FloatTensor(list(itertools.chain(*[[np.sqrt(1/n)] * n for n in g.batch_num_nodes]))).to(h.get_device())
+            snorm_n = torch.FloatTensor(list(itertools.chain(
+                *[[np.sqrt(1 / n)] * n for n in g.batch_num_nodes]))).to(h.get_device())
             h = h * snorm_n[:, None]
         if self.batch_norm:
             h = self.batchnorm_h(h)
@@ -134,8 +136,10 @@ class GINLayer(nn.Module):
         self.mlp.set_lrp(with_lrp)
 
     def _compute_adj_lrp(self, relevance_score):
-        adjacency_matrix = self.adjacency_matrix + torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
-        V = torch.clamp(adjacency_matrix, min=0)  # @TODO: rename variables in this class. 
+        adjacency_matrix = self.adjacency_matrix + \
+            torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
+        # @TODO: rename variables in this class.
+        V = torch.clamp(adjacency_matrix, min=0)
         Z = torch.mm(self.input_features, V.t()) + 1e-9
         S = relevance_score / Z.t()
         C = torch.mm(V, S)
@@ -144,13 +148,13 @@ class GINLayer(nn.Module):
 
     def lrp(self, out_relevance_score):
         """
-        Implement lrp for GIN layer: 
+        Implement lrp for GIN layer:
         """
 
-        # 1/ lrp over the node update function 
+        # 1/ lrp over the node update function
         relevance_score = self.mlp.lrp(out_relevance_score)
 
-        # 2/ lrp over the adjacency 
+        # 2/ lrp over the adjacency
         relevance_score = self._compute_adj_lrp(relevance_score)
 
         return relevance_score

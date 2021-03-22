@@ -16,29 +16,29 @@ class MultiLayerGNN(nn.Module):
     """
 
     def __init__(
-            self,
-            layer_type = "gin_layer",
-            input_dim = None,
-            hidden_dim = 32,
-            output_dim = 32,
-            num_layers = 3,
-            activation = "relu",
-            readout_op = "concat",
-            readout_type = "mean", 
-            **kwargs
-        ) -> None:
+        self,
+        layer_type="gin_layer",
+        input_dim=None,
+        hidden_dim=32,
+        output_dim=32,
+        num_layers=3,
+        activation="relu",
+        readout_op="concat",
+        readout_type="mean",
+        **kwargs
+    ) -> None:
         """
         MultiLayer GNN constructor.
-        
+
         Args:
             layer_type (str): GNN layer type. Default to "gin_layer".
             input_dim (int): Input dimension of the node features. Default to None.
             hidden_dim (int): Hidden dimension of the node embeddings. Default to 32.
             output_dim (int): Output dimension of the node embeddings. Default to 32.
             num_layers (int): Number of GNN layers. Default to 3.
-            activation (str): Activation function used by the GNN. Default to ReLu activation. 
+            activation (str): Activation function used by the GNN. Default to ReLu activation.
             readout_op (str): How the intermediate node embeddings are aggregated. Default to "concat".
-            readout_type (str): Global node pooling operation. Default to "mean". 
+            readout_type (str): Global node pooling operation. Default to "mean".
         """
 
         assert input_dim is not None, "Please provide input node dimensions."
@@ -65,7 +65,7 @@ class MultiLayerGNN(nn.Module):
             node_dim=input_dim,
             out_dim=hidden_dim,
             **kwargs
-            )
+        )
         )
         # hidden layers
         for i in range(1, num_layers - 1):
@@ -76,14 +76,14 @@ class MultiLayerGNN(nn.Module):
                     node_dim=hidden_dim,
                     out_dim=hidden_dim,
                     **kwargs
-                    )
                 )
+            )
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=hidden_dim,
             out_dim=output_dim,
             **kwargs
-            )
+        )
         )
 
         # readout op
@@ -92,7 +92,7 @@ class MultiLayerGNN(nn.Module):
                 output_dim, (num_layers * output_dim) // 2,
                 bidirectional=True,
                 batch_first=True)
-            self.att =nn.Linear(2 * ((num_layers * output_dim) // 2), 1)
+            self.att = nn.Linear(2 * ((num_layers * output_dim) // 2), 1)
 
     def forward(self, g, h, with_readout=True):
         """
@@ -109,19 +109,22 @@ class MultiLayerGNN(nn.Module):
 
         if isinstance(g, dgl.DGLGraph):
 
-            # aggregate the multi-scale node representations 
+            # aggregate the multi-scale node representations
             if self.readout_op == "concat":
                 g.ndata[GNN_NODE_FEAT_OUT] = torch.cat(h_concat, dim=-1)
             elif self.readout_op == "lstm":
-                x = torch.stack(h_concat, dim=1)  # [num_nodes, num_layers, num_channels]
+                # [num_nodes, num_layers, num_channels]
+                x = torch.stack(h_concat, dim=1)
                 alpha, _ = self.lstm(x)
                 alpha = self.att(alpha).squeeze(-1)  # [num_nodes, num_layers]
                 alpha = torch.softmax(alpha, dim=-1)
-                g.ndata[GNN_NODE_FEAT_OUT] = (x * alpha.unsqueeze(-1)).sum(dim=1)
+                g.ndata[GNN_NODE_FEAT_OUT] = (
+                    x * alpha.unsqueeze(-1)).sum(dim=1)
             elif self.readout_op == "none":
                 g.ndata[GNN_NODE_FEAT_OUT] = h
             else:
-                raise ValueError("Unsupported readout operator. Options are 'concat', 'lstm', 'none'.")
+                raise ValueError(
+                    "Unsupported readout operator. Options are 'concat', 'lstm', 'none'.")
 
             # readout
             if with_readout:
@@ -134,7 +137,8 @@ class MultiLayerGNN(nn.Module):
                 h_concat = [h.squeeze() for h in h_concat]
                 h = torch.cat(h_concat, dim=-1)
             elif self.readout_op == "lstm":
-                raise NotImplementedError("LSTM aggregation with LSTM is not supported.")
+                raise NotImplementedError(
+                    "LSTM aggregation with LSTM is not supported.")
 
             # readout
             if with_readout:
@@ -146,7 +150,6 @@ class MultiLayerGNN(nn.Module):
             layer.set_lrp(with_lrp)
 
     def lrp(self, relevance_score):
-        for layer_id in range(len(self.layers)-1, -1, -1):
+        for layer_id in range(len(self.layers) - 1, -1, -1):
             relevance_score = self.layers[layer_id].lrp(relevance_score)
-        return relevance_score 
-
+        return relevance_score

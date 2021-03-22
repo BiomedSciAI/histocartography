@@ -11,7 +11,7 @@ Original paper:
 import torch
 import torch.nn.functional as F
 import dgl
-from torch import nn 
+from torch import nn
 
 from .mlp import MLP
 
@@ -43,7 +43,7 @@ class DenseGINLayer(nn.Module):
             graph_norm (bool): If we should use graph normalization. Default to False.
             with_lrp (bool): If we should use LRP. Default to False.
             dropout (float): If we should use dropout. Default to 0.
-            verbose (bool): Verbosity. Default to False. 
+            verbose (bool): Verbosity. Default to False.
         """
 
         super().__init__()
@@ -73,8 +73,11 @@ class DenseGINLayer(nn.Module):
 
         if isinstance(adj, dgl.DGLGraph):
             adj = dgl.unbatch(adj)
-            assert(len(adj) == 1), "Batch size must be equal to 1 for processing Dense GIN Layers"
-            adj = adj[0].adjacency_matrix().to_dense().unsqueeze(dim=0).to(h.device)
+            assert(
+                len(adj) == 1), "Batch size must be equal to 1 for processing Dense GIN Layers"
+            adj = adj[0].adjacency_matrix().to_dense().unsqueeze(
+                dim=0).to(
+                h.device)
 
         if self.mean:
             degree = adj.sum(1, keepdim=True)

@@ -1,6 +1,6 @@
 import torch.nn as nn
 from torch.nn import Sequential, Linear
-import torch 
+import torch
 
 from .constants import ACTIVATIONS
 
@@ -82,7 +82,7 @@ class MLP(nn.Module):
         :param layer_id: (int)
         :return: layer (Sequential)
         """
-        
+
         layer = Sequential()
         layer.add_module("fc",
                          Linear(self.dims[layer_id],
@@ -183,7 +183,7 @@ class MLP(nn.Module):
         return out
 
     def lrp(self, relevance_score):
-        for layer_id in range(len(self.mlp)-1, -1, -1):
+        for layer_id in range(len(self.mlp) - 1, -1, -1):
             V = torch.clamp(self.mlp[layer_id][0].weight, min=0)
             Z = torch.mm(self.forward_activations[layer_id], V.t()) + 1e-9
             S = relevance_score / Z

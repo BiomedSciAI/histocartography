@@ -32,10 +32,15 @@ AVAILABLE_LAYER_TYPES = {
 
 GNN_MODULE = 'histocartography.ml.layers.{}'
 
+
 def min_nodes(graph, features):
     from dgl.backend import pytorch
-    feat = pytorch.pad_packed_tensor(graph.ndata[features], graph.batch_num_nodes, float('inf'))
+    feat = pytorch.pad_packed_tensor(
+        graph.ndata[features],
+        graph.batch_num_nodes,
+        float('inf'))
     return pytorch.min(feat, 1)
+
 
 READOUT_TYPES = {
     'sum': dgl.sum_nodes,
@@ -44,8 +49,10 @@ READOUT_TYPES = {
     'min': min_nodes
 }
 
+
 def reduce_min(x, dim):
     return torch.min(x, dim=dim)[0]
+
 
 def reduce_max(x, dim):
     return torch.max(x, dim=dim)[0]
@@ -93,14 +100,16 @@ AGGREGATORS = {
 
 
 # each scaler is a function that takes as input X (B x N x Din), adj (B x N x N) and
-# avg_d (dictionary containing averages over training set) and returns X_scaled (B x N x Din) as output
+# avg_d (dictionary containing averages over training set) and returns
+# X_scaled (B x N x Din) as output
 
 def scale_identity(h, D=None, avg_d=None):
     return h
 
 
 def scale_amplification(h, D, avg_d):
-    # log(D + 1) / d * h     where d is the average of the ``log(D + 1)`` in the training set
+    # log(D + 1) / d * h     where d is the average of the ``log(D + 1)`` in
+    # the training set
     return h * (np.log(D + 1) / avg_d["log"])
 
 
@@ -114,6 +123,3 @@ SCALERS = {
     'amplification': scale_amplification,
     'attenuation': scale_attenuation
 }
-
-
-

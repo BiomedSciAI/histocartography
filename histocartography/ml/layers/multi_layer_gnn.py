@@ -12,18 +12,30 @@ from histocartography.ml.layers.constants import (
 
 class MultiLayerGNN(nn.Module):
     """
-    MultiLayer network that concatenate several gnn layers layer
+    MultiLayer network that concatenates several gnn layers.
     """
 
-    def __init__(self, config):
+    def __init__(
+            self,
+            layer_type = "gin_layer",
+            input_dim = None,
+            hidden_dim = 32,
+            output_dim = 32,
+            num_layers = 3,
+            activation = "relu",
+            readout_op = "concat",
+            readout_type = "mean", 
+            **kwargs
+        ) -> None:
         """
         MultiLayer GNN constructor.
-        :param config: (dict) configuration parameters. Refer to the layers implementation
-                              for the parameter description.
+        @TODO: docstring 
         """
+
+        assert input_dim is not None, "Please provide input node dimensions."
+
         super(MultiLayerGNN, self).__init__()
 
-        layer_type = config['layer_type']
         if layer_type in list(AVAILABLE_LAYER_TYPES.keys()):
             module = importlib.import_module(
                 GNN_MODULE.format(layer_type)
@@ -35,24 +47,16 @@ class MultiLayerGNN(nn.Module):
                 )
             )
 
-        self.config = config
-        in_dim = config['input_dim']
-        hidden_dim = config['hidden_dim']
-        out_dim = config['output_dim']
-        num_layers = config['n_layers']
-        activation = config['activation']
-        edge_dim = config['edge_dim']
-
         self.layers = nn.ModuleList()
+        self.readout_op = readout_op
+        self.readout_type = readout_type
 
         # input layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
-            node_dim=in_dim,
+            node_dim=input_dim,
             out_dim=hidden_dim,
-            act=activation,
-            layer_id=0,
-            config=config,
-            edge_dim=edge_dim)
+            **kwargs
+            )
         )
         # hidden layers
         for i in range(1, num_layers - 1):
@@ -62,33 +66,24 @@ class MultiLayerGNN(nn.Module):
                     AVAILABLE_LAYER_TYPES[layer_type])(
                     node_dim=hidden_dim,
                     out_dim=hidden_dim,
-                    act=activation,
-                    layer_id=i,
-                    config=config,
-                    edge_dim=edge_dim)
+                    **kwargs
+                    )
                 )
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=hidden_dim,
-            out_dim=out_dim,
-            act=activation,
-            layer_id=num_layers - 1,
-            config=config,
-            edge_dim=edge_dim)
+            out_dim=output_dim,
+            **kwargs
+            )
         )
 
         # readout op
-        self.readout_op = config["agg_operator"]
-        if self.readout_op == "lstm":
+        if readout_op == "lstm":
             self.lstm = nn.LSTM(
-                out_dim, (num_layers * out_dim) // 2,
+                output_dim, (num_layers * output_dim) // 2,
                 bidirectional=True,
                 batch_first=True)
-            self.att =nn.Linear(2 * ((num_layers * out_dim) // 2), 1)
-
-        # readout function
-        self.readout_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys(
-        ) else 'sum'
+            self.att =nn.Linear(2 * ((num_layers * output_dim) // 2), 1)
 
     def forward(self, g, h, with_readout=True):
         """
@@ -136,12 +131,12 @@ class MultiLayerGNN(nn.Module):
                 return REDUCE_TYPES[self.readout_type](h, dim=0)
             return h
 
-    def set_rlp(self, with_rlp):
+    def set_lrp(self, with_lrp):
         for layer in self.layers:
-            layer.set_rlp(with_rlp)
+            layer.set_lrp(with_lrp)
 
-    def rlp(self, relevance_score):
+    def lrp(self, relevance_score):
         for layer_id in range(len(self.layers)-1, -1, -1):
-            relevance_score = self.layers[layer_id].rlp(relevance_score)
+            relevance_score = self.layers[layer_id].lrp(relevance_score)
         return relevance_score 
 

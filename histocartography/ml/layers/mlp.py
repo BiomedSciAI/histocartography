@@ -2,7 +2,7 @@ import torch.nn as nn
 from torch.nn import Sequential, Linear
 import torch 
 
-from histocartography.ml.layers.constants import ACTIVATIONS
+from .constants import ACTIVATIONS
 
 
 class MLP(nn.Module):
@@ -18,7 +18,7 @@ class MLP(nn.Module):
         bias=True,
         verbose=False,
         dropout=0.,
-        with_rlp=False
+        with_lrp=False
     ):
         """
         MLP Constructor
@@ -53,9 +53,9 @@ class MLP(nn.Module):
         # set bias terms
         self._set_biases(bias, num_layers)
 
-        # set RLP
-        self.with_rlp = with_rlp
-        if self.with_rlp:
+        # set lrp
+        self.with_lrp = with_lrp
+        if self.with_lrp:
             self.forward_activations = []
 
         # build MLP layers
@@ -162,9 +162,9 @@ class MLP(nn.Module):
                 format(act, list(ACTIVATIONS.keys()))
             )
 
-    def set_rlp(self, with_rlp):
-        self.with_rlp = with_rlp
-        if self.with_rlp:
+    def set_lrp(self, with_lrp):
+        self.with_lrp = with_lrp
+        if self.with_lrp:
             self.forward_activations = []
 
     def forward(self, feats):
@@ -174,15 +174,15 @@ class MLP(nn.Module):
         :return: out: MLP output
         """
         out = feats
-        if hasattr(self, 'with_rlp') and self.with_rlp:
+        if hasattr(self, 'with_lrp') and self.with_lrp:
             self.forward_activations.append(out)
         for layer in self.mlp:
             out = layer(out)
-            if hasattr(self, 'with_rlp') and self.with_rlp:
+            if hasattr(self, 'with_lrp') and self.with_lrp:
                 self.forward_activations.append(out)
         return out
 
-    def rlp(self, relevance_score):
+    def lrp(self, relevance_score):
         for layer_id in range(len(self.mlp)-1, -1, -1):
             V = torch.clamp(self.mlp[layer_id][0].weight, min=0)
             Z = torch.mm(self.forward_activations[layer_id], V.t()) + 1e-9

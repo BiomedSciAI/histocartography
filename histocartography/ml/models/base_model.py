@@ -31,13 +31,12 @@ class BaseModel(Module):
         """
         Build cell graph multi layer GNN
         """
-        print("self.ll_node_dim, self.edge_dim", self.ll_node_dim, self.edge_dim)
         self._update_config(config, self.ll_node_dim, self.edge_dim)
         self.cell_graph_gnn = MultiLayerGNN(config=config)
 
-    def _build_superpx_graph_params(self, superpx_config, input_dim=None, edge_dim=None):
+    def _build_tissue_graph_params(self, superpx_config, input_dim=None, edge_dim=None):
         """
-        Build super pixel multi layer GNN
+        Build multi layer GNN for tissue processing. 
         """
         if input_dim is not None:
             self._update_config(superpx_config, input_dim, edge_dim)
@@ -55,11 +54,3 @@ class BaseModel(Module):
         :param graphs:
         """
         raise NotImplementedError('Implementation in subclasses.')
-
-    def set_forward_hook(self, module, layer):
-        module._modules.get(layer).register_forward_hook(self._forward_hook)
-
-    def _forward_hook(self, module, input, output):
-        """Activation hook"""
-        self.latent_representation = output.data
-

@@ -1,6 +1,5 @@
 """
 Implementation of a GIN (Graph Isomorphism Network) layer.
-In the  implementation the edges can also have weights that can be set as g.edata[GNN_EDGE_WEIGHT] = weight.
 
 Original paper:
     - How Powerful are Graph Neural Networks: https://arxiv.org/abs/1810.00826
@@ -17,69 +16,51 @@ from histocartography.ml.layers.constants import (
     GNN_AGG_MSG, GNN_EDGE_WEIGHT, REDUCE_TYPES,
     GNN_EDGE_FEAT
 )
-from histocartography.ml.layers.mlp import MLP
-from histocartography.ml.layers.base_layer import BaseLayer
+from .mlp import MLP
+from .base_layer import BaseLayer
 
 
 class GINLayer(BaseLayer):
 
     def __init__(
             self,
-            node_dim,
-            out_dim,
-            act,
-            layer_id,
-            edge_dim=None,
-            config=None,
-            verbose=False):
+            node_dim: int,
+            out_dim: int,
+            act: str = 'relu',
+            agg_type: str = 'sum',
+            hidden_dim: int = 32,
+            use_bn: bool = True,
+            graph_norm: bool = False,
+            with_lrp: bool = False,
+            dropout: float = 0.,
+            verbose: bool = False) -> None:
         """
         GIN Layer constructor
-        :param node_dim: (int) input dimension of each node
-        :param out_dim: (int) output dimension of each node
-        :param act: (str) activation function of the update function
-        :param layer_id: (int) layer number
-        :param use_bn: (bool) if layer uses batch norm
-        :param config: (dict) optional argument
-        :param verbose: (bool) verbosity level
+
+        Args:
+            node_dim (int): input dimension of each node
+            out_dim (int): output dimension of each node
+            act (str): activation function of the update function
+            use_bn (bool): if layer uses batch norm
+            agg_type (str): Aggreagtion function. Default to 'sum'.
+            hidden_dim (int): Hidden dimension of the GIN MLP. Default to 32.
+            use_bn (bool): If we should use batch normalization. Default to True.
+            graph_norm (bool): If we should use graph normalization. Default to False.
+            with_lrp (bool): If we should use LRP. Default to False.
+            dropout (float): If we should use dropout. Default to 0.
+            verbose (bool): Verbosity. Default to False. 
         """
-        super(
-            GINLayer,
-            self).__init__(
-            node_dim,
-            out_dim,
-            act,
-            layer_id)
+        super().__init__(node_dim, out_dim, act)
 
         if verbose:
-            print('Creating new GNN layer:')
+            print('Instantiating new GNN layer.')
 
-        if config is not None:
-            eps = config['eps'] if 'eps' in config.keys() else None
-            neighbor_pooling_type = config['neighbor_pooling_type'] if 'neighbor_pooling_type' in config.keys(
-            ) else 'sum'
-            learn_eps = config['learn_eps'] if 'learn_eps' in config.keys(
-            ) else None
-            hidden_dim = config['hidden_dim']
-            self.use_bn = config['use_bn'] if 'use_bn' in config.keys() else True
-            dropout = config['dropout'] if 'dropout' in config.keys() else 0.
-            self.graph_norm = config['graph_norm'] if 'graph_norm' in config.keys() else False
-            self.with_rlp = config['with_rlp'] if 'with_rlp' in config.keys() else False
-        else:
-            eps = None
-            neighbor_pooling_type = 'sum'
-            learn_eps = None
-            hidden_dim = 32
-            self.use_bn = True
-            dropout = 0.
-            self.graph_norm = False 
-            self.with_rlp = False
+        self.use_bn = use_bn 
+        self.graph_norm = graph_norm
+        self.with_lrp = with_lrp
 
         if self.use_bn:
             self.batchnorm_h = nn.BatchNorm1d(out_dim)
-
-        if edge_dim is not None:
-            edge_encoding_dim = min(node_dim, 16)  # hardcoded param setting the edge encoding to 16
-            self.edge_encoder = nn.Linear(edge_dim, edge_encoding_dim)
 
         self.mlp = MLP(
             node_dim,
@@ -87,23 +68,19 @@ class GINLayer(BaseLayer):
             out_dim,
             2,
             act,
-            use_bn=False,  # bn is put after in the node update fn 
             verbose=verbose,
             dropout=dropout,
-            with_rlp=self.with_rlp
+            with_lrp=self.with_lrp
         )
 
-        self.eps = eps
-        self.neighbor_pooling_type = neighbor_pooling_type
-        self.learn_eps = learn_eps
-        self.layer_id = layer_id
+        self.agg_type = agg_type
 
     def reduce_fn(self, nodes):
         """
         For each node, aggregate the nodes using a reduce function.
         Current supported functions are sum and mean.
         """
-        accum = REDUCE_TYPES[self.neighbor_pooling_type](
+        accum = REDUCE_TYPES[self.agg_type](
             (nodes.mailbox[GNN_MSG]), dim=1)
         return {GNN_AGG_MSG: accum}
 
@@ -111,18 +88,7 @@ class GINLayer(BaseLayer):
         """
         Message of each node
         """
-        if GNN_EDGE_WEIGHT in edges.data.keys():
-            msg = edges.src[GNN_NODE_FEAT_IN] * torch.t(
-                edges.data[GNN_EDGE_WEIGHT].repeat(
-                    edges.src[GNN_NODE_FEAT_IN].shape[1],
-                    1))
-        elif GNN_EDGE_FEAT in edges.data.keys():
-            efeat = self.edge_encoder(edges.data[GNN_EDGE_FEAT])
-            padded_efeat = torch.zeros(edges.src[GNN_NODE_FEAT_IN].shape).to(edges.src[GNN_NODE_FEAT_IN].device)
-            padded_efeat[:, :efeat.shape[1]] = efeat
-            msg = edges.src[GNN_NODE_FEAT_IN] + padded_efeat
-        else:
-            msg = edges.src[GNN_NODE_FEAT_IN]
+        msg = edges.src[GNN_NODE_FEAT_IN]
         return {GNN_MSG: msg}
 
     def node_update_fn(self, nodes):
@@ -141,7 +107,7 @@ class GINLayer(BaseLayer):
         :param h: (FloatTensor) node features
         """
 
-        if self.with_rlp:
+        if self.with_lrp:
             self.adjacency_matrix = g.adjacency_matrix(ctx=h.device).to_dense()
             self.input_features = h.t()
 
@@ -149,14 +115,10 @@ class GINLayer(BaseLayer):
 
         g.update_all(self.msg_fn, self.reduce_fn)
 
-        if self.learn_eps:
-            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_AGG_MSG] + \
-                (1 + self.eps[self.layer_id]) * g.ndata[GNN_NODE_FEAT_IN]
+        if GNN_AGG_MSG in g.ndata.keys():
+            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_AGG_MSG] + g.ndata[GNN_NODE_FEAT_IN]
         else:
-            if GNN_AGG_MSG in g.ndata.keys():
-                g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_AGG_MSG] + g.ndata[GNN_NODE_FEAT_IN]
-            else:
-                g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_NODE_FEAT_IN]
+            g.ndata[GNN_NODE_FEAT_IN] = g.ndata[GNN_NODE_FEAT_IN]
 
         g.apply_nodes(func=self.node_update_fn)
 
@@ -170,28 +132,28 @@ class GINLayer(BaseLayer):
 
         return h
 
-    def set_rlp(self, with_rlp):
-        self.with_rlp = with_rlp
-        self.mlp.set_rlp(with_rlp)
+    def set_lrp(self, with_lrp):
+        self.with_lrp = with_lrp
+        self.mlp.set_lrp(with_lrp)
 
-    def _compute_adj_rlp(self, relevance_score):
+    def _compute_adj_lrp(self, relevance_score):
         adjacency_matrix = self.adjacency_matrix + torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
-        V = torch.clamp(adjacency_matrix, min=0)
+        V = torch.clamp(adjacency_matrix, min=0)  # @TODO: rename variables in this class. 
         Z = torch.mm(self.input_features, V.t()) + 1e-9
         S = relevance_score / Z.t()
         C = torch.mm(V, S)
         relevance_score = self.input_features.t() * C
         return relevance_score
 
-    def rlp(self, out_relevance_score):
+    def lrp(self, out_relevance_score):
         """
-        Implement RLP for GIN layer: 
+        Implement lrp for GIN layer: 
         """
 
-        # 1/ RLP over the node update function 
-        relevance_score = self.mlp.rlp(out_relevance_score)
+        # 1/ lrp over the node update function 
+        relevance_score = self.mlp.lrp(out_relevance_score)
 
-        # 2/ RLP over the adjacency 
-        relevance_score = self._compute_adj_rlp(relevance_score)
+        # 2/ lrp over the adjacency 
+        relevance_score = self._compute_adj_lrp(relevance_score)
 
         return relevance_score

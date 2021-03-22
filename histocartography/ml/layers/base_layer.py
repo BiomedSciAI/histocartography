@@ -3,12 +3,11 @@ from torch.nn import Module
 
 class BaseLayer(Module):
 
-    def __init__(self, node_dim, out_dim, act, layer_id):
+    def __init__(self, node_dim, out_dim, act):
         """
         Base layer constructor.
         """
         super(BaseLayer, self).__init__()
-        self.layer_id = layer_id
 
     def forward(self, g, h):
         """

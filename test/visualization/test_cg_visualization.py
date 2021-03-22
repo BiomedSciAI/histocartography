@@ -1,17 +1,21 @@
 """Unit test for visualisation.graph_visualization"""
 import unittest
 import numpy as np
-import cv2 
-import torch 
+import cv2
+import torch
 import yaml
+import os
 from copy import deepcopy
 from dgl.data.utils import load_graphs
 
 from histocartography.utils.io import load_image, save_image
-from histocartography.interpretability.saliency_explainer.graph_gradcam_explainer import GraphGradCAMExplainer
-from histocartography.visualisation.graph_visualization import GraphVisualization
+from histocartography.interpretability.grad_cam import GraphGradCAMPPExplainer
+from histocartography.visualisation.graph_visualization import (
+    GraphVisualization,
+    OverlayGraphVisualization,
+)
 
-BASE_S3 = 's3://mlflow/'
+BASE_S3 = "s3://mlflow/"
 
 
 class GraphVizTestCase(unittest.TestCase):
@@ -19,54 +23,58 @@ class GraphVizTestCase(unittest.TestCase):
 
     def setUp(self):
         """Setting up the test."""
-    
-    def test_graph_viz_with_importance_score(self):
-        """Test Graph visualization with importance scores.
-        """
 
+    def test_overlay_with_explanation(self):
+        """Test Graph visualization with new class."""
         # 1. load a cell graph
-        cell_graph, _ = load_graphs('../data/283_dcis_4.bin')
+        cell_graph, _ = load_graphs("test/data/cell_graphs/283_dcis_4.bin")
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
-        image = np.array(load_image('../data/283_dcis_4.png'))
+        image = np.array(load_image("test/data/images/283_dcis_4.png"))
 
         # 3. run the explainer
-        explainer = GraphGradCAMExplainer(
-            model_path=BASE_S3 + '29b7f5ee991e4a3e8b553b49a1c3c05a/artifacts/model_best_val_weighted_f1_score_0'
-        )
+        explainer = GraphGradCAMPPExplainer(model_path="test/data/models/cg_3_classes")
         importance_scores, _ = explainer.process(cell_graph)
 
+        node_attributes = {}
+        node_attributes["color"] = importance_scores
+
+        edge_attributes = {}
+        edge_attributes["thickness"] = [1, 2, 3]
+        edge_attributes["color"] = [0.1, 0.2, 0.8, 0.1, 0.2, 0.3, 0.1, 0.1]
+
         # 4. run the visualization
-        visualizer = GraphVisualization()
-        out = visualizer.process(image, cell_graph, node_importance=importance_scores)
-         
-        # 5. save output image 
-        save_image('cg_viz_with_explanation.png', out)
+        visualizer = OverlayGraphVisualization(node_style="fill")
+        out = visualizer.process(
+            image,
+            cell_graph,
+            node_attributes=node_attributes,
+            edge_attributes=edge_attributes,
+        )
 
-    def test_graph_viz_without_importance_score(self):
-        """Test Graph visualization with importance scores.
-        """
+        # 5. save output image
+        save_image("tmp/cg_viz_with_explanation.png", out)
 
+    def test_overlay_graph_viz(self):
+        """Test Graph visualization with new class."""
         # 1. load a cell graph
-        cell_graph, _ = load_graphs('../data/283_dcis_4.bin')
+        cell_graph, _ = load_graphs("test/data/cell_graphs/283_dcis_4.bin")
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
-        image = np.array(load_image('../data/283_dcis_4.png'))
+        image = np.array(load_image("test/data/images/283_dcis_4.png"))
 
         # 3. run the visualization
-        visualizer = GraphVisualization(show_edges=True, centroid_fill=None)
+        visualizer = OverlayGraphVisualization()
         out = visualizer.process(image, cell_graph)
-         
-        # 5. save output image 
-        save_image('cg_viz.png', out)
+
+        # 5. save output image
+        save_image("tmp/cg_viz_overlay.png", out)
 
     def tearDown(self):
         """Tear down the tests."""
 
 
-if __name__ == "__main__":
-    model = GraphVizTestCase()
-    model.test_graph_viz_with_importance_score()
-    model.test_graph_viz_without_importance_score()
+# if __name__ == "__main__":
+#     unittest.main()

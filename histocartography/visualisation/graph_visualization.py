@@ -1,23 +1,212 @@
-from PIL import ImageDraw, Image
-import numpy as np
+import bisect
+from abc import ABC, abstractmethod
+from collections.abc import Iterable
+from itertools import cycle
+from typing import List, Tuple
+
 import dgl
-from PIL import ImageFilter
-from PIL import Image
-import bisect 
-from typing import Tuple, List 
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
 from skimage.segmentation import mark_boundaries
 
-from ..utils.draw_utils import draw_ellipse, draw_line, rgb
 from ..ml.layers.constants import CENTROID
-from ..utils.vector import create_buckets
 from ..pipeline import PipelineStep
-
+from ..utils.draw_utils import draw_circle, draw_ellipse, draw_line, rgb, map_value_to_color
+from ..utils.vector import create_buckets
 
 N_BUCKETS = 10
+COLOR = "color"
+RADIUS = "radius"
+THICKNESS = "thickness"
+COLORMAP = 'colormap'
+
+
+class BaseVisualization(PipelineStep):
+    """
+    Base visualization class
+    """
+
+    def __init__(self, **kwargs) -> None:
+        """
+        Base visualization class
+        """
+        super().__init__(**kwargs)
+
+    def process(
+        self,
+        canvas: np.ndarray,
+        graph: dgl.DGLGraph,
+        instance_map: np.ndarray = None,
+        node_attributes: dict = None,
+        edge_attributes: dict = None,
+        instance_attributes: dict = None,
+    ) -> Image:
+
+        viz_canvas = self.draw_instances(canvas, instance_map, instance_attributes)
+        draw = ImageDraw.Draw(viz_canvas, "RGBA")
+
+        graph = self.graph_preprocessing(graph)
+
+        self.draw_edges(draw, graph, edge_attributes)
+        self.draw_nodes(draw, graph, node_attributes)
+
+        return viz_canvas
+
+    @abstractmethod
+    def draw_nodes(self, draw: ImageDraw, graph: dgl.DGLGraph, node_attributes: dict):
+        """
+        draw nodes on the canvas
+        """
+
+    @abstractmethod
+    def draw_edges(self, draw: ImageDraw, graph: dgl.DGLGraph, edge_attributes: dict):
+        """
+        draw nodes on the canvas
+        """
+
+    @abstractmethod
+    def draw_instances(
+        self, canvas: np.ndarray, instance_map: np.ndarray, instance_attributes: dict
+    ):
+        """
+        draw nodes on the canvas
+        """
+
+    @abstractmethod
+    def graph_preprocessing(self, graph: dgl.DGLGraph):
+        """
+        draw nodes on the canvas
+        """
+
+
+class OverlayGraphVisualization(BaseVisualization):
+    def __init__(
+        self,
+        node_style: str = "outline",
+        node_color: str = "yellow",
+        node_radius: int = 5,
+        edge_style: str = "line",
+        edge_color: str = "blue",
+        edge_thickness: int = 2,
+        colormap = 'viridis',
+        show_colormap = False,
+        **kwargs
+    ) -> None:
+        """
+        Overlay graph visualization class
+        """
+        super().__init__(**kwargs)
+        self.node_style = node_style
+        self.node_color = node_color
+        self.node_radius = node_radius
+        self.edge_style = edge_style
+        self.edge_color = edge_color
+        self.edge_thickness = edge_thickness
+        self.colormap = colormap
+
+    def graph_preprocessing(self, graph: dgl.DGLGraph):
+        return graph
+
+    def draw_nodes(
+        self, draw: ImageDraw, graph: dgl.DGLGraph, node_attributes: dict = None
+    ):
+
+        # extract centroids
+        centroids = graph.ndata[CENTROID]
+
+        if node_attributes is None:
+            node_attributes = {}
+
+        colors = node_attributes.get(COLOR, [self.node_color])
+        radii = node_attributes.get(RADIUS, [self.node_radius])
+        colormap = node_attributes.get(COLORMAP, self.colormap)
+        thicknesses = node_attributes.get(THICKNESS, [2])
+        if not isinstance(colors, Iterable):
+            colors = [colors]
+        if not isinstance(radii, Iterable):
+            radii = [radii]
+        if not isinstance(thicknesses, Iterable):
+            thicknesses = [thicknesses]
+
+        radius = cycle(radii)
+        color = cycle(colors)
+        thickness = cycle(thicknesses)
+
+        if self.node_style == "outline":
+            for centroid in centroids:
+                draw_circle(
+                    centroid,
+                    draw,
+                    outline_color=map_value_to_color(next(color), colormap),
+                    fill_color=None,
+                    radius=next(radius),
+                    width=next(thickness),
+                )
+
+        if self.node_style == "fill":
+            for centroid in centroids:
+                draw_circle(
+                    centroid,
+                    draw,
+                    outline_color=None,
+                    fill_color=map_value_to_color(next(color), colormap),
+                    radius=next(radius),
+                    width=next(thickness),
+                )
+
+    def draw_edges(
+        self, draw: ImageDraw, graph: dgl.DGLGraph, edge_attributes: dict = None
+    ):
+        # extract centroids
+        centroids = graph.ndata[CENTROID]
+        src, dst = graph.edges()
+        edges = [(s.item(), d.item()) for (s, d) in zip(src, dst)]
+
+        if edge_attributes is None:
+            edge_attributes = {}
+
+        colors = edge_attributes.get(COLOR, [self.edge_color])
+        thicknesses = edge_attributes.get(THICKNESS, self.edge_thickness)
+        colormap = edge_attributes.get(COLORMAP, self.colormap)
+        if not isinstance(colors, Iterable):
+            colors = [colors]
+        if not isinstance(thicknesses, Iterable):
+            thicknesses = [thicknesses]
+
+        color = cycle(colors)
+        thickness = cycle(thicknesses)
+
+        if self.edge_style is not None:
+            for edge in edges:
+                src_centroid = [
+                    centroids[edge[0]][1].item(),
+                    centroids[edge[0]][0].item(),
+                ]
+                dst_centroid = [
+                    centroids[edge[1]][1].item(),
+                    centroids[edge[1]][0].item(),
+                ]
+                draw_line(
+                    src_centroid,
+                    dst_centroid,
+                    draw,
+                    fill_col=map_value_to_color(next(color), colormap),
+                    line_wid=next(thickness),
+                )
+
+    def draw_instances(
+        self,
+        canvas: np.ndarray,
+        instance_map: np.ndarray = None,
+        instance_attributes: dict = None,
+    ):
+
+        image = Image.fromarray(canvas)
+        viz_canvas = image.copy()
+        return viz_canvas
 
 
 class GraphVisualization(PipelineStep):
-
     def __init__(
         self,
         show_centroid: bool = True,
@@ -28,7 +217,7 @@ class GraphVisualization(PipelineStep):
         **kwargs
     ) -> None:
         """
-        GraphVisualization constructor 
+        GraphVisualization constructor
 
         Args:
             show_centroid (bool, Optional): If a circle around each centroid is drawn. Default to True.
@@ -49,101 +238,116 @@ class GraphVisualization(PipelineStep):
         image: np.ndarray,
         graph: dgl.DGLGraph,
         node_importance: np.ndarray = None,
-        instance_map: np.ndarray = None
-        ) -> Image:
+        instance_map: np.ndarray = None,
+    ) -> Image:
         """
-        Visualize an image along with a graph. 
+        Visualize an image along with a graph.
 
         Args:
-            image (np.ndarray): Image 
-            graph (dgl.DGLGraph): Graph. Must include centroids in ndata. 
-            node_importance (np.ndarray): Node importance scores. Default to None. 
-            instance_map (np.ndarray): Instance map. Default to None. 
+            image (np.ndarray): Image
+            graph (dgl.DGLGraph): Graph. Must include centroids in ndata.
+            node_importance (np.ndarray): Node importance scores. Default to None.
+            instance_map (np.ndarray): Instance map. Default to None.
 
         Returns:
-            canvas (PIL Image): Image with overlaid graph. 
+            canvas (PIL Image): Image with overlaid graph.
         """
         image = Image.fromarray(image)
         canvas = image.copy()
-        draw = ImageDraw.Draw(canvas, 'RGBA')
+        draw = ImageDraw.Draw(canvas, "RGBA")
 
-        # extract centroids and edges from graph 
+        # extract centroids and edges from graph
         cent_cg, edges_cg = self._get_centroid_and_edges(graph)
 
         if self.show_edges:
             self.draw_edges(cent_cg, edges_cg, draw, (255, 255, 0), 2)
-        
+
         # draw centroids
         if self.show_centroid:
             self.draw_centroid(cent_cg, draw, (255, 0, 0), node_importance)
-        
+
         if instance_map is not None:
             if np.sum(instance_map == 0) == 0:  # we have dense segmentation masks
-                canvas = self._draw_dense_instance_map(image, instance_map, node_importance)
+                canvas = self._draw_dense_instance_map(
+                    image, instance_map, node_importance
+                )
             else:
                 instance_map = instance_map.squeeze()
-                mask = Image.new('RGBA', canvas.size, (0, 255, 0, 255))
+                mask = Image.new("RGBA", canvas.size, (0, 255, 0, 255))
                 alpha_ch = ((instance_map != 0) * 255).astype(np.uint8).squeeze()
-                alpha_ch = Image.fromarray(alpha_ch).convert('L')
+                alpha_ch = Image.fromarray(alpha_ch).convert("L")
                 alpha_ch = alpha_ch.filter(ImageFilter.FIND_EDGES)
                 mask.putalpha(alpha_ch)
                 canvas.paste(mask, (0, 0), mask)
-        
+
         return canvas
 
     def _draw_dense_instance_map(
-            self,
-            image: np.ndarray,
-            mask: np.ndarray,
-            node_importance: np.ndarray = None
-        ):
+        self, image: np.ndarray, mask: np.ndarray, node_importance: np.ndarray = None
+    ):
         """
-        Draw a dense instance map on an image. 
+        Draw a dense instance map on an image.
 
         Args:
-            image (np.ndarray): Image 
-            mask (np.ndarray): Instance map. Default to None. 
-            node_importance (np.ndarray): Node importance scores. Default to None. 
+            image (np.ndarray): Image
+            mask (np.ndarray): Instance map. Default to None.
+            node_importance (np.ndarray): Node importance scores. Default to None.
 
         Returns:
-            canvas (PIL Image): Image with overlaid instance map. 
+            canvas (PIL Image): Image with overlaid instance map.
         """
         if node_importance is not None:
-            # 1. get buckets and colors 
+            # 1. get buckets and colors
             buckets, colors = self._get_buckets(node_importance, with_colors=True)
 
-            # 2. map superpixel id to importance score 
+            # 2. map superpixel id to importance score
             def mp1(entry, mapper):
                 return mapper[entry]
-            id_to_imp_map = {k: v for k, v in zip(list(np.unique(mask)), list(node_importance))}
+
+            id_to_imp_map = {
+                k: v for k, v in zip(list(np.unique(mask)), list(node_importance))
+            }
             mask = np.vectorize(mp1)(mask, id_to_imp_map)
 
-            # 3. map importance score to color 
-            imp_to_color_map = {imp:np.array(colors[bisect.bisect(buckets, imp) - 1]) for imp in node_importance}
+            # 3. map importance score to color
+            imp_to_color_map = {
+                imp: np.array(colors[bisect.bisect(buckets, imp) - 1])
+                for imp in node_importance
+            }
+
             def mp2(x):
                 return imp_to_color_map[x]
-            mask = np.vectorize(mp2, signature='()->(n)')(mask)
-            canvas = Image.fromarray((self.alpha * np.asarray(image) + (1 - self.alpha) * mask).astype(np.uint8))
+
+            mask = np.vectorize(mp2, signature="()->(n)")(mask)
+            canvas = Image.fromarray(
+                (self.alpha * np.asarray(image) + (1 - self.alpha) * mask).astype(
+                    np.uint8
+                )
+            )
         else:
-            canvas = Image.fromarray((mark_boundaries(np.array(image), mask)*255).astype(np.uint8))
-        return canvas 
+            canvas = Image.fromarray(
+                (mark_boundaries(np.array(image), mask) * 255).astype(np.uint8)
+            )
+        return canvas
 
     def draw_centroid(self, centroids, draw_bd, fill, node_importance=None):
         """
-        Draw centroids on draw_db. 
+        Draw centroids on draw_db.
             Args:
-                centroids (List): Centroid location. 
-                draw_bd (ImageDraw.Draw): Drawing tool. 
+                centroids (List): Centroid location.
+                draw_bd (ImageDraw.Draw): Drawing tool.
                 fill (Tuple[int, int, int], Optional): Default to (255, 255, 0).
-                width (int, Optional): Edge stroke width. Default to 2. 
-                node_importance (np.ndarray, Optional): Node importance scores. 
+                width (int, Optional): Edge stroke width. Default to 2.
+                node_importance (np.ndarray, Optional): Node importance scores.
         """
         if node_importance is not None:
-            buckets, colors = self._get_buckets(node_importance, with_colors=True)            
+            buckets, colors = self._get_buckets(node_importance, with_colors=True)
         for centroid_id, centroid in enumerate(centroids):
             centroid = [centroid[1], centroid[0]]
             if node_importance is not None:
-                outline = colors[bisect.bisect(buckets, node_importance[centroid_id]) -1]
+                outline = colors[
+                    bisect.bisect(buckets, node_importance[centroid_id]) - 1
+                ]
                 fill_col = outline
             else:
                 outline = self.centroid_outline
@@ -153,16 +357,16 @@ class GraphVisualization(PipelineStep):
     @staticmethod
     def _get_buckets(node_importance, with_colors=False):
         """
-        Quantize the node importance scores into N_BUCKETS bins. Additionaly 
+        Quantize the node importance scores into N_BUCKETS bins. Additionaly
         associate a color to each bin (low: blue, high: red)
 
         Args:
             node_importance (np.ndarray): Node importance scores (one per node).
-            with_colors (bool, Optional): If we build colors for each bucket. 
-        
+            with_colors (bool, Optional): If we build colors for each bucket.
+
         Returns:
             buckets (List): Quantized node importances
-            colors (Dict): RGB colors asscoiated to each bucket. 
+            colors (Dict): RGB colors asscoiated to each bucket.
         """
         buckets = create_buckets(N_BUCKETS, min(node_importance), max(node_importance))
 
@@ -181,20 +385,20 @@ class GraphVisualization(PipelineStep):
 
     @staticmethod
     def draw_edges(
-            centroids: List,
-            edges: List,
-            draw_bd: ImageDraw.Draw,
-            fill: Tuple[int, int, int] = (255, 255, 0),
-            width: int = 2
-        ):
+        centroids: List,
+        edges: List,
+        draw_bd: ImageDraw.Draw,
+        fill: Tuple[int, int, int] = (255, 255, 0),
+        width: int = 2,
+    ):
         """
         Draw edges on draw_bd
             Args:
-                centroids (List): Centroid location. 
+                centroids (List): Centroid location.
                 edges (List): Edge list.
-                draw_bd (ImageDraw.Draw): Drawing tool. 
+                draw_bd (ImageDraw.Draw): Drawing tool.
                 fill (Tuple[int, int, int], Optional): Default to (255, 255, 0).
-                width (int, Optional): Edge stroke width. Default to 2. 
+                width (int, Optional): Edge stroke width. Default to 2.
         """
         for edge in edges:
             src_centroid = [centroids[edge[0]][1].item(), centroids[edge[0]][0].item()]
@@ -207,11 +411,11 @@ class GraphVisualization(PipelineStep):
         Extract the centroid locations and edges from a DGL graph.
 
         Args:
-            graph (dgl.DGLGraph): A graph 
+            graph (dgl.DGLGraph): A graph
 
         Returns:
             centroids (torch.FloatTensor): Centroids (N x 2).
-            edges (list[Tuple]): Edges of the graph. 
+            edges (list[Tuple]): Edges of the graph.
         """
         centroids = graph.ndata[CENTROID]
         src, dst = graph.edges()

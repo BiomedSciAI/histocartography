@@ -1,0 +1,14 @@
+model:
+  layer_type: "pna_layer"
+  activation: "relu"
+  num_layers: 3
+  hidden_dim: 64
+  output_dim: 64
+  residual: True
+  graph_norm: True
+  aggregators: "mean max min std"
+  scalers: "identity amplification attenuation"
+  towers: 1
+  divide_input: True
+  pretrans_layers: 1
+  posttrans_layers: 1

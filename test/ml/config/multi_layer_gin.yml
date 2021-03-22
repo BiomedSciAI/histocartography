@@ -7,4 +7,4 @@ model:
   activation: "relu"
   readout_op: "concat"
   readout_type: "mean"
-  with_lrp: false
+  with_lrp: False

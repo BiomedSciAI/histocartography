@@ -1,33 +1,35 @@
 import dgl 
+from typing import Dict
 
 from histocartography.ml.layers.mlp import MLP
 from histocartography.ml.models.base_model import BaseModel
 from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
 
 
-class SuperpxGraphModel(BaseModel):
+class TissueGraphModel(BaseModel):
     """
-    Superpx Graph Model. Apply a GNN at the super pixel graph level.
+    Tissue Graph Model. Apply a GNN on tissue level.
     """
 
-    def __init__(self, config, input_feature_dims):
+    # def __init__(self, config: Dict, input_node_dim: int):
+    def __init__(self, gnn_params, input_node_dim: int):
         """
-        SuperpxGraphMddel model constructor
-        :param config: (dict) configuration parameters
-        :param node_dim: (int) superpx dim, data specific argument
+        TissueGraphModel model constructor.
+        :param config: (dict) configuration parameters.
+        :param input_node_dim (int): feature dim of each node. 
         """
 
-        super(SuperpxGraphModel, self).__init__(config)
+        super(TissueGraphModel, self).__init__(config)
 
         # 1- set class attributes
         self.config = config
-        self.hl_node_dim, self.edge_dim = input_feature_dims
+        self.hl_node_dim = input_node_dim  # @TODO: rename hl node dim to node dim 
         self.gnn_params = config['gnn_params']['superpx_gnn']
         self.readout_params = self.config['readout']
         self.readout_agg_op = config['gnn_params']['superpx_gnn']['agg_operator']
 
-        # 2- build superpx graph params
-        self._build_superpx_graph_params(
+        # 2- build tissue graph params
+        self._build_tissue_graph_params(
             self.gnn_params,
             input_dim=self.hl_node_dim
         )
@@ -55,6 +57,10 @@ class SuperpxGraphModel(BaseModel):
         """
         Foward pass.
         :param superpx_graph: (DGLGraph) superpx graph
+        @TODO: input can be:
+            - DGLGraph 
+            - [DGLGraph]
+            - [tensor (adj), tensor (node features)]
         """
 
         if isinstance(data, dgl.DGLGraph) or isinstance(data[0], dgl.DGLGraph):
@@ -73,16 +79,16 @@ class SuperpxGraphModel(BaseModel):
         logits = self.pred_layer(graph_embeddings)
         return logits
 
-    def set_rlp(self, with_rlp):
-        self.superpx_gnn.set_rlp(with_rlp)
-        self.pred_layer.set_rlp(with_rlp)
+    def set_lrp(self, with_lrp):
+        self.superpx_gnn.set_lrp(with_lrp)
+        self.pred_layer.set_lrp(with_lrp)
 
-    def rlp(self, out_relevance_score):
-        # RLP over the classification 
-        relevance_score = self.pred_layer.rlp(out_relevance_score)
+    def lrp(self, out_relevance_score):
+        # lrp over the classification 
+        relevance_score = self.pred_layer.lrp(out_relevance_score)
 
-        # RLP over the GNN layers 
-        relevance_score = self.superpx_gnn.rlp(relevance_score)
+        # lrp over the GNN layers 
+        relevance_score = self.superpx_gnn.lrp(relevance_score)
 
         return relevance_score
 

@@ -11,56 +11,49 @@ Original paper:
 import torch
 import torch.nn.functional as F
 import dgl
+from torch import nn 
 
-from histocartography.ml.layers.mlp import MLP
-from histocartography.ml.layers.base_layer import BaseLayer
+from .mlp import MLP
 
 
-class DenseGINLayer(BaseLayer):
+class DenseGINLayer(nn.Module):
 
     def __init__(
             self,
-            node_dim,
-            out_dim,
-            act,
-            layer_id,
-            edge_dim=None,
-            use_bn=False,
-            config=None,
-            verbose=False):
+            node_dim: int,
+            out_dim: int,
+            act: str = 'relu',
+            agg_type: str = 'mean',
+            hidden_dim: int = 32,
+            batch_norm: bool = True,
+            graph_norm: bool = False,
+            with_lrp: bool = False,
+            dropout: float = 0.,
+            verbose: bool = False) -> None:
         """
-        GIN Layer constructor
-        :param node_dim: (int) input dimension of each node
-        :param hidden_dim: (int) hidden dimension of each node (2-layer MLP as update function)
-        :param out_dim: (int) output dimension of each node
-        :param act: (str) activation function of the update function
-        :param layer_id: (int) layer number
-        :param use_bn: (bool) if layer uses batch norm
-        :param add_self: (bool) add self loops to the input adjacency
-        :param mean: (bool) adjust the adjacency with its mean
-        :param verbose: (bool) verbosity level
+        Dense GIN Layer constructor
+
+        Args:
+            node_dim (int): Input dimension of each node.
+            out_dim (int): Output dimension of each node.
+            act (str): Activation function of the update function.
+            agg_type (str): Aggregation function. Default to 'mean'.
+            hidden_dim (int): Hidden dimension of the GIN MLP. Default to 32.
+            batch_norm (bool): If we should use batch normalization. Default to True.
+            graph_norm (bool): If we should use graph normalization. Default to False.
+            with_lrp (bool): If we should use LRP. Default to False.
+            dropout (float): If we should use dropout. Default to 0.
+            verbose (bool): Verbosity. Default to False. 
         """
-        super(
-            DenseGINLayer,
-            self).__init__(
-            node_dim,
-            out_dim,
-            act,
-            layer_id)
+
+        super().__init__()
 
         if verbose:
-            print('Creating new GNN dense layer:')
+            print('Creating dense GIN layer:')
 
         self.out_dim = out_dim
-
-        if config is not None:
-            self.add_self = True
-            self.mean = config['neighbor_pooling_type'] == 'mean'
-            hidden_dim = config['hidden_dim']
-        else:
-            self.add_self = True
-            self.mean = False
-            hidden_dim = 32
+        self.add_self = True
+        self.mean = agg_type == 'mean'
 
         self.mlp = MLP(
             node_dim,
@@ -68,9 +61,8 @@ class DenseGINLayer(BaseLayer):
             out_dim,
             2,
             act,
-            use_bn,
+            batch_norm,
             verbose=verbose)
-        self.layer_id = layer_id
 
     def forward(self, adj, h):
         """

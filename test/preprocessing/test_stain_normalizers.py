@@ -21,11 +21,7 @@ class StainNormalizationTestCase(unittest.TestCase):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.image_path = os.path.join(self.data_path, 'images')
-        # @TODO: you need to push the images...
-        # @TODO: as these images will be on GitHub, can you make sure that you don't pick large ones 
-        # ideally, only small ones actually. 
-        self.target_name = '16B0001851.png'
-        self.image_name = '16B0006669.png'
+        self.image_name = '17B0031061.png'
         self.out_path = os.path.join(self.data_path, 'stain_normalization_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
@@ -36,13 +32,18 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Macenko Stain Normalization: without Reference.
         """
 
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        config_fname = os.path.join(self.current_path, 'config', 'macenko_normalizer.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
 
-        stain_normalizer = MacenkoStainNormalizer(
-            base_path=self.out_path,
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
         )
-        stain_normalizer.precompute(self.image_path)
-        image_norm = stain_normalizer.process(image)
+        image_norm = output['normalized_image']
 
         self.assertTrue(isinstance(image_norm, np.ndarray))  # output is numpy
         self.assertEqual(list(image.shape), list(image_norm.shape))  # image HxW = mask HxW
@@ -52,15 +53,18 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Macenko Stain Normalization: with Reference.
         """
 
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        config_fname = os.path.join(self.current_path, 'config', 'macenko_normalizer.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
 
-        stain_normalizer = MacenkoStainNormalizer(
-            base_path=self.out_path,
-            target=self.target_name.replace('.png', ''),
-            target_path=os.path.join(self.image_path, self.target_name)
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
         )
-        stain_normalizer.precompute(self.image_path)
-        image_norm = stain_normalizer.process(image)
+        image_norm = output['normalized_image']
 
         self.assertTrue(isinstance(image_norm, np.ndarray))  # output is numpy
         self.assertEqual(list(image.shape), list(image_norm.shape))  # image HxW = mask HxW
@@ -86,15 +90,18 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Vahadane Stain Normalization: with Reference.
         """
 
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        config_fname = os.path.join(self.current_path, 'config', 'vahadane_normalizer.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
 
-        stain_normalizer = VahadaneStainNormalizer(
-            base_path=self.out_path,
-            target=self.target_name.replace('.png', ''),
-            target_path=os.path.join(self.image_path, self.target_name)
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
         )
-        stain_normalizer.precompute(self.image_path)
-        image_norm = stain_normalizer.process(image)
+        image_norm = output['normalized_image']
 
         self.assertTrue(isinstance(image_norm, np.ndarray))  # output is numpy
         self.assertEqual(list(image.shape), list(image_norm.shape))  # image HxW = mask HxW
@@ -103,12 +110,14 @@ class StainNormalizationTestCase(unittest.TestCase):
         """
         Test Vahadane invalid precomputed normalization.
         """
-        stain_normalizer = VahadaneStainNormalizer(
-            base_path=self.out_path,
-            precomputed_normalizer='./temp.h5'
-        )
+
+        config_fname = os.path.join(self.current_path, 'config', 'vahadane_normalizer.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
         with self.assertRaises(FileNotFoundError):
-            stain_normalizer.precompute(self.image_path)
+            pipeline.precompute()
 
     def tearDown(self):
         """Tear down the tests."""

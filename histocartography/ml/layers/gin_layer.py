@@ -13,14 +13,12 @@ import torch.nn.functional as F
 
 from histocartography.ml.layers.constants import (
     GNN_MSG, GNN_NODE_FEAT_IN, GNN_NODE_FEAT_OUT,
-    GNN_AGG_MSG, GNN_EDGE_WEIGHT, REDUCE_TYPES,
-    GNN_EDGE_FEAT
+    GNN_AGG_MSG, REDUCE_TYPES
 )
 from .mlp import MLP
-from .base_layer import BaseLayer
 
 
-class GINLayer(BaseLayer):
+class GINLayer(nn.Module):
 
     def __init__(
             self,
@@ -29,7 +27,7 @@ class GINLayer(BaseLayer):
             act: str = 'relu',
             agg_type: str = 'sum',
             hidden_dim: int = 32,
-            use_bn: bool = True,
+            batch_norm: bool = True,
             graph_norm: bool = False,
             with_lrp: bool = False,
             dropout: float = 0.,
@@ -38,28 +36,27 @@ class GINLayer(BaseLayer):
         GIN Layer constructor
 
         Args:
-            node_dim (int): input dimension of each node
-            out_dim (int): output dimension of each node
-            act (str): activation function of the update function
-            use_bn (bool): if layer uses batch norm
+            node_dim (int): Input dimension of each node.
+            out_dim (int): Output dimension of each node.
+            act (str): Activation function of the update function.
             agg_type (str): Aggreagtion function. Default to 'sum'.
             hidden_dim (int): Hidden dimension of the GIN MLP. Default to 32.
-            use_bn (bool): If we should use batch normalization. Default to True.
+            batch_norm (bool): If we should use batch normalization. Default to True.
             graph_norm (bool): If we should use graph normalization. Default to False.
             with_lrp (bool): If we should use LRP. Default to False.
             dropout (float): If we should use dropout. Default to 0.
             verbose (bool): Verbosity. Default to False. 
         """
-        super().__init__(node_dim, out_dim, act)
+        super().__init__()
 
         if verbose:
             print('Instantiating new GNN layer.')
 
-        self.use_bn = use_bn 
+        self.batch_norm = batch_norm 
         self.graph_norm = graph_norm
         self.with_lrp = with_lrp
 
-        if self.use_bn:
+        if self.batch_norm:
             self.batchnorm_h = nn.BatchNorm1d(out_dim)
 
         self.mlp = MLP(
@@ -127,7 +124,7 @@ class GINLayer(BaseLayer):
         if self.graph_norm:
             snorm_n = torch.FloatTensor(list(itertools.chain(*[[np.sqrt(1/n)] * n for n in g.batch_num_nodes]))).to(h.get_device())
             h = h * snorm_n[:, None]
-        if self.use_bn:
+        if self.batch_norm:
             h = self.batchnorm_h(h)
 
         return h

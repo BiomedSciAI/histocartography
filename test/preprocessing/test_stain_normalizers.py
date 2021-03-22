@@ -116,8 +116,7 @@ class StainNormalizationTestCase(unittest.TestCase):
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        with self.assertRaises(FileNotFoundError):
-            pipeline.precompute()
+        self.assertRaises(FileExistsError, pipeline.precompute())
 
     def tearDown(self):
         """Tear down the tests."""

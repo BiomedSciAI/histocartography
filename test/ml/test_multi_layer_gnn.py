@@ -5,7 +5,7 @@ import dgl
 import yaml
 import os 
 
-from histocartography.ml.layers.multi_layer_gnn import MultiLayerGNN
+from histocartography.ml import MultiLayerGNN
 
 BASE_S3 = 's3://mlflow/'
 IS_CUDA = torch.cuda.is_available()

@@ -24,7 +24,7 @@ class TissueGraphModel(BaseModel):
         Args:
             gnn_params: (dict) GNN configuration parameters.
             classification_params: (dict) classification configuration parameters.
-            node_dim (int): Cell node feature dimension. 
+            node_dim (int): Tissue node feature dimension. 
         """
 
         super().__init__(**kwargs)

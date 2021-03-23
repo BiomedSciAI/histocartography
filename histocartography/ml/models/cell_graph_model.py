@@ -16,17 +16,17 @@ class CellGraphModel(BaseModel):
         gnn_params,
         classification_params,
         node_dim,
-        class_split: str = None,
-        num_classes: int = None):
+        **kwargs):
         """
         CellGraphModel model constructor
 
         Args:
-            config: (dict) configuration parameters
+            gnn_params: (dict) GNN configuration parameters.
+            classification_params: (dict) classification configuration parameters.
             node_dim (int): Cell node feature dimension. 
         """
 
-        super().__init__(class_split, num_classes)
+        super().__init__(**kwargs)
 
         # 1- set class attributes
         self.node_dim = node_dim

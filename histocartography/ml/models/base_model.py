@@ -31,21 +31,6 @@ class BaseModel(Module):
         else:
             raise ValueError('Please provide either class split or number of classes. Not both.')
 
-    def _build_cell_graph_params(self, config):
-        """
-        Build cell graph multi layer GNN
-        """
-        raise NotImplementedError('Implementation in subclasses.')
-
-    def _build_tissue_graph_params(
-            self,
-            superpx_config,
-            input_dim=None):
-        """
-        Build multi layer GNN for tissue processing.
-        """
-        self.superpx_gnn = MultiLayerGNN(config=superpx_config)
-
     def _build_classification_params(self):
         """
         Build classification parameters

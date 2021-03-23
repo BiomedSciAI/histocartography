@@ -22,7 +22,6 @@ class MultiLayerGNN(nn.Module):
         hidden_dim=32,
         output_dim=32,
         num_layers=3,
-        activation="relu",
         readout_op="concat",
         readout_type="mean",
         **kwargs
@@ -36,7 +35,6 @@ class MultiLayerGNN(nn.Module):
             hidden_dim (int): Hidden dimension of the node embeddings. Default to 32.
             output_dim (int): Output dimension of the node embeddings. Default to 32.
             num_layers (int): Number of GNN layers. Default to 3.
-            activation (str): Activation function used by the GNN. Default to ReLu activation.
             readout_op (str): How the intermediate node embeddings are aggregated. Default to "concat".
             readout_type (str): Global node pooling operation. Default to "mean".
         """
@@ -63,6 +61,7 @@ class MultiLayerGNN(nn.Module):
         # input layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=input_dim,
+            hidden_dim=hidden_dim,
             out_dim=hidden_dim,
             **kwargs
         )
@@ -74,6 +73,7 @@ class MultiLayerGNN(nn.Module):
                     module,
                     AVAILABLE_LAYER_TYPES[layer_type])(
                     node_dim=hidden_dim,
+                    hidden_dim=hidden_dim,
                     out_dim=hidden_dim,
                     **kwargs
                 )
@@ -81,6 +81,7 @@ class MultiLayerGNN(nn.Module):
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=hidden_dim,
+            hidden_dim=hidden_dim,
             out_dim=output_dim,
             **kwargs
         )

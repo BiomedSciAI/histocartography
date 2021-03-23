@@ -27,7 +27,7 @@ THICKNESS = "thickness"
 COLORMAP = "colormap"
 
 
-class BaseVisualization(PipelineStep):
+class BaseGraphVisualization(PipelineStep):
     """
     Base visualization class
     """
@@ -85,7 +85,7 @@ class BaseVisualization(PipelineStep):
         """
 
 
-class OverlayGraphVisualization(BaseVisualization):
+class OverlayGraphVisualization(BaseGraphVisualization):
     def __init__(
         self,
         node_style: str = "outline",

@@ -22,6 +22,13 @@ class CGModelTestCase(unittest.TestCase):
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.graph_path = os.path.join(self.data_path, 'cell_graphs')
         self.graph_name = '283_dcis_4.bin'
+        self.model_path = os.path.join(
+            self.data_path,
+            'models',
+            'cg_3_classes',
+            'data',
+            'model.pth'
+        )
 
     def test_cell_graph_model(self):
         """Test cell graph model."""
@@ -54,8 +61,7 @@ class CGModelTestCase(unittest.TestCase):
 
         self.assertIsInstance(logits, torch.Tensor)
         self.assertEqual(logits.shape[0], 1)
-        self.assertEqual(logits.shape[1], 3)  # 3 layers x 32 hidden dimension
-
+        self.assertEqual(logits.shape[1], 3) 
 
     def test_pretrained_cell_graph_model(self):
         """Test cell graph model."""
@@ -63,11 +69,6 @@ class CGModelTestCase(unittest.TestCase):
         # 1. Load a cell graph 
         graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         graph = graph[0]
-        graph.ndata['feat'] = torch.cat(
-            (graph.ndata['feat'].float(),
-            (graph.ndata['centroid']).float()),
-            dim=1
-        )
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
         node_dim = graph.ndata['feat'].shape[1]
 
@@ -76,23 +77,20 @@ class CGModelTestCase(unittest.TestCase):
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
-        # model = CellGraphModel(
-        #     gnn_params=config['gnn_params'],
-        #     classification_params=config['classification_params'],
-        #     node_dim=node_dim,
-        #     num_classes=3
-        # )
-
-        local_path = os.path.join(os.path.dirname(__file__), CHECKPOINT_PATH, os.path.basename(model_path))
-        download_box_link(model_path, local_path)
-        self.model = torch.load(local_path)
+        model = CellGraphModel(
+            gnn_params=config['gnn_params'],
+            classification_params=config['classification_params'],
+            node_dim=node_dim,
+            num_classes=3
+        )
+        model.load_state_dict(torch.load(self.model_path, map_location=torch.device('cpu')).state_dict())
 
         # 4. forward pass
         logits = model(graph)
 
         self.assertIsInstance(logits, torch.Tensor)
         self.assertEqual(logits.shape[0], 1)
-        self.assertEqual(logits.shape[1], 3)  # 3 layers x 32 hidden dimension
+        self.assertEqual(logits.shape[1], 3) 
 
     def tearDown(self):
         """Tear down the tests."""

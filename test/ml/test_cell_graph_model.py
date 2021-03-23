@@ -36,11 +36,6 @@ class CGModelTestCase(unittest.TestCase):
         # 1. Load a cell graph 
         graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         graph = graph[0]
-        graph.ndata['feat'] = torch.cat(
-            (graph.ndata['feat'].float(),
-            (graph.ndata['centroid']).float()),
-            dim=1
-        )
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
         node_dim = graph.ndata['feat'].shape[1]
 

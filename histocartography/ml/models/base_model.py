@@ -6,40 +6,44 @@ from histocartography.dataloader.constants import get_number_of_classes
 
 class BaseModel(Module):
 
-    def __init__(self, config):
+    def __init__(
+        self,
+        class_split: str = None,
+        num_classes: int = None
+        ) -> None:
         """
         Base model constructor.
-        """
-        super(BaseModel, self).__init__()
 
-        self.num_classes = get_number_of_classes(config['class_split'])
-        self.dropout = config['dropout']
-        self.use_bn = config['use_bn']
-
-    def _update_config(self, config, input_dim=None, egde_dim=None):
+        Args:
+            class_split (str): Class split. For instance in the BRACS dataset, one can specify
+                               a 3-class split as: "benign+pathologicalbenign+udhVSadh+feaVSdcis+malignant".
+                               Default to None. 
+            num_classes (int): Number of classes. Used if class split is not provided. Default to None. 
         """
-        Update config params with data-dependent parameters
-        """
-        if input_dim is not None:
-            config['input_dim'] = input_dim
+        super().__init__()
 
-        config['edge_dim'] = self.edge_dim
-        config['use_bn'] = self.use_bn
-        config['dropout'] = self.dropout
+        assert not(class_split is None and num_classes is None), "Please provide number of classes or class split."
+
+        if class_split is not None:
+            self.num_classes = get_number_of_classes(class_split)
+        elif num_classes is not None:
+            self.num_classes = num_classes
+        else:
+            raise ValueError('Please provide either class split or number of classes. Not both.')
 
     def _build_cell_graph_params(self, config):
         """
         Build cell graph multi layer GNN
         """
-        self._update_config(config, self.ll_node_dim, self.edge_dim)
-        self.cell_graph_gnn = MultiLayerGNN(config=config)
+        raise NotImplementedError('Implementation in subclasses.')
 
-    def _build_tissue_graph_params(self, superpx_config, input_dim=None, edge_dim=None):
+    def _build_tissue_graph_params(
+            self,
+            superpx_config,
+            input_dim=None):
         """
-        Build multi layer GNN for tissue processing. 
+        Build multi layer GNN for tissue processing.
         """
-        if input_dim is not None:
-            self._update_config(superpx_config, input_dim, edge_dim)
         self.superpx_gnn = MultiLayerGNN(config=superpx_config)
 
     def _build_classification_params(self):

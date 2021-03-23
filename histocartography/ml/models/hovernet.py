@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F 
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -9,13 +9,13 @@ class HoverNet(nn.Module):
 
     def __init__(self):
         """
-        HoverNet PyTorch re-implementation based: 
-        `HoVer-Net: Simultaneous Segmentation and Classification of Nuclei in Multi-Tissue Histology Images`. 
+        HoverNet PyTorch re-implementation based:
+        `HoVer-Net: Simultaneous Segmentation and Classification of Nuclei in Multi-Tissue Histology Images`.
         """
 
         super(HoverNet, self).__init__()
 
-        # define encoder 
+        # define encoder
         self.encode = Encoder()
 
         # define decoder(s)
@@ -23,25 +23,27 @@ class HoverNet(nn.Module):
         self.decode_hv = Decoder()
 
         # nuclei pixels (NP)
-        self.conv_out_np = Conv2dWithActivation(64, 2, 1, activation=None, padding=0, bias=True)
+        self.conv_out_np = Conv2dWithActivation(
+            64, 2, 1, activation=None, padding=0, bias=True)
         self.preact_out_np = BNReLU(64)
 
         # horizontal-vertival (HV)
-        self.conv_out_hv = Conv2dWithActivation(64, 2, 1, activation=None, padding=0, bias=True)
+        self.conv_out_hv = Conv2dWithActivation(
+            64, 2, 1, activation=None, padding=0, bias=True)
         self.preact_out_hv = BNReLU(64)
 
-        # upsample 
+        # upsample
         self.upsample2x = Upsample2x()
- 
+
     def forward(self, images):
         """
         A batch of images (patches)
         """
 
-        # 1. encode 
+        # 1. encode
         d = self.encode(images)
 
-        # 2. crop conv maps output 0 and 1 
+        # 2. crop conv maps output 0 and 1
         d[0] = crop_op(d[0], (92, 92))
         d[1] = crop_op(d[1], (36, 36))
 
@@ -57,7 +59,7 @@ class HoverNet(nn.Module):
 
         logi_np = logi_np.permute([0, 2, 3, 1])
         soft_np = F.softmax(logi_np, dim=-1)
-        prob_np = torch.unsqueeze(soft_np[:, :, :, 1], dim=-1)       
+        prob_np = torch.unsqueeze(soft_np[:, :, :, 1], dim=-1)
 
         # 4.2 horizontal vertical (HV)
         logi_hv = self.conv_out_hv(hv)
@@ -65,24 +67,37 @@ class HoverNet(nn.Module):
         prob_hv = logi_hv
         pred_hv = prob_hv
 
-        # 5. concat output 
+        # 5. concat output
         predmap_coded = torch.cat([prob_np, pred_hv], dim=-1)
 
         return predmap_coded
+
 
 class Encoder(nn.Module):
 
     def __init__(self):
         """
-        Encoder. 
+        Encoder.
         """
         super(Encoder, self).__init__()
-        self.conv0 = Conv2dWithActivation(3, 64, 7, activation='bnrelu', padding=3)  # padding of 3 allows to keep the same dimensions 
-        self.group0 = ResidualBlock(64, [64,  64,  256], [1, 3, 1], 3, strides=1)
-        self.group1 = ResidualBlock(256, [128, 128, 512], [1, 3, 1], 4, strides=2)
-        self.group2 = ResidualBlock(512, [256, 256, 1024], [1, 3, 1], 6, strides=2)
-        self.group3 = ResidualBlock(1024, [512, 512, 2048], [1, 3, 1], 3, strides=2)
-        self.conv_bot = Conv2dWithActivation(2048, 1024, 1, activation=None)   # @TODO: add 'same' padding 
+        # padding of 3 allows to keep the same dimensions
+        self.conv0 = Conv2dWithActivation(
+            3, 64, 7, activation='bnrelu', padding=3)
+        self.group0 = ResidualBlock(64, [64, 64, 256], [1, 3, 1], 3, strides=1)
+        self.group1 = ResidualBlock(
+            256, [
+                128, 128, 512], [
+                1, 3, 1], 4, strides=2)
+        self.group2 = ResidualBlock(
+            512, [
+                256, 256, 1024], [
+                1, 3, 1], 6, strides=2)
+        self.group3 = ResidualBlock(
+            1024, [
+                512, 512, 2048], [
+                1, 3, 1], 3, strides=2)
+        self.conv_bot = Conv2dWithActivation(
+            2048, 1024, 1, activation=None)   # @TODO: add 'same' padding
 
     def forward(self, x):
 
@@ -97,7 +112,7 @@ class Encoder(nn.Module):
 
 class SamepaddingLayer(nn.Module):
     """
-    Same padding layer. Equivalent to TF `padding=same` conv. 
+    Same padding layer. Equivalent to TF `padding=same` conv.
     """
 
     def __init__(self, ksize, stride):
@@ -126,42 +141,83 @@ class ResidualBlock(nn.Module):
 
     def __init__(self, ch_in, ch, ksize, count, split=1, strides=1):
         """
-        Residual Block. 
+        Residual Block.
         """
         super(ResidualBlock, self).__init__()
-        self.count = count 
+        self.count = count
         for i in range(0, count):
             if i != 0:
-                setattr(self, 'block' + str(i) + '_preact', BNReLU(ch[2])) 
-            setattr(self, 'block' + str(i) + '_conv1', Conv2dWithActivation(ch_in if i==0 else ch[-1], ch[0], ksize[0], activation='bnrelu')) 
-            setattr(self, 'block' + str(i) + '_conv2_pad', SamepaddingLayer(ksize[1], stride=strides if i == 0 else 1)) 
-            setattr(self, 'block' + str(i) + '_conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation='bnrelu', stride=strides if i == 0 else 1)) 
-            setattr(self, 'block' + str(i) + '_conv3', Conv2dWithActivation(ch[1], ch[2], ksize[2], activation=None)) 
-            if i == 0:  
-                setattr(self, 'block' + str(i) + '_convshortcut', Conv2dWithActivation(ch_in, ch[2], 1, stride=strides, activation=None)) 
-        self.bnlast = BNReLU(ch[2])  
+                setattr(self, 'block' + str(i) + '_preact', BNReLU(ch[2]))
+            setattr(self,
+                    'block' + str(i) + '_conv1',
+                    Conv2dWithActivation(ch_in if i == 0 else ch[-1],
+                                         ch[0],
+                                         ksize[0],
+                                         activation='bnrelu'))
+            setattr(
+                self,
+                'block' +
+                str(i) +
+                '_conv2_pad',
+                SamepaddingLayer(
+                    ksize[1],
+                    stride=strides if i == 0 else 1))
+            setattr(
+                self,
+                'block' + str(i) + '_conv2',
+                Conv2dWithActivation(
+                    ch[0],
+                    ch[1],
+                    ksize[1],
+                    activation='bnrelu',
+                    stride=strides if i == 0 else 1))
+            setattr(
+                self,
+                'block' +
+                str(i) +
+                '_conv3',
+                Conv2dWithActivation(
+                    ch[1],
+                    ch[2],
+                    ksize[2],
+                    activation=None))
+            if i == 0:
+                setattr(
+                    self,
+                    'block' +
+                    str(i) +
+                    '_convshortcut',
+                    Conv2dWithActivation(
+                        ch_in,
+                        ch[2],
+                        1,
+                        stride=strides,
+                        activation=None))
+        self.bnlast = BNReLU(ch[2])
 
     def forward(self, in_feats):
 
         if hasattr(self, 'block0_convshortcut'):
             shortcut = getattr(self, 'block0_convshortcut')(in_feats)
         else:
-            shortcut = in_feats 
+            shortcut = in_feats
 
         for i in range(0, self.count):
             out_feats = in_feats
             if i != 0:
-                out_feats = getattr(self, 'block' + str(i) + '_preact')(out_feats)
-            
+                out_feats = getattr(
+                    self, 'block' + str(i) + '_preact')(out_feats)
+
             out_feats = getattr(self, 'block' + str(i) + '_conv1')(out_feats)
-            out_feats = getattr(self, 'block' + str(i) + '_conv2_pad')(out_feats)
+            out_feats = getattr(
+                self, 'block' + str(i) + '_conv2_pad')(out_feats)
             out_feats = getattr(self, 'block' + str(i) + '_conv2')(out_feats)
             out_feats = getattr(self, 'block' + str(i) + '_conv3')(out_feats)
 
             in_feats = out_feats + shortcut
             shortcut = in_feats
 
-        out = self.bnlast(in_feats) 
+        out = self.bnlast(in_feats)
         return out
 
 
@@ -169,7 +225,7 @@ class Upsample2x(nn.Module):
 
     def __init__(self):
         """
-        Usampling input by 2x. 
+        Usampling input by 2x.
         """
         super(Upsample2x, self).__init__()
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
@@ -183,26 +239,28 @@ class Decoder(nn.Module):
 
     def __init__(self):
         """
-        Decoder. 
+        Decoder.
         """
         super(Decoder, self).__init__()
 
         # variables with name starting by u3
-        self.u3_rz = Upsample2x()   
-        self.u3_conva = Conv2dWithActivation(1024, 256, 3, activation=None)  
+        self.u3_rz = Upsample2x()
+        self.u3_conva = Conv2dWithActivation(1024, 256, 3, activation=None)
         self.u3_dense = DenseBlock(256, [128, 32], [1, 3], 8, split=4)
-        self.u3_convf = Conv2dWithActivation(512, 512, 1, activation=None, padding=0)  
+        self.u3_convf = Conv2dWithActivation(
+            512, 512, 1, activation=None, padding=0)
 
         # variables with name starting by u2
         self.u2_rz = Upsample2x()
-        self.u2_conva = Conv2dWithActivation(512, 128, 3, activation=None)  
+        self.u2_conva = Conv2dWithActivation(512, 128, 3, activation=None)
         self.u2_dense = DenseBlock(128, [128, 32], [1, 3], 4, split=4)
-        self.u2_convf = Conv2dWithActivation(256, 256, 1, activation=None, padding=0) 
-     
+        self.u2_convf = Conv2dWithActivation(
+            256, 256, 1, activation=None, padding=0)
+
         # variables with name starting by u1
         self.u1_rz = Upsample2x()
         self.u1_conva_pad = SamepaddingLayer(3, stride=1)
-        self.u1_conva = Conv2dWithActivation(256, 64, 3, activation=None)  
+        self.u1_conva = Conv2dWithActivation(256, 64, 3, activation=None)
 
     def forward(self, x):
 
@@ -232,14 +290,31 @@ class DenseBlock(nn.Module):
 
     def __init__(self, ch_in, ch, ksize, count, split=1):
         """
-        DenseBlock. 
+        DenseBlock.
         """
         super(DenseBlock, self).__init__()
         self.count = count
         for i in range(0, count):
             setattr(self, 'blk_' + str(i) + 'preact_bna', BNReLU(ch_in))
-            setattr(self, 'blk_' + str(i) + 'conv1', Conv2dWithActivation(ch_in, ch[0], ksize[0], activation='bnrelu'))
-            setattr(self, 'blk_' + str(i) + 'conv2', Conv2dWithActivation(ch[0], ch[1], ksize[1], activation=None, split=split)) 
+            setattr(
+                self,
+                'blk_' +
+                str(i) +
+                'conv1',
+                Conv2dWithActivation(
+                    ch_in,
+                    ch[0],
+                    ksize[0],
+                    activation='bnrelu'))
+            setattr(
+                self,
+                'blk_' + str(i) + 'conv2',
+                Conv2dWithActivation(
+                    ch[0],
+                    ch[1],
+                    ksize[1],
+                    activation=None,
+                    split=split))
             ch_in = ch_in + ch[-1]
 
         self.blk_bna = BNReLU(ch_in)
@@ -251,20 +326,21 @@ class DenseBlock(nn.Module):
             x = getattr(self, 'blk_' + str(i) + 'conv2')(x)
             x_shape = list(x.shape)
             l_shape = list(l.shape)
-            l = crop_op(l, (l_shape[2] - x_shape[2], 
+            l = crop_op(l, (l_shape[2] - x_shape[2],
                             l_shape[3] - x_shape[3]))
             l = torch.cat([l, x], dim=1)
         l = self.blk_bna(l)
-        return l 
+        return l
+
 
 class BNReLU(nn.Module):
 
     def __init__(self, num_features):
         """
-        BNReLU. 
+        BNReLU.
         """
         super(BNReLU, self).__init__()
-        self.bn =  nn.BatchNorm2d(num_features)
+        self.bn = nn.BatchNorm2d(num_features)
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -275,12 +351,28 @@ class BNReLU(nn.Module):
 
 class Conv2dWithActivation(nn.Module):
 
-    def __init__(self, num_input, num_output, filter_size, stride=1, activation=None, padding=0, bias=False, split=1):
+    def __init__(
+            self,
+            num_input,
+            num_output,
+            filter_size,
+            stride=1,
+            activation=None,
+            padding=0,
+            bias=False,
+            split=1):
         """
         Conv2dWithActivation.
         """
         super(Conv2dWithActivation, self).__init__()
-        self.conv = nn.Conv2d(num_input, num_output, filter_size, stride=stride, padding=padding, bias=bias, groups=split)
+        self.conv = nn.Conv2d(
+            num_input,
+            num_output,
+            filter_size,
+            stride=stride,
+            padding=padding,
+            bias=bias,
+            groups=split)
         self.activation = activation
 
         if self.activation is not None:
@@ -293,8 +385,8 @@ class Conv2dWithActivation(nn.Module):
         x = self.conv(x)
         if self.activation is not None:
             x = self.act(x)
-        return x 
- 
+        return x
+
 
 def crop_op(x, cropping):
     """
@@ -304,5 +396,5 @@ def crop_op(x, cropping):
     crop_b = cropping[0] - crop_t
     crop_l = cropping[1] // 2
     crop_r = cropping[1] - crop_l
-    x = x[:,:,crop_t:-crop_b,crop_l:-crop_r]
-    return x   
+    x = x[:, :, crop_t:-crop_b, crop_l:-crop_r]
+    return x

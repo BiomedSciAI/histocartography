@@ -1,4 +1,4 @@
-import dgl 
+import dgl
 from typing import Dict
 
 from histocartography.ml.layers.mlp import MLP
@@ -16,14 +16,14 @@ class TissueGraphModel(BaseModel):
         """
         TissueGraphModel model constructor.
         :param config: (dict) configuration parameters.
-        :param input_node_dim (int): feature dim of each node. 
+        :param input_node_dim (int): feature dim of each node.
         """
 
         super(TissueGraphModel, self).__init__(config)
 
         # 1- set class attributes
         self.config = config
-        self.hl_node_dim = input_node_dim  # @TODO: rename hl node dim to node dim 
+        self.hl_node_dim = input_node_dim  # @TODO: rename hl node dim to node dim
         self.gnn_params = config['gnn_params']['superpx_gnn']
         self.readout_params = self.config['readout']
         self.readout_agg_op = config['gnn_params']['superpx_gnn']['agg_operator']
@@ -42,8 +42,8 @@ class TissueGraphModel(BaseModel):
         Build classification parameters
         """
         if self.readout_agg_op == "concat":
-            emd_dim = self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
-                self.gnn_params['output_dim']
+            emd_dim = self.gnn_params['hidden_dim'] * (
+                self.gnn_params['n_layers'] - 1) + self.gnn_params['output_dim']
         else:
             emd_dim = self.gnn_params['output_dim']
 
@@ -58,7 +58,7 @@ class TissueGraphModel(BaseModel):
         Foward pass.
         :param superpx_graph: (DGLGraph) superpx graph
         @TODO: input can be:
-            - DGLGraph 
+            - DGLGraph
             - [DGLGraph]
             - [tensor (adj), tensor (node features)]
         """
@@ -84,11 +84,10 @@ class TissueGraphModel(BaseModel):
         self.pred_layer.set_lrp(with_lrp)
 
     def lrp(self, out_relevance_score):
-        # lrp over the classification 
+        # lrp over the classification
         relevance_score = self.pred_layer.lrp(out_relevance_score)
 
-        # lrp over the GNN layers 
+        # lrp over the GNN layers
         relevance_score = self.superpx_gnn.lrp(relevance_score)
 
         return relevance_score
-

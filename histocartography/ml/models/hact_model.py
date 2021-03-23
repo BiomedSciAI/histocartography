@@ -7,11 +7,11 @@ from histocartography.ml.layers.constants import (
     GNN_NODE_FEAT_IN, READOUT_TYPES,
     GNN_NODE_FEAT_OUT, AGGREGATORS,
     SCALERS
-    )   
+)
 from histocartography.ml.layers.mlp import MLP
 
-# debug purposes 
-import time 
+# debug purposes
+import time
 
 
 class HACTModel(BaseModel):
@@ -51,11 +51,12 @@ class HACTModel(BaseModel):
         # 3- build super pixel graph params
         if self.readout_agg_op == "concat" and not self.pna_assignment:
             superpx_input_dim = self.hl_node_dim +\
-                                self.cell_gnn_params['output_dim'] +\
-                                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1) #  +\
-                                # self.cell_gnn_params['input_dim']
+                self.cell_gnn_params['output_dim'] +\
+                self.cell_gnn_params['hidden_dim'] * (self.cell_gnn_params['n_layers'] - 1)  # +\
+            # self.cell_gnn_params['input_dim']
         else:
-            superpx_input_dim = self.hl_node_dim + self.cell_gnn_params['output_dim']
+            superpx_input_dim = self.hl_node_dim + \
+                self.cell_gnn_params['output_dim']
         self._build_superpx_graph_params(
             self.superpx_gnn_params,
             input_dim=superpx_input_dim
@@ -63,9 +64,12 @@ class HACTModel(BaseModel):
 
         # 4- build assignement operator(s)
         if self.pna_assignment:
-            self.aggregators = [AGGREGATORS[aggr] for aggr in config['gnn_params']['cell_gnn']['aggregators'].split()]
-            self.scalers = [SCALERS[scale] for scale in config['gnn_params']['cell_gnn']['scalers'].split()]
-            in_dim = (len(self.aggregators) * len(self.scalers)) * self.cell_gnn_params['output_dim']
+            self.aggregators = [
+                AGGREGATORS[aggr] for aggr in config['gnn_params']['cell_gnn']['aggregators'].split()]
+            self.scalers = [
+                SCALERS[scale] for scale in config['gnn_params']['cell_gnn']['scalers'].split()]
+            in_dim = (len(self.aggregators) * len(self.scalers)) * \
+                self.cell_gnn_params['output_dim']
             if self.readout_agg_op == "concat":
                 in_dim *= self.cell_gnn_params['n_layers']
             self.assignment_mapper = nn.Sequential(
@@ -88,8 +92,8 @@ class HACTModel(BaseModel):
         Build classification parameters
         """
         if self.readout_agg_op == "concat":
-            emd_dim = self.superpx_gnn_params['hidden_dim'] * (self.superpx_gnn_params['n_layers'] - 1) + \
-                self.superpx_gnn_params['output_dim']
+            emd_dim = self.superpx_gnn_params['hidden_dim'] * (
+                self.superpx_gnn_params['n_layers'] - 1) + self.superpx_gnn_params['output_dim']
         else:
             emd_dim = self.superpx_gnn_params['output_dim']
 
@@ -116,14 +120,18 @@ class HACTModel(BaseModel):
             if self.pna_assignment:
                 h_agg = []
                 for row_idx in range(assignment[i - 1].shape[0]):
-                    subidx = (assignment[i - 1][row_idx, :] != 0).nonzero().squeeze(dim=1)
+                    subidx = (assignment[i - 1][row_idx, :]
+                              != 0).nonzero().squeeze(dim=1)
                     subfeats = feats[intervals[i - 1]:intervals[i], :][subidx, :].unsqueeze(dim=0)
                     degree = subfeats.shape[1]
                     if degree > 0:
-                        h_agg_row = torch.cat([aggregate(subfeats) for aggregate in self.aggregators], dim=1)
-                        h_agg_row = torch.cat([scale(h_agg_row, D=degree, avg_d=self.avg_d) for scale in self.scalers], dim=1).squeeze()
+                        h_agg_row = torch.cat(
+                            [aggregate(subfeats) for aggregate in self.aggregators], dim=1)
+                        h_agg_row = torch.cat([scale(
+                            h_agg_row, D=degree, avg_d=self.avg_d) for scale in self.scalers], dim=1).squeeze()
                     else:
-                        h_agg_row = torch.zeros(len(self.aggregators) * len(self.scalers) * subfeats.shape[-1]).to(feats.get_device())
+                        h_agg_row = torch.zeros(len(
+                            self.aggregators) * len(self.scalers) * subfeats.shape[-1]).to(feats.get_device())
                     h_agg.append(h_agg_row.unsqueeze(dim=0))
                 h_agg = torch.cat(h_agg, dim=0)
             else:
@@ -179,21 +187,24 @@ class HACTModel(BaseModel):
         self.pred_layer.set_rlp(with_rlp)
 
     def rlp(self, out_relevance_score):
-        # RLP over the classification 
+        # RLP over the classification
         relevance_score = self.pred_layer.rlp(out_relevance_score)
 
         # RLP over the tissue graph
         relevance_score = self.superpx_gnn.rlp(relevance_score)
 
-        # Note: at this point the relevance score should have dimension: |V_TG| x (d_TG + d_CG)
-        cg_relevance_score = relevance_score[:, :self.cell_gnn_params['output_dim']]
-        tg_relevance_score = relevance_score[:, self.cell_gnn_params['output_dim']:]
+        # Note: at this point the relevance score should have dimension: |V_TG|
+        # x (d_TG + d_CG)
+        cg_relevance_score = relevance_score[:,
+                                             :self.cell_gnn_params['output_dim']]
+        tg_relevance_score = relevance_score[:,
+                                             self.cell_gnn_params['output_dim']:]
 
         # relevance over the assignment matrix @TODO not so sure about it...
-        cg_relevance_score = torch.matmul(self.assignment_matrix[0].t(), cg_relevance_score)
+        cg_relevance_score = torch.matmul(
+            self.assignment_matrix[0].t(), cg_relevance_score)
 
-        # RLP over the cell GNN layers 
+        # RLP over the cell GNN layers
         cg_relevance_score = self.cell_graph_gnn.rlp(cg_relevance_score)
 
         return cg_relevance_score, tg_relevance_score
-

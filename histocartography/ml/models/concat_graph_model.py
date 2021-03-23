@@ -37,7 +37,9 @@ class ConcatGraphModel(BaseModel):
         self._build_cell_graph_params(self.cell_gnn_params)
 
         # 3- build super pixel graph params
-        self._build_superpx_graph_params(self.superpx_gnn_params, input_dim=self.hl_node_dim)
+        self._build_superpx_graph_params(
+            self.superpx_gnn_params,
+            input_dim=self.hl_node_dim)
 
         # 4- build classification params
         self._build_classification_params()
@@ -53,7 +55,7 @@ class ConcatGraphModel(BaseModel):
                 self.superpx_gnn_params['output_dim']
         else:
             emd_dim = self.cell_gnn_params['output_dim'] + \
-                      self.superpx_gnn_params['output_dim']
+                self.superpx_gnn_params['output_dim']
 
         self.pred_layer = MLP(
             in_dim=emd_dim,

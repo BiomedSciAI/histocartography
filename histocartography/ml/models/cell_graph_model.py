@@ -1,8 +1,9 @@
 import dgl
 
-from histocartography.ml.layers.mlp import MLP
-from histocartography.ml.models.base_model import BaseModel
-from histocartography.ml.layers.constants import GNN_NODE_FEAT_IN
+from ..layers.mlp import MLP
+from .base_model import BaseModel
+from .. import MultiLayerGNN
+from ..layers.constants import GNN_NODE_FEAT_IN
 
 
 class CellGraphModel(BaseModel):
@@ -10,43 +11,59 @@ class CellGraphModel(BaseModel):
     Cell Graph Model. Apply a GNN at the cell graph level.
     """
 
-    def __init__(self, config, input_feature_dims):
+    def __init__(
+        self,
+        gnn_params,
+        classification_params,
+        node_dim,
+        class_split: str = None,
+        num_classes: int = None):
         """
         CellGraphModel model constructor
-        :param config: (dict) configuration parameters
-        :param node_dim: (int) cell dim, data specific argument
+
+        Args:
+            config: (dict) configuration parameters
+            node_dim (int): Cell node feature dimension. 
         """
 
-        super(CellGraphModel, self).__init__(config)
+        super().__init__(class_split, num_classes)
 
         # 1- set class attributes
-        self.config = config
-        self.ll_node_dim, self.edge_dim = input_feature_dims
-        self.gnn_params = config['gnn_params']['cell_gnn']
-        self.readout_params = self.config['readout']
-        self.readout_agg_op = config['gnn_params']['cell_gnn']['agg_operator']
+        self.node_dim = node_dim
+        self.gnn_params = gnn_params
+        self.readout_op = gnn_params['readout_op']
+        self.classification_params = classification_params
 
         # 2- build cell graph params
-        self._build_cell_graph_params(self.gnn_params)
+        self._build_cell_graph_params()
 
         # 3- build classification params
         self._build_classification_params()
+
+    def _build_cell_graph_params(self):
+        """
+        Build cell graph multi layer GNN
+        """
+        self.cell_graph_gnn = MultiLayerGNN(
+            input_dim=self.node_dim,
+            **self.gnn_params
+            )
 
     def _build_classification_params(self):
         """
         Build classification parameters
         """
-        if self.readout_agg_op == "concat":
-            emd_dim = self.gnn_params['hidden_dim'] * (self.gnn_params['n_layers'] - 1) + \
-                self.gnn_params['output_dim']
+        if self.readout_op == "concat":
+            emd_dim = self.gnn_params['hidden_dim'] * (
+                self.gnn_params['num_layers'] - 1) + self.gnn_params['output_dim']
         else:
             emd_dim = self.gnn_params['output_dim']
 
         self.pred_layer = MLP(
             in_dim=emd_dim,
-            h_dim=self.readout_params['hidden_dim'],
+            h_dim=self.classification_params['hidden_dim'],
             out_dim=self.num_classes,
-            num_layers=self.readout_params['num_layers']
+            num_layers=self.classification_params['num_layers']
         )
 
     def forward(self, data):
@@ -72,16 +89,15 @@ class CellGraphModel(BaseModel):
 
         return out
 
-    def set_rlp(self, with_rlp):
-        self.cell_graph_gnn.set_rlp(with_rlp)
-        self.pred_layer.set_rlp(with_rlp)
+    def set_lrp(self, with_lrp):
+        self.cell_graph_gnn.set_lrp(with_lrp)
+        self.pred_layer.set_lrp(with_lrp)
 
-    def rlp(self, out_relevance_score):
-        # RLP over the classification 
-        relevance_score = self.pred_layer.rlp(out_relevance_score)
+    def lrp(self, out_relevance_score):
+        # lrp over the classification
+        relevance_score = self.pred_layer.lrp(out_relevance_score)
 
-        # RLP over the GNN layers 
-        relevance_score = self.cell_graph_gnn.rlp(relevance_score)
+        # lrp over the GNN layers
+        relevance_score = self.cell_graph_gnn.lrp(relevance_score)
 
         return relevance_score
-

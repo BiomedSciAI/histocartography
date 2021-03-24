@@ -19,7 +19,7 @@ stages:
       params:
         pretrained_data: 'pannuke'
   - preprocessing:
-      class: AugmentedDeepInstanceFeatureExtractor
+      class: "DeepFeatureExtractor"
       inputs:
       - image
       - instance_map
@@ -27,11 +27,7 @@ stages:
       - features
       params:
         architecture: mobilenet_v2
-        num_workers: 8
-        rotations:
-          - 0
-        flips:
-          - 'n'
+        num_workers: 1
         normalizer:
           type: imagenet
           mean:
@@ -42,5 +38,5 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-        size: 76
+        patch_size: 76
         downsample_factor: 1

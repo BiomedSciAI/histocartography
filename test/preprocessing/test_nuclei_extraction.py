@@ -29,7 +29,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
     def test_nuclei_extractor_with_pipeline_runner(self):
         """Test nuclei extraction with local model."""
 
-        config_fname = os.path.join(self.current_path, 'config', 'nuclei_extractor.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'nuclei_extraction', 'nuclei_extractor.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 

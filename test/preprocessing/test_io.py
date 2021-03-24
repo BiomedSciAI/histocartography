@@ -34,7 +34,7 @@ class IOTestCase(unittest.TestCase):
         Test Image Loader with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'image_loader.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'io', 'image_loader.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
@@ -53,7 +53,7 @@ class IOTestCase(unittest.TestCase):
         Test DGLGraph Loader with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'graph_loader.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'io', 'graph_loader.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
         pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)

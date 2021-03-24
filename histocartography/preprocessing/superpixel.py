@@ -168,10 +168,13 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
     def __init__(
         self,
         nr_superpixels: int,
-        dynamic_superpixels: bool = False,
-        blur_kernel_size: float = 0,
-        compactness: int = 30,
-        threshold: float = 0.06,
+        nr_pixels=100000,
+        max_nr_superpixels=10000,
+        dynamic_superpixels: bool = True,
+        blur_kernel_size: float = 1,
+        compactness: int = 20,
+        max_iterations = 10,
+        threshold: float = 0.03,
         connectivity: int = 2,
         **kwargs,
     ) -> None:
@@ -185,21 +188,20 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             connectivity (int, optional): Connectivity for merging graph. Defaults to 2.
         """
         self.nr_superpixels = nr_superpixels
+        self.nr_pixels = nr_pixels
+        self.max_nr_superpixels = max_nr_superpixels
         self.dynamic_superpixels = dynamic_superpixels
         self.blur_kernel_size = blur_kernel_size
         self.compactness = compactness
+        self.max_iterations = max_iterations
         self.threshold = threshold
         self.connectivity = connectivity
         super().__init__(**kwargs)
 
     def _extract_initial_superpixels(self, image: np.ndarray) -> np.ndarray:
         if self.dynamic_superpixels:
-            nr_superpixels = (
-                image.shape[0]
-                * image.shape[1]
-                * self.downsampling_factor
-                * self.downsampling_factor
-            ) // self.nr_superpixels
+            nr_superpixels = min(int(self.nr_superpixels * \
+                                 (image.shape[0] * image.shape[1] / self.nr_pixels)), self.max_nr_superpixels)
         else:
             nr_superpixels = self.nr_superpixels
         superpixels = slic(
@@ -207,6 +209,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             sigma=self.blur_kernel_size,
             n_segments=nr_superpixels,
             compactness=self.compactness,
+            max_iter=self.max_iterations
         )
         superpixels += 1  # Handle regionprops that ignores all values of 0
         return superpixels

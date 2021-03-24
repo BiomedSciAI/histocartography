@@ -10,28 +10,30 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: "ColorMergedSuperpixelExtractor"
+      class: "NucleiExtractor"
       inputs:
       - image
       outputs:
-      - superpixels
-      - initial_superpixels
+      - instance_map
+      - instance_centroids
       params:
-        nr_superpixels: 100
-        downsampling_factor: 4
+        pretrained_data: 'pannuke'
   - preprocessing:
-      class: AugmentedDeepTissueFeatureExtractor
+      class: "AugmentedDeepFeatureExtractor"
       inputs:
       - image
+      - instance_map
       outputs:
-      - raw_features
+      - features
       params:
         architecture: mobilenet_v2
-        num_workers: 8
+        num_workers: 1
         rotations:
           - 0
+          - 90
         flips:
           - 'n'
+          - 'h'
         normalizer:
           type: imagenet
           mean:
@@ -42,13 +44,5 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-        patch_size: 224
-        stride: 32
-        downsample_factor: 2
-  - preprocessing:
-      class: FeatureMerger
-      inputs:
-      - raw_features
-      - superpixels
-      outputs:
-      - features
+        patch_size: 76
+        downsample_factor: 1

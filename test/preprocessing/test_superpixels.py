@@ -30,7 +30,7 @@ class SuperpixelTestCase(unittest.TestCase):
         Test SLIC superpixel extractor with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'slic_extractor.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'slic_extractor.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
         nr_superpixels = config['stages'][1]['preprocessing']['params']['nr_superpixels']
@@ -62,7 +62,7 @@ class SuperpixelTestCase(unittest.TestCase):
         Test color merged superpixel extractor with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'color_merged_extractor.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'color_merged_extractor.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
@@ -136,7 +136,7 @@ class SuperpixelTestCase(unittest.TestCase):
         Test SLIC superpixel extractor with batch pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'slic_extractor.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'slic_extractor.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
         nr_superpixels = config['stages'][1]['preprocessing']['params']['nr_superpixels']

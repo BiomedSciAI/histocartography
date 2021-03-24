@@ -1,10 +1,7 @@
 # feature extraction 
 from .feature_extraction import HandcraftedFeatureExtractor
-from .feature_extraction import DeepInstanceFeatureExtractor
-from .feature_extraction import AugmentedDeepInstanceFeatureExtractor
-from .feature_extraction import FeatureMerger
-from .feature_extraction import DeepTissueFeatureExtractor
-from .feature_extraction import AugmentedDeepTissueFeatureExtractor
+from .feature_extraction import DeepFeatureExtractor
+from .feature_extraction import AugmentedDeepFeatureExtractor
 
 # graph builders 
 from .graph_builders import RAGGraphBuilder
@@ -37,11 +34,8 @@ from .tissue_mask import GaussianTissueMask
 
 __all__ = [
     'HandcraftedFeatureExtractor',
-    'DeepInstanceFeatureExtractor',
-    'AugmentedDeepInstanceFeatureExtractor',
-    'FeatureMerger',
-    'DeepTissueFeatureExtractor',
-    'AugmentedDeepTissueFeatureExtractor',
+    'DeepFeatureExtractor',
+    'AugmentedDeepFeatureExtractor',
     'RAGGraphBuilder',
     'KNNGraphBuilder',
     'ImageLoader',

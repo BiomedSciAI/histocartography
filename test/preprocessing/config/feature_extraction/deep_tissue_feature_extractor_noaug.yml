@@ -10,18 +10,25 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: AugmentedDeepTissueFeatureExtractor
+      class: "ColorMergedSuperpixelExtractor"
       inputs:
       - image
+      outputs:
+      - superpixels
+      - initial_superpixels
+      params:
+        nr_superpixels: 1000
+        downsampling_factor: 8
+  - preprocessing:
+      class: "DeepFeatureExtractor"
+      inputs:
+      - image
+      - superpixels
       outputs:
       - features
       params:
         architecture: mobilenet_v2
-        num_workers: 8
-        rotations:
-          - 0
-        flips:
-          - 'n'
+        num_workers: 1
         normalizer:
           type: imagenet
           mean:
@@ -32,6 +39,7 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-        patch_size: 224
-        stride: 32
-        downsample_factor: 2
+        patch_size: 112
+        stride: 112
+        downsample_factor: 1
+

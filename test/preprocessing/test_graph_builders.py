@@ -37,7 +37,7 @@ class GraphBuilderTestCase(unittest.TestCase):
         Test rag builder with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'rag_graph_builder.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'rag_graph_builder.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
@@ -93,7 +93,7 @@ class GraphBuilderTestCase(unittest.TestCase):
         Test knn builder with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'knn_graph_builder.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'knn_graph_builder.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 

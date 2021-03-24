@@ -4,15 +4,9 @@ import numpy as np
 import yaml
 import os 
 import torch 
-from PIL import Image
 import shutil
 
 from histocartography import PipelineRunner
-from histocartography.preprocessing import HandcraftedFeatureExtractor, DeepTissueFeatureExtractor
-from histocartography.preprocessing import AugmentedDeepTissueFeatureExtractor, FeatureMerger
-from histocartography.preprocessing import ColorMergedSuperpixelExtractor, NucleiExtractor
-from histocartography.preprocessing import AugmentedDeepInstanceFeatureExtractor
-
 
 class FeatureExtractionTestCase(unittest.TestCase):
     """FeatureExtractionTestCase class."""
@@ -28,11 +22,14 @@ class FeatureExtractionTestCase(unittest.TestCase):
             shutil.rmtree(self.out_path) 
         os.makedirs(self.out_path)
 
-    def test_handcrafted_feature_extractor_with_pipeline_runner(self):
+    def test_handcrafted_feature_extractor(self):
         """
         Test handcrafted feature extractor with pipeline runner.
         """
-        config_fname = os.path.join(self.current_path, 'config', 'handcrafted_feature_extractor.yml')
+        config_fname = os.path.join(self.current_path,
+                                    'config',
+                                    'feature_extraction',
+                                    'handcrafted_feature_extractor.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
@@ -44,11 +41,11 @@ class FeatureExtractionTestCase(unittest.TestCase):
         )
         features = output['features']
 
-        self.assertTrue(isinstance(features, torch.Tensor))  # check type 
-        self.assertEqual(features.shape[1], 65)  # check number of features per instance  
-        self.assertEqual(features.shape[0], 9)  # check number of instances detected 
+        self.assertTrue(isinstance(features, torch.Tensor))  # check type
+        self.assertEqual(features.shape[1], 65)  # check number of features per instance
+        self.assertEqual(features.shape[0], 22)  # check number of instances detected
 
-        # 2. Re-run with existing output & ensure equal 
+        # Re-run with existing output & ensure equal
         output = pipeline.run(
             name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
@@ -57,35 +54,14 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(np.array_equal(features, reload_features))
 
-    def test_handcrafted_feature_extractor(self):
+    def test_deep_tissue_feature_extractor_noaug(self):
         """
-        Test Handcrafted feature extractor. 
+        Test deep tissue feature extractor with pipeline runner and without augmentation.
         """
-
-        # 1. load the image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-
-        # 2. run SLIC extraction
-        nr_superpixels = 100
-        slic_extractor = ColorMergedSuperpixelExtractor(
-            downsampling_factor=4,
-            nr_superpixels=nr_superpixels
-        )
-        superpixels, _ = slic_extractor.process(image)
-
-        # 3. run handcrafted feature extraction
-        feature_extractor = HandcraftedFeatureExtractor()
-        features = feature_extractor.process(image, superpixels)
-
-        self.assertTrue(isinstance(features, torch.Tensor))  # check type 
-        self.assertEqual(features.shape[1], 65)  # check number of features per instance  
-        self.assertEqual(features.shape[0], 9)  # check number of instances detected 
-
-    def test_deep_tissue_extractor_with_pipeline_runner(self):
-        """
-        Test deep tissue feature extractor with pipeline runner.
-        """
-        config_fname = os.path.join(self.current_path, 'config', 'deep_tissue_feature_extractor.yml')
+        config_fname = os.path.join(self.current_path,
+                                    'config',
+                                    'feature_extraction',
+                                    'deep_tissue_feature_extractor_noaug.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
@@ -97,13 +73,11 @@ class FeatureExtractionTestCase(unittest.TestCase):
         )
         features = output['features']
 
-        self.assertTrue(isinstance(features, torch.Tensor))  # check type 
-        self.assertEqual(features.shape[0], 1)  # check number of augmentations (only 1 expected)
-        self.assertEqual(features.shape[1], 6)  # check number horizontal patches 
-        self.assertEqual(features.shape[2], 6)  # check number vertical patches 
-        self.assertEqual(features.shape[3], 1280)  # check number features 
+        self.assertTrue(isinstance(features, torch.Tensor))  # check type
+        self.assertEqual(features.shape[0], 22)    # check number of superpixels
+        self.assertEqual(features.shape[1], 1280)  # check number features
 
-        # 2. Re-run with existing output & ensure equal 
+        # Re-run with existing output & ensure equal
         output = pipeline.run(
             name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
@@ -112,32 +86,14 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(np.array_equal(features, reload_features))
 
-    def test_deep_tissue_feature_extractor(self):
+    def test_deep_tissue_feature_extractor_aug(self):
         """
-        Test Deep Tissue feature extractor. 
+        Test deep tissue feature extractor with pipeline runner and with augmentation.
         """
-
-        # 1. load the image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-
-        # 2. run deep tissue feature extraction
-        feature_extractor = AugmentedDeepTissueFeatureExtractor(
-            architecture='mobilenet_v2',
-            downsample_factor=2
-        )
-        features = feature_extractor.process(image)
-
-        self.assertTrue(isinstance(features, torch.Tensor))  # check type 
-        self.assertEqual(features.shape[0], 1)  # check number of augmentations (only 1 expected)
-        self.assertEqual(features.shape[1], 6)  # check number horizontal patches 
-        self.assertEqual(features.shape[2], 6)  # check number vertical patches 
-        self.assertEqual(features.shape[3], 1280)  # check number features 
-
-    def test_feature_merger_with_pipeline_runner(self):
-        """
-        Test feature merger with pipeline runner.
-        """
-        config_fname = os.path.join(self.current_path, 'config', 'feature_merger.yml')
+        config_fname = os.path.join(self.current_path,
+                                    'config',
+                                    'feature_extraction',
+                                    'deep_tissue_feature_extractor_aug.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
@@ -148,12 +104,13 @@ class FeatureExtractionTestCase(unittest.TestCase):
             image_path=os.path.join(self.image_path, self.image_name)
         )
         features = output['features']
-        self.assertTrue(isinstance(features, torch.Tensor))  # check type 
-        self.assertEqual(features.shape[0], 9)  # check number of tissue instances
-        self.assertEqual(features.shape[1], 1)  # check number of augmentations
-        self.assertEqual(features.shape[2], 1280)  # check number horizontal patches 
 
-        # 2. Re-run with existing output & ensure equal 
+        self.assertTrue(isinstance(features, torch.Tensor))  # check type
+        self.assertEqual(features.shape[0], 22)    # check number of superpixels
+        self.assertEqual(features.shape[1], 4)     # check number of augmentations
+        self.assertEqual(features.shape[2], 1280)  # check number features
+
+        # Re-run with existing output & ensure equal
         output = pipeline.run(
             name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
@@ -162,79 +119,51 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(np.array_equal(features, reload_features))
 
-    def test_feature_merger_extractor(self):
-        """
-        Test Feature Merger extractor. 
-        """
+    def test_deep_nuclei_feature_extractor_noaug(self):
+        """Test deep instance feature extractor with pipeline runner."""
 
-        # 1. load the image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        config_fname = os.path.join(self.current_path,
+                                    'config',
+                                    'feature_extraction',
+                                    'deep_nuclei_feature_extractor_noaug.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
 
-        # 2. run SLIC extraction
-        nr_superpixels = 100
-        slic_extractor = ColorMergedSuperpixelExtractor(
-            downsampling_factor=4,
-            nr_superpixels=nr_superpixels
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
         )
-        superpixels, _ = slic_extractor.process(image)
+        features = output['features']
 
-        # 3. extract deep features
-        feature_extractor = AugmentedDeepTissueFeatureExtractor(
-            architecture='mobilenet_v2',
-            downsample_factor=2
+        self.assertTrue(isinstance(features, torch.Tensor))  # check type
+        self.assertEqual(features.shape[0], 331)             # check number of nuclei
+        self.assertEqual(features.shape[1], 1280)            # check number features
+
+    def test_deep_nuclei_feature_extractor_aug(self):
+        """Test deep instance feature extractor with pipeline runner."""
+
+        config_fname = os.path.join(self.current_path,
+                                    'config',
+                                    'feature_extraction',
+                                    'deep_nuclei_feature_extractor_aug.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
         )
-        raw_features = feature_extractor.process(image)
+        features = output['features']
 
-        # 4. feature merger 
-        feature_merger = FeatureMerger()
-        features = feature_merger.process(raw_features, superpixels)
+        self.assertTrue(isinstance(features, torch.Tensor))  # check type
+        self.assertEqual(features.shape[0], 331)   # check number of nuclei
+        self.assertEqual(features.shape[1], 4)     # check number of augmentations
+        self.assertEqual(features.shape[2], 1280)  # check number features
 
-        self.assertTrue(isinstance(features, torch.Tensor))  # check type 
-        self.assertEqual(features.shape[0], 9)  # check number of tissue instances
-        self.assertEqual(features.shape[1], 1)  # check number of augmentations
-        self.assertEqual(features.shape[2], 1280)  # check number horizontal patches 
-
-    # def test_deep_instance_feature_extractor_with_pipeline_runner(self):
-    #     """Test deep instance feature extractor with pipeline runner."""
-        
-    #     config_fname = os.path.join(self.current_path, 'config', 'deep_instance_feature_extractor.yml')
-    #     with open(config_fname, 'r') as file:
-    #         config = yaml.load(file)
-
-    #     pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
-    #     pipeline.precompute()
-    #     output = pipeline.run(
-    #         name=self.image_name.replace('.png', ''),
-    #         image_path=os.path.join(self.image_path, self.image_name)
-    #     )
-    #     features = output['features']
-        
-    #     # 4. run tests 
-    #     self.assertEqual(features.shape[0], 331)
-    #     self.assertEqual(features.shape[1], 1)
-    #     self.assertEqual(features.shape[2], 1280)
-
-    # def test_deep_instance_feature_extractor(self):
-    #     """Test deep instance feature extractor."""
-
-    #     # 1. load an image
-    #     image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-
-    #     # 2. extract nuclei
-    #     extractor = NucleiExtractor()
-    #     instance_map, instance_centroids = extractor.process(image)
-
-    #     # 3. extract features 
-    #     feature_extractor = AugmentedDeepInstanceFeatureExtractor(
-    #         architecture='mobilenet_v2',
-    #         downsample_factor=1
-    #     )
-    #     features = feature_extractor.process(image, instance_map)
-
-    #     # 4. run tests 
-    #     self.assertEqual(features.shape[0], 331)
-    #     self.assertEqual(features.shape[1], 1)
-    #     self.assertEqual(features.shape[2], 1280)
 
     def tearDown(self):
         """Tear down the tests."""

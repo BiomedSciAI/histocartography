@@ -17,8 +17,8 @@ stages:
       - superpixels
       - initial_superpixels
       params:
-        nr_superpixels: 100
-        downsampling_factor: 4
+        nr_superpixels: 1000
+        downsampling_factor: 8
   - preprocessing:
       class: "HandcraftedFeatureExtractor"
       inputs:

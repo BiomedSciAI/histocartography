@@ -15,6 +15,7 @@ def map_value_to_color(value, colormap, **kwargs):
     cmap = matplotlib.cm.get_cmap(colormap)
     if not isinstance(value, str):
         value = 255 * np.array(cmap(value, **kwargs))
+
         value = tuple(value.astype(int))
     return value
 

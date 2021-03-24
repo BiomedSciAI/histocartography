@@ -25,6 +25,7 @@ class GraphVizTestCase(unittest.TestCase):
         self.data_path = os.path.join(self.current_path, "..", "data")
         self.image_path = os.path.join(self.data_path, "images")
         self.image_name = "283_dcis_4.png"
+        self.graph_path = os.path.join(self.data_path, "cell_graphs")
         self.graph_name = "283_dcis_4.bin"
         self.out_path = os.path.join(self.data_path, "visualization_test")
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
@@ -33,9 +34,10 @@ class GraphVizTestCase(unittest.TestCase):
 
     def test_overlay_with_explanation(self):
         """Test Graph visualization with explanation."""
-        self.data_path = os.path.join(self.current_path, '..', 'data')
-        self.image_path = os.path.join(self.data_path, 'images')
-        self.image_name = '283_dcis_4.png'
+
+        # 1. load a cell graph
+        cell_graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
         image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
@@ -50,14 +52,13 @@ class GraphVizTestCase(unittest.TestCase):
         edge_attributes["thickness"] = [1, 2, 3]
         edge_attributes["color"] = [0.1, 0.2, 0.8, 0.1, 0.2, 0.3, 0.1, 0.1]
 
-        node_attributes = {}
-        node_attributes["color"] = importance_scores
-
-        edge_attributes = {}
-        edge_attributes["thickness"] = [1, 2, 3]
-        edge_attributes["color"] = [0.1, 0.2, 0.8, 0.1, 0.2, 0.3, 0.1, 0.1]
-
         # 4. run the visualization
+        visualizer = OverlayGraphVisualization(node_style="fill")
+        out = visualizer.process(
+            image,
+            cell_graph,
+            node_attributes=node_attributes,
+            edge_attributes=edge_attributes,
         )
 
         # 5. save output image
@@ -121,13 +122,6 @@ class GraphVizTestCase(unittest.TestCase):
             out,
         )
 
-        # 5. save output image
-        save_image(
-            os.path.join(
-                self.out_path,
-                self.image_name.replace('.png', '') + '_cg_overlay.png'),
-            out
-        )
     def tearDown(self):
         """Tear down the tests."""
 

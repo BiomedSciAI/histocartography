@@ -7,10 +7,14 @@ import numpy as np
 plt.style.use("seaborn-whitegrid")
 
 
-def map_value_to_color(value, colormap):
+def name2rgb(color_name):
+    return tuple(matplotlib.colors.to_rgba(color_name)[0:3])
+
+
+def map_value_to_color(value, colormap, **kwargs):
     cmap = matplotlib.cm.get_cmap(colormap)
     if not isinstance(value, str):
-        value = 255 * np.array(cmap(value))
+        value = 255 * np.array(cmap(value, **kwargs))
         value = tuple(value.astype(int))
     return value
 

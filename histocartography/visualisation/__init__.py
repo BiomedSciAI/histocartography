@@ -1,5 +1,5 @@
-from .graph_visualization import GraphVisualization
+from .graph_visualization import OverlayGraphVisualization
 
 __all__ = [
-    'GraphVisualization'
+    'OverlayGraphVisualization'
 ]

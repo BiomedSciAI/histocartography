@@ -11,6 +11,7 @@ from histocartography.interpretability.grad_cam import GraphGradCAMPPExplainer
 from histocartography.visualisation.graph_visualization import (
     OverlayGraphVisualization,
     InstanceImageVisualization,
+    HACTVisualization
 )
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor
@@ -27,6 +28,8 @@ class GraphVizTestCase(unittest.TestCase):
         self.image_name = "283_dcis_4.png"
         self.graph_path = os.path.join(self.data_path, "cell_graphs")
         self.graph_name = "283_dcis_4.bin"
+        self.tissue_graph_path = os.path.join(self.data_path, "tissue_graphs")
+        self.tissue_graph_name = "283_dcis_4_tg.bin"
         self.out_path = os.path.join(self.data_path, "visualization_test")
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path)
@@ -118,6 +121,35 @@ class GraphVizTestCase(unittest.TestCase):
             os.path.join(
                 self.out_path,
                 self.image_name.replace(".png", "") + "_superpixel_overlay.png",
+            ),
+            out,
+        )
+
+    def test_hact_viz(self):
+        """Test hierarchical visualization."""
+
+        # 1. load the corresponding image
+        image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+
+        # 2. extract instances
+        extractor = SLICSuperpixelExtractor(50)
+        tissue_instance_map = extractor.process(image)
+
+        # 3. load graphs
+        cell_graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        cell_graph = cell_graph[0]
+        tissue_graph, _ = load_graphs(os.path.join(self.tissue_graph_path, self.tissue_graph_name))
+        tissue_graph = tissue_graph[0]
+
+        # 4. run the visualization
+        visualizer = HACTVisualization()
+        out = visualizer.process(image,cell_graph=cell_graph,tissue_graph=tissue_graph, tissue_instance_map=tissue_instance_map)
+
+        # 5. save output image
+        save_image(
+            os.path.join(
+                self.out_path,
+                self.image_name.replace(".png", "") + "_hierarchical_overlay.png",
             ),
             out,
         )

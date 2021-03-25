@@ -36,15 +36,22 @@ class BaseImageVisualization(PipelineStep):
 
     def __init__(
         self,
-        instance_style="outline",
-        color="black",
-        thickness=1,
-        colormap=None,
-        alpha=0.5,
+        instance_style: str = "outline",
+        color: str = "black",
+        thickness: int = 1,
+        colormap: str = None,
+        alpha: float = 0.5,
         **kwargs
     ) -> None:
         """
-        Base visualization class
+        Base visualization class constructor
+
+        Args:
+            instance_style: defines how to represent the instances (when available)('fill', 'outline', 'fill+outline')
+            color: matplotlib named color to (fill) or (outline) the instances
+            thickness: thickness of the instance outline
+            colormap: colormap to use to map labels to colors.
+            alpha: blending of the background image to the instances
         """
         super().__init__(**kwargs)
         self.instance_style = instance_style
@@ -60,6 +67,15 @@ class BaseImageVisualization(PipelineStep):
         instance_attributes: dict = None,
     ) -> Image:
 
+        """
+        Process the image visualization
+
+        Args:
+            canvas: background on top of which the visualization is drawn
+            instance_map: segmentation mask of instances, brinary or with individual labels for each
+            instance_attributes: dictionary of attributes to be applied to instances
+        """
+
         viz_canvas = self.draw_instances(canvas, instance_map, instance_attributes)
         draw = ImageDraw.Draw(viz_canvas, "RGBA")
 
@@ -70,20 +86,30 @@ class BaseImageVisualization(PipelineStep):
         self, canvas: np.ndarray, instance_map: np.ndarray, instance_attributes: dict
     ):
         """
-        draw edges on the canvas
+        Abstract method that performs drawing of instances on top of the canvas
+
+        Args:
+            canvas: background on top of which the visualization is drawn
+            instance_map: segmentation mask of instances, brinary or with individual labels for each
+            instance_attributes: dictionary of attributes to be applied to instances
         """
-
-
 
 
 class InstanceImageVisualization(BaseImageVisualization):
     """
-    Base visualization class
+    Instance Image Visualization. Generic instance visualization.
     """
 
     def __init__(self, **kwargs) -> None:
         """
-        Base visualization class
+        Constructor. Args are the same as for the superclass
+
+        Args:
+            instance_style: defines how to represent the instances (when available)('fill', 'outline', 'fill+outline')
+            color: matplotlib named color to (fill) or (outline) the instances
+            thickness: thickness of the instance outline
+            colormap: colormap to use to map labels to colors.
+            alpha: blending of the background image to the instances
         """
         super().__init__(**kwargs)
 
@@ -94,12 +120,12 @@ class InstanceImageVisualization(BaseImageVisualization):
         instance_attributes: dict = None,
     ):
         """
-        Draws the canvas of the image using the instance map.
-        Args:
+        Drawing of instances on top of the canvas
 
-            canvas: np.ndarray,
-            instance_map: np.ndarray = None,
-            instance_attributes: dict = None,
+        Args:
+            canvas: background on top of which the visualization is drawn
+            instance_map: segmentation mask of instances, brinary or with individual labels for each
+            instance_attributes: dictionary of attributes to be applied to instances
         """
         if instance_attributes is None:
             instance_attributes = {}
@@ -107,22 +133,29 @@ class InstanceImageVisualization(BaseImageVisualization):
         thickness = instance_attributes.get(THICKNESS, self.thickness)
         colormap = instance_attributes.get(COLORMAP, self.colormap)
 
-        if 'outline' in self.instance_style.lower():
-            canvas = np.uint8(255 * mark_boundaries(
-                canvas, instance_map, color=name2rgb(color), mode="thick"
-            ))
+        if "outline" in self.instance_style.lower():
+            canvas = np.uint8(
+                255
+                * mark_boundaries(
+                    canvas, instance_map, color=name2rgb(color), mode="thick"
+                )
+            )
 
-        if 'fill' in self.instance_style.lower():
-            canvas[instance_map>0] = canvas[instance_map>0] * (1-self.alpha)
+        if "fill" in self.instance_style.lower():
+            canvas[instance_map > 0] = canvas[instance_map > 0] * (1 - self.alpha)
             if colormap is not None:
                 number_of_colors = np.max(instance_map)
                 cmap = matplotlib.cm.get_cmap(colormap, number_of_colors)
             else:
                 cmap = matplotlib.colors.ListedColormap([color, color])
-            colorized_instance_map = instance_map.astype(np.float32) / np.max(instance_map) 
-            colorized_instance_map = np.uint8(cmap(colorized_instance_map)*255)[:,:,0:3]
-            colorized_instance_map[instance_map==0,:] = 0
-            canvas = np.uint8(canvas + colorized_instance_map * self.alpha)    
+            colorized_instance_map = instance_map.astype(np.float32) / np.max(
+                instance_map
+            )
+            colorized_instance_map = np.uint8(cmap(colorized_instance_map) * 255)[
+                :, :, 0:3
+            ]
+            colorized_instance_map[instance_map == 0, :] = 0
+            canvas = np.uint8(canvas + colorized_instance_map * self.alpha)
         image = Image.fromarray(canvas)
 
         viz_canvas = image.copy()
@@ -135,15 +168,18 @@ class BaseGraphVisualization(PipelineStep):
     Base visualization class
     """
 
-    def __init__(self, instance_visualizer: InstanceImageVisualization = None, **kwargs) -> None:
+    def __init__(
+        self, instance_visualizer: BaseImageVisualization = None, **kwargs
+    ) -> None:
         """
-        Base visualization class
+        Constructor
+
+        Args:
+            instance_visualizer: object to use for the instance visualization
+
         """
         super().__init__(**kwargs)
-        if instance_visualizer is None:
-            self.instance_visualizer = InstanceImageVisualization()
-        else:
-            self.instance_visualizer = instance_visualizer
+        self.instance_visualizer = instance_visualizer
 
     def process(
         self,
@@ -207,8 +243,8 @@ class OverlayGraphVisualization(BaseGraphVisualization):
     ) -> None:
         """
         Overlay graph visualization class. It overlays a graph drawn with
-        PIL on top of an image canvas. Nodes outside of the canvas support will
-        be ignored.
+        PIL on top of an image canvas using the provided instance_visualizer.
+        Nodes outside of the canvas support willbe ignored.
 
         Args :
             node_style: str = "outline" or "fill",
@@ -229,6 +265,9 @@ class OverlayGraphVisualization(BaseGraphVisualization):
         self.edge_color = edge_color
         self.edge_thickness = edge_thickness
         self.colormap = colormap
+
+        if self.instance_visualizer is None:
+            self.instance_visualizer = InstanceImageVisualization()
 
     def graph_preprocessing(self, graph: dgl.DGLGraph):
         return graph
@@ -354,7 +393,7 @@ class OverlayGraphVisualization(BaseGraphVisualization):
             instance_map: np.ndarray = None,
             instance_attributes: dict = None,
         """
-        
+
         if instance_map is not None:
             canvas = self.instance_visualizer.process(
                 canvas,
@@ -369,3 +408,74 @@ class OverlayGraphVisualization(BaseGraphVisualization):
 
         return viz_canvas
 
+
+class HACTVisualization(PipelineStep):
+    """
+    Hierarchical Cell to Tissue visualization class
+    """
+
+    def __init__(
+        self,
+        cell_visualizer: BaseGraphVisualization = None,
+        tissue_visualizer: BaseGraphVisualization = None,
+        **kwargs
+    ) -> None:
+        """
+        Constructor
+
+        Args:
+            cell_visualizer: object to use for the cell visualization
+            tissue_visualizer: object to use for the tissue visualization
+        """
+        super().__init__(**kwargs)
+        if cell_visualizer is None:
+            cell_visualizer = OverlayGraphVisualization(
+                node_style="outline", node_color="cyan", edge_color="cyan"
+            )
+        self.cell_visualizer = cell_visualizer
+        if tissue_visualizer is None:
+            tissue_visualizer = OverlayGraphVisualization(
+                instance_visualizer=InstanceImageVisualization(color="blue"),
+                node_style="filled",
+                node_color="blue",
+                edge_color="blue",
+            )
+        self.tissue_visualizer = tissue_visualizer
+
+    def process(
+        self,
+        canvas: np.ndarray,
+        cell_graph: dgl.DGLGraph,
+        tissue_graph: dgl.DGLGraph,
+        cell_instance_map: np.ndarray = None,
+        cell_node_attributes: dict = None,
+        cell_edge_attributes: dict = None,
+        cell_instance_attributes: dict = None,
+        tissue_instance_map: np.ndarray = None,
+        tissue_node_attributes: dict = None,
+        tissue_edge_attributes: dict = None,
+        tissue_instance_attributes: dict = None,
+    ) -> Image:
+
+        
+        cell_canvas = self.cell_visualizer.process(
+            canvas,
+            graph=cell_graph,
+            instance_map=cell_instance_map,
+            node_attributes=cell_node_attributes,
+            edge_attributes=cell_edge_attributes,
+            instance_attributes=cell_instance_attributes,
+        )
+
+        viz_canvas = self.tissue_visualizer.process(
+            cell_canvas,
+            graph=tissue_graph,
+            instance_map=tissue_instance_map,
+            node_attributes=tissue_node_attributes,
+            edge_attributes=tissue_edge_attributes,
+            instance_attributes=tissue_instance_attributes,
+        )
+
+        
+
+        return viz_canvas

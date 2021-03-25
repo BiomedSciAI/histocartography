@@ -448,11 +448,11 @@ class HACTVisualization(PipelineStep):
                     color="blue",
                     instance_style="fill+outline",
                     colormap="jet",
-                    alpha=0.20,
+                    alpha=0.10,
                 ),
                 node_style=None,
                 node_color='blue',
-                edge_color="black",
+                edge_color="blue",
             )
         self.tissue_visualizer = tissue_visualizer
 

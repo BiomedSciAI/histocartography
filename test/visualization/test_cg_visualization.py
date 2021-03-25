@@ -1,20 +1,23 @@
 """Unit test for visualisation.graph_visualization"""
-import unittest
-import numpy as np
-import yaml
 import os
-from dgl.data.utils import load_graphs
 import shutil
+import unittest
 
-from histocartography.utils.io import load_image, save_image
-from histocartography.interpretability.grad_cam import GraphGradCAMPPExplainer
-from histocartography.visualisation.graph_visualization import (
-    OverlayGraphVisualization,
-    InstanceImageVisualization,
-    HACTVisualization
+import numpy as np
+from dgl.data.utils import load_graphs
+from histocartography.preprocessing import (
+    AugmentedDeepTissueFeatureExtractor,
+    FeatureMerger,
+    RAGGraphBuilder,
 )
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor
+from histocartography.utils.io import load_image, save_image
+from histocartography.visualisation.graph_visualization import (
+    HACTVisualization,
+    InstanceImageVisualization,
+    OverlayGraphVisualization,
+)
 
 
 class GraphVizTestCase(unittest.TestCase):
@@ -132,19 +135,35 @@ class GraphVizTestCase(unittest.TestCase):
         image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract instances
-        extractor = SLICSuperpixelExtractor(100)
+        extractor = SLICSuperpixelExtractor(50)
         tissue_instance_map = extractor.process(image)
-        
 
         # 3. load graphs
         cell_graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         cell_graph = cell_graph[0]
-        tissue_graph, _ = load_graphs(os.path.join(self.tissue_graph_path, self.tissue_graph_name))
-        tissue_graph = tissue_graph[0]
+
+        feature_extractor = AugmentedDeepTissueFeatureExtractor(
+            architecture="mobilenet_v2", downsample_factor=2
+        )
+        raw_features = feature_extractor.process(image)
+
+        # 4. feature merger
+        feature_merger = FeatureMerger()
+        features = feature_merger.process(raw_features, tissue_instance_map)
+
+        rag_builder = RAGGraphBuilder()
+        tissue_graph = rag_builder.process(tissue_instance_map, features)
+        # tissue_graph, _ = load_graphs(os.path.join(self.tissue_graph_path, self.tissue_graph_name))
+        # tissue_graph = tissue_graph[0]
 
         # 4. run the visualization
         visualizer = HACTVisualization()
-        out = visualizer.process(image,cell_graph=cell_graph,tissue_graph=tissue_graph, tissue_instance_map=tissue_instance_map)
+        out = visualizer.process(
+            image,
+            cell_graph=cell_graph,
+            tissue_graph=tissue_graph,
+            tissue_instance_map=tissue_instance_map,
+        )
 
         # 5. save output image
         save_image(

@@ -4,7 +4,7 @@ model:
   output_dim: 32
   num_layers: 3
   agg_type: "mean"
-  activation: "relu"
+  act: "relu"
   readout_op: "concat"
   readout_type: "mean"
   with_lrp: False

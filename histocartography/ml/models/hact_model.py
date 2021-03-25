@@ -63,8 +63,7 @@ class HACTModel(BaseModel):
         # 3- build super pixel graph params
         if self.readout_op == "concat":
             self.cg_tg_node_dim = self.tg_node_dim +\
-                self.cg_gnn_params['output_dim'] +\
-                self.cg_gnn_params['hidden_dim'] * (self.cg_gnn_params['num_layers'] - 1) 
+                self.cg_gnn_params['output_dim'] * self.cg_gnn_params['num_layers']
         else:
             self.cg_tg_node_dim = self.tg_node_dim + \
                 self.cg_gnn_params['output_dim']
@@ -97,8 +96,7 @@ class HACTModel(BaseModel):
         Build classification parameters
         """
         if self.readout_op == "concat":
-            emd_dim = self.tg_gnn_params['hidden_dim'] * (
-                self.tg_gnn_params['n_layers'] - 1) + self.tg_gnn_params['output_dim']
+            emd_dim = self.tg_gnn_params['output_dim'] * self.tg_gnn_params['num_layers']
         else:
             emd_dim = self.tg_gnn_params['output_dim']
 

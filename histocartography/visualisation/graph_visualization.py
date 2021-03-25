@@ -457,7 +457,32 @@ class HACTVisualization(PipelineStep):
         tissue_instance_attributes: dict = None,
     ) -> Image:
 
-        
+        """
+        Draws the hierarchical graph on top of the canvas.
+        Args:
+
+            canvas: image on which to draw the hierarchical graph,
+            cell_graph: cell graph,
+            tissue_graph: tissue graph,
+            cell_instance_map: instance map for the cell graph,
+            cell_node_attributes: specific attributes of the cell nodes,
+            cell_edge_attributes: specific attributes of the cell to cell edges,
+            cell_instance_attributes: dict = specific attributes of the cell instance map,
+            tissue_instance_map: instance map for the tissue graph,
+            tissue_node_attributes: specific attributes of the tissue nodes,
+            tissue_edge_attributes: specific attributes of the tissue to tissue edges,
+            tissue_instance_attributes: dict = specific attributes of the tissue instance map,
+        """
+
+        cell_centroids = cell_graph.ndata[CENTROID]
+        tissue_centroids = tissue_graph.ndata[CENTROID]
+
+        if tissue_instance_map is not None:
+            cell_node_attributes['color'] = []
+            for centroid in cell_centroids:
+                cell_node_attributes['color'].append(tissue_instance_map[centroid])
+
+
         cell_canvas = self.cell_visualizer.process(
             canvas,
             graph=cell_graph,

@@ -23,7 +23,9 @@ class TGModelTestCase(unittest.TestCase):
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.model_fname = os.path.join(self.data_path, 'models', 'tg_model.pt')
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
-        self.graph_name = '283_dcis_4_tg.bin'
+        self.checkpoint_path = os.path.join(self.data_path, 'checkpoints')
+        self.graph_name = '283_dcis_4.bin'
+        os.makedirs(self.checkpoint_path, exist_ok=True)
 
     def test_tissue_graph_model(self):
         """Test tissue graph model."""
@@ -61,29 +63,23 @@ class TGModelTestCase(unittest.TestCase):
     def test_pretrained_tissue_graph_model(self):
         """Test tissue graph model."""
 
-        # 1. Load a cell graph 
+        # 1. Load a tissue graph 
         graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         graph = graph[0]
+        graph.ndata['feat'] = torch.cat(
+            (graph.ndata['feat'].float(),
+            (graph.ndata['centroid']).float()),
+            dim=1
+        )[:, :514]  # @TODO: clean-up the data! 
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
-        node_dim = graph.ndata['feat'].shape[1]
-
-        # 2. load config 
-        config_fname = os.path.join(self.current_path, 'config', 'cg_model.yml')
-        with open(config_fname, 'r') as file:
-            config = yaml.load(file)
-
-        model = TissueGraphModel(
-            gnn_params=config['gnn_params'],
-            classification_params=config['classification_params'],
-            node_dim=node_dim,
-            num_classes=3
-        )
-
+ 
+        # 2. load from box and dump
+        checkpoint_fname = os.path.join(self.checkpoint_path, 'bracs_tggnn_3_classes_gin.pt')
         download_box_link(
-            url='https://ibm.box.com/shared/static/ufo9esvv6oqujy344w6wxap8w422vbuw.pt',
-            out_fname=os.path.join(self.model_fname)
+            url='https://ibm.box.com/shared/static/aoogy0516lsp9vaxgw1tr9mdu5nycvvb.pt',
+            out_fname=checkpoint_fname
         )
-        model.load_state_dict(torch.load(self.model_fname, map_location=torch.device('cpu')).state_dict())
+        model = torch.load(checkpoint_fname)
 
         # 4. forward pass
         logits = model(graph)

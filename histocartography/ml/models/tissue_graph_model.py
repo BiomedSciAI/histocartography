@@ -55,8 +55,7 @@ class TissueGraphModel(BaseModel):
         Build classification parameters
         """
         if self.readout_op == "concat":
-            emd_dim = self.gnn_params['hidden_dim'] * (
-                self.gnn_params['n_layers'] - 1) + self.gnn_params['output_dim']
+            emd_dim = self.gnn_params['output_dim'] * self.gnn_params['num_layers']
         else:
             emd_dim = self.gnn_params['output_dim']
 

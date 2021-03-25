@@ -132,8 +132,9 @@ class GraphVizTestCase(unittest.TestCase):
         image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract instances
-        extractor = SLICSuperpixelExtractor(50)
+        extractor = SLICSuperpixelExtractor(100)
         tissue_instance_map = extractor.process(image)
+        
 
         # 3. load graphs
         cell_graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))

@@ -303,6 +303,8 @@ class OverlayGraphVisualization(BaseGraphVisualization):
         if not isinstance(thicknesses, Iterable):
             thicknesses = [thicknesses]
 
+        number_of_colors = len(set(colors))
+
         radius = cycle(radii)
         color = cycle(colors)
         thickness = cycle(thicknesses)
@@ -312,7 +314,9 @@ class OverlayGraphVisualization(BaseGraphVisualization):
                 draw_circle(
                     centroid,
                     draw,
-                    outline_color=map_value_to_color(next(color), colormap),
+                    outline_color=map_value_to_color(
+                        next(color), colormap, number_of_colors
+                    ),
                     fill_color=None,
                     radius=next(radius),
                     width=next(thickness),
@@ -324,7 +328,9 @@ class OverlayGraphVisualization(BaseGraphVisualization):
                     centroid,
                     draw,
                     outline_color=None,
-                    fill_color=map_value_to_color(next(color), colormap),
+                    fill_color=map_value_to_color(
+                        next(color), colormap, number_of_colors
+                    ),
                     radius=next(radius),
                     width=next(thickness),
                 )
@@ -430,15 +436,23 @@ class HACTVisualization(PipelineStep):
         super().__init__(**kwargs)
         if cell_visualizer is None:
             cell_visualizer = OverlayGraphVisualization(
-                node_style="outline", node_color="cyan", edge_color="cyan"
+                node_style="fill",
+                node_color="black",
+                edge_color="black",
+                colormap="jet",
             )
         self.cell_visualizer = cell_visualizer
         if tissue_visualizer is None:
             tissue_visualizer = OverlayGraphVisualization(
-                instance_visualizer=InstanceImageVisualization(color="blue"),
-                node_style="filled",
-                node_color="blue",
-                edge_color="blue",
+                instance_visualizer=InstanceImageVisualization(
+                    color="blue",
+                    instance_style="fill+outline",
+                    colormap="jet",
+                    alpha=0.20,
+                ),
+                node_style=None,
+                node_color='blue',
+                edge_color="black",
             )
         self.tissue_visualizer = tissue_visualizer
 
@@ -478,10 +492,13 @@ class HACTVisualization(PipelineStep):
         tissue_centroids = tissue_graph.ndata[CENTROID]
 
         if tissue_instance_map is not None:
-            cell_node_attributes['color'] = []
-            for centroid in cell_centroids:
-                cell_node_attributes['color'].append(tissue_instance_map[centroid])
-
+            if cell_node_attributes is None:
+                cell_node_attributes = {}
+                cell_node_attributes["color"] = []
+                for centroid in cell_centroids:
+                    x = int(centroid[1])
+                    y = int(centroid[0])
+                    cell_node_attributes["color"].append(tissue_instance_map[x, y])
 
         cell_canvas = self.cell_visualizer.process(
             canvas,
@@ -500,7 +517,5 @@ class HACTVisualization(PipelineStep):
             edge_attributes=tissue_edge_attributes,
             instance_attributes=tissue_instance_attributes,
         )
-
-        
 
         return viz_canvas

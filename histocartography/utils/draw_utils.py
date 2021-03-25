@@ -11,8 +11,8 @@ def name2rgb(color_name):
     return tuple(matplotlib.colors.to_rgba(color_name)[0:3])
 
 
-def map_value_to_color(value, colormap, **kwargs):
-    cmap = matplotlib.cm.get_cmap(colormap)
+def map_value_to_color(value, colormap, number_of_colors=256, **kwargs):
+    cmap = matplotlib.cm.get_cmap(colormap, number_of_colors)
     if not isinstance(value, str):
         value = 255 * np.array(cmap(value, **kwargs))
         value = tuple(value.astype(int))

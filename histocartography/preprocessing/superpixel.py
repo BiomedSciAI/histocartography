@@ -177,8 +177,8 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             n_segments=nr_superpixels,
             max_iter=self.max_iterations,
             compactness=self.compactness,
+            start_label=1
         )
-        superpixels += 1  # Handle regionprops that ignores all values of 0
         return superpixels
 
 
@@ -215,9 +215,9 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             sigma=self.blur_kernel_size,
             n_segments=nr_superpixels,
             compactness=self.compactness,
-            max_iter=self.max_iterations
+            max_iter=self.max_iterations,
+            start_label=1
         )
-        superpixels += 1  # Handle regionprops that ignores all values of 0
         return superpixels
 
     def _merge_superpixels(
@@ -302,6 +302,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         merged_superpixels = self._merge_superpixels(
             image, initial_superpixels, tissue_mask
         )
+
         return merged_superpixels, initial_superpixels
 
     def process(self, input_image: np.ndarray, tissue_mask=None) -> np.ndarray:

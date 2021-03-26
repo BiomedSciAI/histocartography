@@ -8,7 +8,7 @@ import warnings
 from abc import abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import cv2
 import h5py
@@ -25,13 +25,44 @@ from ..pipeline import PipelineStep
 class SuperpixelExtractor(PipelineStep):
     """Helper class to extract superpixels from images"""
 
-    def __init__(self, downsampling_factor: int = 1, **kwargs) -> None:
+    def __init__(self,
+                 nr_superpixels: int = None,
+                 superpixel_size: int = None,
+                 max_nr_superpixels: Optional[int] = None,
+                 blur_kernel_size: Optional[float] = 1,
+                 compactness: Optional[int] = 20,
+                 max_iterations: Optional[int] = 10,
+                 threshold: Optional[float] = 0.03,
+                 connectivity: Optional[int] = 2,
+                 color_space: Optional[str] = "rgb",
+                 downsampling_factor: Optional[int] = 1, **kwargs) -> None:
         """Abstract class that extracts superpixels from RGB Images
         Args:
-            nr_superpixels (int): Upper bound of super pixels
+            nr_superpixels (None, int): The number of super pixels.
+            superpixel_size (None, int): The size of super pixels.
+            max_nr_superpixels (int, optional): Upper bound for the number of super pixels.
+                                      Useful when superpixel_size is not None.
+            blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.
+            compactness (int, optional): Compactness of the superpixels. Defaults to 30.
+            max_iterations (int, optional): Number of iterations of the slic algorithm. Defaults to 10.
+            threshold (float, optional): Connectivity threshold. Defaults to 0.03.
+            connectivity (int, optional): Connectivity for merging graph. Defaults to 2.
             downsampling_factor (int, optional): Downsampling factor from the input image
                                                  resolution. Defaults to 1.
         """
+        assert (
+            (nr_superpixels is None and superpixel_size is not None) or
+            (nr_superpixels is not None and superpixel_size is None)
+        ), "Provide value for either nr_superpixels or superpixel_size"
+        self.nr_superpixels = nr_superpixels
+        self.superpixel_size = superpixel_size
+        self.max_nr_superpixels = max_nr_superpixels
+        self.blur_kernel_size = blur_kernel_size
+        self.compactness = compactness
+        self.max_iterations = max_iterations
+        self.threshold = threshold
+        self.connectivity = connectivity
+        self.color_space = color_space
         self.downsampling_factor = downsampling_factor
         super().__init__(**kwargs)
 
@@ -103,37 +134,32 @@ class SuperpixelExtractor(PipelineStep):
         return upsampled_image
 
     def precompute(self, final_path) -> None:
-        """Precompute all necessary information"""
+        """Precompute all necessary information."""
         if self.base_path is not None:
             self._link_to_path(Path(final_path) / "superpixels")
 
 
 class SLICSuperpixelExtractor(SuperpixelExtractor):
-    """Use the SLIC algorithm to extract superpixels"""
+    """Use the SLIC algorithm to extract superpixels."""
 
-    def __init__(
-        self,
-        nr_superpixels: int,
-        dynamic_superpixels: bool = False,
-        blur_kernel_size: float = 0,
-        max_iter: int = 10,
-        compactness: int = 30,
-        color_space: str = "rgb",
-        **kwargs,
-    ) -> None:
-        """Extract superpixels with the SLIC algorithm
-        Args:
-            blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.
-            max_iter (int, optional): Number of iterations of the slic algorithm. Defaults to 10.
-            compactness (int, optional): Compactness of the superpixels. Defaults to 30.
-        """
-        self.nr_superpixels = nr_superpixels
-        self.dynamic_superpixels = dynamic_superpixels
-        self.blur_kernel_size = blur_kernel_size
-        self.max_iter = max_iter
-        self.compactness = compactness
-        self.color_space = color_space
+    def __init__(self, **kwargs) -> None:
+        """Extract superpixels with the SLIC algorithm"""
         super().__init__(**kwargs)
+
+    def _get_nr_superpixels(self, image: np.ndarray) -> int:
+        """Compute the number of superpixels for initial segmentation
+        Args:
+            image (np.array): Input tensor
+        Returns:
+            int: Output number of superpixels
+        """
+        if self.superpixel_size is not None:
+            nr_superpixels = int((image.shape[0] * image.shape[1] / self.superpixel_size))
+        elif self.nr_superpixels is not None:
+            nr_superpixels = self.nr_superpixels
+        if self.max_nr_superpixels is not None:
+            nr_superpixels = min(nr_superpixels, self.max_nr_superpixels)
+        return nr_superpixels
 
     def _extract_superpixels(self, image: np.ndarray, *args, **kwargs) -> np.ndarray:
         """Perform the superpixel extraction
@@ -144,20 +170,12 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
         """
         if self.color_space == "hed":
             image = rgb2hed(image)
-        if self.dynamic_superpixels:
-            nr_superpixels = (
-                image.shape[0]
-                * image.shape[1]
-                * self.downsampling_factor
-                * self.downsampling_factor
-            ) // self.nr_superpixels
-        else:
-            nr_superpixels = self.nr_superpixels
+        nr_superpixels = self._get_nr_superpixels(image)
         superpixels = slic(
             image,
             sigma=self.blur_kernel_size,
             n_segments=nr_superpixels,
-            max_iter=self.max_iter,
+            max_iter=self.max_iterations,
             compactness=self.compactness,
         )
         superpixels += 1  # Handle regionprops that ignores all values of 0
@@ -165,45 +183,33 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
 
 
 class MergedSuperpixelExtractor(SuperpixelExtractor):
-    def __init__(
-        self,
-        nr_superpixels: int,
-        nr_pixels=100000,
-        max_nr_superpixels=10000,
-        dynamic_superpixels: bool = True,
-        blur_kernel_size: float = 1,
-        compactness: int = 20,
-        max_iterations = 10,
-        threshold: float = 0.03,
-        connectivity: int = 2,
-        **kwargs,
-    ) -> None:
-        """Extract superpixels with the SLIC algorithm
-
-        Args:
-            blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.
-            max_iter (int, optional): Number of iterations of the slic algorithm. Defaults to 10.
-            compactness (int, optional): Compactness of the superpixels. Defaults to 30.
-            threshold (float, optional): Connectivity threshold. Defaults to 0.06.
-            connectivity (int, optional): Connectivity for merging graph. Defaults to 2.
-        """
-        self.nr_superpixels = nr_superpixels
-        self.nr_pixels = nr_pixels
-        self.max_nr_superpixels = max_nr_superpixels
-        self.dynamic_superpixels = dynamic_superpixels
-        self.blur_kernel_size = blur_kernel_size
-        self.compactness = compactness
-        self.max_iterations = max_iterations
-        self.threshold = threshold
-        self.connectivity = connectivity
+    def __init__(self, **kwargs) -> None:
+        """Extract superpixels with the SLIC algorithm"""
         super().__init__(**kwargs)
 
-    def _extract_initial_superpixels(self, image: np.ndarray) -> np.ndarray:
-        if self.dynamic_superpixels:
-            nr_superpixels = min(int(self.nr_superpixels * \
-                                 (image.shape[0] * image.shape[1] / self.nr_pixels)), self.max_nr_superpixels)
-        else:
+    def _get_nr_superpixels(self, image: np.ndarray) -> int:
+        """Compute the number of superpixels for initial segmentation
+        Args:
+            image (np.array): Input tensor
+        Returns:
+            int: Output number of superpixels
+        """
+        if self.superpixel_size is not None:
+            nr_superpixels = int((image.shape[0] * image.shape[1] / self.superpixel_size))
+        elif self.nr_superpixels is not None:
             nr_superpixels = self.nr_superpixels
+        if self.max_nr_superpixels is not None:
+            nr_superpixels = min(nr_superpixels, self.max_nr_superpixels)
+        return nr_superpixels
+
+    def _extract_initial_superpixels(self, image: np.ndarray) -> np.ndarray:
+        """Extract initial superpixels using SLIC
+        Args:
+            image (np.array): Input tensor
+        Returns:
+            np.array: Output tensor
+        """
+        nr_superpixels = self._get_nr_superpixels(image)
         superpixels = slic(
             image,
             sigma=self.blur_kernel_size,
@@ -220,6 +226,14 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         initial_superpixels: np.ndarray,
         tissue_mask: np.ndarray = None,
     ) -> np.ndarray:
+        """Merge the initial superpixels to return merged superpixels
+        Args:
+            image (np.array): Input image
+            initial_superpixels (np.array): Initial superpixels
+            tissue_mask (None, np.array): Tissue mask
+        Returns:
+            np.array: Output merged superpixel tensor
+        """
         if tissue_mask is not None:
             # Remove superpixels belonging to background or having < 10% tissue content
             ids_initial = np.unique(initial_superpixels, return_counts=True)
@@ -261,15 +275,13 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
     def _generate_graph(
         self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> graph.RAG:
-        """Generate a graph based on the input image and initial superpixel segmentation"""
+        """Generate a graph based on the input image and initial superpixel segmentation."""
 
     @abstractmethod
     def _weighting_function(
         self, graph: graph.RAG, src: int, dst: int, n: int
     ) -> Dict[str, Any]:
-        """
-        Handle merging of nodes of a region boundary region adjacency graph.
-        """
+        """Handle merging of nodes of a region boundary region adjacency graph."""
 
     @abstractmethod
     def _merging_function(self, graph: graph.RAG, src: int, dst: int) -> None:
@@ -278,6 +290,14 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
     def _extract_superpixels(
         self, image: np.ndarray, tissue_mask: np.ndarray = None
     ) -> np.ndarray:
+        """Perform superpixel extraction
+        Args:
+            image (np.array): Input tensor
+            tissue_mask (np.array, optional): Input tissue mask
+        Returns:
+            np.array: Extracted merged superpixels.
+            np.array: Extracted init superpixels, ie before merging.
+        """
         initial_superpixels = self._extract_initial_superpixels(image)
         merged_superpixels = self._merge_superpixels(
             image, initial_superpixels, tissue_mask
@@ -286,7 +306,6 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
 
     def process(self, input_image: np.ndarray, tissue_mask=None) -> np.ndarray:
         """Return the superpixels of a given input image
-
         Args:
             input_image (np.array): Input image.
             tissue_mask (None, np.array): Tissue mask.
@@ -314,7 +333,6 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
 
     def process_and_save(self, output_name: str, *args, **kwargs: Any) -> Any:
         """Process and save in the provided path as as .h5 file
-
         Args:
             output_name (str): Name of output file
         """
@@ -363,7 +381,6 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
 class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
     def __init__(self, w_hist: float = 0.5, w_mean: float = 0.5, **kwargs) -> None:
         """Superpixel merger based on color attibutes taken from the HACT-Net Implementation
-
         Args:
             w_hist (float, optional): Weight of the histogram features for merging. Defaults to 0.5.
             w_mean (float, optional): Weight of the mean features for merging. Defaults to 0.5.
@@ -374,10 +391,8 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
 
     def _color_features_per_channel(self, img_ch: np.ndarray) -> np.ndarray:
         """Extract color histograms from image channel
-
         Args:
             img_ch (np.ndarray): Image channel
-
         Returns:
             np.ndarray: Histogram of the image channel
         """
@@ -386,7 +401,14 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
 
     def _generate_graph(
         self, input_image: np.ndarray, superpixels: np.ndarray
-    ) -> np.ndarray:
+    ) -> graph:
+        """Construct RAG graph using initial superpixel instance map
+       Args:
+           input_image (np.ndarray): Input image
+           superpixels (np.ndarray): Initial superpixel instance map
+       Returns:
+           graph: Constructed graph
+       """
         g = graph.RAG(superpixels, connectivity=self.connectivity)
         if 0 in g.nodes:
             g.remove_node(n=0)  # remove background node

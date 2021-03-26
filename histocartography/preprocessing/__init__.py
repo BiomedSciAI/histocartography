@@ -2,6 +2,8 @@
 from .feature_extraction import HandcraftedFeatureExtractor
 from .feature_extraction import DeepFeatureExtractor
 from .feature_extraction import AugmentedDeepFeatureExtractor
+from .feature_extraction import GridDeepFeatureExtractor
+from .feature_extraction import GridAugmentedDeepFeatureExtractor
 
 # graph builders 
 from .graph_builders import RAGGraphBuilder
@@ -36,6 +38,8 @@ __all__ = [
     'HandcraftedFeatureExtractor',
     'DeepFeatureExtractor',
     'AugmentedDeepFeatureExtractor',
+    'GridDeepFeatureExtractor',
+    'GridAugmentedDeepFeatureExtractor',
     'RAGGraphBuilder',
     'KNNGraphBuilder',
     'ImageLoader',

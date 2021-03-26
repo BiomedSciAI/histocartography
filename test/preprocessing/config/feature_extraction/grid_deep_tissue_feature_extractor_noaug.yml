@@ -10,32 +10,14 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: "ColorMergedSuperpixelExtractor"
+      class: "GridDeepFeatureExtractor"
       inputs:
       - image
-      outputs:
-      - superpixels
-      - initial_superpixels
-      params:
-        superpixel_size: 100
-        max_nr_superpixels: 10000
-        downsampling_factor: 8
-  - preprocessing:
-      class: "AugmentedDeepFeatureExtractor"
-      inputs:
-      - image
-      - superpixels
       outputs:
       - features
       params:
         architecture: mobilenet_v2
         num_workers: 1
-        rotations:
-          - 0
-          - 90
-        flips:
-          - 'n'
-          - 'h'
         normalizer:
           type: imagenet
           mean:
@@ -50,3 +32,4 @@ stages:
         stride: 112
         batch_size: 256
         downsample_factor: 1
+

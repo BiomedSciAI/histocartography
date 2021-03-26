@@ -53,55 +53,55 @@ class SuperpixelTestCase(unittest.TestCase):
 
         self.assertTrue(np.array_equal(superpixels, reload_superpixels))
 
-    # def test_color_merged_superpixel_extractor_with_pipeline_runner(self):
-    #     """
-    #     Test color merged superpixel extractor with pipeline runner.
-    #     """
-    #
-    #     config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'color_merged_extractor.yml')
-    #     with open(config_fname, 'r') as file:
-    #         config = yaml.load(file)
-    #
-    #     pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
-    #     pipeline.precompute()
-    #     output = pipeline.run(
-    #         name=self.image_name.replace('.png', ''),
-    #         image_path=os.path.join(self.image_path, self.image_name)
-    #     )
-    #     superpixels = output['superpixels']
-    #
-    #     self.assertTrue(isinstance(superpixels, np.ndarray))        # check type
-    #     self.assertEqual(len(list(superpixels.shape)), 2)           # mask is bi-dim
-    #     self.assertEqual(len(np.unique(superpixels)), 23)           # check number of instances
-    #
-    #     # Re-run with existing output & ensure equal
-    #     output = pipeline.run(
-    #         name=self.image_name.replace('.jpg', ''),
-    #         image_path=os.path.join(self.image_path, self.image_name)
-    #     )
-    #     reload_superpixels = output['superpixels']
-    #
-    #     self.assertTrue(np.array_equal(superpixels, reload_superpixels))
-    #
-    # def test_slic_superpixel_extractor_with_batch_pipeline_runner(self):
-    #     """
-    #     Test SLIC superpixel extractor with batch pipeline runner.
-    #     """
-    #
-    #     config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'slic_extractor.yml')
-    #     with open(config_fname, 'r') as file:
-    #         config = yaml.load(file)
-    #
-    #     metadata = pd.DataFrame({'image_path': [os.path.join(self.image_path, self.image_name)]})
-    #     pipeline = BatchPipelineRunner(output_path=self.out_path, save=True, pipeline_config=config)
-    #     output = pipeline.run(metadata=metadata, return_out=True)
-    #     superpixels = output[0]['superpixels']
-    #
-    #     self.assertTrue(isinstance(superpixels, np.ndarray))    # check type
-    #     self.assertEqual(len(list(superpixels.shape)), 2)       # mask is bi-dim
-    #     self.assertEqual(len(np.unique(superpixels)), 81)       # check number of instances
-    #
-    #     pipeline.run(metadata=metadata, cores=2)
+    def test_color_merged_superpixel_extractor_with_pipeline_runner(self):
+        """
+        Test color merged superpixel extractor with pipeline runner.
+        """
+
+        config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'color_merged_extractor.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        superpixels = output['superpixels']
+
+        self.assertTrue(isinstance(superpixels, np.ndarray))        # check type
+        self.assertEqual(len(list(superpixels.shape)), 2)           # mask is bi-dim
+        self.assertEqual(len(np.unique(superpixels)), 23)           # check number of instances
+
+        # Re-run with existing output & ensure equal
+        output = pipeline.run(
+            name=self.image_name.replace('.jpg', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        reload_superpixels = output['superpixels']
+
+        self.assertTrue(np.array_equal(superpixels, reload_superpixels))
+
+    def test_slic_superpixel_extractor_with_batch_pipeline_runner(self):
+        """
+        Test SLIC superpixel extractor with batch pipeline runner.
+        """
+
+        config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'slic_extractor.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        metadata = pd.DataFrame({'image_path': [os.path.join(self.image_path, self.image_name)]})
+        pipeline = BatchPipelineRunner(output_path=self.out_path, save=True, pipeline_config=config)
+        output = pipeline.run(metadata=metadata, return_out=True)
+        superpixels = output[0]['superpixels']
+
+        self.assertTrue(isinstance(superpixels, np.ndarray))    # check type
+        self.assertEqual(len(list(superpixels.shape)), 2)       # mask is bi-dim
+        self.assertEqual(len(np.unique(superpixels)), 81)       # check number of instances
+
+        pipeline.run(metadata=metadata, cores=2)
 
     def tearDown(self):
         """Tear down the tests."""

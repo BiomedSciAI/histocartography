@@ -58,7 +58,7 @@ class StatsTestCase(unittest.TestCase):
             image_path=os.path.join(self.image_path, self.image_name)
         )
         count = output['counter']
-        self.assertEqual(count, 89)  # check true count 
+        self.assertEqual(count, 95)  # check true count
 
     def tearDown(self):
         """Tear down the tests."""

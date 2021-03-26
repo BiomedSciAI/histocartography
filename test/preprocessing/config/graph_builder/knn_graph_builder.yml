@@ -17,7 +17,7 @@ stages:
       - instance_map
       - instance_centroids
   - preprocessing:
-      class: AugmentedDeepInstanceFeatureExtractor
+      class: AugmentedDeepFeatureExtractor
       inputs:
       - image
       - instance_map
@@ -40,7 +40,7 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-        size: 76
+        patch_size: 76
         downsample_factor: 1
   - preprocessing:
       class: KNNGraphBuilder

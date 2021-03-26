@@ -996,8 +996,6 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         """
         if self.downsample_factor != 1:
             input_image = self._downsample(input_image, self.downsample_factor)
-            self.patch_size = self.patch_size // self.downsample_factor
-            self.stride = self.stride // self.downsample_factor
 
         patch_dataset = GridPatchDataset(
             image=input_image,

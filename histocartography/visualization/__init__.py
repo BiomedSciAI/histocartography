@@ -6,5 +6,6 @@ from .visualization import (
 
 __all__ = [
     "OverlayGraphVisualization",
-    "InstanceImageVisualization" "HACTVisualization",
+    "InstanceImageVisualization",
+    "HACTVisualization",
 ]

@@ -78,24 +78,24 @@ class CellGraphBuilder:
             # 3. super pixel feature extraction 
             features = self.feature_extractor.process(image, nuclei_map)
 
-            # 5. build the tissue graph
+            # 4. build the tissue graph
             cell_graph = self.cell_graph_builder.process(
                 structure=nuclei_centroids,
                 features=features,
             )
 
-            # 6. print graph properties
+            # 5. print graph properties
             if self.verbose:
                 print('Number of nodes:', cell_graph.number_of_nodes())
                 print('Number of edges:', cell_graph.number_of_edges())
                 print('Node features:', cell_graph.ndata['feat'].shape)
                 print('Node centroids:', cell_graph.ndata['centroid'].shape)
 
-            # 7. save DGL graph
+            # 6. save DGL graph
             cg_fname = image_name.replace('.png', '.bin')
             save_graphs(os.path.join(self.out_path, 'cell_graphs', cg_fname), [cell_graph])
 
-            # 9. visualize the graph 
+            # 7. visualize the graph 
             if self.viz:
                 out = self.visualiser.process(image, instance_map=nuclei_map)
                 tg_fname = image_name.replace('.png', '_cg.png')

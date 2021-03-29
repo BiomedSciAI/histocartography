@@ -84,6 +84,7 @@ class CellGraphBuilder:
             cell_graph = self.cell_graph_builder.process(
                 structure=nuclei_centroids,
                 features=features,
+                image_size=(image.shape[1], image.shape[0])
             )
 
             # 5. print graph properties

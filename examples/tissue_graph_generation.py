@@ -87,6 +87,7 @@ class TissueGraphBuilder:
             tissue_graph = self.tissue_graph_builder.process(
                 structure=merged_superpixels,
                 features=features,
+                image_size=(image.shape[1], image.shape[0])
             )
 
             # 6. print graph properties
@@ -95,6 +96,7 @@ class TissueGraphBuilder:
                 print('Number of edges:', tissue_graph.number_of_edges())
                 print('Node features:', tissue_graph.ndata['feat'].shape)
                 print('Node centroids:', tissue_graph.ndata['centroid'].shape)
+                print('Image size:', tissue_graph.gdata['image_size'])
 
             # 7. save DGL graph
             tg_fname = image_name.replace('.png', '.bin')

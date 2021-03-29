@@ -3,7 +3,7 @@
 import logging
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import cv2
 import dgl
@@ -51,6 +51,7 @@ class BaseGraphBuilder(PipelineStep):
         self,
         structure: np.ndarray,
         features: torch.Tensor,
+        image_size: Tuple[int, int] = None,
         annotation: Optional[np.ndarray] = None,
     ) -> dgl.DGLGraph:
         """Generates a graph with a given structure and features
@@ -59,6 +60,8 @@ class BaseGraphBuilder(PipelineStep):
             structure (np.array): Structure, depending on the graph can be superpixel
                                   connectivity, or centroids
             features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)
+            image_size (Tuple[int, int]): Image size corresponding to the graph.
+                                          Defaults to None.
             annotation (Union[None, np.array], optional): Optional node level to include.
                                                           Defaults to None.
 
@@ -69,6 +72,10 @@ class BaseGraphBuilder(PipelineStep):
         num_nodes = features.shape[0]
         graph = dgl.DGLGraph()
         graph.add_nodes(num_nodes)
+
+        # add image size as graph data 
+        if image_size is not None:
+            graph.gdata = {'image_size': image_size}
 
         # add node features
         self._set_node_features(features, graph)

@@ -244,3 +244,26 @@ DATATYPE_TO_SAVEFN = {
 }
 
 DATATYPE_TO_EXT = {dict: '.json', np.ndarray: '.txt', Image.Image: '.png'}
+
+
+def download_test_data(out_dir):
+    # 1. download 283 dcis 4 cell graph:
+    fname = os.path.join(out_dir, 'cell_graphs', '283_dcis_4.bin')
+    download_box_link('https://ibm.box.com/shared/static/nuxuhc1upe0x1mq2t7njtl7hp5m7x67f.bin', fname)
+
+    # 2. download 283 dcis 4 tissue graph:
+    fname = os.path.join(out_dir, 'tissue_graphs', '283_dcis_4.bin')
+    download_box_link('https://ibm.box.com/shared/static/cw2z7mu6n7b9mlybb83k65sn7dre0y9k.bin', fname)
+
+    # 3. download test images:
+    fname = os.path.join(out_dir, 'images', '17B0031061.png')
+    download_box_link('https://ibm.box.com/shared/static/yzyrb051125k866ehaowe4gyep90wws6.png', fname)
+
+    fname = os.path.join(out_dir, 'images', '18B000646H.png')
+    download_box_link('https://ibm.box.com/shared/static/pyj5igmqzqyezpkk4d347a7e1uw3l6y3.png', fname)
+
+    fname = os.path.join(out_dir, 'images', '283_dcis_4.png')
+    download_box_link('https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png', fname)
+
+    fname = os.path.join(out_dir, 'images', '16B0001851_Block_Region_3.jpg')
+    download_box_link('https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg', fname)

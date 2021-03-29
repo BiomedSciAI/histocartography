@@ -83,6 +83,8 @@ class SuperpixelExtractor(PipelineStep):
         original_height, original_width, _ = input_image.shape
         if self.downsampling_factor != 1:
             input_image = self._downsample(input_image, self.downsampling_factor)
+            if tissue_mask is not None:
+                tissue_mask = self._downsample(tissue_mask, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
         superpixels = self._extract_superpixels(
             image=input_image, tissue_mask=tissue_mask
@@ -321,6 +323,8 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         original_height, original_width, _ = input_image.shape
         if self.downsampling_factor != 1:
             input_image = self._downsample(input_image, self.downsampling_factor)
+            if tissue_mask is not None:
+                tissue_mask = self._downsample(tissue_mask, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
         merged_superpixels, initial_superpixels = self._extract_superpixels(
             input_image, tissue_mask

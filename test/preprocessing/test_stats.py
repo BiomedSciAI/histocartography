@@ -40,7 +40,7 @@ class StatsTestCase(unittest.TestCase):
             graph_path=os.path.join(self.graph_path, self.graph_name)
         )
         diameter = output['diameter']
-        self.assertEqual(diameter, 3)  # check true diameter 
+        self.assertEqual(diameter, 6)  # check true diameter 
 
     def test_superpixel_counter_with_pipeline_runner(self):
         """

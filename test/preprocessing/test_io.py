@@ -64,9 +64,11 @@ class IOTestCase(unittest.TestCase):
         )
         graph = output['graph']
 
+        print('Graph:', graph)
+
         self.assertTrue(isinstance(graph, dgl.DGLGraph)) # graph is DGLGraph 
-        self.assertEqual(graph.number_of_nodes(), 19)    # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 56)    # check number of nodes
+        self.assertEqual(graph.number_of_nodes(), 25)    # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 112)    # check number of nodes
         self.assertTrue('centroid' in graph.ndata.keys())  # check if centroids
         self.assertTrue('feat' in graph.ndata.keys())      # check if features 
 
@@ -89,9 +91,9 @@ class IOTestCase(unittest.TestCase):
         graph_loader = DGLGraphLoader()
         graph = graph_loader.process(os.path.join(self.graph_path, self.graph_name))
 
-        self.assertTrue(isinstance(graph, dgl.DGLGraph)) # graph is DGLGraph 
-        self.assertEqual(graph.number_of_nodes(), 19)    # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 56)    # check number of nodes
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))   # graph is DGLGraph 
+        self.assertEqual(graph.number_of_nodes(), 25)      # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 112)      # check number of nodes
         self.assertTrue('centroid' in graph.ndata.keys())  # check if centroids
         self.assertTrue('feat' in graph.ndata.keys())      # check if features 
 

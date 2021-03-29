@@ -9,7 +9,7 @@ import argparse
 from tqdm import tqdm  
 import h5py
 
-from histocartography.preprocessing import ColorMergedSuperpixelExtractor, DeepFeatureExtractor, RAGGraphBuilder
+from histocartography.preprocessing import NucleiExtractor, DeepFeatureExtractor, KNNGraphBuilder
 from histocartography.visualization import InstanceImageVisualization
 from histocartography.utils.io import load_image
 
@@ -41,23 +41,18 @@ def parse_arguments():
 
 
 
-class TissueGraphBuilder:
-    """TissueGraphBuilder."""
+class CellGraphBuilder:
+    """CellGraphBuilder."""
 
     def __init__(self, out_path, verbose=True, viz=True):
         self.out_path = out_path
         self.verbose = verbose
         self.viz = viz
-        os.makedirs(os.path.join(out_path, 'tissue_graphs'), exist_ok=True)
+        os.makedirs(os.path.join(out_path, 'cell_graphs'), exist_ok=True)
 
-        self.superpixel_detector = ColorMergedSuperpixelExtractor(
-            nr_superpixels=50,
-            compactness=20,
-            blur_kernel_size=1,
-            threshold=0.01,
-        )
-        self.feature_extractor = DeepFeatureExtractor(architecture='resnet34', patch_size=144)
-        self.tissue_graph_builder = RAGGraphBuilder()
+        self.nuclei_detector = NucleiExtractor()
+        self.feature_extractor = DeepFeatureExtractor(architecture='resnet34', patch_size=72)
+        self.cell_graph_builder = KNNGraphBuilder()
 
         if self.viz:
             self.visualiser = InstanceImageVisualization()
@@ -78,37 +73,36 @@ class TissueGraphBuilder:
             image = np.array(load_image(os.path.join(image_path, image_name)))
     
             # 2. super pixel detection 
-            merged_superpixels, superpixels = self.superpixel_detector.process(image)
+            nuclei_map, nuclei_centroids = self.nuclei_detector.process(image)
 
             # 3. super pixel feature extraction 
-            features = self.feature_extractor.process(image, merged_superpixels)
+            features = self.feature_extractor.process(image, nuclei_map)
 
             # 5. build the tissue graph
-            tissue_graph = self.tissue_graph_builder.process(
-                structure=merged_superpixels,
+            cell_graph = self.cell_graph_builder.process(
+                structure=nuclei_centroids,
                 features=features,
             )
 
             # 6. print graph properties
             if self.verbose:
-                print('Number of nodes:', tissue_graph.number_of_nodes())
-                print('Number of edges:', tissue_graph.number_of_edges())
-                print('Node features:', tissue_graph.ndata['feat'].shape)
-                print('Node centroids:', tissue_graph.ndata['centroid'].shape)
+                print('Number of nodes:', cell_graph.number_of_nodes())
+                print('Number of edges:', cell_graph.number_of_edges())
+                print('Node features:', cell_graph.ndata['feat'].shape)
+                print('Node centroids:', cell_graph.ndata['centroid'].shape)
 
             # 7. save DGL graph
-            tg_fname = image_name.replace('.png', '.bin')
-            save_graphs(os.path.join(self.out_path, 'tissue_graphs', tg_fname), [tissue_graph])
+            cg_fname = image_name.replace('.png', '.bin')
+            save_graphs(os.path.join(self.out_path, 'cell_graphs', cg_fname), [cell_graph])
 
             # 9. visualize the graph 
             if self.viz:
-                out = self.visualiser.process(image, instance_map=merged_superpixels)
-                tg_fname = image_name.replace('.png', '_tg.png')
+                out = self.visualiser.process(image, instance_map=nuclei_map)
+                tg_fname = image_name.replace('.png', '_cg.png')
                 out.save(os.path.join(self.out_path, 'visualization', tg_fname))
 
 
 if __name__ == "__main__":
     args = parse_arguments()
-    graph_builder = TissueGraphBuilder(args.out_path)
+    graph_builder = CellGraphBuilder(args.out_path)
     graph_builder.process(args.image_path, args.fnames_path)
-

@@ -1,16 +1,12 @@
 """Unit test for preprocessing.stain_normalizers"""
 import unittest
 import numpy as np
-import cv2 
-import torch 
 import yaml
-import dgl
 import os
 from PIL import Image
 import shutil
 
 from histocartography import PipelineRunner
-from histocartography.preprocessing import MacenkoStainNormalizer, VahadaneStainNormalizer
 
 
 class StainNormalizationTestCase(unittest.TestCase):
@@ -32,7 +28,7 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Macenko Stain Normalization: without Reference.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'macenko_normalizer.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'macenko_normalizer_noref.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
@@ -53,9 +49,11 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Macenko Stain Normalization: with Reference.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'macenko_normalizer.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'macenko_normalizer_ref.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
+        config['stages'][1]['preprocessing']['params']['target_path'] = \
+            os.path.join(self.current_path, config['stages'][1]['preprocessing']['params']['target_path'])
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
         pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
@@ -74,13 +72,18 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Vahadane Stain Normalization: without Reference.
         """
 
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'vahadane_normalizer_noref.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
 
-        stain_normalizer = VahadaneStainNormalizer(
-            base_path=self.out_path,
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
+        pipeline.precompute()
+        output = pipeline.run(
+            name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
         )
-        stain_normalizer.precompute(self.image_path)
-        image_norm = stain_normalizer.process(image)
+        image_norm = output['normalized_image']
 
         self.assertTrue(isinstance(image_norm, np.ndarray))  # output is numpy
         self.assertEqual(list(image.shape), list(image_norm.shape))  # image HxW = mask HxW
@@ -90,9 +93,11 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Vahadane Stain Normalization: with Reference.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'vahadane_normalizer.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'vahadane_normalizer_ref.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
+        config['stages'][1]['preprocessing']['params']['target_path'] = \
+            os.path.join(self.current_path, config['stages'][1]['preprocessing']['params']['target_path'])
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
         pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
@@ -111,12 +116,13 @@ class StainNormalizationTestCase(unittest.TestCase):
         Test Vahadane invalid precomputed normalization.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'vahadane_normalizer.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'vahadane_precomputed_normalizer_fail.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        self.assertRaises(FileExistsError, pipeline.precompute())
+        with self.assertRaises(FileNotFoundError):
+            pipeline.precompute()
 
     def tearDown(self):
         """Tear down the tests."""

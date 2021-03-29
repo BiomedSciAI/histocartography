@@ -1,7 +1,7 @@
 inputs:
 - image_path
 outputs:
-- features
+- graph
 stages:
   - preprocessing:
       class: "ImageLoader"
@@ -10,21 +10,19 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: "ColorMergedSuperpixelExtractor"
+      class: "NucleiExtractor"
       inputs:
       - image
       outputs:
-      - superpixels
-      - initial_superpixels
-      params:
-        nr_superpixels: 100
-        downsampling_factor: 4
+      - instance_map
+      - instance_centroids
   - preprocessing:
-      class: AugmentedDeepTissueFeatureExtractor
+      class: AugmentedDeepFeatureExtractor
       inputs:
       - image
+      - instance_map
       outputs:
-      - raw_features
+      - features
       params:
         architecture: mobilenet_v2
         num_workers: 8
@@ -42,13 +40,12 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-        patch_size: 224
-        stride: 32
-        downsample_factor: 2
+        patch_size: 76
+        downsample_factor: 1
   - preprocessing:
-      class: FeatureMerger
+      class: KNNGraphBuilder
       inputs:
-      - raw_features
-      - superpixels
-      outputs:
+      - instance_centroids
       - features
+      outputs:
+      - graph

@@ -15,5 +15,5 @@ dependencies:
     - pillow
     - opencv-python==3.4.8.29
     - boto3 
-    - scikit-image
+    - scikit-image>=0.18.1
     - dgl==0.4.3.post2

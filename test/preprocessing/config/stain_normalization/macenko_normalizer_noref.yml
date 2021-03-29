@@ -1,0 +1,17 @@
+inputs:
+- image_path
+outputs:
+- normalized_image
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - preprocessing:
+        class: "MacenkoStainNormalizer"
+        inputs:
+        - image
+        outputs:
+        - normalized_image

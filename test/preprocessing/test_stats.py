@@ -30,7 +30,7 @@ class StatsTestCase(unittest.TestCase):
         Test graph diameter with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'graph_diameter.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'stats', 'graph_diameter.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
         pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
@@ -47,7 +47,7 @@ class StatsTestCase(unittest.TestCase):
         Test superpixel counter with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'superpixel_counter.yml')
+        config_fname = os.path.join(self.current_path, 'config', 'stats', 'superpixel_counter.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
             
@@ -58,7 +58,7 @@ class StatsTestCase(unittest.TestCase):
             image_path=os.path.join(self.image_path, self.image_name)
         )
         count = output['counter']
-        self.assertEqual(count, 89)  # check true count 
+        self.assertEqual(count, 95)  # check true count
 
     def tearDown(self):
         """Tear down the tests."""

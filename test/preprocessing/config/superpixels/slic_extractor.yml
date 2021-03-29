@@ -2,7 +2,6 @@ inputs:
 - image_path
 outputs:
 - superpixels
-- initial_superpixels
 stages:
   - preprocessing:
       class: "ImageLoader"
@@ -11,12 +10,12 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: "ColorMergedSuperpixelExtractor"
+      class: "SLICSuperpixelExtractor"
       inputs:
       - image
       outputs:
       - superpixels
-      - initial_superpixels
       params:
-        nr_superpixels: 100
-        downsampling_factor: 4
+        superpixel_size: 100
+        max_nr_superpixels: 10000
+        downsampling_factor: 8

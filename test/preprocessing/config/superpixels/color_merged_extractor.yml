@@ -1,7 +1,8 @@
 inputs:
 - image_path
 outputs:
-- features
+- superpixels
+- initial_superpixels
 stages:
   - preprocessing:
       class: "ImageLoader"
@@ -17,12 +18,6 @@ stages:
       - superpixels
       - initial_superpixels
       params:
-        nr_superpixels: 100
-        downsampling_factor: 4
-  - preprocessing:
-      class: "HandcraftedFeatureExtractor"
-      inputs:
-      - image
-      - superpixels
-      outputs:
-      - features
+        superpixel_size: 100
+        max_nr_superpixels: 10000
+        downsampling_factor: 8

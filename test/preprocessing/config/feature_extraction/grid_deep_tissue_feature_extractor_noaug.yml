@@ -1,7 +1,7 @@
 inputs:
 - image_path
 outputs:
-- graph
+- features
 stages:
   - preprocessing:
       class: "ImageLoader"
@@ -10,26 +10,14 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: "NucleiExtractor"
+      class: "GridDeepFeatureExtractor"
       inputs:
       - image
-      outputs:
-      - instance_map
-      - instance_centroids
-  - preprocessing:
-      class: AugmentedDeepInstanceFeatureExtractor
-      inputs:
-      - image
-      - instance_map
       outputs:
       - features
       params:
         architecture: mobilenet_v2
-        num_workers: 8
-        rotations:
-          - 0
-        flips:
-          - 'n'
+        num_workers: 1
         normalizer:
           type: imagenet
           mean:
@@ -40,12 +28,7 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-        size: 76
+        patch_size: 112
+        stride: 112
+        batch_size: 256
         downsample_factor: 1
-  - preprocessing:
-      class: KNNGraphBuilder
-      inputs:
-      - instance_centroids
-      - features
-      outputs:
-      - graph

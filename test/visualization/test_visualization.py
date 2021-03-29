@@ -29,10 +29,10 @@ class GraphVizTestCase(unittest.TestCase):
         self.data_path = os.path.join(self.current_path, "..", "data")
         self.image_path = os.path.join(self.data_path, "images")
         self.image_name = "283_dcis_4.png"
-        self.graph_path = os.path.join(self.data_path, "cell_graphs")
+        self.cell_graph_path = os.path.join(self.data_path, "cell_graphs")
         self.graph_name = "283_dcis_4.bin"
         self.tissue_graph_path = os.path.join(self.data_path, "tissue_graphs")
-        self.tissue_graph_name = "283_dcis_4_tg.bin"
+        self.tissue_graph_name = "283_dcis_4.bin"
         self.out_path = os.path.join(self.data_path, "visualization_test")
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path)
@@ -80,16 +80,17 @@ class GraphVizTestCase(unittest.TestCase):
         """Test Graph visualization with nuclei maps."""
 
         # 1. load a cell graph
-        cell_graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        cell_graph, _ = load_graphs(os.path.join(self.cell_graph_path, self.graph_name))
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
         image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+
         # 3. detect nuclei (for visualization)
-        extractor = NucleiExtractor(pretrained_data="monusac")
+        extractor = NucleiExtractor(pretrained_data="pannuke")
         nuclei, nuclei_centroids = extractor.process(image)
 
-        # 3. run the visualization
+        # 4. run the visualization
         visualizer = OverlayGraphVisualization(
             instance_visualizer=InstanceImageVisualization(
                 instance_style="filled+outline", colormap="jet"
@@ -152,8 +153,6 @@ class GraphVizTestCase(unittest.TestCase):
         # 5. build tissue graph
         rag_builder = RAGGraphBuilder()
         tissue_graph = rag_builder.process(tissue_instance_map, features)
-        # tissue_graph, _ = load_graphs(os.path.join(self.tissue_graph_path, self.tissue_graph_name))
-        # tissue_graph = tissue_graph[0]
 
         # 6. run the visualization
         visualizer = HACTVisualization()

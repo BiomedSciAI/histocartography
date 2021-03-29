@@ -8,7 +8,7 @@ import shutil
 
 from histocartography import PipelineRunner
 
-class FeatureExtractionTestCase(unittest.TestCasse):
+class FeatureExtractionTestCase(unittest.TestCase):
     """FeatureExtractionTestCase class."""
 
     @classmethod

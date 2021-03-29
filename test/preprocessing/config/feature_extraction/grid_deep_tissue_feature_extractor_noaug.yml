@@ -32,4 +32,3 @@ stages:
         stride: 112
         batch_size: 256
         downsample_factor: 1
-

@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 from skimage.filters import gaussian, threshold_otsu
+Image.MAX_IMAGE_PIXELS = 100000000000
 
 from ..pipeline import PipelineStep
 
@@ -67,14 +68,15 @@ def get_tissue_mask(
 
     # only keep
     unique, counts = np.unique(labeled[labeled > 0], return_counts=True)
-    discard = np.in1d(labeled, unique[counts < min_size])
-    discard = discard.reshape(labeled.shape)
-    labeled[discard] = 0
-
-    # largest tissue region
-    mask = labeled == unique[np.argmax(counts)]
-
-    return labeled, mask
+    if len(unique) != 0:
+        discard = np.in1d(labeled, unique[counts < min_size])
+        discard = discard.reshape(labeled.shape)
+        labeled[discard] = 0
+        # largest tissue region
+        mask = labeled == unique[np.argmax(counts)]
+        return labeled, mask
+    else:
+        return None, None
 
 
 class TissueMask(PipelineStep):
@@ -204,6 +206,8 @@ class GaussianTissueMask(TissueMask):
                 sigma=self.sigma,
                 min_size=self.min_size,
             )
+            if mask_ is None:
+                break
             mask_ = cv2.dilate(
                 mask_.astype(np.uint8), self.kernel, iterations=self.dilation_steps
             )

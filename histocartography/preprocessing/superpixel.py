@@ -348,8 +348,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             self.base_path is not None
         ), "Can only save intermediate output if base_path was not None when constructing the object"
         superpixel_output_path = self.output_dir / f"{output_name}.h5"
-        mapping_output_path = self.output_dir / f"{output_name}.joblib"
-        if superpixel_output_path.exists() and mapping_output_path.exists():
+        if superpixel_output_path.exists():
             logging.info(
                 f"{self.__class__.__name__}: Output of {output_name} already exists, using it instead of recomputing"
             )

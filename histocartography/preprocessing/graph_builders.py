@@ -14,6 +14,7 @@ import torch
 from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 from sklearn.neighbors import kneighbors_graph
+from sklearn.preprocessing import binarize
 
 from ..utils.vector import compute_l2_distance
 from .constants import CENTROID, FEATURES, LABEL
@@ -294,20 +295,11 @@ class KNNGraphBuilder(BaseGraphBuilder):
         # build kNN adjacency
         adj = kneighbors_graph(
             centroids, self.k, mode="distance", include_self=False, metric="euclidean"
-        )
+        ).toarray()
 
         # filter edges that are too far (ie larger than thresh)
-        edge_list = np.nonzero(adj)
-        edge_list = [[s, d] for (s, d) in zip(edge_list[0], edge_list[1])]
         if self.thresh is not None:
-            edge_list = list(
-                filter(
-                    lambda x: compute_l2_distance(centroids[x[0]], centroids[x[1]])
-                    < self.thresh,
-                    edge_list,
-                )
-            )
+            adj[adj > self.thresh] = 0
 
-        # append edges
-        edge_list = ([s for (s, _) in edge_list], [d for (_, d) in edge_list])
+        edge_list = np.nonzero(adj)
         graph.add_edges(list(edge_list[0]), list(edge_list[1]))

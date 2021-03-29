@@ -64,8 +64,6 @@ class IOTestCase(unittest.TestCase):
         )
         graph = output['graph']
 
-        print('Graph:', graph)
-
         self.assertTrue(isinstance(graph, dgl.DGLGraph)) # graph is DGLGraph 
         self.assertEqual(graph.number_of_nodes(), 25)    # check number of nodes
         self.assertEqual(graph.number_of_edges(), 112)    # check number of nodes

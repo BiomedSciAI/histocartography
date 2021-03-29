@@ -32,6 +32,7 @@ class GraphLRPTestCase(unittest.TestCase):
             shutil.rmtree(self.out_path) 
         os.makedirs(self.out_path)
 
+    @unittest.skip("In dev.")
     def test_graphlrp(self):
         """
         Test Graph LRP.
@@ -41,7 +42,7 @@ class GraphLRPTestCase(unittest.TestCase):
         graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         graph = graph[0]
         graph.ndata['feat'] = torch.cat(
-            (graph.ndata['feat'][:, :512].float(),  # @TODO: HACK-->truncate features to match pre-trained model. 
+            (graph.ndata['feat'].float(), 
             (graph.ndata['centroid']).float()),
             dim=1
         )

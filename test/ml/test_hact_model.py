@@ -30,6 +30,7 @@ class HACTModelTestCase(unittest.TestCase):
         self.checkpoint_path = os.path.join(self.data_path, 'checkpoints')
         os.makedirs(self.checkpoint_path, exist_ok=True)
 
+    @unittest.skip("In dev.")
     def test_hact_model(self):
         """Test HACT model."""
 
@@ -74,6 +75,7 @@ class HACTModelTestCase(unittest.TestCase):
         self.assertEqual(logits.shape[0], 1)
         self.assertEqual(logits.shape[1], 3) 
 
+    @unittest.skip("In dev.")
     def test_hact_model_with_pretrained_model(self):
         """Test HACT model."""
 

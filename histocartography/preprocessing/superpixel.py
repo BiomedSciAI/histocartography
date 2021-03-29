@@ -25,23 +25,26 @@ from ..pipeline import PipelineStep
 class SuperpixelExtractor(PipelineStep):
     """Helper class to extract superpixels from images"""
 
-    def __init__(self,
-                 nr_superpixels: int = None,
-                 superpixel_size: int = None,
-                 max_nr_superpixels: Optional[int] = None,
-                 blur_kernel_size: Optional[float] = 1,
-                 compactness: Optional[int] = 20,
-                 max_iterations: Optional[int] = 10,
-                 threshold: Optional[float] = 0.03,
-                 connectivity: Optional[int] = 2,
-                 color_space: Optional[str] = "rgb",
-                 downsampling_factor: Optional[int] = 1, **kwargs) -> None:
+    def __init__(
+        self,
+        nr_superpixels: int = None,
+        superpixel_size: int = None,
+        max_nr_superpixels: Optional[int] = None,
+        blur_kernel_size: Optional[float] = 1,
+        compactness: Optional[int] = 20,
+        max_iterations: Optional[int] = 10,
+        threshold: Optional[float] = 0.03,
+        connectivity: Optional[int] = 2,
+        color_space: Optional[str] = "rgb",
+        downsampling_factor: Optional[int] = 1,
+        **kwargs
+        ) -> None:
         """Abstract class that extracts superpixels from RGB Images
         Args:
-            nr_superpixels (None, int): The number of super pixels.
-            superpixel_size (None, int): The size of super pixels.
+            nr_superpixels (None, int): The number of super pixels before any merging.
+            superpixel_size (None, int): The size of super pixels before any merging.
             max_nr_superpixels (int, optional): Upper bound for the number of super pixels.
-                                      Useful when superpixel_size is not None.
+                                                Useful when providing a superpixel size.
             blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.
             compactness (int, optional): Compactness of the superpixels. Defaults to 30.
             max_iterations (int, optional): Number of iterations of the slic algorithm. Defaults to 10.

@@ -139,7 +139,7 @@ class NucleiExtractor(PipelineStep):
         regions = regionprops(instance_map)
         instance_centroids = np.empty((len(regions), 2))
         for i, region in enumerate(regions):
-            center_x, center_y = region.centroid
+            center_y, center_x = region.centroid  # row, col
             center_x = int(round(center_x))
             center_y = int(round(center_y))
             instance_centroids[i, 0] = center_x

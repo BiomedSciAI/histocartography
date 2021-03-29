@@ -42,7 +42,7 @@ class GraphVizTestCase(unittest.TestCase):
         """Test Graph visualization with explanation."""
 
         # 1. load a cell graph
-        cell_graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        cell_graph, _ = load_graphs(os.path.join(self.cell_graph_path, self.graph_name))
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
@@ -86,19 +86,15 @@ class GraphVizTestCase(unittest.TestCase):
         # 2. load the corresponding image
         image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
 
-        # 3. detect nuclei (for visualization)
-        extractor = NucleiExtractor(pretrained_data="pannuke")
-        nuclei, nuclei_centroids = extractor.process(image)
-
-        # 4. run the visualization
+        # 3. run the visualization
         visualizer = OverlayGraphVisualization(
             instance_visualizer=InstanceImageVisualization(
                 instance_style="filled+outline", colormap="jet"
             )
         )
-        out = visualizer.process(image, cell_graph, instance_map=nuclei)
+        out = visualizer.process(image, cell_graph)
 
-        # 5. save output image
+        # 4. save output image
         save_image(
             os.path.join(
                 self.out_path, self.image_name.replace(".png", "") + "_cg_overlay.png"
@@ -135,24 +131,13 @@ class GraphVizTestCase(unittest.TestCase):
         # 1. load the corresponding image
         image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
 
-        # 2. extract instances
-        extractor = SLICSuperpixelExtractor(nr_superpixels=50)
-        tissue_instance_map = extractor.process(image)
+        # 2. load tissue graph
+        tissue_graph, _ = load_graphs(os.path.join(self.tissue_graph_path, self.graph_name))
+        tissue_graph = tissue_graph[0]
 
-        # 3. load graphs
-        cell_graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        # 3. load cell graph
+        cell_graph, _ = load_graphs(os.path.join(self.cell_graph_path, self.graph_name))
         cell_graph = cell_graph[0]
-
-        # 4. extract merged features
-        feature_extractor = DeepFeatureExtractor(
-            architecture="mobilenet_v2", downsample_factor=2
-        )
-        features = feature_extractor.process(input_image=image,
-                                             instance_map=tissue_instance_map)
-
-        # 5. build tissue graph
-        rag_builder = RAGGraphBuilder()
-        tissue_graph = rag_builder.process(tissue_instance_map, features)
 
         # 6. run the visualization
         visualizer = HACTVisualization()
@@ -160,7 +145,6 @@ class GraphVizTestCase(unittest.TestCase):
             image,
             cell_graph=cell_graph,
             tissue_graph=tissue_graph,
-            tissue_instance_map=tissue_instance_map,
         )
 
         # 5. save output image

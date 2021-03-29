@@ -25,7 +25,7 @@ class GraphGradCAMTestCase(unittest.TestCase):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
-        self.graph_name = '283_dcis_4_tg.bin'
+        self.graph_name = '283_dcis_4.bin'
         self.out_path = os.path.join(self.data_path, 'graph_graphcam_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
@@ -43,12 +43,12 @@ class GraphGradCAMTestCase(unittest.TestCase):
             (graph.ndata['feat'].float(),
             (graph.ndata['centroid']).float()),
             dim=1
-        )
+        )[:, :514]
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
 
         # 2. run the explainer
         explainer = GraphGradCAMExplainer(
-            model_path='https://ibm.box.com/shared/static/ufo9esvv6oqujy344w6wxap8w422vbuw.pt'
+            model_path='https://ibm.box.com/shared/static/aoogy0516lsp9vaxgw1tr9mdu5nycvvb.pt'
         )
         importance_scores, logits = explainer.process(graph)
 
@@ -69,12 +69,12 @@ class GraphGradCAMTestCase(unittest.TestCase):
             (graph.ndata['feat'].float(),
             (graph.ndata['centroid']).float()),
             dim=1
-        )
+        )[:, :514]
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
 
         # 2. run the explainer
         explainer = GraphGradCAMPPExplainer(
-            model_path='https://ibm.box.com/shared/static/ufo9esvv6oqujy344w6wxap8w422vbuw.pt'
+            model_path='https://ibm.box.com/shared/static/aoogy0516lsp9vaxgw1tr9mdu5nycvvb.pt'
         )
         importance_scores, logits = explainer.process(graph)
 

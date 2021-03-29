@@ -24,7 +24,7 @@ class GraphLRPTestCase(unittest.TestCase):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
-        self.graph_name = '283_dcis_4_tg.bin'
+        self.graph_name = '283_dcis_4.bin'
         self.out_path = os.path.join(self.data_path, 'graph_lrp_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
@@ -47,7 +47,7 @@ class GraphLRPTestCase(unittest.TestCase):
 
         # 2. run the explainer
         explainer = GraphLRPExplainer(
-            model_path='https://ibm.box.com/shared/static/t781n2z2w0b0rkbar2opvt38hwslboeh.pt'
+            model_path='https://ibm.box.com/shared/static/aoogy0516lsp9vaxgw1tr9mdu5nycvvb.pt'
         )
         importance_scores, logits = explainer.process(graph)
 

@@ -19,7 +19,6 @@ class MultiLayerGNN(nn.Module):
         self,
         layer_type="gin_layer",
         input_dim=None,
-        hidden_dim=32,
         output_dim=32,
         num_layers=3,
         readout_op="concat",
@@ -32,7 +31,6 @@ class MultiLayerGNN(nn.Module):
         Args:
             layer_type (str): GNN layer type. Default to "gin_layer".
             input_dim (int): Input dimension of the node features. Default to None.
-            hidden_dim (int): Hidden dimension of the node embeddings. Default to 32.
             output_dim (int): Output dimension of the node embeddings. Default to 32.
             num_layers (int): Number of GNN layers. Default to 3.
             readout_op (str): How the intermediate node embeddings are aggregated. Default to "concat".
@@ -61,8 +59,7 @@ class MultiLayerGNN(nn.Module):
         # input layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
             node_dim=input_dim,
-            hidden_dim=hidden_dim,
-            out_dim=hidden_dim,
+            out_dim=output_dim,
             **kwargs
         )
         )
@@ -72,16 +69,14 @@ class MultiLayerGNN(nn.Module):
                 getattr(
                     module,
                     AVAILABLE_LAYER_TYPES[layer_type])(
-                    node_dim=hidden_dim,
-                    hidden_dim=hidden_dim,
-                    out_dim=hidden_dim,
+                    node_dim=output_dim,
+                    out_dim=output_dim,
                     **kwargs
                 )
             )
         # output layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
-            node_dim=hidden_dim,
-            hidden_dim=hidden_dim,
+            node_dim=output_dim,
             out_dim=output_dim,
             **kwargs
         )

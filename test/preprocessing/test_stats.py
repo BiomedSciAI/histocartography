@@ -19,7 +19,7 @@ class StatsTestCase(unittest.TestCase):
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '16B0001851_Block_Region_3.jpg'
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
-        self.graph_name = '283_dcis_4_tg.bin'
+        self.graph_name = '283_dcis_4.bin'
         self.out_path = os.path.join(self.data_path, 'stats_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
@@ -58,7 +58,7 @@ class StatsTestCase(unittest.TestCase):
             image_path=os.path.join(self.image_path, self.image_name)
         )
         count = output['counter']
-        self.assertEqual(count, 89)  # check true count 
+        self.assertEqual(count, 95)  # check true count
 
     def tearDown(self):
         """Tear down the tests."""

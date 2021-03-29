@@ -23,9 +23,11 @@ class HACTModelTestCase(unittest.TestCase):
         self.data_path = os.path.join(self.current_path, '..', 'data')
         self.model_fname = os.path.join(self.data_path, 'models', 'tg_model.pt')
         self.tg_graph_path = os.path.join(self.data_path, 'tissue_graphs')
-        self.tg_graph_name = '283_dcis_4_tg.bin'
+        self.tg_graph_name = '283_dcis_4.bin'
         self.cg_graph_path = os.path.join(self.data_path, 'cell_graphs')
         self.cg_graph_name = '283_dcis_4.bin'
+        self.checkpoint_path = os.path.join(self.data_path, 'checkpoints')
+        os.makedirs(self.checkpoint_path, exist_ok=True)
 
     def test_hact_model(self):
         """Test HACT model."""
@@ -70,6 +72,42 @@ class HACTModelTestCase(unittest.TestCase):
         self.assertIsInstance(logits, torch.Tensor)
         self.assertEqual(logits.shape[0], 1)
         self.assertEqual(logits.shape[1], 3) 
+
+    def test_hact_model_with_pretrained_model(self):
+        """Test HACT model."""
+
+        # 1. Load a cell graph 
+        cell_graph, _ = load_graphs(os.path.join(self.cg_graph_path, self.cg_graph_name))
+        cell_graph = cell_graph[0]
+        cell_graph = set_graph_on_cuda(cell_graph) if IS_CUDA else cell_graph
+
+        tissue_graph, _ = load_graphs(os.path.join(self.tg_graph_path, self.tg_graph_name))
+        tissue_graph = tissue_graph[0]
+        tissue_graph.ndata['feat'] = torch.cat(
+            (tissue_graph.ndata['feat'].float(),
+            (tissue_graph.ndata['centroid']).float()),
+            dim=1
+        )[:, :514]
+        tissue_graph = set_graph_on_cuda(tissue_graph) if IS_CUDA else tissue_graph
+
+        assignment_matrix = torch.randint(2, (tissue_graph.number_of_nodes(), cell_graph.number_of_nodes())).float()
+        assignment_matrix = assignment_matrix.cuda() if IS_CUDA else assignment_matrix
+        assignment_matrix = [assignment_matrix]  # ie. batch size is 1. 
+        
+        # 2. load model 
+        checkpoint_fname = os.path.join(self.checkpoint_path, 'bracs_hact_5_classes_pna.pt')
+        download_box_link(
+            url='https://ibm.box.com/shared/static/efar14ic4mc13u5kidn6q23xzshh9oao.pt',
+            out_fname=checkpoint_fname
+        )
+        model = torch.load(checkpoint_fname)
+
+        # 3. forward pass
+        logits = model(cell_graph, tissue_graph, assignment_matrix)
+
+        self.assertIsInstance(logits, torch.Tensor)
+        self.assertEqual(logits.shape[0], 1)
+        self.assertEqual(logits.shape[1], 5) 
 
     def tearDown(self):
         """Tear down the tests."""

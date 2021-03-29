@@ -35,7 +35,7 @@ class GraphLRPExplainer(BaseExplainer):
 
         self.model.zero_grad()
         self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer
-        self.model.set_rlp(True)
+        self.model.set_lrp(True)
 
         node_importance, logits = self._apply_rlp(graph)
 

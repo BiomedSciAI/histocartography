@@ -9,12 +9,11 @@ import shutil
 import dgl 
 
 from histocartography import PipelineRunner
-from histocartography.preprocessing import HandcraftedFeatureExtractor, DeepTissueFeatureExtractor
-from histocartography.preprocessing import AugmentedDeepTissueFeatureExtractor, FeatureMerger
-from histocartography.preprocessing import ColorMergedSuperpixelExtractor, RAGGraphBuilder
+from histocartography.preprocessing import DeepFeatureExtractor
+from histocartography.preprocessing import AugmentedDeepFeatureExtractor
+from histocartography.preprocessing import ColorMergedSuperpixelExtractor
+from histocartography.preprocessing import RAGGraphBuilder
 
-from histocartography.preprocessing import DeepInstanceFeatureExtractor
-from histocartography.preprocessing import AugmentedDeepInstanceFeatureExtractor
 from histocartography.preprocessing import KNNGraphBuilder, NucleiExtractor
 
 
@@ -49,44 +48,40 @@ class GraphBuilderTestCase(unittest.TestCase):
         )
         graph = output['graph']
 
-        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-        self.assertEqual(graph.number_of_nodes(), 9)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 24)  # check number of edges
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
+        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
 
     def test_rag_builder(self):
         """
-        Test RAG builder. 
+        Test RAG builder.
         """
 
         # 1. load the image
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. run superpixel and merging extraction
-        nr_superpixels = 100
         slic_extractor = ColorMergedSuperpixelExtractor(
-            downsampling_factor=4,
-            nr_superpixels=nr_superpixels
+            downsampling_factor=8,
+            superpixel_size=100
         )
         superpixels, _ = slic_extractor.process(image)
 
         # 3. extract deep features
-        feature_extractor = AugmentedDeepTissueFeatureExtractor(
+        feature_extractor = DeepFeatureExtractor(
             architecture='mobilenet_v2',
             downsample_factor=2
         )
-        raw_features = feature_extractor.process(image)
+        features = feature_extractor.process(input_image=image,
+                                             instance_map=superpixels)
 
-        # 4. feature merger 
-        feature_merger = FeatureMerger()
-        features = feature_merger.process(raw_features, superpixels)
-
-        # 5. build the RAG
+        # 4. build the RAG
         rag_builder = RAGGraphBuilder()
         graph = rag_builder.process(superpixels, features)
 
-        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
-        self.assertEqual(graph.number_of_nodes(), 9)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 24)  # check number of edges
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
+        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
 
     def test_knn_builder_with_pipeline_runner(self):
         """
@@ -105,13 +100,13 @@ class GraphBuilderTestCase(unittest.TestCase):
         )
         graph = output['graph']
 
-        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
         self.assertEqual(graph.number_of_nodes(), 331)  # check number of nodes
         self.assertEqual(graph.number_of_edges(), 1655)  # check number of edges
 
     def test_knn_builder(self):
         """
-        Test KNN builder. 
+        Test KNN builder.
         """
 
         # 1. load the image
@@ -122,7 +117,7 @@ class GraphBuilderTestCase(unittest.TestCase):
         instance_map, instance_centroids = extractor.process(image)
 
         # 3. extract deep features
-        feature_extractor = AugmentedDeepInstanceFeatureExtractor(
+        feature_extractor = AugmentedDeepFeatureExtractor(
             architecture='mobilenet_v2',
             downsample_factor=1
         )
@@ -132,7 +127,7 @@ class GraphBuilderTestCase(unittest.TestCase):
         knn_builder = KNNGraphBuilder()
         graph = knn_builder.process(instance_centroids, features)
 
-        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type 
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
         self.assertEqual(graph.number_of_nodes(), 331)  # check number of nodes
         self.assertEqual(graph.number_of_edges(), 1655)  # check number of edges
 

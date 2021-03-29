@@ -10,15 +10,11 @@ stages:
       outputs:
       - image
   - preprocessing:
-<<<<<<< HEAD
 <<<<<<< HEAD:test/preprocessing/config/feature_extraction/deep_nuclei_feature_extractor_noaug.yml
       class: "NucleiExtractor"
 =======
       class: "GridAugmentedDeepFeatureExtractor"
 >>>>>>> 539b884e54a03d40f5e8a23b9ebf364aa57a8dda:test/preprocessing/config/feature_extraction/grid_deep_tissue_feature_extractor_aug.yml
-=======
-      class: "NucleiExtractor"
->>>>>>> 539b884e54a03d40f5e8a23b9ebf364aa57a8dda
       inputs:
       - image
       outputs:
@@ -36,7 +32,6 @@ stages:
       params:
         architecture: mobilenet_v2
         num_workers: 1
-<<<<<<< HEAD
 <<<<<<< HEAD:test/preprocessing/config/feature_extraction/deep_nuclei_feature_extractor_noaug.yml
 =======
         rotations:
@@ -46,8 +41,6 @@ stages:
           - 'n'
           - 'h'
 >>>>>>> 539b884e54a03d40f5e8a23b9ebf364aa57a8dda:test/preprocessing/config/feature_extraction/grid_deep_tissue_feature_extractor_aug.yml
-=======
->>>>>>> 539b884e54a03d40f5e8a23b9ebf364aa57a8dda
         normalizer:
           type: imagenet
           mean:
@@ -58,7 +51,6 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-<<<<<<< HEAD
 <<<<<<< HEAD:test/preprocessing/config/feature_extraction/deep_nuclei_feature_extractor_noaug.yml
         patch_size: 76
         downsample_factor: 1
@@ -68,7 +60,3 @@ stages:
         batch_size: 256
         downsample_factor: 1
 >>>>>>> 539b884e54a03d40f5e8a23b9ebf364aa57a8dda:test/preprocessing/config/feature_extraction/grid_deep_tissue_feature_extractor_aug.yml
-=======
-        patch_size: 76
-        downsample_factor: 1
->>>>>>> 539b884e54a03d40f5e8a23b9ebf364aa57a8dda

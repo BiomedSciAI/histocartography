@@ -8,7 +8,7 @@ from dgl.data.utils import load_graphs
 
 from histocartography.ml import TissueGraphModel
 from histocartography.utils.graph import set_graph_on_cuda
-from histocartography.utils.io import download_box_link
+from histocartography.utils.io import download_box_link, download_test_data
 
 
 IS_CUDA = torch.cuda.is_available()
@@ -21,6 +21,7 @@ class TGModelTestCase(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
+        download_test_data(self.data_path)
         self.model_fname = os.path.join(self.data_path, 'models', 'tg_model.pt')
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
         self.checkpoint_path = os.path.join(self.data_path, 'checkpoints')

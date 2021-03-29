@@ -11,6 +11,7 @@ from dgl.data.utils import load_graphs
 
 from histocartography.interpretability import GraphPruningExplainer
 from histocartography.utils.graph import set_graph_on_cuda
+from histocartography.utils.io import download_test_data
 
 BASE_S3 = 's3://mlflow/'
 IS_CUDA = torch.cuda.is_available()
@@ -23,6 +24,7 @@ class GraphGNNExplainer(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
+        download_test_data(self.data_path)
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
         self.graph_name = '283_dcis_4_tg.bin'
         self.out_path = os.path.join(self.data_path, 'graph_pruning_test')

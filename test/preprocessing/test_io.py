@@ -11,6 +11,7 @@ import shutil
 
 from histocartography import PipelineRunner
 from histocartography.preprocessing import ImageLoader, DGLGraphLoader
+from histocartography.utils.io import download_test_data
 
 
 class IOTestCase(unittest.TestCase):
@@ -20,6 +21,7 @@ class IOTestCase(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
+        download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '16B0001851_Block_Region_3.jpg'
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')

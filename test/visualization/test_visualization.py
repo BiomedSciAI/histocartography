@@ -12,7 +12,7 @@ from histocartography.preprocessing import (
 )
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor
-from histocartography.utils.io import load_image, save_image
+from histocartography.utils.io import load_image, save_image, download_test_data
 from histocartography.visualization.visualization import (
     HACTVisualization,
     InstanceImageVisualization,
@@ -27,6 +27,7 @@ class GraphVizTestCase(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, "..", "data")
+        download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, "images")
         self.image_name = "283_dcis_4.png"
         self.cell_graph_path = os.path.join(self.data_path, "cell_graphs")

@@ -13,8 +13,8 @@ from histocartography.preprocessing import DeepFeatureExtractor
 from histocartography.preprocessing import AugmentedDeepFeatureExtractor
 from histocartography.preprocessing import ColorMergedSuperpixelExtractor
 from histocartography.preprocessing import RAGGraphBuilder
-
 from histocartography.preprocessing import KNNGraphBuilder, NucleiExtractor
+from histocartography.utils.io import download_test_data
 
 
 class GraphBuilderTestCase(unittest.TestCase):
@@ -24,6 +24,7 @@ class GraphBuilderTestCase(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
+        download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'graph_builder_test')

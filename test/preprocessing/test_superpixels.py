@@ -7,6 +7,7 @@ import shutil
 import pandas as pd
 
 from histocartography import PipelineRunner, BatchPipelineRunner
+from histocartography.utils.io import download_test_data
 
 
 class SuperpixelTestCase(unittest.TestCase):
@@ -16,6 +17,7 @@ class SuperpixelTestCase(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
+        download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'superpixel_test')

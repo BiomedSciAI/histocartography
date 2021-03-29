@@ -8,7 +8,7 @@ from dgl.data.utils import load_graphs
 
 from histocartography.ml import CellGraphModel
 from histocartography.utils.graph import set_graph_on_cuda
-from histocartography.utils.io import download_box_link
+from histocartography.utils.io import download_box_link, download_test_data
 
 IS_CUDA = torch.cuda.is_available()
 
@@ -20,6 +20,7 @@ class CGModelTestCase(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
+        download_test_data(self.data_path)
         self.graph_path = os.path.join(self.data_path, 'cell_graphs')
         self.checkpoint_path = os.path.join(self.data_path, 'checkpoints')
         self.graph_name = '283_dcis_4.bin'

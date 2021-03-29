@@ -13,6 +13,8 @@ from histocartography.preprocessing import NucleiExtractor, DeepFeatureExtractor
 from histocartography.visualization import InstanceImageVisualization
 from histocartography.utils.io import load_image
 
+from sklearn.preprocessing import binarize
+from sklearn.neighbors import kneighbors_graph
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -52,7 +54,7 @@ class CellGraphBuilder:
 
         self.nuclei_detector = NucleiExtractor()
         self.feature_extractor = DeepFeatureExtractor(architecture='resnet34', patch_size=72)
-        self.cell_graph_builder = KNNGraphBuilder()
+        self.cell_graph_builder = KNNGraphBuilder(thresh=50)
 
         if self.viz:
             self.visualiser = InstanceImageVisualization()

@@ -30,7 +30,6 @@ class HACTModelTestCase(unittest.TestCase):
         self.checkpoint_path = os.path.join(self.data_path, 'checkpoints')
         os.makedirs(self.checkpoint_path, exist_ok=True)
 
-    @unittest.skip("In dev.")
     def test_hact_model(self):
         """Test HACT model."""
 
@@ -42,11 +41,6 @@ class HACTModelTestCase(unittest.TestCase):
 
         tissue_graph, _ = load_graphs(os.path.join(self.tg_graph_path, self.tg_graph_name))
         tissue_graph = tissue_graph[0]
-        tissue_graph.ndata['feat'] = torch.cat(
-            (tissue_graph.ndata['feat'].float(),
-            (tissue_graph.ndata['centroid']).float()),
-            dim=1
-        )
         tissue_graph = set_graph_on_cuda(tissue_graph) if IS_CUDA else tissue_graph
         tg_node_dim = tissue_graph.ndata['feat'].shape[1]
 
@@ -75,7 +69,6 @@ class HACTModelTestCase(unittest.TestCase):
         self.assertEqual(logits.shape[0], 1)
         self.assertEqual(logits.shape[1], 3) 
 
-    @unittest.skip("In dev.")
     def test_hact_model_with_pretrained_model(self):
         """Test HACT model."""
 
@@ -86,11 +79,6 @@ class HACTModelTestCase(unittest.TestCase):
 
         tissue_graph, _ = load_graphs(os.path.join(self.tg_graph_path, self.tg_graph_name))
         tissue_graph = tissue_graph[0]
-        tissue_graph.ndata['feat'] = torch.cat(
-            (tissue_graph.ndata['feat'].float(),
-            (tissue_graph.ndata['centroid']).float()),
-            dim=1
-        )[:, :514]
         tissue_graph = set_graph_on_cuda(tissue_graph) if IS_CUDA else tissue_graph
 
         assignment_matrix = torch.randint(2, (tissue_graph.number_of_nodes(), cell_graph.number_of_nodes())).float()

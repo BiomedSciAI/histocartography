@@ -26,7 +26,6 @@ class CGModelTestCase(unittest.TestCase):
         self.graph_name = '283_dcis_4.bin'
         os.makedirs(self.checkpoint_path, exist_ok=True)
 
-    @unittest.skip("In dev.")
     def test_cell_graph_model(self):
         """Test cell graph model."""
 
@@ -55,7 +54,6 @@ class CGModelTestCase(unittest.TestCase):
         self.assertEqual(logits.shape[0], 1)
         self.assertEqual(logits.shape[1], 3) 
 
-    @unittest.skip("In dev.")
     def test_pretrained_cell_graph_model(self):
         """Test cell graph model."""
 

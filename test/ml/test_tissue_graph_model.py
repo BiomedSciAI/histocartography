@@ -28,18 +28,12 @@ class TGModelTestCase(unittest.TestCase):
         self.graph_name = '283_dcis_4.bin'
         os.makedirs(self.checkpoint_path, exist_ok=True)
 
-    @unittest.skip("In dev.")
     def test_tissue_graph_model(self):
         """Test tissue graph model."""
 
         # 1. Load a cell graph 
         graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         graph = graph[0]
-        graph.ndata['feat'] = torch.cat(
-            (graph.ndata['feat'].float(),
-            (graph.ndata['centroid']).float()),
-            dim=1
-        )
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
         node_dim = graph.ndata['feat'].shape[1]
 
@@ -62,18 +56,12 @@ class TGModelTestCase(unittest.TestCase):
         self.assertEqual(logits.shape[0], 1)
         self.assertEqual(logits.shape[1], 3) 
 
-    @unittest.skip("In dev.")
     def test_pretrained_tissue_graph_model(self):
         """Test tissue graph model."""
 
         # 1. Load a tissue graph 
         graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         graph = graph[0]
-        # graph.ndata['feat'] = torch.cat(
-        #     (graph.ndata['feat'].float(),
-        #     (graph.ndata['centroid']).float()),
-        #     dim=1
-        # )
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
  
         # 2. load from box and dump

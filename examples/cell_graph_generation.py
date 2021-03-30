@@ -54,7 +54,7 @@ class CellGraphBuilder:
 
         self.nuclei_detector = NucleiExtractor()
         self.feature_extractor = DeepFeatureExtractor(architecture='resnet34', patch_size=72)
-        self.cell_graph_builder = KNNGraphBuilder(thresh=50)
+        self.cell_graph_builder = KNNGraphBuilder(thresh=50, add_loc_feats=True)
 
         if self.viz:
             self.visualiser = InstanceImageVisualization()

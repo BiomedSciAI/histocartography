@@ -57,7 +57,7 @@ class TissueGraphBuilder:
             threshold=0.01,
         )
         self.feature_extractor = DeepFeatureExtractor(architecture='resnet34', patch_size=144)
-        self.tissue_graph_builder = RAGGraphBuilder()
+        self.tissue_graph_builder = RAGGraphBuilder(add_loc_feats=True)
 
         if self.viz:
             self.visualiser = InstanceImageVisualization()

@@ -40,12 +40,26 @@ class BaseGraphBuilder(PipelineStep):
     Base interface class for graph building.
     """
 
-    def __init__(self, nr_classes: int = 6, background_class: int = 4, partial_annotation: Optional[int] = None, **kwargs) -> None:
-        if partial_annotation:
-            self.partial_annotation = partial_annotation
+    def __init__(
+        self,
+        nr_classes: int = 6,
+        background_class: int = 4,
+        add_loc_feats=False,
+        **kwargs
+        ) -> None:
+        """
+        Base Graph Builder constructor.
+
+        Args:
+            nr_classes (int): Number of node labels. Used only if setting node labels. Defaults to 6. 
+            background_class (int): Number of node labels. Used only if setting node labels. Defaults to 6. 
+            add_loc_feats (bool): If we should add location-based features (ie the centroids) to the node features.
+                                  Defaults to False. 
+        """
         super().__init__(**kwargs)
         self.nr_classes = nr_classes
         self.background_class = background_class
+        self.add_loc_feats = add_loc_feats
 
     def process(
         self,
@@ -78,8 +92,8 @@ class BaseGraphBuilder(PipelineStep):
             graph.gdata = {'image_size': image_size}
 
         # add node features
-        self._set_node_features(features, graph)
         self._set_node_centroids(structure, graph)
+        self._set_node_features(features, graph)
         if annotation is not None:
             self._set_node_labels(structure, annotation, graph)
 
@@ -128,15 +142,30 @@ class BaseGraphBuilder(PipelineStep):
             save_graphs(str(output_path), [graph])
         return graph
 
-    @staticmethod
-    def _set_node_features(features: torch.Tensor, graph: dgl.DGLGraph) -> None:
+    def _set_node_features(self, features: torch.Tensor, graph: dgl.DGLGraph) -> None:
         """Set the provided node features
 
         Args:
             features (torch.Tensor): Node features
             graph (dgl.DGLGraph): Graph to add the features to
         """
-        graph.ndata[FEATURES] = features
+        if not self.add_loc_feats:
+            graph.ndata[FEATURES] = features
+        elif self.add_loc_feats and hasattr(graph, 'gdata') and 'image_size' in graph.gdata.keys():
+            centroids = graph.ndata[CENTROID]
+            image_size = graph.gdata['image_size']
+            concat_features = torch.cat(
+                (
+                    features,
+                    (centroids[:, 0].squeeze() / image_size[0]).unsqueeze(1),
+                    (centroids[:, 1].squeeze() / image_size[1]).unsqueeze(1),
+                ),
+                dim=1)
+            graph.ndata[FEATURES] = concat_features
+        else:
+            raise ValueError(
+                'Please provide image size to add the normalized centroid to the node features.'
+            ) 
 
     @staticmethod
     @abstractmethod

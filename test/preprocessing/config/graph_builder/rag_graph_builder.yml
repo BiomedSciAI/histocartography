@@ -56,5 +56,4 @@ stages:
       params:
         nr_classes: 5
         background_class: 4
-        partial_annotation: null
         hops: 1

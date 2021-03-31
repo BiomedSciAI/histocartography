@@ -12,7 +12,8 @@ class BaseModel(Module):
     def __init__(
         self,
         class_split: str = None,
-        num_classes: int = None
+        num_classes: int = None,
+        pretrained: bool = False
         ) -> None:
         """
         Base model constructor.
@@ -20,8 +21,9 @@ class BaseModel(Module):
         Args:
             class_split (str): Class split. For instance in the BRACS dataset, one can specify
                                a 3-class split as: "benign+pathologicalbenign+udhVSadh+feaVSdcis+malignant".
-                               Default to None. 
-            num_classes (int): Number of classes. Used if class split is not provided. Default to None. 
+                               Defaults to None. 
+            num_classes (int): Number of classes. Used if class split is not provided. Defaults to None. 
+            prtetrained (bool): If loading pretrained checkpoint trained on BRACS dataset. Defaults to False. 
         """
         super().__init__()
 
@@ -33,6 +35,8 @@ class BaseModel(Module):
             self.num_classes = num_classes
         else:
             raise ValueError('Please provide either class split or number of classes. Not both.')
+
+        self.pretrained = pretrained
 
     def _build_classification_params(self):
         """

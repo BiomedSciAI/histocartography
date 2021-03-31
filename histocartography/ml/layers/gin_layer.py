@@ -52,8 +52,14 @@ class GINLayer(nn.Module):
         if verbose:
             print('Instantiating new GNN layer.')
 
+        self.node_dim = node_dim
+        self.out_dim = out_dim
+        self.act = act
+        self.agg_type = agg_type
+        self.hidden_dim = hidden_dim
         self.batch_norm = batch_norm
         self.graph_norm = graph_norm
+        self.dropout = dropout
         self.with_lrp = with_lrp
 
         if self.batch_norm:
@@ -69,8 +75,6 @@ class GINLayer(nn.Module):
             dropout=dropout,
             with_lrp=self.with_lrp
         )
-
-        self.agg_type = agg_type
 
     def reduce_fn(self, nodes):
         """

@@ -1,7 +1,10 @@
 from torch.nn import Module
 
 from histocartography.ml.layers.multi_layer_gnn import MultiLayerGNN
-from histocartography.dataloader.constants import get_number_of_classes
+
+
+def get_number_of_classes(class_split):
+    return len(class_split.split('VS'))
 
 
 class BaseModel(Module):

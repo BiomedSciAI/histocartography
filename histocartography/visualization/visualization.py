@@ -20,7 +20,6 @@ from ..utils.draw_utils import (
     map_value_to_color,
     name2rgb,
 )
-from ..utils.vector import create_buckets
 
 N_BUCKETS = 10
 COLOR = "color"

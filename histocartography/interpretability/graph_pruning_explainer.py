@@ -16,7 +16,6 @@ from ..utils.torch import torch_to_numpy
 from ..utils.io import get_device
 from ..utils.io import is_mlflow_url, is_box_url, download_box_link
 from ..ml.models.constants import MODEL_MODULE
-from ..dataloader.constants import get_number_of_classes
 
 
 class GraphPruningExplainer(BaseExplainer):

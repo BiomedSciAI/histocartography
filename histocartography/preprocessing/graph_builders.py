@@ -16,7 +16,6 @@ from skimage.measure import regionprops
 from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import binarize
 
-from ..utils.vector import compute_l2_distance
 from .constants import CENTROID, FEATURES, LABEL
 from ..pipeline import PipelineStep
 from .utils import fast_histogram

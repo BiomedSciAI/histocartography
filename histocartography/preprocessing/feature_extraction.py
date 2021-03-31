@@ -672,9 +672,9 @@ class DeepFeatureExtractor(FeatureExtractor):
         self.fill_value = fill_value
         self.batch_size = batch_size
         self.architecture_unprocessed = architecture
-        # self.num_workers = num_workers
-        # if self.num_workers in [0, 1]:
-        #     torch.set_num_threads(1)
+        self.num_workers = num_workers
+        if self.num_workers in [0, 1]:
+            torch.set_num_threads(1)
 
     def _collate_patches(self, batch):
         """Patch collate function"""
@@ -710,7 +710,7 @@ class DeepFeatureExtractor(FeatureExtractor):
             image_dataset,
             shuffle=False,
             batch_size=self.batch_size,
-            # num_workers=self.num_workers,
+            num_workers=self.num_workers,
             collate_fn=self._collate_patches
         )
         features = torch.empty(
@@ -820,7 +820,7 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
             image_dataset,
             shuffle=False,
             batch_size=self.batch_size,
-            # num_workers=self.num_workers,
+            num_workers=self.num_workers,
             collate_fn=self._collate_patches
         )
         features = torch.empty(
@@ -974,9 +974,9 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         self.batch_size = batch_size
         self.fill_value = fill_value
         self.architecture_unprocessed = architecture
-        # self.num_workers = num_workers
-        # if self.num_workers in [0, 1]:
-        #     torch.set_num_threads(1)
+        self.num_workers = num_workers
+        if self.num_workers in [0, 1]:
+            torch.set_num_threads(1)
 
     def _collate_patches(self, batch):
         """Patch collate function"""
@@ -1012,7 +1012,7 @@ class GridDeepFeatureExtractor(FeatureExtractor):
             patch_dataset,
             shuffle=False,
             batch_size=self.batch_size,
-            # num_workers=self.num_workers,
+            num_workers=self.num_workers,
             collate_fn=self._collate_patches
         )
         features = torch.empty(

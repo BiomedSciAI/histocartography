@@ -145,7 +145,6 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             input_image (np.array): Original RGB Image
             instance_map (np.array): Extracted instance_map. Different regions have different int values,
                                      the background is defined to have value 0 and is ignored.
-
         Returns:
             torch.Tensor: Extracted shape, color and texture features:
                           Shape:   area, convex_area, eccentricity, equivalent_diameter, euler_number, extent, filled_area,
@@ -388,7 +387,6 @@ class PatchFeatureExtractor:
         """Returns a torchvision model from a given architecture string
         Args:
             architecture (str): Torchvision model description
-
         Returns:
             nn.Module: A pretrained pytorch model
         """
@@ -500,8 +498,8 @@ class InstanceMapPatchDataset(Dataset):
             index (int): instance index to which the patch belongs
         """
         mask = np.zeros_like(self.instance_mask)
-        mask[center_y - self.patch_size_2: center_y + self.patch_size_2,
-             center_x - self.patch_size_2: center_x + self.patch_size_2] = 1
+        mask[center_y - self.patch_size_2 - self.offset_y: center_y + self.patch_size_2 - self.offset_y,
+             center_x - self.patch_size_2 - self.offset_x: center_x + self.patch_size_2 - self.offset_x] = 1
 
         overlap = np.sum(mask * self.instance_mask)
         if overlap > self.threshold:
@@ -540,7 +538,13 @@ class InstanceMapPatchDataset(Dataset):
             min_y, min_x, max_y, max_x = region.bbox
 
             # Instant mask
-            self.instance_mask = np.array(self.instance_map == region.label, dtype=int)
+            self.instance_mask = self.instance_map[
+                                 min_y - self.patch_size_2: max_y + self.patch_size_2,
+                                 min_x - self.patch_size_2: max_x + self.patch_size_2
+                                 ]
+            self.instance_mask = np.array(self.instance_mask == region.label, dtype=int)
+            self.offset_x = min_x - self.patch_size_2
+            self.offset_y = min_y - self.patch_size_2
 
             # Extract patch information (coordinates, index)
             # quadrant 1
@@ -668,9 +672,9 @@ class DeepFeatureExtractor(FeatureExtractor):
         self.fill_value = fill_value
         self.batch_size = batch_size
         self.architecture_unprocessed = architecture
-        self.num_workers = num_workers
-        if self.num_workers in [0, 1]:
-            torch.set_num_threads(1)
+        # self.num_workers = num_workers
+        # if self.num_workers in [0, 1]:
+        #     torch.set_num_threads(1)
 
     def _collate_patches(self, batch):
         """Patch collate function"""
@@ -706,7 +710,7 @@ class DeepFeatureExtractor(FeatureExtractor):
             image_dataset,
             shuffle=False,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            # num_workers=self.num_workers,
             collate_fn=self._collate_patches
         )
         features = torch.empty(
@@ -780,7 +784,6 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
         **kwargs,
     ) -> None:
         """Creates a feature extractor that extracts feature for all of the given augmentations. Otherwise works the same as the DeepFeatureExtractor
-
         Args:
             rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.
             flips (Optional[List[int]], optional): List of flips to use, in {'n', 'h', 'v'}. Defaults to None.
@@ -817,7 +820,7 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
             image_dataset,
             shuffle=False,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            # num_workers=self.num_workers,
             collate_fn=self._collate_patches
         )
         features = torch.empty(
@@ -971,9 +974,9 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         self.batch_size = batch_size
         self.fill_value = fill_value
         self.architecture_unprocessed = architecture
-        self.num_workers = num_workers
-        if self.num_workers in [0, 1]:
-            torch.set_num_threads(1)
+        # self.num_workers = num_workers
+        # if self.num_workers in [0, 1]:
+        #     torch.set_num_threads(1)
 
     def _collate_patches(self, batch):
         """Patch collate function"""
@@ -1009,7 +1012,7 @@ class GridDeepFeatureExtractor(FeatureExtractor):
             patch_dataset,
             shuffle=False,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            # num_workers=self.num_workers,
             collate_fn=self._collate_patches
         )
         features = torch.empty(

@@ -9,6 +9,12 @@ import numpy as np
 import torch
 from mlflow.pytorch import load_model
 from PIL import Image
+import cv2 
+import os
+from typing import Optional
+
+from skimage.measure import regionprops
+from skimage.morphology import remove_small_objects, watershed
 from scipy.ndimage import measurements
 from scipy.ndimage.morphology import binary_fill_holes
 from skimage.measure import regionprops
@@ -79,26 +85,33 @@ class NucleiExtractor(PipelineStep):
     def _process(  # type: ignore[override]
         self,
         input_image: np.ndarray,
+        tissue_mask: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Extract nuclei from the input_image
-
         Args:
             input_image (np.array): Original RGB image
-
+            tissue_mask (None, np.array): Input tissue mask.
         Returns:
             Tuple[np.ndarray, np.ndarray, np.ndarray]: instance_map, instance_centroids
         """
-        return self._extract_nuclei(input_image)
+        return self._extract_nuclei(input_image, tissue_mask)
 
-    def _extract_nuclei(self, input_image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _extract_nuclei(
+        self,
+        input_image: np.ndarray,
+        tissue_mask: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Extract features from the input_image for the defined structure
 
         Args:
             input_image (np.array): Original RGB image
+            tissue_mask (Optional[np.ndarray]): Tissue mask to extract nuclei on. Defaults to None. 
 
         Returns:
             Tuple[np.ndarray, np.ndarray]: instance_map, instance_centroids
         """
+        if tissue_mask is not None:
+            input_image[tissue_mask == 0] = (255, 255, 255)
 
         image_dataset = ImageToPatchDataset(input_image)
 

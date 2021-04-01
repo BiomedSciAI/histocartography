@@ -1,0 +1,48 @@
+inputs:
+- image_path
+outputs:
+- assignment_matrix
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - preprocessing:
+      class: "GaussianTissueMask"
+      inputs:
+      - image
+      outputs:
+      - tissue_mask
+      params:
+        kernel_size: 5
+  - preprocessing:
+      class: "NucleiExtractor"
+      inputs:
+      - image
+      - tissue_mask
+      outputs:
+      - instance_map
+      - instance_centroids
+      params:
+        pretrained_data: 'pannuke'
+  - preprocessing:
+      class: "ColorMergedSuperpixelExtractor"
+      inputs:
+      - image
+      - tissue_mask
+      outputs:
+      - superpixels
+      - initial_superpixels
+      params:
+        superpixel_size: 100
+        max_nr_superpixels: 10000
+        downsampling_factor: 8
+  - preprocessing:
+      class: "AssignmnentMatrixBuilder"
+      inputs:
+      - instance_centroids
+      - superpixels
+      outputs:
+      - assignment_matrix

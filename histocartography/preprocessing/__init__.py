@@ -34,6 +34,9 @@ from .superpixel import SLICSuperpixelExtractor
 # tissue mask 
 from .tissue_mask import GaussianTissueMask
 
+# assignment matrix
+from .assignment_matrix import AssignmnentMatrixBuilder
+
 __all__ = [
     'HandcraftedFeatureExtractor',
     'DeepFeatureExtractor',
@@ -52,5 +55,6 @@ __all__ = [
     'SuperpixelCounter',
     'ColorMergedSuperpixelExtractor',
     'SLICSuperpixelExtractor',
-    'GaussianTissueMask'
+    'GaussianTissueMask',
+    'AssignmnentMatrixBuilder'
 ]

@@ -1,8 +1,8 @@
 inputs:
 - image_path
 outputs:
-- superpixels
-- initial_superpixels
+- merged_superpixels_map
+- initial_superpixels_map
 stages:
   - preprocessing:
       class: "ImageLoader"
@@ -15,8 +15,8 @@ stages:
       inputs:
       - image
       outputs:
-      - superpixels
-      - initial_superpixels
+      - merged_superpixels_map
+      - initial_superpixels_map
       params:
         superpixel_size: 100
         max_nr_superpixels: 10000

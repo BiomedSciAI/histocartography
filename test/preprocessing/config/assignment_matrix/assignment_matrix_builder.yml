@@ -23,8 +23,8 @@ stages:
       - image
       - tissue_mask
       outputs:
-      - instance_map
-      - instance_centroids
+      - nuclei_map
+      - nuclei_centroids
       params:
         pretrained_data: 'pannuke'
   - preprocessing:
@@ -33,8 +33,8 @@ stages:
       - image
       - tissue_mask
       outputs:
-      - superpixels
-      - initial_superpixels
+      - merged_superpixels_map
+      - initial_superpixels_map
       params:
         superpixel_size: 100
         max_nr_superpixels: 10000
@@ -42,7 +42,7 @@ stages:
   - preprocessing:
       class: "AssignmnentMatrixBuilder"
       inputs:
-      - instance_centroids
-      - superpixels
+      - nuclei_centroids
+      - merged_superpixels_map
       outputs:
       - assignment_matrix

@@ -14,15 +14,15 @@ stages:
       inputs:
       - image
       outputs:
-      - instance_map
-      - instance_centroids
+      - nuclei_map
+      - nuclei_centroids
       params:
         pretrained_data: 'pannuke'
   - preprocessing:
       class: "DeepFeatureExtractor"
       inputs:
       - image
-      - instance_map
+      - nuclei_map
       outputs:
       - features
       params:

@@ -1,8 +1,8 @@
 inputs:
 - image_path
 outputs:
-- instance_map
-- instance_centroids
+- nuclei_map
+- nuclei_centroids
 stages:
   - preprocessing:
       class: "ImageLoader"
@@ -15,7 +15,7 @@ stages:
       inputs:
       - image
       outputs:
-      - instance_map
-      - instance_centroids
+      - nuclei_map
+      - nuclei_centroids
       params:
         pretrained_data: 'pannuke'

@@ -1,7 +1,7 @@
 gnn_params:
   layer_type: "pna_layer"
   output_dim: 64
-  num_layers: 3
+  num_layers: 5
   readout_op: "concat"
   readout_type: "mean"
   aggregators: "mean max min std"

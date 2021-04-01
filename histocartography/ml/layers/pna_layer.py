@@ -23,7 +23,7 @@ class PNALayer(nn.Module):
                  out_dim,
                  aggregators: str = "mean max min std",
                  scalers: str = "identity amplification attenuation",
-                 avg_d: int = 5,
+                 avg_d: int = 4,
                  dropout: float = 0.,
                  graph_norm: bool = False,
                  batch_norm: bool = False,

@@ -37,8 +37,6 @@ class MultiLayerGNN(nn.Module):
             readout_type (str): Global node pooling operation. Default to "mean".
         """
 
-        print('kargs:', kwargs)
-
         assert input_dim is not None, "Please provide input node dimensions."
 
         super(MultiLayerGNN, self).__init__()

@@ -10,6 +10,7 @@ import shutil
 from dgl.data.utils import load_graphs
 
 from histocartography.interpretability import GraphPruningExplainer
+from histocartography.ml import CellGraphModel
 from histocartography.utils.graph import set_graph_on_cuda
 from histocartography.utils.io import download_test_data
 
@@ -26,13 +27,12 @@ class GraphGNNExplainer(unittest.TestCase):
         self.data_path = os.path.join(self.current_path, '..', 'data')
         download_test_data(self.data_path)
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
-        self.graph_name = '283_dcis_4_tg.bin'
+        self.graph_name = '283_dcis_4.bin'
         self.out_path = os.path.join(self.data_path, 'graph_pruning_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
         os.makedirs(self.out_path)
 
-    @unittest.skip("In dev.")
     def test_gnn_explainer(self):
         """
         Test GNNExplainer (ie, graph_pruning_explainer).
@@ -41,16 +41,24 @@ class GraphGNNExplainer(unittest.TestCase):
         # 1. load a graph
         graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
         graph = graph[0]
-        graph.ndata['feat'] = torch.cat(
-            (graph.ndata['feat'].float(),  # @TODO: HACK-->truncate features to match pre-trained model. 
-            (graph.ndata['centroid']).float()),
-            dim=1
-        )
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
+        node_dim = graph.ndata['feat'].shape[1]
 
-        # 2. run the explainer
+        # 2. create model 
+        config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        model = CellGraphModel(
+            gnn_params=config['gnn_params'],
+            classification_params=config['classification_params'],
+            node_dim=node_dim,
+            num_classes=3
+        )
+
+        # 3. run the explainer
         explainer = GraphPruningExplainer(
-            model_path='https://ibm.box.com/shared/static/t781n2z2w0b0rkbar2opvt38hwslboeh.pt'
+            model=model
         )
         importance_scores, logits = explainer.process(graph)
 

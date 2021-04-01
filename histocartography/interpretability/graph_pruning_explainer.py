@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import importlib
 
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
-from .base_explainer import BaseExplainer, CHECKPOINT_PATH
+from .base_explainer import BaseExplainer
 from ..utils.torch import torch_to_numpy
 from ..utils.io import get_device
 from ..utils.io import is_mlflow_url, is_box_url, download_box_link
@@ -81,42 +81,41 @@ class GraphPruningExplainer(BaseExplainer):
         self.node_importance = None
 
     def _convert_to_dense_gnn_model(self):
-
+        # @TODO: clean up this function 
+        
         # load DGL-based model 
-        mlflow_model = self.model
-
-        print('mlflow model:', mlflow_model, str(type(mlflow_model)))
+        dgl_model = self.model
 
         # build model from config
-        model_type = str(type(mlflow_model)).split('.')[3]
-        model_name = mlflow_model.__class__.__name__
+        model_type = str(type(dgl_model)).split('.')[3]
+        model_name = dgl_model.__class__.__name__
 
-        model_params = {
-            "activation": "relu",
-            "class_split": "benign+pathologicalbenign+udhVSadh+feaVSdcis+malignant",
-            "dropout": 0.0,
-            "gnn_params": {
-                "cell_gnn": {
-                    "activation": "relu",
-                    "agg_operator": "none",
-                    "hidden_dim": 64,
-                    "layer_type": "dense_gin_layer",
-                    "n_layers": 3,
-                    "output_dim": 64,
-                    "neighbor_pooling_type": "mean",
-                    "graph_norm": False,
-                    "with_rlp": False
-                }
-            },
-            "readout": {
-                "hidden_dim": 128,
-                "num_layers": 2
-            },
-            "use_bn": False
+        gnn_params = {
+            'layer_type': "dense_gin_layer",
+            'hidden_dim': 64,
+            'output_dim': 64,
+            'num_layers': 3,
+            'agg_type': "mean",
+            'act': "relu",
+            'readout_op': "none",
+            'readout_type': "mean",
+            'batch_norm': False,
+            'graph_norm': False,
+            'dropout': 0.
         }
-        input_feature_dims = (514, 0)
+        classification_params = {
+            "hidden_dim": 128,
+            "num_layers": 2
+        }
+        
+        node_dim = 514
         module = importlib.import_module(MODEL_MODULE.format(model_type))
-        model = getattr(module, model_name)(model_params, input_feature_dims)
+        model = getattr(module, model_name)(
+            gnn_params,
+            classification_params,
+            node_dim,
+            num_classes=3
+        )
 
         def is_int(s):
             try:
@@ -125,7 +124,7 @@ class GraphPruningExplainer(BaseExplainer):
             except:
                 return False
 
-        for n, p in mlflow_model.named_parameters():
+        for n, p in dgl_model.named_parameters():
             split = n.split('.')
             to_eval = 'model'
             for s in split:

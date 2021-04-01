@@ -49,20 +49,7 @@ class TissueGraphModel(BaseModel):
         if self.pretrained:
             model_name = self._get_checkpoint_id()
             if model_name:
-                checkpoint_path = os.path.join(
-                    os.path.dirname(__file__),
-                    '..',
-                    '..',
-                    '..',
-                    'checkpoints'
-                )
-                download_box_link(
-                    url=MODEL_NAME_TO_URL[model_name],
-                    out_fname=os.path.join(checkpoint_path, model_name)
-                )
-                self.load_state_dict(
-                    torch.load(os.path.join(checkpoint_path, model_name))
-                )
+                self._load_checkpoint(model_name)
             else:
                 raise NotImplementedError('There is not available TG-GNN checkpoint for the provided params.')
 
@@ -73,9 +60,7 @@ class TissueGraphModel(BaseModel):
         layer_type = self.gnn_params['layer_type'].replace('_layer', '')
         num_classes = self.num_classes
         candidate = 'bracs_' + model_type + '_' + str(num_classes) + '_classes_' + layer_type + '.pt'
-        print(candidate, list(MODEL_NAME_TO_URL.keys()))
         if candidate not in list(MODEL_NAME_TO_URL.keys()):
-            print('Fail 1')
             return ''
 
         # 2nd level-check: Look at all the specific params      
@@ -84,20 +69,16 @@ class TissueGraphModel(BaseModel):
         for cand_key, cand_val in cand_config['gnn_params'].items():
             if hasattr(self.superpx_gnn, cand_key):
                 if cand_val != getattr(self.superpx_gnn, cand_key): 
-                    print('Fail 2')
                     return ''
             else:
                 if cand_val != getattr(self.superpx_gnn.layers[0], cand_key): 
-                    print('Fail 2bis')
                     return ''
 
         for cand_key, cand_val in cand_config['classification_params'].items():
             if cand_val != getattr(self.pred_layer, cand_key):
-                print('Fail 3')
                 return ''
 
         if cand_config['node_dim'] != self.node_dim:
-            print('Fail 4')
             return ''
 
         return candidate

@@ -6,7 +6,7 @@ gnn_params:
   readout_type: "mean"
   aggregators: "mean max min std"
   scalers: "identity amplification attenuation"
-  avg_d: 5
+  avg_d: 4
   dropout: 0.
   graph_norm: True
   batch_norm: True

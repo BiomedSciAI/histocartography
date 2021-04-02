@@ -3,9 +3,8 @@
 import logging
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
-import os
 import h5py
 import numpy as np
 from PIL import Image
@@ -35,21 +34,18 @@ class StainNormalizer(PipelineStep):
         super().__init__(**kwargs)
 
         self.norm_mode = -1
-        self.save_path = None
-        if self.target_path is not None and \
-            precomputed_normalizer_path is None:
+        self.normalizer_save_path = None
+        if self.target_path is not None and precomputed_normalizer_path is None:
             self.norm_mode = 1
-            if self.base_path is not None:
-                self.save_path = self.output_dir / "normalizer.h5"
-        elif self.target_path is None and \
-            precomputed_normalizer_path is not None:
+            if self.save_path is not None:
+                self.normalizer_save_path = self.output_dir / "normalizer.h5"
+        elif self.target_path is None and precomputed_normalizer_path is not None:
             self.norm_mode = 2
-            self.save_path = Path(precomputed_normalizer_path)
-        elif self.target_path is not None and \
-             precomputed_normalizer_path is not None:
+            self.normalizer_save_path = Path(precomputed_normalizer_path)
+        elif self.target_path is not None and precomputed_normalizer_path is not None:
             raise ValueError(
-                    "Wrong input, provided both targeted and precomputed normalization."
-                    )
+                "Wrong input, provided both targeted and precomputed normalization."
+            )
 
     @staticmethod
     def _standardize_brightness(input_image: np.ndarray) -> np.ndarray:
@@ -106,9 +102,13 @@ class StainNormalizer(PipelineStep):
         Returns:
             np.array: Extracted stains of all pixels (vectorized image)
         """
-        optical_density = self._rgb_to_od(input_image).reshape((-1, 3)).astype(np.float32)
+        optical_density = (
+            self._rgb_to_od(input_image).reshape((-1, 3)).astype(np.float32)
+        )
         stain_matrix = stain_matrix.astype(np.float32)
-        concentration = np.linalg.lstsq(stain_matrix.T, optical_density.T, rcond=-1)[0].T
+        concentration = np.linalg.lstsq(stain_matrix.T, optical_density.T, rcond=-1)[
+            0
+        ].T
         return concentration * (concentration > 0)
 
     @abstractmethod
@@ -137,14 +137,14 @@ class StainNormalizer(PipelineStep):
 
     def _load_precomputed(self) -> None:
         """Loads the precomputed values of a previous fit"""
-        if self.save_path is not None:
-            with h5py.File(self.save_path, "r") as input_file:
+        if self.normalizer_save_path is not None:
+            with h5py.File(self.normalizer_save_path, "r") as input_file:
                 self._load_values(input_file)
 
     def _save_precomputed(self):
         """Saves the precomputed values"""
-        if self.save_path is not None:
-            with h5py.File(self.save_path, "w") as output_file:
+        if self.normalizer_save_path is not None:
+            with h5py.File(self.normalizer_save_path, "w") as output_file:
                 self._save_values(output_file)
 
     @abstractmethod
@@ -158,7 +158,7 @@ class StainNormalizer(PipelineStep):
             np.array: Normalized image
         """
 
-    def process(self, input_image: np.ndarray) -> np.ndarray:
+    def _process(self, input_image: np.ndarray) -> np.ndarray:  # type: ignore[override]
         """Stain normalizes a given image
 
         Args:
@@ -171,14 +171,14 @@ class StainNormalizer(PipelineStep):
         normalized_image = self._normalize_image(standardized_image)
         return normalized_image
 
-    def process_and_save(self, output_name: str, *args, **kwargs) -> np.ndarray:
+    def process_and_save(self, *args, output_name: str, **kwargs) -> np.ndarray:  # type: ignore[override]
         """Process and save in the provided path as a png image
 
         Args:
             output_name (str): Name of output file
         """
         assert (
-            self.base_path is not None
+            self.save_path is not None
         ), "Can only save intermediate output if base_path was not None during construction"
         output_path = self.output_dir / f"{output_name}.png"
         if output_path.exists():
@@ -194,42 +194,55 @@ class StainNormalizer(PipelineStep):
                 logging.critical("Could not open %s", output_path)
                 raise error
         else:
-            output = self.process(*args, **kwargs)
+            output = self._process(*args, **kwargs)
             with Image.fromarray(output) as output_image:
                 output_image.save(output_path)
         return output
 
-    def precompute(self, final_path) -> None:
-        """Precompute all necessary information"""
+    def precompute(
+        self,
+        link_path: Union[None, str, Path] = None,
+        precompute_path: Union[None, str, Path] = None,
+    ) -> None:
+        """Precompute all necessary information
+
+        Args:
+            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.
+            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.
+        """
+        if self.save_path is not None and link_path is not None:
+            self._link_to_path(Path(link_path) / "normalized_images")
+
         if self.norm_mode == 1:
-            if self.save_path is not None:
-                if not self.save_path.exists():
+            if self.normalizer_save_path is not None:
+                if not self.normalizer_save_path.exists():
+                    assert (
+                        self.target_path is not None
+                    ), "Cannot load image if target_path is None"
                     target_image = load_image(Path(self.target_path))
                     self.fit(target_image)
                 self._load_precomputed()
             else:
+                assert (
+                    self.target_path is not None
+                ), "Cannot load image if target_path is None"
                 target_image = load_image(Path(self.target_path))
                 self.fit(target_image)
         elif self.norm_mode == 2:
-            if not self.save_path.exists():
-                raise FileNotFoundError(
-                    "Precomputed normalizer does not exist."
-                    )
+            if (
+                self.normalizer_save_path is None
+                or not self.normalizer_save_path.exists()
+            ):
+                raise FileNotFoundError("Precomputed normalizer does not exist.")
             self._load_precomputed()
         else:
             self.max_concentration_target = []
             self.stain_matrix_target = np.array(
-                [
-                    [0.5626, 0.7201, 0.4062],
-                    [0.2159, 0.8012, 0.5581]
-                ]
+                [[0.5626, 0.7201, 0.4062], [0.2159, 0.8012, 0.5581]]
             ).astype(np.float32)
-            self.max_concentration_target = np.array(
-                [1.9705, 1.0308]
-            ).astype(np.float32)
-
-        if self.base_path is not None:
-            self._link_to_path(Path(final_path) / "normalized_images")
+            self.max_concentration_target = np.array([1.9705, 1.0308]).astype(
+                np.float32
+            )
 
 
 class MacenkoStainNormalizer(StainNormalizer):
@@ -271,9 +284,11 @@ class MacenkoStainNormalizer(StainNormalizer):
             self.stain_matrix_target = file[self.stain_matrix_key][()]
             self.max_concentration_target = file[self.max_concentration_target_key][()]
         except ValueError:
-            print(f"Invalid stain matrix keys. Expected keys are "
-                  f"{self.stain_matrix_key} and "
-                  f"{self.max_concentration_target_key}.")
+            print(
+                f"Invalid stain matrix keys. Expected keys are "
+                f"{self.stain_matrix_key} and "
+                f"{self.max_concentration_target_key}."
+            )
 
     def _save_values(self, file: h5py.File) -> None:
         """Save values needed to reproduce fit
@@ -336,7 +351,9 @@ class MacenkoStainNormalizer(StainNormalizer):
         source_concentrations = self._get_concentrations(
             input_image, stain_matrix_source
         )
-        max_concentration_source = np.percentile(source_concentrations, 99, axis=0).reshape((1, 2))
+        max_concentration_source = np.percentile(
+            source_concentrations, 99, axis=0
+        ).reshape((1, 2))
         max_concentration_target = self.max_concentration_target
         source_concentrations *= max_concentration_target / max_concentration_source
         return (
@@ -360,9 +377,9 @@ class MacenkoStainNormalizer(StainNormalizer):
         target_concentrations = self._get_concentrations(
             target_image, self.stain_matrix_target
         )
-        self.max_concentration_target = np.percentile(target_concentrations, 99, axis=0).reshape(
-            (1, 2)
-        )
+        self.max_concentration_target = np.percentile(
+            target_concentrations, 99, axis=0
+        ).reshape((1, 2))
         self._save_precomputed()
 
 
@@ -399,8 +416,10 @@ class VahadaneStainNormalizer(StainNormalizer):
         try:
             self.stain_matrix_target = file[self.stain_matrix_key][()]
         except ValueError:
-            print(f"Invalid stain matrix keys. Expected key is "
-                  f"{self.stain_matrix_key}.")
+            print(
+                f"Invalid stain matrix keys. Expected key is "
+                f"{self.stain_matrix_key}."
+            )
 
     def _save_values(self, file: h5py.File) -> None:
         """Save values needed to reproduce fit
@@ -446,14 +465,14 @@ class VahadaneStainNormalizer(StainNormalizer):
         n_features = optical_density.T.shape[1]
 
         dict_learner = DictionaryLearning(
-            n_components = 2,
+            n_components=2,
             alpha=self.lambda_s,
             max_iter=10,
-            fit_algorithm='lars',
-            transform_algorithm = 'lasso_lars',
+            fit_algorithm="lars",
+            transform_algorithm="lasso_lars",
             transform_n_nonzero_coefs=n_features,
-            random_state = 0,
-            positive_dict=True
+            random_state=0,
+            positive_dict=True,
         )
         dictionary = dict_learner.fit_transform(optical_density.T).T
 

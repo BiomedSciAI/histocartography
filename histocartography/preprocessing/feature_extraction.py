@@ -1,14 +1,13 @@
 """Extract features from images for a given structure"""
 
+import copy
 import math
 import warnings
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union
 
-from tqdm.auto import tqdm
 import cv2
-import copy
 import numpy as np
 import torch
 import torchvision
@@ -22,6 +21,7 @@ from sklearn.metrics.pairwise import euclidean_distances
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+from tqdm.auto import tqdm
 
 from ..pipeline import PipelineStep
 
@@ -29,7 +29,7 @@ from ..pipeline import PipelineStep
 class FeatureExtractor(PipelineStep):
     """Base class for feature extraction"""
 
-    def process(
+    def _process(  # type: ignore[override]
         self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
         """Extract features from the input_image for the defined instance_map
@@ -53,10 +53,19 @@ class FeatureExtractor(PipelineStep):
             torch.Tensor: Extracted features
         """
 
-    def precompute(self, final_path) -> None:
-        """Precompute all necessary information"""
-        if self.base_path is not None:
-            self._link_to_path(Path(final_path) / "features")
+    def precompute(
+        self,
+        link_path: Union[None, str, Path] = None,
+        precompute_path: Union[None, str, Path] = None,
+    ) -> None:
+        """Precompute all necessary information
+
+        Args:
+            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.
+            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.
+        """
+        if self.save_path is not None and link_path is not None:
+            self._link_to_path(Path(link_path) / "features")
 
     @staticmethod
     def _preprocess_architecture(architecture: str) -> str:
@@ -309,11 +318,11 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         y2 = y2 + 2 if y2 + 2 <= instance_map.shape[0] - 1 else y2
         nuclei_map = sp_mask[y1:y2, x1:x2]
 
-        if cv2.__version__[0] == '3':
+        if cv2.__version__[0] == "3":
             _, contours, _ = cv2.findContours(
                 nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
             )
-        elif cv2.__version__[0] == '4':
+        elif cv2.__version__[0] == "4":
             contours, _ = cv2.findContours(
                 nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
             )
@@ -423,7 +432,7 @@ class PatchFeatureExtractor:
         patch = patch.to(self.device)
         with torch.no_grad():
             embeddings = self.model(patch).squeeze()
-            return embeddings
+        return embeddings
 
 
 class InstanceMapPatchDataset(Dataset):
@@ -457,17 +466,22 @@ class InstanceMapPatchDataset(Dataset):
         self.stride = stride
         self.mean = mean
         self.std = std
-        self.image = np.pad(self.image,
-                            ((self.patch_size, self.patch_size),
-                             (self.patch_size, self.patch_size),
-                             (0, 0)),
-                            mode='constant',
-                            constant_values=fill_value)
-        self.instance_map = np.pad(self.instance_map,
-                                   ((self.patch_size, self.patch_size),
-                                    (self.patch_size, self.patch_size)),
-                                   mode='constant',
-                                   constant_values=0)
+        self.image = np.pad(
+            self.image,
+            (
+                (self.patch_size, self.patch_size),
+                (self.patch_size, self.patch_size),
+                (0, 0),
+            ),
+            mode="constant",
+            constant_values=fill_value,
+        )
+        self.instance_map = np.pad(
+            self.instance_map,
+            ((self.patch_size, self.patch_size), (self.patch_size, self.patch_size)),
+            mode="constant",
+            constant_values=0,
+        )
         self.patch_size_2 = int(self.patch_size // 2)
         self.threshold = int(self.patch_size * self.patch_size * 0.25)
         self.properties = regionprops(self.instance_map)
@@ -476,10 +490,7 @@ class InstanceMapPatchDataset(Dataset):
         self.patch_instance_index = []
         self.patch_overlap = []
 
-        basic_transforms = [
-            transforms.ToPILImage(),
-            transforms.ToTensor()
-        ]
+        basic_transforms = [transforms.ToPILImage(), transforms.ToTensor()]
         if self.mean is not None and self.std is not None:
             basic_transforms.append(transforms.Normalize(self.mean, self.std))
         self.dataset_transform = transforms.Compose(basic_transforms)
@@ -487,36 +498,29 @@ class InstanceMapPatchDataset(Dataset):
         self._precompute()
         self._warning()
 
-    def _add_patch(
-            self,
-            center_x: int,
-            center_y: int,
-            index: int
-    ) -> None:
-        """ Extract and include patch information
+    def _add_patch(self, center_x: int, center_y: int, index: int) -> None:
+        """Extract and include patch information
         Args:
             center_x (int): centroid x-coordinate of the patch
             center_y (int): centroid y-coordinate of the patch
             index (int): instance index to which the patch belongs
         """
         mask = np.zeros_like(self.instance_mask)
-        mask[center_y - self.patch_size_2: center_y + self.patch_size_2,
-             center_x - self.patch_size_2: center_x + self.patch_size_2] = 1
+        mask[
+            center_y - self.patch_size_2 : center_y + self.patch_size_2,
+            center_x - self.patch_size_2 : center_x + self.patch_size_2,
+        ] = 1
 
         overlap = np.sum(mask * self.instance_mask)
         if overlap > self.threshold:
-            loc = [center_x - self.patch_size_2,
-                   center_y - self.patch_size_2]
+            loc = [center_x - self.patch_size_2, center_y - self.patch_size_2]
             self.patch_coordinates.append(loc)
             self.patch_instance_index.append(index)
             self.patch_count += 1
             self.patch_overlap.append(overlap)
 
-    def _get_patch(
-            self,
-            loc: list
-    ) -> np.ndarray:
-        """ Extract patch from image
+    def _get_patch(self, loc: list) -> np.ndarray:
+        """Extract patch from image
         Args:
             loc (list): top-left (x,y) coordinate of a patch
         """
@@ -552,8 +556,7 @@ class InstanceMapPatchDataset(Dataset):
 
                     # Include at least one patch centered at the centroid
                     if self.patch_count == 0:
-                        loc = [x_ - self.patch_size_2,
-                               y_ - self.patch_size_2]
+                        loc = [x_ - self.patch_size_2, y_ - self.patch_size_2]
                         self.patch_coordinates.append(loc)
                         self.patch_instance_index.append(index)
                         self.patch_count += 1
@@ -589,7 +592,9 @@ class InstanceMapPatchDataset(Dataset):
 
     def _warning(self):
         """ Check patch coverage statistics to identify if provided patch size includes too much background"""
-        self.patch_overlap = np.array(self.patch_overlap) / (self.patch_size * self.patch_size)
+        self.patch_overlap = np.array(self.patch_overlap) / (
+            self.patch_size * self.patch_size
+        )
         if np.mean(self.patch_overlap) < self.warning_threshold:
             warnings.warn("Provided patch size is large")
             warnings.warn("Suggestion: Reduce patch size to include relevant context.")
@@ -617,17 +622,17 @@ class DeepFeatureExtractor(FeatureExtractor):
     """Helper class to extract deep features from instance maps"""
 
     def __init__(
-            self,
-            architecture: str,
-            patch_size: int = 224,
-            stride: int = 224,
-            downsample_factor: int = 1,
-            normalizer: Optional[dict] = None,
-            batch_size: int = 32,
-            fill_value: int = 255,
-            num_workers: int = 0,
-            verbose: bool = False,
-            **kwargs,
+        self,
+        architecture: str,
+        patch_size: int = 224,
+        stride: int = 224,
+        downsample_factor: int = 1,
+        normalizer: Optional[dict] = None,
+        batch_size: int = 32,
+        fill_value: int = 255,
+        num_workers: int = 0,
+        verbose: bool = False,
+        **kwargs,
     ) -> None:
         """Create a deep feature extractor
         Args:
@@ -680,7 +685,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         return instance_indices, patches
 
     def _extract_features(
-            self, input_image: np.ndarray, instance_map: np.ndarray
+        self, input_image: np.ndarray, instance_map: np.ndarray
     ) -> torch.Tensor:
         """Extract features for a given RGB image and its extracted instance_map
         Args:
@@ -707,16 +712,19 @@ class DeepFeatureExtractor(FeatureExtractor):
             shuffle=False,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=self._collate_patches
+            collate_fn=self._collate_patches,
         )
         features = torch.empty(
-            size=(len(image_dataset.properties), self.patch_feature_extractor.num_features),
+            size=(
+                len(image_dataset.properties),
+                self.patch_feature_extractor.num_features,
+            ),
             dtype=torch.float32,
-            device=self.device
+            device=self.device,
         )
         embeddings = dict()
         for instance_indices, patches in tqdm(
-                image_loader, total=len(image_loader), disable=not self.verbose
+            image_loader, total=len(image_loader), disable=not self.verbose
         ):
             emb = self.patch_feature_extractor(patches)
             for j, key in enumerate(instance_indices):
@@ -727,7 +735,7 @@ class DeepFeatureExtractor(FeatureExtractor):
                     embeddings[key] = [emb[j], 1]
 
         for k, v in embeddings.items():
-            features[k, :] = v[0]/v[1]
+            features[k, :] = v[0] / v[1]
 
         return features.cpu().detach()
 
@@ -752,7 +760,7 @@ class AugmentedInstanceMapPatchDataset(InstanceMapPatchDataset):
             stride=stride,
             fill_value=fill_value,
             mean=mean,
-            std=std
+            std=std,
         )
         self.mean = mean
         self.std = std
@@ -788,11 +796,13 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
         self.rotations = rotations
         self.flips = flips
         super().__init__(**kwargs)
-        self.augmentations = _build_augmentations(rotations=rotations,
-                                                  flips=flips,
-                                                  padding=self.patch_size,
-                                                  fill_value=self.fill_value,
-                                                  output_size=(self.patch_size, self.patch_size))
+        self.augmentations = _build_augmentations(
+            rotations=rotations,
+            flips=flips,
+            padding=self.patch_size,
+            fill_value=self.fill_value,
+            output_size=(self.patch_size, self.patch_size),
+        )
 
     def _extract_features(
         self, input_image: np.ndarray, instance_map: np.ndarray
@@ -818,7 +828,7 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
             shuffle=False,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=self._collate_patches
+            collate_fn=self._collate_patches,
         )
         features = torch.empty(
             size=(
@@ -833,7 +843,7 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
             image_dataset._set_data_transform(transform)
             embeddings = dict()
             for instance_indices, patches in tqdm(
-                    image_loader, total=len(image_loader), disable=not self.verbose
+                image_loader, total=len(image_loader), disable=not self.verbose
             ):
                 emb = self.patch_feature_extractor(patches)
                 for j, key in enumerate(instance_indices):
@@ -906,9 +916,7 @@ class GridPatchDataset(Dataset):
         Returns:
             Tuple[int, torch.Tensor]: Patch index, image as tensor
         """
-        patch = self.dataset_transform(
-            self.patches[index].numpy().transpose([1, 2, 0])
-        )
+        patch = self.dataset_transform(self.patches[index].numpy().transpose([1, 2, 0]))
         return index, patch
 
     def __len__(self) -> int:
@@ -982,10 +990,12 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         patches = torch.stack(patches)
         return indices, patches
 
-    def process(self, input_image: np.ndarray) -> torch.Tensor:
+    def _process(  # type: ignore[override]
+        self, input_image: np.ndarray
+    ) -> torch.Tensor:
         return self._extract_features(input_image)
 
-    def _extract_features(
+    def _extract_features(  # type: ignore[override]
         self, input_image: np.ndarray, transform: Optional[Callable] = None
     ) -> torch.Tensor:
         """Extract features for a given RGB image in patches
@@ -1010,7 +1020,7 @@ class GridDeepFeatureExtractor(FeatureExtractor):
             shuffle=False,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            collate_fn=self._collate_patches
+            collate_fn=self._collate_patches,
         )
         features = torch.empty(
             size=(len(patch_dataset), self.patch_feature_extractor.num_features),
@@ -1044,13 +1054,17 @@ class GridAugmentedDeepFeatureExtractor(GridDeepFeatureExtractor):
         self.rotations = rotations
         self.flips = flips
         super().__init__(**kwargs)
-        self.transforms = _build_augmentations(rotations=rotations,
-                                               flips=flips,
-                                               padding=self.patch_size,
-                                               fill_value=self.fill_value,
-                                               output_size=(self.patch_size, self.patch_size))
+        self.transforms = _build_augmentations(
+            rotations=rotations,
+            flips=flips,
+            padding=self.patch_size,
+            fill_value=self.fill_value,
+            output_size=(self.patch_size, self.patch_size),
+        )
 
-    def _extract_features(self, input_image: np.ndarray) -> torch.Tensor:
+    def _extract_features(  # type: ignore[override]
+        self, input_image: np.ndarray
+    ) -> torch.Tensor:
         """Extract features for a given RGB image and its extracted instance_map for all augmentations
         Args:
             input_image (np.ndarray): RGB input image
@@ -1064,11 +1078,26 @@ class GridAugmentedDeepFeatureExtractor(GridDeepFeatureExtractor):
         return torch.stack(all_features)
 
 
-def _build_augmentations(rotations: Optional[List[int]] = None,
-                         flips: Optional[List[Any]] = None,
-                         padding: Optional[int] = None,
-                         fill_value: Optional[int] = 255,
-                         output_size: Optional[Tuple] = None) -> List[Callable]:
+def _build_augmentations(
+    rotations: Optional[List[int]] = None,
+    flips: Optional[List[Any]] = None,
+    padding: Optional[int] = None,
+    fill_value: Optional[int] = 255,
+    output_size: Optional[Tuple] = None,
+) -> List[Callable]:
+    """Returns a list of callable augmentation functions for the given specification
+
+    Args:
+        rotations (Optional[List[int]], optional): List of rotation angles. Defaults to None.
+        flips (Optional[List[Any]], optional): List of flips. Options are no rotation "n",
+            horizontal flip "h" and vertical flip "v". Defaults to None.
+        padding (Optional[int], optional): Number of pixels to pad before rotation. Defaults to None.
+        fill_value (Optional[int], optional): Fill value of padded pixels. Defaults to 255.
+        output_size (Optional[Tuple], optional): Output size to center crop after rotation. Defaults to None.
+
+    Returns:
+        List[Callable]: List of callable augmentation functions
+    """
     if rotations is None:
         rotations = [0]
     if flips is None:
@@ -1089,8 +1118,10 @@ def _build_augmentations(rotations: Optional[List[int]] = None,
                         lambda x, a=angle: transforms.functional.rotate(x, angle=a)
                     ),
                     transforms.Lambda(
-                        lambda x: transforms.functional.center_crop(x, output_size=output_size)
-                    )
+                        lambda x: transforms.functional.center_crop(
+                            x, output_size=output_size
+                        )
+                    ),
                 ]
             if flip == "h":
                 t.append(transforms.Lambda(lambda x: transforms.functional.hflip(x)))
@@ -1099,7 +1130,18 @@ def _build_augmentations(rotations: Optional[List[int]] = None,
             augmentaions.append(transforms.Compose(t))
     return augmentaions
 
-def _get_pad_size(size, patch_size, stride):
+
+def _get_pad_size(size: int, patch_size: int, stride: int) -> Tuple[int, int]:
+    """Computes the necessary top and bottom padding size to evenly devide an input size into patches with a given stride
+
+    Args:
+        size (int): Size of input
+        patch_size (int): Patch size
+        stride (int): Stride
+
+    Returns:
+        Tuple[int, int]: Amount of top and bottom-pad
+    """
     target = math.ceil((size - patch_size) / stride + 1)
     pad_size = ((target - 1) * stride + patch_size) - size
     top_pad = pad_size // 2

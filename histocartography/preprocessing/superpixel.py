@@ -1,20 +1,15 @@
 """This module handles everything related to superpixels"""
 
-
 import logging
 import math
 import sys
-import warnings
 from abc import abstractmethod
-from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import cv2
 import h5py
-import joblib
 import numpy as np
-from skimage import color, filters
 from skimage.color.colorconv import rgb2hed
 from skimage.future import graph
 from skimage.segmentation import slic
@@ -37,8 +32,8 @@ class SuperpixelExtractor(PipelineStep):
         connectivity: Optional[int] = 2,
         color_space: Optional[str] = "rgb",
         downsampling_factor: Optional[int] = 1,
-        **kwargs
-        ) -> None:
+        **kwargs,
+    ) -> None:
         """Abstract class that extracts superpixels from RGB Images
         Args:
             nr_superpixels (None, int): The number of super pixels before any merging.
@@ -53,9 +48,8 @@ class SuperpixelExtractor(PipelineStep):
             downsampling_factor (int, optional): Downsampling factor from the input image
                                                  resolution. Defaults to 1.
         """
-        assert (
-            (nr_superpixels is None and superpixel_size is not None) or
-            (nr_superpixels is not None and superpixel_size is None)
+        assert (nr_superpixels is None and superpixel_size is not None) or (
+            nr_superpixels is not None and superpixel_size is None
         ), "Provide value for either nr_superpixels or superpixel_size"
         self.nr_superpixels = nr_superpixels
         self.superpixel_size = superpixel_size
@@ -69,7 +63,7 @@ class SuperpixelExtractor(PipelineStep):
         self.downsampling_factor = downsampling_factor
         super().__init__(**kwargs)
 
-    def process(
+    def _process(  # type: ignore[override]
         self, input_image: np.ndarray, tissue_mask: np.ndarray = None
     ) -> np.ndarray:
         """Return the superpixels of a given input image
@@ -138,10 +132,19 @@ class SuperpixelExtractor(PipelineStep):
         )
         return upsampled_image
 
-    def precompute(self, final_path) -> None:
-        """Precompute all necessary information."""
-        if self.base_path is not None:
-            self._link_to_path(Path(final_path) / "superpixels")
+    def precompute(
+        self,
+        link_path: Union[None, str, Path] = None,
+        precompute_path: Union[None, str, Path] = None,
+    ) -> None:
+        """Precompute all necessary information
+
+        Args:
+            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.
+            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.
+        """
+        if self.save_path is not None and link_path is not None:
+            self._link_to_path(Path(link_path) / "superpixels")
 
 
 class SLICSuperpixelExtractor(SuperpixelExtractor):
@@ -159,7 +162,9 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             int: Output number of superpixels
         """
         if self.superpixel_size is not None:
-            nr_superpixels = int((image.shape[0] * image.shape[1] / self.superpixel_size))
+            nr_superpixels = int(
+                (image.shape[0] * image.shape[1] / self.superpixel_size)
+            )
         elif self.nr_superpixels is not None:
             nr_superpixels = self.nr_superpixels
         if self.max_nr_superpixels is not None:
@@ -182,7 +187,7 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             n_segments=nr_superpixels,
             max_iter=self.max_iterations,
             compactness=self.compactness,
-            start_label=1
+            start_label=1,
         )
         return superpixels
 
@@ -200,7 +205,9 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             int: Output number of superpixels
         """
         if self.superpixel_size is not None:
-            nr_superpixels = int((image.shape[0] * image.shape[1] / self.superpixel_size))
+            nr_superpixels = int(
+                (image.shape[0] * image.shape[1] / self.superpixel_size)
+            )
         elif self.nr_superpixels is not None:
             nr_superpixels = self.nr_superpixels
         if self.max_nr_superpixels is not None:
@@ -221,7 +228,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             n_segments=nr_superpixels,
             compactness=self.compactness,
             max_iter=self.max_iterations,
-            start_label=1
+            start_label=1,
         )
         return superpixels
 
@@ -368,9 +375,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
                 )
                 raise e
         else:
-            merged_superpixels, initial_superpixels = self.process(
-                *args, **kwargs
-            )
+            merged_superpixels, initial_superpixels = self.process(*args, **kwargs)
             try:
                 with h5py.File(superpixel_output_path, "w") as output_file:
                     self._set_outputs(
@@ -410,12 +415,12 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
         self, input_image: np.ndarray, superpixels: np.ndarray
     ) -> graph:
         """Construct RAG graph using initial superpixel instance map
-       Args:
-           input_image (np.ndarray): Input image
-           superpixels (np.ndarray): Initial superpixel instance map
-       Returns:
-           graph: Constructed graph
-       """
+        Args:
+            input_image (np.ndarray): Input image
+            superpixels (np.ndarray): Initial superpixel instance map
+        Returns:
+            graph: Constructed graph
+        """
         g = graph.RAG(superpixels, connectivity=self.connectivity)
         if 0 in g.nodes:
             g.remove_node(n=0)  # remove background node

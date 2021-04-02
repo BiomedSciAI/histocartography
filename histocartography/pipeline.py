@@ -118,7 +118,7 @@ class PipelineStep(ABC):
         pass
 
     def process(
-        self, *args: Tuple, output_name: Optional[str] = None, **kwargs: Dict[str, Any]
+        self, *args: Any, output_name: Optional[str] = None, **kwargs: Any
     ) -> Any:
         """Main process function of the step and outputs the result. Try to saves the output when output_name is passed.
 
@@ -134,7 +134,7 @@ class PipelineStep(ABC):
             return self._process(*args, **kwargs)
 
     @abstractmethod
-    def _process(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
+    def _process(self, *args: Any, **kwargs: Any) -> Any:
         """Abstract method that performs the computation of the pipeline step
 
         Returns:
@@ -182,7 +182,7 @@ class PipelineStep(ABC):
             )
 
     def _process_and_save(
-        self, *args: Tuple, output_name: str, **kwargs: Dict[str, Any]
+        self, *args: Any, output_name: str, **kwargs: Any
     ) -> Any:
         """Process and save in the provided path as as .h5 file
 

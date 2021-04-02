@@ -34,10 +34,9 @@ class SuperpixelTestCase(unittest.TestCase):
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=None, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=None,
             image_path=os.path.join(self.image_path, self.image_name)
         )
         superpixels = output['superpixels']
@@ -48,7 +47,7 @@ class SuperpixelTestCase(unittest.TestCase):
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=None,
             image_path=os.path.join(self.image_path, self.image_name)
         )
         reload_superpixels = output['superpixels']
@@ -64,10 +63,9 @@ class SuperpixelTestCase(unittest.TestCase):
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
-        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         superpixels = output['superpixels']
@@ -78,7 +76,7 @@ class SuperpixelTestCase(unittest.TestCase):
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
-            name=self.image_name.replace('.jpg', ''),
+            output_name=self.image_name.replace('.jpg', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         reload_superpixels = output['superpixels']
@@ -95,7 +93,7 @@ class SuperpixelTestCase(unittest.TestCase):
             config = yaml.load(file)
 
         metadata = pd.DataFrame({'image_path': [os.path.join(self.image_path, self.image_name)]})
-        pipeline = BatchPipelineRunner(output_path=self.out_path, save=True, pipeline_config=config)
+        pipeline = BatchPipelineRunner(save_path=self.out_path, pipeline_config=config)
         output = pipeline.run(metadata=metadata, return_out=True)
         superpixels = output[0]['superpixels']
 

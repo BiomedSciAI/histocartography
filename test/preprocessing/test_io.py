@@ -39,10 +39,9 @@ class IOTestCase(unittest.TestCase):
         config_fname = os.path.join(self.current_path, 'config', 'io', 'image_loader.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
-        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.jpg', ''),
+            output_name=self.image_name.replace('.jpg', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         image = output['image']
@@ -58,10 +57,9 @@ class IOTestCase(unittest.TestCase):
         config_fname = os.path.join(self.current_path, 'config', 'io', 'graph_loader.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
-        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.graph_name.replace('.jpg', ''),
+            output_name=self.graph_name.replace('.jpg', ''),
             graph_path=os.path.join(self.graph_path, self.graph_name)
         )
         graph = output['graph']

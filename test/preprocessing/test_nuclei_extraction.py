@@ -35,10 +35,9 @@ class NucleiExtractionTestCase(unittest.TestCase):
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
-        pipeline = PipelineRunner(output_path=self.out_path, save=True, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         instance_map = output['instance_map']

@@ -35,10 +35,9 @@ class StainNormalizationTestCase(unittest.TestCase):
             config = yaml.load(file)
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         image_norm = output['normalized_image']
@@ -58,10 +57,9 @@ class StainNormalizationTestCase(unittest.TestCase):
             os.path.join(self.current_path, config['stages'][1]['preprocessing']['params']['target_path'])
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         image_norm = output['normalized_image']
@@ -79,10 +77,9 @@ class StainNormalizationTestCase(unittest.TestCase):
             config = yaml.load(file)
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         image_norm = output['normalized_image']
@@ -102,10 +99,9 @@ class StainNormalizationTestCase(unittest.TestCase):
             os.path.join(self.current_path, config['stages'][1]['preprocessing']['params']['target_path'])
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
+            output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
         image_norm = output['normalized_image']
@@ -122,9 +118,8 @@ class StainNormalizationTestCase(unittest.TestCase):
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
 
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
         with self.assertRaises(FileNotFoundError):
-            pipeline.precompute()
+            pipeline = PipelineRunner(output_path=None, **config)
 
     def tearDown(self):
         """Tear down the tests."""

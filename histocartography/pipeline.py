@@ -128,7 +128,7 @@ class PipelineStep(ABC):
         Returns:
             Any: Result of the pipeline step
         """
-        if output_name is not None:
+        if output_name is not None and self.save_path is not None:
             return self._process_and_save(*args, output_name=output_name, **kwargs)
         else:
             return self._process(*args, **kwargs)

@@ -2,9 +2,8 @@
 
 import logging
 from abc import abstractmethod
-from os import link
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import cv2
 import dgl
@@ -48,7 +47,7 @@ class BaseGraphBuilder(PipelineStep):
     """
 
     def __init__(
-        self, nr_classes: int, background_class: int, add_loc_feats=False, **kwargs
+        self, nr_classes: int = 6, background_class: int = 4, add_loc_feats: bool = False, **kwargs: Any
     ) -> None:
         """
         Base Graph Builder constructor.

@@ -317,7 +317,9 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
 
         return merged_superpixels, initial_superpixels
 
-    def process(self, input_image: np.ndarray, tissue_mask=None) -> np.ndarray:
+    def _process(  # type: ignore[override]
+        self, input_image: np.ndarray, tissue_mask=None
+    ) -> np.ndarray:
         """Return the superpixels of a given input image
         Args:
             input_image (np.array): Input image.
@@ -328,7 +330,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         """
         logging.debug("Input size: %s", input_image.shape)
         original_height, original_width, _ = input_image.shape
-        if self.downsampling_factor != 1:
+        if self.downsampling_factor is not None and self.downsampling_factor != 1:
             input_image = self._downsample(input_image, self.downsampling_factor)
             if tissue_mask is not None:
                 tissue_mask = self._downsample(tissue_mask, self.downsampling_factor)
@@ -346,13 +348,13 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             logging.debug("Upsampled to %s", merged_superpixels.shape)
         return merged_superpixels, initial_superpixels
 
-    def process_and_save(self, output_name: str, *args, **kwargs: Any) -> Any:
+    def _process_and_save(self, *args: Any, output_name: str, **kwargs: Any) -> Any:
         """Process and save in the provided path as as .h5 file
         Args:
             output_name (str): Name of output file
         """
         assert (
-            self.base_path is not None
+            self.save_path is not None
         ), "Can only save intermediate output if base_path was not None when constructing the object"
         superpixel_output_path = self.output_dir / f"{output_name}.h5"
         if superpixel_output_path.exists():
@@ -375,7 +377,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
                 )
                 raise e
         else:
-            merged_superpixels, initial_superpixels = self.process(*args, **kwargs)
+            merged_superpixels, initial_superpixels = self._process(*args, **kwargs)
             try:
                 with h5py.File(superpixel_output_path, "w") as output_file:
                     self._set_outputs(

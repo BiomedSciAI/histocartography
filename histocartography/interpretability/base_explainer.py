@@ -37,16 +37,3 @@ class BaseExplainer(PipelineStep):
         self.model.eval()
         self.model = self.model.to(self.device)
         self.model.zero_grad()
-
-    @abstractmethod
-    def process(
-        self, graph: dgl.DGLGraph, class_idx: Optional[int] = None
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Explain a graph
-
-        Args:
-            graph (dgl.DGLGraph): Input graph to explain
-            class_idx (int): Class to explain. If None, use the winning class. Default to None.
-        """
-
-

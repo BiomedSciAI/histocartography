@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import dgl
 import numpy as np
@@ -230,26 +230,30 @@ class BaseGraphGradCAMExplainer(BaseExplainer):
         assert self.gnn_layer_ids is not None
         assert self.gnn_layer_name is not None 
 
-    def process(
-        self, graph: dgl.DGLGraph, class_idx: Optional[int] = None
+    def _process(
+        self, graph: dgl.DGLGraph, class_idx: Union[None, int, List[int]] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Compute node importances for a single class
 
         Args:
             graph (dgl.DGLGraph): Graph to explain.
-            class_idx (Optional[int], optional): Class index to explain. None results in using the winning class. Defaults to None.
+            class_idx (Union[None, int, List[int]]): Class indices (index) to explain. If None results in using the winning class.
+                                                     If a list is provided, explainer all the class indices provided. 
+                                                     Defaults to None.
 
         Returns:
             node_importance (np.ndarray): Node-level importance scores. 
             logits (np.ndarray): Prediction logits.
         """
-        node_importances, logits = self.process_all(graph, [class_idx])
+        if isinstance(class_idx, int) or class_idx is None:
+            class_idx = [class_idx]
+        node_importances, logits = self._process_all(graph, class_idx)
         return node_importances, logits
 
     def _get_extractor(self):
         raise NotImplementedError("Abstract class.")
 
-    def process_all(
+    def _process_all(
         self, graph: dgl.DGLGraph, classes: List[int]
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Compute node importances for all classes

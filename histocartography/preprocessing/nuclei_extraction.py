@@ -9,7 +9,6 @@ import numpy as np
 import torch
 from mlflow.pytorch import load_model
 from PIL import Image
-import cv2 
 import os
 from typing import Optional
 

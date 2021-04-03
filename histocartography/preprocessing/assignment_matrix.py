@@ -10,9 +10,10 @@ from ..pipeline import PipelineStep
 
 class AssignmnentMatrixBuilder(PipelineStep):
     """
-    Assigning low-level instances to high-level instances
+    Assigning low-level instances to high-level instances using instance maps. 
     """
-    def process(
+
+    def _process(
         self, low_level_centroids: np.ndarray, high_level_map: np.ndarray
     ) -> np.ndarray:
         """Construct assignment between low-level and high-level instances
@@ -47,33 +48,3 @@ class AssignmnentMatrixBuilder(PipelineStep):
         # relevant instances in high_level_map begins from id=1
         assignment_matrix[np.arange(low_to_high.size), low_to_high - 1] = 1
         return assignment_matrix
-
-    def process_and_save(self, output_name: str, *args, **kwargs) -> np.ndarray:
-        """Process and save in the provided path as a npy file
-        Args:
-            output_name (str): Name of output file
-        """
-        assert (
-            self.base_path is not None
-        ), "Can only save intermediate output if base_path was not None during construction"
-        output_path = self.output_dir / f"{output_name}.npy"
-        if output_path.exists():
-            logging.info(
-                "%s: Output of %s already exists, using it instead of recomputing",
-                self.__class__.__name__,
-                output_name,
-            )
-            try:
-                output = np.load(output_path)
-            except OSError as error:
-                logging.critical("Could not open %s", output_path)
-                raise error
-        else:
-            output = self.process(*args, **kwargs)
-            np.save(output_path, output)
-        return output
-
-    def precompute(self, final_path) -> None:
-        """Precompute all necessary information"""
-        if self.base_path is not None:
-            self._link_to_path(Path(final_path) / "assignment_matrix")

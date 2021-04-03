@@ -40,8 +40,8 @@ class NucleiExtractionTestCase(unittest.TestCase):
             output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
-        instance_map = output['instance_map']
-        instance_centroids = output['instance_centroids']
+        instance_map = output['nuclei_map']
+        instance_centroids = output['nuclei_centroids']
 
         # 3. run tests 
         self.assertTrue(isinstance(instance_map, np.ndarray))

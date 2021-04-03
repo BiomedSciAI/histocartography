@@ -59,7 +59,7 @@ class BaseImageVisualization(PipelineStep):
         self.colormap = colormap
         self.alpha = alpha
 
-    def process(
+    def _process(
         self,
         canvas: np.ndarray,
         instance_map: np.ndarray = None,
@@ -76,8 +76,6 @@ class BaseImageVisualization(PipelineStep):
         """
 
         viz_canvas = self.draw_instances(canvas, instance_map, instance_attributes)
-        draw = ImageDraw.Draw(viz_canvas, "RGBA")
-
         return viz_canvas
 
     @abstractmethod
@@ -99,19 +97,6 @@ class InstanceImageVisualization(BaseImageVisualization):
     Instance Image Visualization. Generic instance visualization.
     """
 
-    def __init__(self, **kwargs) -> None:
-        """
-        Constructor. Args are the same as for the superclass
-
-        Args:
-            instance_style: defines how to represent the instances (when available)('fill', 'outline', 'fill+outline')
-            color: matplotlib named color to (fill) or (outline) the instances
-            thickness: thickness of the instance outline
-            colormap: colormap to use to map labels to colors.
-            alpha: blending of the background image to the instances
-        """
-        super().__init__(**kwargs)
-
     def draw_instances(
         self,
         canvas: np.ndarray,
@@ -129,7 +114,6 @@ class InstanceImageVisualization(BaseImageVisualization):
         if instance_attributes is None:
             instance_attributes = {}
         color = instance_attributes.get(COLOR, self.color)
-        thickness = instance_attributes.get(THICKNESS, self.thickness)
         colormap = instance_attributes.get(COLORMAP, self.colormap)
 
         if "outline" in self.instance_style.lower():
@@ -180,7 +164,7 @@ class BaseGraphVisualization(PipelineStep):
         super().__init__(**kwargs)
         self.instance_visualizer = instance_visualizer
 
-    def process(
+    def _process(
         self,
         canvas: np.ndarray,
         graph: dgl.DGLGraph,
@@ -455,7 +439,7 @@ class HACTVisualization(PipelineStep):
             )
         self.tissue_visualizer = tissue_visualizer
 
-    def process(
+    def _process(
         self,
         canvas: np.ndarray,
         cell_graph: dgl.DGLGraph,
@@ -469,7 +453,6 @@ class HACTVisualization(PipelineStep):
         tissue_edge_attributes: dict = None,
         tissue_instance_attributes: dict = None,
     ) -> Image:
-
         """
         Draws the hierarchical graph on top of the canvas.
         Args:
@@ -488,7 +471,6 @@ class HACTVisualization(PipelineStep):
         """
 
         cell_centroids = cell_graph.ndata[CENTROID]
-        tissue_centroids = tissue_graph.ndata[CENTROID]
 
         if tissue_instance_map is not None:
             if cell_node_attributes is None:

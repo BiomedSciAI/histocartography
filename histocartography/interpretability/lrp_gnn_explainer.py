@@ -21,7 +21,7 @@ class GraphLRPExplainer(BaseExplainer):
         node_importance = torch.sum(node_importance, dim=1)
         return node_importance, logits
 
-    def process(self, graph: dgl.DGLGraph):
+    def _process(self, graph: dgl.DGLGraph):
         """
         Explain a graph with LRP. 
 

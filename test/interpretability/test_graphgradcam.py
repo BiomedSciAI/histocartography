@@ -33,6 +33,45 @@ class GraphGradCAMTestCase(unittest.TestCase):
             shutil.rmtree(self.out_path) 
         os.makedirs(self.out_path)
 
+    def test_graphgradcam_with_saving(self):
+        """
+        Test Graph GradCAM with saving.
+        """
+
+        # 1. load a graph
+        graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        graph = graph[0]
+        graph = set_graph_on_cuda(graph) if IS_CUDA else graph
+        node_dim = graph.ndata['feat'].shape[1]
+
+        # 2. create model 
+        config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        model = CellGraphModel(
+            gnn_params=config['gnn_params'],
+            classification_params=config['classification_params'],
+            node_dim=node_dim,
+            num_classes=3
+        )
+
+        # 3. run the explainer
+        explainer = GraphGradCAMExplainer(
+            model=model,
+            save_path=self.out_path
+        )
+        importance_scores, logits = explainer.process(
+            graph,
+            output_name=self.graph_name.replace('.bin', '')
+        )
+
+        # 3. tests 
+        self.assertIsInstance(importance_scores, np.ndarray)
+        self.assertIsInstance(logits, np.ndarray)
+        self.assertEqual(graph.number_of_nodes(), importance_scores.shape[0])
+
+
     def test_graphgradcam(self):
         """
         Test Graph GradCAM.

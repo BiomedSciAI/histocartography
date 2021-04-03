@@ -137,7 +137,7 @@ class GraphPruningExplainer(BaseExplainer):
 
         return model
 
-    def process(self, graph: dgl.DGLGraph, label: int = None):
+    def _process(self, graph: dgl.DGLGraph, label: int = None):
         """
         Explain a graph instance
         

@@ -41,17 +41,3 @@ def extract_patches_from_image(image, im_h, im_w):
             sub_patches.append(win)
             coords.append([col, row, col+STEP_SIZE[0], row+STEP_SIZE[1]])  # left, bottom, right, top
     return sub_patches, coords
-
-
-def load_images(data_path):
-    all_images = []
-    if os.path.isfile(data_path) and data_path.endswith('.png'):
-        image = cv2.imread(data_path)  
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        all_images.append((image, data_path.split('/')[-1]))
-    else:
-        for file in glob.glob(os.path.join(data_path, "*.png")):
-            image = cv2.imread(os.path.join(data_path, file))
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            all_images.append((image, file))
-    return all_images 

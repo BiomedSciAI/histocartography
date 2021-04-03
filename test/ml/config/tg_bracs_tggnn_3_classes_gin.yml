@@ -1,0 +1,14 @@
+gnn_params:
+  layer_type: "gin_layer"
+  hidden_dim: 64 
+  output_dim: 64
+  num_layers: 3
+  agg_type: "mean"
+  act: "relu"
+  readout_op: "none"
+  readout_type: "mean"
+  with_lrp: False
+  batch_norm: False
+classification_params:
+  num_layers: 2
+  hidden_dim: 128

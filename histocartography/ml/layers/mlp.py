@@ -10,7 +10,7 @@ class MLP(nn.Module):
     def __init__(
         self,
         in_dim,
-        h_dim,
+        hidden_dim,
         out_dim,
         num_layers=1,
         act="relu",
@@ -23,7 +23,7 @@ class MLP(nn.Module):
         """
         MLP Constructor
         :param in_dim: (int) input dimension
-        :param h_dim: (int) hidden dimension(s), if type(h_dim) is int => all the hidden have the same dimensions
+        :param hidden_dim: (int) hidden dimension(s), if type(h_dim) is int => all the hidden have the same dimensions
                                                  if type(h_dim) is list => hidden use val in list as dimension
         :param out_dim: (int) output_dimension
         :param num_layers: (int) number of layers
@@ -37,12 +37,13 @@ class MLP(nn.Module):
 
         # optional argument
         self.num_layers = num_layers
+        self.hidden_dim = hidden_dim
 
         # set activations
         self._set_activations(act)
 
         # set mlp dimensions
-        self._set_mlp_dimensions(in_dim, h_dim, out_dim, num_layers)
+        self._set_mlp_dimensions(in_dim, hidden_dim, out_dim, num_layers)
 
         # set batch norm
         self._set_batch_norm(use_bn, num_layers)

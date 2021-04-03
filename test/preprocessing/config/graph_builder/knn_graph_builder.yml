@@ -14,13 +14,13 @@ stages:
       inputs:
       - image
       outputs:
-      - instance_map
-      - instance_centroids
+      - nuclei_map
+      - nuclei_centroids
   - preprocessing:
       class: AugmentedDeepFeatureExtractor
       inputs:
       - image
-      - instance_map
+      - nuclei_map
       outputs:
       - features
       params:
@@ -45,7 +45,7 @@ stages:
   - preprocessing:
       class: KNNGraphBuilder
       inputs:
-      - instance_centroids
+      - nuclei_centroids
       - features
       outputs:
       - graph

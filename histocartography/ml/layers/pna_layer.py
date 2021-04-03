@@ -23,7 +23,7 @@ class PNALayer(nn.Module):
                  out_dim,
                  aggregators: str = "mean max min std",
                  scalers: str = "identity amplification attenuation",
-                 avg_d: int = 5,
+                 avg_d: int = 4,
                  dropout: float = 0.,
                  graph_norm: bool = False,
                  batch_norm: bool = False,
@@ -152,7 +152,7 @@ class PNATower(nn.Module):
         self.pretrans = nn.Sequential(
             MLP(
                 in_dim=2 * in_dim,
-                h_dim=out_dim,
+                hidden_dim=out_dim,
                 out_dim=out_dim,
                 num_layers=pretrans_layers,
                 act='relu'),
@@ -164,7 +164,7 @@ class PNATower(nn.Module):
                     len(scalers)) *
                 out_dim +
                 in_dim,
-                h_dim=out_dim,
+                hidden_dim=out_dim,
                 out_dim=out_dim,
                 num_layers=posttrans_layers,
                 act='relu'),

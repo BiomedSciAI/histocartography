@@ -78,27 +78,3 @@ def rgb(minimum, maximum, value, transparency=None):
     if transparency is not None:
         return (r, g, b, transparency)
     return (r, g, b)
-
-
-def plot_tSNE(x, labels, save_fname, label_to_name):
-    """
-    Plot tSNE
-    :param x:
-    :param labels:
-    :return:
-    """
-    colors = ["red", "green", "blue", "purple", "cyan"]
-    plt.scatter(
-        x[:, 0],
-        x[:, 1],
-        marker="x",
-        c=labels,
-        cmap=matplotlib.colors.ListedColormap(colors),
-    )
-
-    cb = plt.colorbar()
-    loc = np.arange(0, max(labels), max(labels) / float(len(colors)))
-    cb.set_ticks(loc)
-    cb.set_ticklabels(np.unique(labels))
-
-    plt.savefig(save_fname)

@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 from skimage.filters import gaussian, threshold_otsu
+
 Image.MAX_IMAGE_PIXELS = 100000000000
 
 from ..pipeline import PipelineStep
@@ -80,15 +81,14 @@ def get_tissue_mask(
 
 
 class TissueMask(PipelineStep):
-
-    def process_and_save(self, output_name: str, *args, **kwargs) -> np.ndarray:
+    def _process_and_save(self, *args, output_name: str, **kwargs) -> np.ndarray:
         """Process and save in the provided path as a png image
 
         Args:
             output_name (str): Name of output file
         """
         assert (
-            self.base_path is not None
+            self.save_path is not None
         ), "Can only save intermediate output if base_path was not None during construction"
         output_path = self.output_dir / f"{output_name}.png"
         if output_path.exists():
@@ -104,16 +104,25 @@ class TissueMask(PipelineStep):
                 logging.critical("Could not open %s", output_path)
                 raise error
         else:
-            output = self.process(*args, **kwargs)
+            output = self._process(*args, **kwargs)
             # with Image.fromarray(np.uint8(output*255)) as output_image:
             with Image.fromarray(output) as output_image:
                 output_image.save(output_path)
         return output
 
-    def precompute(self, final_path) -> None:
-        """Precompute all necessary information"""
-        if self.base_path is not None:
-            self._link_to_path(Path(final_path) / "tissue_masks")
+    def precompute(
+        self,
+        link_path: Union[None, str, Path] = None,
+        precompute_path: Union[None, str, Path] = None,
+    ) -> None:
+        """Precompute all necessary information
+
+        Args:
+            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.
+            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.
+        """
+        if self.save_path is not None and link_path is not None:
+            self._link_to_path(Path(link_path) / "tissue_masks")
 
 
 class GaussianTissueMask(TissueMask):
@@ -121,23 +130,23 @@ class GaussianTissueMask(TissueMask):
 
     def __init__(
         self,
-        n_thresholding_steps=1,
-        sigma=20,
-        min_size=10,
-        kernel_size=20,
-        dilation_steps=1,
-        background_gray_value=228,
-        downsampling_factor=4,
-        **kwargs
+        n_thresholding_steps: int = 1,
+        sigma: int = 20,
+        min_size: int = 10,
+        kernel_size: int = 20,
+        dilation_steps: int = 1,
+        background_gray_value: int = 228,
+        downsampling_factor: int = 4,
+        **kwargs,
     ) -> None:
         """
         Args:
-            n_thresholding_steps (int, optional): Number of gaussian smoothing steps. Default to 1.
-            sigma (int, optional): Sigma of gaussian filter. Default to 20.
-            min_size (int, optional): Minimum size (in pixels) of contiguous tissue regions to keep. Default to 10.
-            kernel_size (int, optional): Dilation kernel size. Default to 20.
-            dilation_steps (int, optional): Number of dilation steps. Default to 1.
-            background_gray_value (int, optional): Gray value of background pixels (usually high). Default to 228.
+            n_thresholding_steps (int, optional): Number of gaussian smoothing steps. Defaults to 1.
+            sigma (int, optional): Sigma of gaussian filter. Defaults to 20.
+            min_size (int, optional): Minimum size (in pixels) of contiguous tissue regions to keep. Defaults to 10.
+            kernel_size (int, optional): Dilation kernel size. Defaults to 20.
+            dilation_steps (int, optional): Number of dilation steps. Defaults to 1.
+            background_gray_value (int, optional): Gray value of background pixels (usually high). Defaults to 228.
             downsampling_factor (int, optional): Downsampling factor from the input image
                                                  resolution. Defaults to 4.
         """
@@ -183,7 +192,7 @@ class GaussianTissueMask(TissueMask):
         )
         return upsampled_image
 
-    def process(self, image) -> Any:
+    def _process(self, image: np.ndarray) -> np.ndarray:  # type: ignore[override]
         """Return the superpixels of a given input image
         Args:
             image (np.array): Input image
@@ -225,21 +234,23 @@ class GaussianTissueMask(TissueMask):
 
 
 class AnnotationPostProcessor(PipelineStep):
-    def __init__(self, base_path: Union[None, str, Path], background_index) -> None:
+    def __init__(self, background_index: int, **kwargs: Any) -> None:
         self.background_index = background_index
-        super().__init__(base_path=base_path)
+        super().__init__(**kwargs)
 
     def mkdir(self) -> Path:
         """Create path to output files"""
         assert (
-            self.base_path is not None
+            self.save_path is not None
         ), "Can only create directory if base_path was not None when constructing the object"
-        return self.base_path
+        return Path(self.save_path)
 
-    def process(self, annotation, tissue_mask) -> Any:
+    def _process(  # type: ignore[override]
+        self, annotation: np.ndarray, tissue_mask: np.ndarray
+    ) -> np.ndarray:
         annotation = annotation.copy()
         annotation[~tissue_mask.astype(bool)] = self.background_index
         return annotation
 
-    def process_and_save(self, output_name, *args, **kwargs: Any) -> Any:
-        return self.process(*args, **kwargs)
+    def _process_and_save(self, *args: Any, output_name: str, **kwargs: Any) -> Any:
+        return self._process(*args, **kwargs)

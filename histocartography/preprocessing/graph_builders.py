@@ -3,7 +3,7 @@
 import logging
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import cv2
 import dgl
@@ -14,15 +14,21 @@ import torch
 from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 from sklearn.neighbors import kneighbors_graph
-from sklearn.preprocessing import binarize
 
-from ..utils.vector import compute_l2_distance
 from .constants import CENTROID, FEATURES, LABEL
 from ..pipeline import PipelineStep
 from .utils import fast_histogram
 
 
-def two_hop_neighborhood(graph: dgl.DGLGraph):
+def two_hop_neighborhood(graph: dgl.DGLGraph) -> dgl.DGLGraph:
+    """Increases the connectivity of a given graph by an additional hop
+
+    Args:
+        graph (dgl.DGLGraph): Input graph
+
+    Returns:
+        dgl.DGLGraph: Output graph
+    """
     A = graph.adjacency_matrix().to_dense()
     A_tilde = (1.0 * ((A + A.matmul(A)) >= 1)) - torch.eye(A.shape[0])
     ngraph = nx.convert_matrix.from_numpy_matrix(A_tilde.numpy())
@@ -41,27 +47,23 @@ class BaseGraphBuilder(PipelineStep):
     """
 
     def __init__(
-        self,
-        nr_classes: int = 6,
-        background_class: int = 4,
-        add_loc_feats=False,
-        **kwargs
-        ) -> None:
+        self, nr_classes: int = 6, background_class: int = 4, add_loc_feats: bool = False, **kwargs: Any
+    ) -> None:
         """
         Base Graph Builder constructor.
 
         Args:
-            nr_classes (int): Number of node labels. Used only if setting node labels. Defaults to 6. 
-            background_class (int): Number of node labels. Used only if setting node labels. Defaults to 6. 
+            nr_classes (int): Number of node labels. Used only if setting node labels.
+            background_class (int): Number of node labels. Used only if setting node labels.
             add_loc_feats (bool): If we should add location-based features (ie the centroids) to the node features.
-                                  Defaults to False. 
+                                  Defaults to False.
         """
+        self.add_loc_feats = add_loc_feats
         super().__init__(**kwargs)
         self.nr_classes = nr_classes
         self.background_class = background_class
-        self.add_loc_feats = add_loc_feats
 
-    def process(
+    def _process(  # type: ignore[override]
         self,
         structure: np.ndarray,
         features: torch.Tensor,
@@ -87,9 +89,9 @@ class BaseGraphBuilder(PipelineStep):
         graph = dgl.DGLGraph()
         graph.add_nodes(num_nodes)
 
-        # add image size as graph data 
+        # add image size as graph data
         if image_size is not None:
-            graph.gdata = {'image_size': image_size}
+            graph.gdata = {"image_size": image_size}
 
         # add node features
         self._set_node_centroids(structure, graph)
@@ -104,12 +106,13 @@ class BaseGraphBuilder(PipelineStep):
         )
         return graph
 
-    def process_and_save(
+    def _process_and_save(  # type: ignore[override]
         self,
-        output_name: str,
         structure: np.ndarray,
         features: torch.Tensor,
         annotation: Optional[np.ndarray] = None,
+        *,
+        output_name: str,
     ) -> dgl.DGLGraph:
         """Process and save in provided directory
 
@@ -125,7 +128,7 @@ class BaseGraphBuilder(PipelineStep):
             dgl.DGLGraph: [description]
         """
         assert (
-            self.base_path is not None
+            self.save_path is not None
         ), "Can only save intermediate output if base_path was not None during construction"
         output_path = self.output_dir / f"{output_name}.bin"
         if output_path.exists():
@@ -136,7 +139,7 @@ class BaseGraphBuilder(PipelineStep):
             assert len(graphs) == 1
             graph = graphs[0]
         else:
-            graph = self.process(
+            graph = self._process(
                 structure=structure, features=features, annotation=annotation
             )
             save_graphs(str(output_path), [graph])
@@ -151,21 +154,26 @@ class BaseGraphBuilder(PipelineStep):
         """
         if not self.add_loc_feats:
             graph.ndata[FEATURES] = features
-        elif self.add_loc_feats and hasattr(graph, 'gdata') and 'image_size' in graph.gdata.keys():
+        elif (
+            self.add_loc_feats
+            and hasattr(graph, "gdata")
+            and "image_size" in graph.gdata.keys()
+        ):
             centroids = graph.ndata[CENTROID]
-            image_size = graph.gdata['image_size']
+            image_size = graph.gdata["image_size"]
             concat_features = torch.cat(
                 (
                     features,
                     (centroids[:, 0].squeeze() / image_size[0]).unsqueeze(1),
                     (centroids[:, 1].squeeze() / image_size[1]).unsqueeze(1),
                 ),
-                dim=1)
+                dim=1,
+            )
             graph.ndata[FEATURES] = concat_features
         else:
             raise ValueError(
-                'Please provide image size to add the normalized centroid to the node features.'
-            ) 
+                "Please provide image size to add the normalized centroid to the node features."
+            )
 
     @staticmethod
     @abstractmethod
@@ -198,18 +206,19 @@ class BaseGraphBuilder(PipelineStep):
             graph (dgl.DGLGraph): Graph to add the edges
         """
 
-    def __repr__(self) -> str:
-        """Representation of a graph builder
+    def precompute(
+        self,
+        link_path: Union[None, str, Path] = None,
+        precompute_path: Union[None, str, Path] = None,
+    ) -> None:
+        """Precompute all necessary information
 
-        Returns:
-            str: Representation of a graph builder
+        Args:
+            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.
+            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.
         """
-        return f'{self.__class__.__name__}({",".join([f"{k}={v}" for k, v in vars(self).items()])})'
-
-    def precompute(self, final_path) -> None:
-        """Precompute all necessary information"""
-        if self.base_path is not None:
-            self._link_to_path(Path(final_path) / "graphs")
+        if self.save_path is not None and link_path is not None:
+            self._link_to_path(Path(link_path) / "graphs")
 
 
 class RAGGraphBuilder(BaseGraphBuilder):
@@ -224,7 +233,9 @@ class RAGGraphBuilder(BaseGraphBuilder):
             kernel_size (int, optional): Size of the kernel to detect connectivity. Defaults to 5.
         """
         logging.debug("*** RAG Graph Builder ***")
-        assert hops > 0 and isinstance(hops, int), f"Invalid hops {hops} ({type(hops)}). Must be integer >= 0"
+        assert hops > 0 and isinstance(
+            hops, int
+        ), f"Invalid hops {hops} ({type(hops)}). Must be integer >= 0"
         self.kernel_size = kernel_size
         self.hops = hops
         super().__init__(**kwargs)

@@ -12,16 +12,16 @@ class GraphLRPExplainer(BaseExplainer):
     if the model was built with the ml library provided. 
     """
 
-    def _apply_rlp(self, graph):
+    def _apply_lrp(self, graph):
         logits = self.model([deepcopy(graph)]).squeeze()
         max_idx = logits.argmax(dim=0)
         init_relevance = torch.zeros_like(logits)
         init_relevance[max_idx] = logits[max_idx]
-        node_importance = self.model.rlp(init_relevance)
+        node_importance = self.model.lrp(init_relevance)
         node_importance = torch.sum(node_importance, dim=1)
         return node_importance, logits
 
-    def process(self, graph: dgl.DGLGraph):
+    def _process(self, graph: dgl.DGLGraph):
         """
         Explain a graph with LRP. 
 
@@ -37,7 +37,7 @@ class GraphLRPExplainer(BaseExplainer):
         self.model.set_forward_hook(self.model.pred_layer.mlp, '0')  # hook before the last classification layer
         self.model.set_lrp(True)
 
-        node_importance, logits = self._apply_rlp(graph)
+        node_importance, logits = self._apply_lrp(graph)
 
         node_importance = torch_to_numpy(node_importance)
         logits = torch_to_numpy(logits)

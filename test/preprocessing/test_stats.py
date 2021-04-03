@@ -35,10 +35,9 @@ class StatsTestCase(unittest.TestCase):
         config_fname = os.path.join(self.current_path, 'config', 'stats', 'graph_diameter.yml')
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=None, **config)
         output = pipeline.run(
-            name=self.graph_name.replace('.bin', ''),
+            output_name=None,
             graph_path=os.path.join(self.graph_path, self.graph_name)
         )
         diameter = output['diameter']
@@ -53,10 +52,9 @@ class StatsTestCase(unittest.TestCase):
         with open(config_fname, 'r') as file:
             config = yaml.load(file)
             
-        pipeline = PipelineRunner(output_path=self.out_path, save=False, **config)
-        pipeline.precompute()
+        pipeline = PipelineRunner(output_path=None, **config)
         output = pipeline.run(
-            name=self.image_name.replace('.jpg', ''),
+            output_name=None,
             image_path=os.path.join(self.image_path, self.image_name)
         )
         count = output['counter']

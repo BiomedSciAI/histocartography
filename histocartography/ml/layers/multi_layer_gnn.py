@@ -53,6 +53,9 @@ class MultiLayerGNN(nn.Module):
             )
 
         self.layers = nn.ModuleList()
+        self.num_layers = num_layers
+        self.layer_type = layer_type
+        self.output_dim = output_dim
         self.readout_op = readout_op
         self.readout_type = readout_type
 
@@ -89,6 +92,10 @@ class MultiLayerGNN(nn.Module):
                 bidirectional=True,
                 batch_first=True)
             self.att = nn.Linear(2 * ((num_layers * output_dim) // 2), 1)
+
+        # set kwargs as arguments for model identification 
+        for arg, val in kwargs.items():
+            setattr(self, arg, val)
 
     def forward(self, g, h, with_readout=True):
         """

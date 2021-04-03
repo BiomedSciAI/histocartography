@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import dgl 
+import os
 
 from .base_model import BaseModel
 from ..layers.constants import (
@@ -13,6 +14,8 @@ from ..layers.constants import (
 )
 from ..layers.mlp import MLP
 from .. import MultiLayerGNN
+from .zoo import MODEL_NAME_TO_URL, MODEL_NAME_TO_CONFIG
+from ...utils.io import download_box_link
 
 
 class HACTModel(BaseModel):
@@ -73,6 +76,60 @@ class HACTModel(BaseModel):
         # 4- build classification params
         self._build_classification_params()
 
+        # 5- load pretrained weights if needed
+        if self.pretrained:
+            model_name = self._get_checkpoint_id()
+            if model_name:
+                self._load_checkpoint(model_name)
+            else:
+                raise NotImplementedError('There is not available HACT checkpoint for the provided params.')
+
+    def _get_checkpoint_id(self):
+
+        # 1st level-check: Model type, GNN layer type, num classes
+        model_type = 'hact'
+        cg_layer_type = self.cg_gnn_params['layer_type'].replace('_layer', '')
+        tg_layer_type = self.tg_gnn_params['layer_type'].replace('_layer', '')
+        num_classes = self.num_classes
+
+        if cg_layer_type != tg_layer_type:
+            return ''
+
+        candidate = 'bracs_' + model_type + '_' + str(num_classes) + '_classes_' + cg_layer_type + '.pt'
+        if candidate not in list(MODEL_NAME_TO_URL.keys()):
+            return ''
+
+        # 2nd level-check: Look at all the specific params: CG-GNN, TG-GNN, classification params   
+        cand_config = MODEL_NAME_TO_CONFIG[candidate]
+
+        for cand_key, cand_val in cand_config['cg_gnn_params'].items():
+            if hasattr(self.superpx_gnn, cand_key):
+                if cand_val != getattr(self.cell_graph_gnn, cand_key): 
+                    return ''
+            else:
+                if cand_val != getattr(self.cell_graph_gnn.layers[0], cand_key): 
+                    return ''
+
+        for cand_key, cand_val in cand_config['tg_gnn_params'].items():
+            if hasattr(self.superpx_gnn, cand_key):
+                if cand_val != getattr(self.superpx_gnn, cand_key): 
+                    return ''
+            else:
+                if cand_val != getattr(self.superpx_gnn.layers[0], cand_key): 
+                    return ''
+
+        for cand_key, cand_val in cand_config['classification_params'].items():
+            if cand_val != getattr(self.pred_layer, cand_key):
+                return ''
+
+        if cand_config['cg_node_dim'] != self.cg_node_dim:
+            return ''
+
+        if cand_config['tg_node_dim'] != self.tg_node_dim:
+            return ''
+
+        return candidate
+
     def _build_tissue_graph_params(self):
         """
         Build multi layer GNN for tissue processing.
@@ -102,7 +159,7 @@ class HACTModel(BaseModel):
 
         self.pred_layer = MLP(
             in_dim=emd_dim,
-            h_dim=self.classification_params['hidden_dim'],
+            hidden_dim=self.classification_params['hidden_dim'],
             out_dim=self.num_classes,
             num_layers=self.classification_params['num_layers']
         )

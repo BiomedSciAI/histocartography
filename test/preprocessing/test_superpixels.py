@@ -68,7 +68,7 @@ class SuperpixelTestCase(unittest.TestCase):
             output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
-        superpixels = output['superpixels']
+        superpixels = output['merged_superpixels_map']
 
         self.assertTrue(isinstance(superpixels, np.ndarray))        # check type
         self.assertEqual(len(list(superpixels.shape)), 2)           # mask is bi-dim
@@ -79,7 +79,7 @@ class SuperpixelTestCase(unittest.TestCase):
             output_name=self.image_name.replace('.jpg', ''),
             image_path=os.path.join(self.image_path, self.image_name)
         )
-        reload_superpixels = output['superpixels']
+        reload_superpixels = output['merged_superpixels_map']
 
         self.assertTrue(np.array_equal(superpixels, reload_superpixels))
 

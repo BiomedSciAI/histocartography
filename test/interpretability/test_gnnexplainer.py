@@ -58,7 +58,8 @@ class GraphGNNExplainer(unittest.TestCase):
 
         # 3. run the explainer
         explainer = GraphPruningExplainer(
-            model=model
+            model=model,
+            
         )
         importance_scores, logits = explainer.process(graph)
 

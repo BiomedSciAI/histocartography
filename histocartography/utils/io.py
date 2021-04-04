@@ -69,8 +69,8 @@ def load_json(fname):
     :param fname: (str) path to json
     """
     with open(fname, 'r') as in_config:
-        config_params = json.load(in_config)
-    return config_params
+        params = json.load(in_config)
+    return params
 
 
 def write_json(path, data):

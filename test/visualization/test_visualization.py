@@ -2,9 +2,10 @@
 import os
 import shutil
 import unittest
-
 import numpy as np
 from dgl.data.utils import load_graphs
+from PIL import Image
+
 from histocartography.preprocessing import (
     DeepFeatureExtractor,
     AugmentedDeepFeatureExtractor,

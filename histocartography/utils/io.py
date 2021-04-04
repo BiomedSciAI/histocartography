@@ -2,21 +2,12 @@ import json
 import os
 import torch
 import numpy as np
-import pandas as pd
 import PIL
 from PIL import Image
 import io
 import pickle
 import csv
-import importlib
 import requests
-
-
-def get_device(cuda=False):
-    """
-    Get device (cpu or gpu)
-    """
-    return 'cuda:0' if cuda else 'cpu'
 
 
 def is_mlflow_url(candidate):
@@ -47,13 +38,6 @@ def buffer_plot_and_get(fig):
     fig.savefig(buf, dpi=200)
     buf.seek(0)
     return PIL.Image.open(buf)
-
-
-def complete_path(folder, fname):
-    """
-    Join a folder and a filename
-    """
-    return os.path.join(folder, fname)
 
 
 def get_filename(path):
@@ -89,28 +73,6 @@ def load_json(fname):
     return config_params
 
 
-def load_image(fname):
-    """
-    Load an image as a PIL image
-
-    Args:
-        :param fname: (str) path to image
-    """
-    image = Image.open(fname)
-    return image
-
-
-def save_image(fname, image):
-    image.save(fname, quality=95)
-
-
-def show_image(image):
-    """
-    Show a PIL image
-    """
-    image.show()
-
-
 def write_json(path, data):
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
@@ -130,15 +92,6 @@ def download_box_link(url, out_fname='box.file'):
             if chunk:
                 large_file.write(chunk)
     return out_fname
-
-
-DATATYPE_TO_SAVEFN = {
-    dict: write_json,
-    np.ndarray: np.savetxt,
-    Image.Image: save_image
-}
-
-DATATYPE_TO_EXT = {dict: '.json', np.ndarray: '.txt', Image.Image: '.png'}
 
 
 def download_test_data(out_dir):

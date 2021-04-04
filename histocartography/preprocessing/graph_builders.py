@@ -15,9 +15,13 @@ from dgl.data.utils import load_graphs, save_graphs
 from skimage.measure import regionprops
 from sklearn.neighbors import kneighbors_graph
 
-from .constants import CENTROID, FEATURES, LABEL
 from ..pipeline import PipelineStep
 from .utils import fast_histogram
+
+
+LABEL = "label"
+CENTROID = "centroid"
+FEATURES = "feat"
 
 
 def two_hop_neighborhood(graph: dgl.DGLGraph) -> dgl.DGLGraph:

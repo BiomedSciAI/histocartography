@@ -7,11 +7,7 @@ import dgl
 import os
 
 from .base_model import BaseModel
-from ..layers.constants import (
-    GNN_NODE_FEAT_IN, READOUT_TYPES,
-    GNN_NODE_FEAT_OUT, AGGREGATORS,
-    SCALERS
-)
+from ..layers.constants import GNN_NODE_FEAT_IN
 from ..layers.mlp import MLP
 from .. import MultiLayerGNN
 from .zoo import MODEL_NAME_TO_URL, MODEL_NAME_TO_CONFIG

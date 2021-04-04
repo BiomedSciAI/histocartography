@@ -13,9 +13,12 @@ import importlib
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
 from .base_explainer import BaseExplainer
 from ..utils.torch import torch_to_numpy
-from ..utils.io import get_device
 from ..utils.io import is_mlflow_url, is_box_url, download_box_link
-from ..ml.models.constants import MODEL_MODULE
+
+
+DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+# @TODO: modify and simplify 
+MODEL_MODULE = 'histocartography.ml.models.{}'
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -163,8 +166,7 @@ class GraphPruningExplainer(BaseExplainer):
             x=x,
             init_probs=init_probs.to(self.device),
             model_params=self.model_params,
-            train_params=self.train_params,
-            cuda=self.cuda
+            train_params=self.train_params
         ).to(self.device)
 
         self.node_feats_explanation = x
@@ -226,7 +228,6 @@ class ExplainerModel(nn.Module):
         init_probs: torch.tensor,
         model_params: dict,
         train_params: dict,
-        cuda: bool = False,
         use_sigmoid: bool = True,
     ):
         """
@@ -239,24 +240,20 @@ class ExplainerModel(nn.Module):
             init_probs (torch.tensor:): Prediction on the whole graph. 
             model_params (dict): Model params for learning mask.
             train_params (dict): Training params for learning mask.
-            cuda (bool): Default to False. 
             use_sigmoid (bool): Default to True.
         """
 
         super(ExplainerModel, self).__init__()
 
         # set data & model
+        self.device = DEVICE
         self.adj = adj
         self.x = x
-        self.model = model
-        if cuda:
-            self.model = self.model.cuda()
+        self.model = model.to(self.device)
         self.init_probs = init_probs
         self.label = torch.argmax(init_probs, dim=1)
 
         # set model parameters
-        self.cuda = cuda
-        self.device = get_device(self.cuda)
         self.mask_act = model_params['mask_activation']
         init_strategy = model_params['init']
         self.mask_bias = None
@@ -268,14 +265,12 @@ class ExplainerModel(nn.Module):
         self.mask, _ = self._build_edge_mask(num_nodes, init_strategy=init_strategy)
         self.node_mask = self._build_node_mask(num_nodes, init_strategy='const')
         self.diag_mask = torch.ones(num_nodes, num_nodes) - torch.eye(num_nodes)
+        self.diag_mask = self.diag_mask.to(self.device)
 
         # group them
         params = [self.mask, self.node_mask]
         if self.mask_bias is not None:
             params.append(self.mask_bias)
-
-        if self.cuda:
-            self.diag_mask = self.diag_mask.cuda()
 
         # build optimizer
         self._build_optimizer(params, train_params)
@@ -331,7 +326,7 @@ class ExplainerModel(nn.Module):
 
     def _masked_adj(self):
         sym_mask = self._get_adj_mask()
-        adj = self.adj.cuda() if self.cuda else self.adj
+        adj = adj.to(self.device)
         masked_adj = adj * sym_mask
         if self.mask_bias:
             bias = (self.mask_bias + self.mask_bias.t()) / 2

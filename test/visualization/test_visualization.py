@@ -2,9 +2,10 @@
 import os
 import shutil
 import unittest
-
 import numpy as np
 from dgl.data.utils import load_graphs
+from PIL import Image
+
 from histocartography.preprocessing import (
     DeepFeatureExtractor,
     AugmentedDeepFeatureExtractor,
@@ -12,7 +13,7 @@ from histocartography.preprocessing import (
 )
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor
-from histocartography.utils.io import load_image, save_image, download_test_data
+from histocartography.utils.io import download_test_data
 from histocartography.visualization.visualization import (
     HACTVisualization,
     InstanceImageVisualization,
@@ -47,7 +48,7 @@ class GraphVizTestCase(unittest.TestCase):
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
-        image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 3. fake explainer importance scores
         importance_scores = np.random.normal(0.7, 0.1, 100)
@@ -69,12 +70,12 @@ class GraphVizTestCase(unittest.TestCase):
         )
 
         # 5. save output image
-        save_image(
+        out.save(
             os.path.join(
                 self.out_path,
                 self.image_name.replace(".png", "") + "_cg_explanation.png",
             ),
-            out,
+            quality=95
         )
 
     def test_overlay_graph_viz(self):
@@ -85,7 +86,7 @@ class GraphVizTestCase(unittest.TestCase):
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
-        image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 3. run the visualization
         visualizer = OverlayGraphVisualization(
@@ -96,18 +97,18 @@ class GraphVizTestCase(unittest.TestCase):
         out = visualizer.process(image, cell_graph)
 
         # 4. save output image
-        save_image(
+        out.save(
             os.path.join(
                 self.out_path, self.image_name.replace(".png", "") + "_cg_overlay.png"
             ),
-            out,
+            quality=95
         )
 
     def test_superpixel_viz(self):
         """Test Nuclei visualization."""
 
         # 1. load the corresponding image
-        image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. extract nuclei
         extractor = SLICSuperpixelExtractor(nr_superpixels=50)
@@ -118,19 +119,19 @@ class GraphVizTestCase(unittest.TestCase):
         out = visualizer.process(image, instance_map=instance_map)
 
         # 5. save output image
-        save_image(
+        out.save(
             os.path.join(
                 self.out_path,
                 self.image_name.replace(".png", "") + "_superpixel_overlay.png",
             ),
-            out,
+            quality=95
         )
 
     def test_hact_viz(self):
         """Test hierarchical visualization."""
 
         # 1. load the corresponding image
-        image = np.array(load_image(os.path.join(self.image_path, self.image_name)))
+        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
 
         # 2. load tissue graph
         tissue_graph, _ = load_graphs(os.path.join(self.tissue_graph_path, self.graph_name))
@@ -149,12 +150,12 @@ class GraphVizTestCase(unittest.TestCase):
         )
 
         # 5. save output image
-        save_image(
+        out.save(
             os.path.join(
                 self.out_path,
                 self.image_name.replace(".png", "") + "_hierarchical_overlay.png",
             ),
-            out,
+            quality=95
         )
 
     def tearDown(self):

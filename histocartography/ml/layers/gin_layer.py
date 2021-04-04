@@ -140,25 +140,25 @@ class GINLayer(nn.Module):
         self.mlp.set_lrp(with_lrp)
 
     def _compute_adj_lrp(self, relevance_score):
+        # @TODO: differentiate mean and sum aggregators
         adjacency_matrix = self.adjacency_matrix + \
             torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
-        # @TODO: rename variables in this class.
-        V = torch.clamp(adjacency_matrix, min=0)
-        Z = torch.mm(self.input_features, V.t()) + 1e-9
-        S = relevance_score / Z.t()
-        C = torch.mm(V, S)
-        relevance_score = self.input_features.t() * C
+        pos_weights = torch.clamp(adjacency_matrix, min=0)
+        rel_unnorm = torch.mm(self.input_features, pos_weights.t()) + 1e-9
+        rel_unnorm = relevance_score / rel_unnorm.t()
+        contrib = torch.mm(pos_weights, rel_unnorm)
+        relevance_score = self.input_features.t() * contrib
         return relevance_score
 
     def lrp(self, out_relevance_score):
         """
-        Implement lrp for GIN layer:
+        Implement lrp for GIN layer
         """
 
-        # 1/ lrp over the node update function
+        # 1. lrp over the node update function
         relevance_score = self.mlp.lrp(out_relevance_score)
 
-        # 2/ lrp over the adjacency
+        # 2. lrp over the adjacency
         relevance_score = self._compute_adj_lrp(relevance_score)
 
         return relevance_score

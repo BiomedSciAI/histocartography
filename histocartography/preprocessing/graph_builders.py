@@ -29,7 +29,6 @@ def two_hop_neighborhood(graph: dgl.DGLGraph) -> dgl.DGLGraph:
 
     Args:
         graph (dgl.DGLGraph): Input graph
-
     Returns:
         dgl.DGLGraph: Output graph
     """
@@ -51,40 +50,38 @@ class BaseGraphBuilder(PipelineStep):
     """
 
     def __init__(
-        self, nr_classes: int = 6, background_class: int = 4, add_loc_feats: bool = False, **kwargs: Any
+            self,
+            nr_annotation_classes: int = 5,
+            annotation_background_class: int = 4,
+            add_loc_feats: bool = False,
+            **kwargs: Any
     ) -> None:
         """
         Base Graph Builder constructor.
-
         Args:
-            nr_classes (int): Number of node labels. Used only if setting node labels.
-            background_class (int): Number of node labels. Used only if setting node labels.
-            add_loc_feats (bool): If we should add location-based features (ie the centroids) to the node features.
+            nr_annotation_classes (int): Number of classes in annotation. Used only if setting node labels.
+            annotation_background_class (int): Background class label in annotation. Used only if setting node labels.
+            add_loc_feats (bool): Flag to include location-based features (ie normalized centroids)
+                                  in node feature representation.
                                   Defaults to False.
         """
+        self.nr_annotation_classes = nr_annotation_classes
+        self.annotation_background_class = annotation_background_class
         self.add_loc_feats = add_loc_feats
         super().__init__(**kwargs)
-        self.nr_classes = nr_classes
-        self.background_class = background_class
 
     def _process(  # type: ignore[override]
         self,
-        structure: np.ndarray,
+        instance_map: np.ndarray,
         features: torch.Tensor,
-        image_size: Tuple[int, int] = None,
         annotation: Optional[np.ndarray] = None,
     ) -> dgl.DGLGraph:
-        """Generates a graph with a given structure and features
-
+        """Generates a graph from a given instance_map and features
         Args:
-            structure (np.array): Structure, depending on the graph can be superpixel
-                                  connectivity, or centroids
+            instance_map (np.array): Instance map depicting tissue components
             features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)
-            image_size (Tuple[int, int]): Image size corresponding to the graph.
-                                          Defaults to None.
             annotation (Union[None, np.array], optional): Optional node level to include.
                                                           Defaults to None.
-
         Returns:
             dgl.DGLGraph: The constructed graph
         """
@@ -94,40 +91,37 @@ class BaseGraphBuilder(PipelineStep):
         graph.add_nodes(num_nodes)
 
         # add image size as graph data
-        if image_size is not None:
-            graph.gdata = {"image_size": image_size}
+        image_size = (instance_map.shape[1], instance_map.shape[0])  # (x, y)
 
-        # add node features
-        self._set_node_centroids(structure, graph)
-        self._set_node_features(features, graph)
+        # get instance centroids
+        centroids = self._get_node_centroids(instance_map)
+
+        # add node content
+        self._set_node_centroids(centroids, graph)
+        self._set_node_features(features, image_size, graph)
         if annotation is not None:
-            self._set_node_labels(structure, annotation, graph)
+            self._set_node_labels(instance_map, annotation, graph)
 
         # build edges
-        self._build_topology(
-            structure,
-            graph,
-        )
+        self._build_topology(instance_map, centroids, graph)
         return graph
 
     def _process_and_save(  # type: ignore[override]
         self,
-        structure: np.ndarray,
+        instance_map: np.ndarray,
         features: torch.Tensor,
         annotation: Optional[np.ndarray] = None,
         *,
         output_name: str,
     ) -> dgl.DGLGraph:
         """Process and save in provided directory
-
         Args:
             output_name (str): Name of output file
-            structure (np.ndarray): Structure, dependeing on the graph can be superpixel
-                                    connectivity or centroids
+            instance_map (np.ndarray): Instance map depicting tissue components
+                                       (eg nuclei, tissue superpixels)
             features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)
             annotation (Optional[np.ndarray], optional): Optional node level to include.
                                                          Defaults to None.
-
         Returns:
             dgl.DGLGraph: [description]
         """
@@ -144,34 +138,84 @@ class BaseGraphBuilder(PipelineStep):
             graph = graphs[0]
         else:
             graph = self._process(
-                structure=structure, features=features, annotation=annotation
+                instance_map=instance_map, features=features, annotation=annotation
             )
             save_graphs(str(output_path), [graph])
         return graph
 
-    def _set_node_features(self, features: torch.Tensor, graph: dgl.DGLGraph) -> None:
+    def _get_node_centroids(
+            self, instance_map: np.ndarray
+    ) -> np.ndarray:
+        """Get the centroids of the graphs
+        Args:
+            instance_map (np.ndarray): Instance map depicting tissue components
+        Returns:
+            centroids (np.ndarray): Node centroids
+        """
+        regions = regionprops(instance_map)
+        centroids = np.empty((len(regions), 2))
+        for i, region in enumerate(regions):
+            center_y, center_x = region.centroid  # (y, x)
+            center_x = int(round(center_x))
+            center_y = int(round(center_y))
+            centroids[i, 0] = center_x
+            centroids[i, 1] = center_y
+        return centroids
+
+    def _set_node_centroids(
+            self,
+            centroids: np.ndarray,
+            graph: dgl.DGLGraph
+    ) -> None:
+        """Set the centroids of the graphs
+        Args:
+            centroids (np.ndarray): Node centroids
+            graph (dgl.DGLGraph): Graph to add the centroids to
+        """
+        graph.ndata[CENTROID] = torch.FloatTensor(centroids)
+
+    def _set_node_features(
+            self,
+            features: torch.Tensor,
+            image_size: Tuple[int, int],
+            graph: dgl.DGLGraph
+    ) -> None:
         """Set the provided node features
 
         Args:
             features (torch.Tensor): Node features
+            image_size (Tuple[int,int]): Image dimension (x, y)
             graph (dgl.DGLGraph): Graph to add the features to
         """
+        if not torch.is_tensor(features):
+            features = torch.FloatTensor(features)
         if not self.add_loc_feats:
             graph.ndata[FEATURES] = features
         elif (
-            self.add_loc_feats
-            and hasattr(graph, "gdata")
-            and "image_size" in graph.gdata.keys()
+                self.add_loc_feats
+                and image_size is not None
         ):
+            # compute normalized centroid features
             centroids = graph.ndata[CENTROID]
-            image_size = graph.gdata["image_size"]
+
+            normalized_centroids = torch.empty_like(centroids)  # (x, y)
+            normalized_centroids[:, 0] = centroids[:, 0] / image_size[0]
+            normalized_centroids[:, 1] = centroids[:, 1] / image_size[1]
+
+            if features.ndim == 3:
+                normalized_centroids = normalized_centroids \
+                    .unsqueeze(dim=1) \
+                    .repeat(1, features.shape[1], 1)
+                concat_dim = 2
+            elif features.ndim == 2:
+                concat_dim = 1
+
             concat_features = torch.cat(
                 (
                     features,
-                    (centroids[:, 0].squeeze() / image_size[0]).unsqueeze(1),
-                    (centroids[:, 1].squeeze() / image_size[1]).unsqueeze(1),
+                    normalized_centroids
                 ),
-                dim=1,
+                dim=concat_dim,
             )
             graph.ndata[FEATURES] = concat_features
         else:
@@ -179,34 +223,31 @@ class BaseGraphBuilder(PipelineStep):
                 "Please provide image size to add the normalized centroid to the node features."
             )
 
-    @staticmethod
-    @abstractmethod
-    def _set_node_centroids(structure: np.ndarray, graph: dgl.DGLGraph) -> None:
-        """Set the centroids of the graphs
-
-        Args:
-            structure (np.ndarray): Structure of the graph
-            graph (dgl.DGLGraph): Graph to add the centroids to
-        """
-
     @abstractmethod
     def _set_node_labels(
-        self, structure: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
+            self,
+            instance_map: np.ndarray,
+            annotation: np.ndarray,
+            graph: dgl.DGLGraph
     ) -> None:
         """Set the node labels of the graphs
-
         Args:
-            structure (np.ndarray): Structure of the graph, eg instance maps, centroids
+            instance_map (np.ndarray): Instance map depicting tissue components
             annotation (np.ndarray): Annotations, eg node labels
             graph (dgl.DGLGraph): Graph to add the centroids to
         """
 
     @abstractmethod
-    def _build_topology(self, instances: np.ndarray, graph: dgl.DGLGraph) -> None:
-        """Generate the graph topology from the provided structure
-
+    def _build_topology(
+            self,
+            instance_map: np.ndarray,
+            centroids: np.ndarray,
+            graph: dgl.DGLGraph
+    ) -> None:
+        """Generate the graph topology from the provided instance_map
         Args:
-            instances (np.array): Graph structure
+            instance_map (np.array): Instance map depicting tissue components
+            centroids (np.array): Node centroids
             graph (dgl.DGLGraph): Graph to add the edges
         """
 
@@ -216,7 +257,6 @@ class BaseGraphBuilder(PipelineStep):
         precompute_path: Union[None, str, Path] = None,
     ) -> None:
         """Precompute all necessary information
-
         Args:
             link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.
             precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.
@@ -230,9 +270,8 @@ class RAGGraphBuilder(BaseGraphBuilder):
     Super-pixel Graphs class for graph building.
     """
 
-    def __init__(self, kernel_size: int = 5, hops: int = 1, **kwargs) -> None:
+    def __init__(self, kernel_size: int = 3, hops: int = 1, **kwargs) -> None:
         """Create a graph builder that uses a provided kernel size to detect connectivity
-
         Args:
             kernel_size (int, optional): Size of the kernel to detect connectivity. Defaults to 5.
         """
@@ -244,55 +283,45 @@ class RAGGraphBuilder(BaseGraphBuilder):
         self.hops = hops
         super().__init__(**kwargs)
 
-    @staticmethod
-    def _set_node_centroids(instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
-        regions = regionprops(instance_map)
-        centroids = np.empty((len(regions), 2))
-        for i, region in enumerate(regions):
-            center_y, center_x = region.centroid  # row, col
-            center_x = int(round(center_x))
-            center_y = int(round(center_y))
-            centroids[i, 0] = center_x
-            centroids[i, 1] = center_y
-        graph.ndata[CENTROID] = torch.FloatTensor(centroids)
-
     def _set_node_labels(
-        self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
+            self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
     ) -> None:
+        """Set the node labels of the graphs using annotation map"""
         assert (
-            self.nr_classes < 256
-        ), "Cannot handle that many classes with 8 byte representation"
-        region_labels = pd.unique(np.ravel(instance_map))
-        labels = torch.empty(len(region_labels), dtype=torch.uint8)
-        for region_label in region_labels:
+                self.nr_annotation_classes < 256
+        ), "Cannot handle that many classes with 8-bits"
+        regions = regionprops(instance_map)
+        labels = torch.empty(len(regions), dtype=torch.uint8)
+
+        for region_label in np.arange(1, len(regions) + 1):
             histogram = fast_histogram(
-                annotation[instance_map == region_label], nr_values=self.nr_classes
+                annotation[instance_map == region_label],
+                nr_values=self.nr_annotation_classes
             )
             mask = np.ones(len(histogram), np.bool)
-            mask[self.background_class] = 0
+            mask[self.annotation_background_class] = 0
             if histogram[mask].sum() == 0:
-                assignment = self.background_class
+                assignment = self.annotation_background_class
             else:
-                histogram[self.background_class] = 0
+                histogram[self.annotation_background_class] = 0
                 assignment = np.argmax(histogram)
             labels[region_label - 1] = int(assignment)
         graph.ndata[LABEL] = labels
 
-    def _build_topology(self, instance_map: np.ndarray, graph: dgl.DGLGraph) -> None:
-        """Create the graph topology from the connectivty of the provided instance_map
-
-        Args:
-            instance_map (np.array): Instance map
-            graph (dgl.DGLGraph): Graph to add the edges to
-        """
-        instance_ids = np.sort(pd.unique(np.ravel(instance_map))).astype(int)
-        # background = 0
-        if 0 in instance_ids:
-            instance_ids = np.delete(instance_ids, np.where(instance_ids == 0))
+    def _build_topology(
+            self,
+            instance_map: np.ndarray,
+            centroids: np.ndarray,
+            graph: dgl.DGLGraph
+    ) -> None:
+        """Create the graph topology from the instance connectivty in the instance_map"""
+        regions = regionprops(instance_map)
+        instance_ids = torch.empty(len(regions), dtype=torch.uint8)
 
         kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
         adjacency = np.zeros(shape=(len(instance_ids), len(instance_ids)))
-        for instance_id in instance_ids:
+
+        for instance_id in np.arange(1, len(instance_ids) + 1):
             mask = (instance_map == instance_id).astype(np.uint8)
             dilation = cv2.dilate(mask, kernel, iterations=1)
             boundary = dilation - mask
@@ -325,23 +354,22 @@ class KNNGraphBuilder(BaseGraphBuilder):
         self.thresh = thresh
         super().__init__(**kwargs)
 
-    @staticmethod
-    def _set_node_centroids(centroids: np.ndarray, graph: dgl.DGLGraph) -> None:
-        graph.ndata[CENTROID] = torch.FloatTensor(centroids)
-
     def _set_node_labels(
         self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
     ) -> None:
+        """Set the node labels of the graphs using annotation"""
+        regions = regionprops(instance_map)
+        assert annotation.shape[0] == len(regions), \
+            "Number of annotations do not match number of nodes"
         graph.ndata[LABEL] = torch.FloatTensor(annotation.astype(float))
 
-    def _build_topology(self, centroids: np.ndarray, graph: dgl.DGLGraph) -> None:
-        """
-        Build topology using (thresholded) kNN
-
-        Args:
-            centroids (np.array): Centroid locations
-            graph (dgl.DGLGraph): Graph to add the edges to
-        """
+    def _build_topology(
+            self,
+            instance_map: np.ndarray,
+            centroids: np.ndarray,
+            graph: dgl.DGLGraph
+    ) -> None:
+        """Build topology using (thresholded) kNN"""
 
         # build kNN adjacency
         adj = kneighbors_graph(

@@ -1,5 +1,6 @@
 inputs:
 - image_path
+- annotation_path
 outputs:
 - graph
 stages:
@@ -9,6 +10,14 @@ stages:
       - image_path
       outputs:
       - image
+  - preprocessing:
+      class: "GaussianTissueMask"
+      inputs:
+      - image
+      outputs:
+      - tissue_mask
+      params:
+        downsampling_factor: 2
   - preprocessing:
       class: "ColorMergedSuperpixelExtractor"
       inputs:
@@ -43,13 +52,30 @@ stages:
         stride: 224
         downsample_factor: 2
   - preprocessing:
+        class: "ImageLoader"
+        inputs:
+        - annotation_path
+        outputs:
+        - annotation
+  - preprocessing:
+        class: "AnnotationPostProcessor"
+        inputs:
+        - annotation
+        - tissue_mask
+        outputs:
+        - processed_annotation
+        params:
+          background_index: 4
+  - preprocessing:
       class: "RAGGraphBuilder"
       inputs:
       - merged_superpixels_map
       - features
+      - processed_annotation
       outputs:
       - graph
       params:
         nr_annotation_classes: 5
         annotation_background_class: 4
+        add_loc_feats: True
         hops: 1

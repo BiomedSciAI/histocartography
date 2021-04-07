@@ -72,7 +72,8 @@ class CGModelTestCase(unittest.TestCase):
             gnn_params=config['gnn_params'],
             classification_params=config['classification_params'],
             node_dim=node_dim,
-            num_classes=3
+            num_classes=3,
+            pretrained=True
         )
 
         # 3. forward pass
@@ -100,7 +101,8 @@ class CGModelTestCase(unittest.TestCase):
             gnn_params=config['gnn_params'],
             classification_params=config['classification_params'],
             node_dim=node_dim,
-            num_classes=5
+            num_classes=5,
+            pretrained=True
         )
 
         # 3. forward pass
@@ -128,7 +130,8 @@ class CGModelTestCase(unittest.TestCase):
             gnn_params=config['gnn_params'],
             classification_params=config['classification_params'],
             node_dim=node_dim,
-            num_classes=5
+            num_classes=5,
+            pretrained=True
         )
 
         # 3. forward pass
@@ -156,7 +159,8 @@ class CGModelTestCase(unittest.TestCase):
             gnn_params=config['gnn_params'],
             classification_params=config['classification_params'],
             node_dim=node_dim,
-            num_classes=7
+            num_classes=7,
+            pretrained=True
         )
 
         # 3. forward pass

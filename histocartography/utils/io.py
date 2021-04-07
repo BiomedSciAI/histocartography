@@ -115,3 +115,15 @@ def download_test_data(out_dir):
 
     fname = os.path.join(out_dir, 'images', '16B0001851_Block_Region_3.jpg')
     download_box_link('https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg', fname)
+
+
+def download_example_data(out_dir):
+
+    fname = os.path.join(out_dir, 'images', '283_dcis_4.png')
+    download_box_link('https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png', fname)
+
+    fname = os.path.join(out_dir, 'images', '1238_adh_10.png')
+    download_box_link('https://ibm.box.com/shared/static/q2h5b19ay3hklf74acft1fn60i2746y2.png', fname)
+
+    fname = os.path.join(out_dir, 'images', '1937_benign_4.png')
+    download_box_link('https://ibm.box.com/shared/static/lskhxrttnbpg3eoxon2j6mxrjceqr4cd.png', fname)

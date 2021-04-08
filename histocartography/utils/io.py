@@ -117,7 +117,7 @@ def download_test_data(out_dir):
     download_box_link('https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg', fname)
 
 
-def download_example_data(out_dir):
+def download_example_data(out_dir=''):
 
     fname = os.path.join(out_dir, 'images', '283_dcis_4.png')
     download_box_link('https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png', fname)

@@ -1,5 +1,5 @@
 import dgl
-from typing import Dict
+from typing import Dict, Union, Tuple
 import torch
 import os 
 
@@ -18,16 +18,16 @@ class TissueGraphModel(BaseModel):
 
     def __init__(
         self,
-        gnn_params,
-        classification_params,
-        node_dim,
+        gnn_params: Dict,
+        classification_params: Dict,
+        node_dim: int,
         **kwargs):
         """
-        TissueGraphModel model constructor
+        TissueGraphModel model constructor.
 
         Args:
-            gnn_params: (dict) GNN configuration parameters.
-            classification_params: (dict) classification configuration parameters.
+            gnn_params (Dict): GNN configuration parameters.
+            classification_params (Dict): classification configuration parameters.
             node_dim (int): Tissue node feature dimension. 
         """
 
@@ -107,26 +107,26 @@ class TissueGraphModel(BaseModel):
                               num_layers=self.classification_params['num_layers']
                               )
 
-    def forward(self, data):
+    def forward(
+        self,
+        graph: Union[dgl.DGLGraph, dgl.batch, Tuple[torch.tensor, torch.tensor]]
+        ) -> torch.tensor:
         """
         Foward pass.
-        :param superpx_graph: (DGLGraph) superpx graph
-        @TODO: input can be:
-            - DGLGraph
-            - [DGLGraph]
-            - [tensor (adj), tensor (node features)]
+
+        Args:
+            graph (Union[dgl.DGLGraph, dgl.batch, Tuple[torch.tensor, torch.tensor]]): Tissue graph to process. 
+
+        Returns:
+            torch.tensor: Model output. 
         """
 
-        if isinstance(data, dgl.DGLGraph) or isinstance(data[0], dgl.DGLGraph):
+        if isinstance(graph, dgl.DGLGraph) or isinstance(graph, dgl.batch):
             # 1. GNN layers over the low level graph
-            if isinstance(data, list):
-                superpx_graph = data[0]
-            else:
-                superpx_graph = data
-            feats = superpx_graph.ndata[GNN_NODE_FEAT_IN]
-            graph_embeddings = self.superpx_gnn(superpx_graph, feats)
+            feats = graph.ndata[GNN_NODE_FEAT_IN]
+            graph_embeddings = self.superpx_gnn(graph, feats)
         else:
-            adj, feats = data[0], data[1]
+            adj, feats = graph[0], graph[1]
             graph_embeddings = self.superpx_gnn(adj, feats)
 
         # 2. Run readout function

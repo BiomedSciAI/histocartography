@@ -52,7 +52,7 @@ class BaseGraphBuilder(PipelineStep):
     def __init__(
             self,
             nr_annotation_classes: int = 5,
-            annotation_background_class: int = 4,
+            annotation_background_class: Optional[int] = None,
             add_loc_feats: bool = False,
             **kwargs: Any
     ) -> None:
@@ -110,9 +110,8 @@ class BaseGraphBuilder(PipelineStep):
         self,
         instance_map: np.ndarray,
         features: torch.Tensor,
-        annotation: Optional[np.ndarray] = None,
-        *,
         output_name: str,
+        annotation: Optional[np.ndarray] = None,
     ) -> dgl.DGLGraph:
         """Process and save in provided directory
         Args:

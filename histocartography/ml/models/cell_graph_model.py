@@ -112,22 +112,20 @@ class CellGraphModel(BaseModel):
     def forward(
             self,
             graph: Union[dgl.DGLGraph,
-                        dgl.batch,
                         Tuple[torch.tensor, torch.tensor]]
         ) -> torch.tensor:
         """
         Foward pass.
 
         Args:
-            graph (Union[dgl.DGLGraph, dgl.batch, Tuple[torch.tensor, torch.tensor]]): Cell graph to process. 
+            graph (Union[dgl.DGLGraph, Tuple[torch.tensor, torch.tensor]]): Cell graph to process. 
 
         Returns:
             torch.tensor: Model output. 
         """
 
-        if isinstance(graph, dgl.DGLGraph) or isinstance(graph, dgl.batch):
-            # 1. GNN layers over the low level graph
-
+        # 1. GNN layers over the cell graph
+        if isinstance(graph, dgl.DGLGraph):
             feats = graph.ndata[GNN_NODE_FEAT_IN]
             graph_embeddings = self.cell_graph_gnn(graph, feats)
         else:

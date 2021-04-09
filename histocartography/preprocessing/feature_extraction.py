@@ -545,8 +545,8 @@ class InstanceMapPatchDataset(Dataset):
 
             # Extract center
             center_y, center_x = region.centroid
-            center_x = int(center_x)
-            center_y = int(center_y)
+            center_x = int(round(center_x))
+            center_y = int(round(center_y))
 
             # Bounding box
             min_y, min_x, max_y, max_x = region.bbox

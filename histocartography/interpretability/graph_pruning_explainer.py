@@ -155,7 +155,7 @@ class GraphPruningExplainer(BaseExplainer):
         adj = torch.tensor(sub_adj, dtype=torch.float).to(self.device)
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
 
-        init_logits = self.model([graph])
+        init_logits = self.model(graph)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
         init_pred_label = torch.argmax(init_logits, dim=1).squeeze()

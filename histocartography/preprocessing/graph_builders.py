@@ -110,8 +110,8 @@ class BaseGraphBuilder(PipelineStep):
         self,
         instance_map: np.ndarray,
         features: torch.Tensor,
-        output_name: str,
         annotation: Optional[np.ndarray] = None,
+        output_name: str = None,
     ) -> dgl.DGLGraph:
         """Process and save in provided directory
         Args:

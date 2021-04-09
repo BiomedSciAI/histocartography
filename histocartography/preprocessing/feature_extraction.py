@@ -865,14 +865,17 @@ class AugmentedDeepFeatureExtractor(DeepFeatureExtractor):
             transform (Callable): Transform to apply. Defaults to None. 
 
         Returns:
-            torch.Tensor: Extracted features of shape [nr_augmentations, nr_instances, nr_features].
+            torch.Tensor: Extracted features of shape [nr_instances, nr_augmentations, nr_features].
         """
 
         all_features = list()
         for transform in self.transforms:
             features = super()._extract_features(input_image, instance_map, transform=transform)
             all_features.append(features)
-        return torch.stack(all_features)
+
+        all_features = torch.stack(all_features)
+        all_features = all_features.permute(1, 0, 2)
+        return all_features
 
 
 class GridPatchDataset(Dataset):
@@ -1117,13 +1120,15 @@ class GridAugmentedDeepFeatureExtractor(GridDeepFeatureExtractor):
             input_image (np.ndarray): RGB input image.
 
         Returns:
-            torch.Tensor: Extracted features of shape [nr_augmentations, nr_rows, nr_cols, nr_features].
+            torch.Tensor: Extracted features of shape [nr_rows, nr_cols, nr_augmentations, nr_features].
         """
         all_features = list()
         for transform in self.transforms:
             features = super()._extract_features(input_image, transform=transform)
             all_features.append(features)
-        return torch.stack(all_features)
+        all_features = torch.stack(all_features)
+        all_features = all_features.permute(1, 2, 0, 3)
+        return all_features
 
 
 def _build_augmentations(

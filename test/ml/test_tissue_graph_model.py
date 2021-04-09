@@ -56,6 +56,34 @@ class TGModelTestCase(unittest.TestCase):
         self.assertEqual(logits.shape[0], 1)
         self.assertEqual(logits.shape[1], 3) 
 
+    def test_tissue_graph_model_with_batch(self):
+        """Test tissue graph model with batch."""
+
+        # 1. Load a cell graph 
+        graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
+        graph = graph[0]
+        graph = set_graph_on_cuda(graph) if IS_CUDA else graph
+        node_dim = graph.ndata['feat'].shape[1]
+
+        # 2. load config 
+        config_fname = os.path.join(self.current_path, 'config', 'tg_model.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        model = TissueGraphModel(
+            gnn_params=config['gnn_params'],
+            classification_params=config['classification_params'],
+            node_dim=node_dim,
+            num_classes=3
+        )
+
+        # 4. forward pass
+        logits = model(dgl.batch([graph, graph]))
+
+        self.assertIsInstance(logits, torch.Tensor)
+        self.assertEqual(logits.shape[0], 2)
+        self.assertEqual(logits.shape[1], 3) 
+
     def test_pretrained_bracs_tggnn_3_classes_gin(self):
         """Test bracs_tggnn_3_classes_gin model."""
 

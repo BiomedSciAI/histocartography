@@ -106,9 +106,9 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
-        self.assertEqual(features.shape[0], 23)    # check number of superpixels
-        self.assertEqual(features.shape[1], 4)     # check number of augmentations
-        self.assertEqual(features.shape[2], 1280)  # check number features
+        self.assertEqual(features.shape[0], 4)    # check number of superpixels
+        self.assertEqual(features.shape[1], 23)   # check number of augmentations
+        self.assertEqual(features.shape[2], 1280) # check number features
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -158,8 +158,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
-        self.assertEqual(features.shape[0], 331)   # check number of nuclei
-        self.assertEqual(features.shape[1], 4)     # check number of augmentations
+        self.assertEqual(features.shape[0], 4)   # check number of nuclei
+        self.assertEqual(features.shape[1], 331)     # check number of augmentations
         self.assertEqual(features.shape[2], 1280)  # check number features
 
     def test_grid_deep_tissue_feature_extractor_noaug(self):

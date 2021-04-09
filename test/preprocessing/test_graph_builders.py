@@ -70,6 +70,7 @@ class GraphBuilderTestCase(unittest.TestCase):
         # 3. extract deep features
         feature_extractor = DeepFeatureExtractor(
             architecture='mobilenet_v2',
+            patch_size=224,
             downsample_factor=2
         )
         features = feature_extractor.process(input_image=image,
@@ -117,6 +118,7 @@ class GraphBuilderTestCase(unittest.TestCase):
 
         # 3. extract deep features
         feature_extractor = AugmentedDeepFeatureExtractor(
+            patch_size=224,
             architecture='mobilenet_v2',
             downsample_factor=1
         )

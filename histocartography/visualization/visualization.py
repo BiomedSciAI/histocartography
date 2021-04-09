@@ -269,6 +269,7 @@ class OverlayGraphVisualization(BaseGraphVisualization):
         self.edge_style = edge_style
         self.edge_color = edge_color
         self.edge_thickness = edge_thickness
+        self.colormap = colormap
 
         if self.instance_visualizer is None:
             self.instance_visualizer = InstanceImageVisualization()

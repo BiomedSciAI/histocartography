@@ -21,7 +21,6 @@ from ..utils.draw_utils import (
     name2rgb,
 )
 
-N_BUCKETS = 10
 COLOR = "color"
 RADIUS = "radius"
 THICKNESS = "thickness"
@@ -46,11 +45,12 @@ class BaseImageVisualization(PipelineStep):
         Base visualization class constructor
 
         Args:
-            instance_style: defines how to represent the instances (when available)('fill', 'outline', 'fill+outline')
-            color: matplotlib named color to (fill) or (outline) the instances
-            thickness: thickness of the instance outline
-            colormap: colormap to use to map labels to colors.
-            alpha: blending of the background image to the instances
+            instance_style (str): Defines how to represent the instances (when available).
+                                  Options are 'fill', 'outline', 'fill+outline'. Defaults to 'outline'.
+            color (str): Matplotlib named color to (fill) or (outline) the instances. Defaults to 'black'.
+            thickness (int): Thickness of the instance outline. Defaults to 1.
+            colormap (str): Colormap to use to map labels to colors. Defaults to None. 
+            alpha (float): Blending of the background image to the instances. Defaults to 0.5. 
         """
         super().__init__(**kwargs)
         self.instance_style = instance_style
@@ -70,9 +70,14 @@ class BaseImageVisualization(PipelineStep):
         Process the image visualization
 
         Args:
-            canvas: background on top of which the visualization is drawn
-            instance_map: segmentation mask of instances, brinary or with individual labels for each
-            instance_attributes: dictionary of attributes to be applied to instances
+            canvas (np.ndarray): Background on top of which the visualization is drawn.
+            instance_map (np.ndarray): Segmentation mask of instances, binary or with individual labels
+                                       for each instance. Defaults to None. 
+            instance_attributes (dict): Dictionary of attributes to be applied to instances.
+                                        Defaults to None. 
+        
+        Returns:
+            viz_canvas (Image): Canvas with visualization. 
         """
 
         viz_canvas = self.draw_instances(canvas, instance_map, instance_attributes)
@@ -86,9 +91,9 @@ class BaseImageVisualization(PipelineStep):
         Abstract method that performs drawing of instances on top of the canvas
 
         Args:
-            canvas: background on top of which the visualization is drawn
-            instance_map: segmentation mask of instances, brinary or with individual labels for each
-            instance_attributes: dictionary of attributes to be applied to instances
+            canvas (np.ndarray): Background on top of which the visualization is drawn. 
+            instance_map (np.ndarray): Segmentation mask of instances, brinary or with individual labels for each entity. 
+            instance_attributes (dict): Dictionary of attributes to be applied to instances.
         """
 
 
@@ -102,14 +107,17 @@ class InstanceImageVisualization(BaseImageVisualization):
         canvas: np.ndarray,
         instance_map: np.ndarray = None,
         instance_attributes: dict = None,
-    ):
+    ) -> Image:
         """
         Drawing of instances on top of the canvas
 
         Args:
-            canvas: background on top of which the visualization is drawn
-            instance_map: segmentation mask of instances, brinary or with individual labels for each
-            instance_attributes: dictionary of attributes to be applied to instances
+            canvas (np.ndarray): Background on top of which the visualization is drawn. 
+            instance_map (np.ndarray): Segmentation mask of instances, brinary or with individual labels for each entity. Defaults to None. 
+            instance_attributes (dict): Dictionary of attributes to be applied to instances. Defaults to None. 
+        
+        Returns:
+            viz_canvas (Image): Canvas with visualization. 
         """
         if instance_attributes is None:
             instance_attributes = {}
@@ -158,7 +166,7 @@ class BaseGraphVisualization(PipelineStep):
         Constructor
 
         Args:
-            instance_visualizer: object to use for the instance visualization
+            instance_visualizer (BaseImageVisualization): Instance visualization object. Defaults to None. 
 
         """
         super().__init__(**kwargs)
@@ -173,6 +181,20 @@ class BaseGraphVisualization(PipelineStep):
         edge_attributes: dict = None,
         instance_attributes: dict = None,
     ) -> Image:
+        """Visualize a graph on an image. 
+
+        Args:
+            canvas (np.ndarray): Background on top of which the visualization is drawn. 
+            graph (dgl.DGLGraph): Graph to represent on the canvas. 
+            instance_map (np.ndarray, optional): Segmentation mask of instances, brinary or with
+                                                 individual labels for each entity. Defaults to None.
+            node_attributes (dict, optional): Style attribute for the nodes. Defaults to None.
+            edge_attributes (dict, optional): Style attribute for the edges. Defaults to None.
+            instance_attributes (dict, optional): Dictionary of attributes to be applied to instances.. Defaults to None.
+
+        Returns:
+            Image: Visualization output. 
+        """
 
         viz_canvas = self.draw_instances(canvas, instance_map, instance_attributes)
         draw = ImageDraw.Draw(viz_canvas, "RGBA")
@@ -187,13 +209,13 @@ class BaseGraphVisualization(PipelineStep):
     @abstractmethod
     def draw_nodes(self, draw: ImageDraw, graph: dgl.DGLGraph, node_attributes: dict):
         """
-        draw nodes on the canvas
+        Draw nodes on the canvas
         """
 
     @abstractmethod
     def draw_edges(self, draw: ImageDraw, graph: dgl.DGLGraph, edge_attributes: dict):
         """
-        draw nodes on the canvas
+        Draw edges on the canvas
         """
 
     @abstractmethod
@@ -201,7 +223,7 @@ class BaseGraphVisualization(PipelineStep):
         self, canvas: np.ndarray, instance_map: np.ndarray, instance_attributes: dict
     ):
         """
-        draw edges on the canvas
+        Draw instances on the canvas
         """
 
     @abstractmethod
@@ -229,17 +251,17 @@ class OverlayGraphVisualization(BaseGraphVisualization):
         PIL on top of an image canvas using the provided instance_visualizer.
         Nodes outside of the canvas support willbe ignored.
 
-        Args :
-            node_style: str = "outline" or "fill",
-            node_color: str = "yellow",
-            node_radius: int = 5,
-            edge_style: str = "line",
-            edge_color: str = "blue",
-            edge_thickness: int = 2,
-            colormap="viridis",
-            show_colormap=False,
-
+        Args:
+            node_style (str, optional): Style to represent the nodes. Options are "filled",
+                                        "outline" or "filled+outline".  Defaults to "outline".
+            node_color (str, optional): Node color. Defaults to "yellow".
+            node_radius (int, optional): Node radius. Defaults to 5.
+            edge_style (str, optional): Edge style. Defaults to "line".
+            edge_color (str, optional): Edge color. Defaults to "blue".
+            edge_thickness (int, optional): Edge thickness. Defaults to 2.
+            colormap (str, optional): Matplotlib colormap. Defaults to "viridis".
         """
+
         super().__init__(**kwargs)
         self.node_style = node_style
         self.node_color = node_color
@@ -247,7 +269,6 @@ class OverlayGraphVisualization(BaseGraphVisualization):
         self.edge_style = edge_style
         self.edge_color = edge_color
         self.edge_thickness = edge_thickness
-        self.colormap = colormap
 
         if self.instance_visualizer is None:
             self.instance_visualizer = InstanceImageVisualization()
@@ -260,13 +281,6 @@ class OverlayGraphVisualization(BaseGraphVisualization):
     ):
         """
         Draws the nodes on top of the canvas.
-        Args:
-
-            draw : ImageDraw canvas
-            graph: dgl.DGLGraph with the information to be added
-            node_attributes: dict with any the following keywords ('color', 'radius', 'colormap')
-
-            'color': sting name of the color for all nodes, an iterable of color_values to map with using a Matplotlib 'colormap'
         """
 
         # extract centroids
@@ -322,14 +336,7 @@ class OverlayGraphVisualization(BaseGraphVisualization):
         self, draw: ImageDraw, graph: dgl.DGLGraph, edge_attributes: dict = None
     ):
         """
-        Draws the nodes on top of the canvas.
-        Args:
-
-            draw : ImageDraw canvas
-            graph: dgl.DGLGraph with the information to be added
-            edge_attributes: dict with any the following keywords ('color', 'thickness', 'colormap')
-
-            'color': sting name of the color for all edges, an iterable of color_values to map with using a Matplotlib 'colormap'
+        Draws the edges on top of the canvas.
         """
         # extract centroids
         centroids = graph.ndata[CENTROID]
@@ -375,12 +382,7 @@ class OverlayGraphVisualization(BaseGraphVisualization):
         instance_attributes: dict = None,
     ):
         """
-        Draws the canvas of the image using the instance map.
-        Args:
-
-            canvas: np.ndarray,
-            instance_map: np.ndarray = None,
-            instance_attributes: dict = None,
+        Draws instances on the canvas.
         """
 
         if instance_map is not None:
@@ -413,8 +415,8 @@ class HACTVisualization(PipelineStep):
         Constructor
 
         Args:
-            cell_visualizer: object to use for the cell visualization
-            tissue_visualizer: object to use for the tissue visualization
+            cell_visualizer (BaseGraphVisualization): Object to use for the cell visualization. Defaults to None.
+            tissue_visualizer (BaseGraphVisualization): Object to use for the tissue visualization. Defaults to None. 
         """
         super().__init__(**kwargs)
         if cell_visualizer is None:
@@ -455,19 +457,22 @@ class HACTVisualization(PipelineStep):
     ) -> Image:
         """
         Draws the hierarchical graph on top of the canvas.
-        Args:
 
-            canvas: image on which to draw the hierarchical graph,
-            cell_graph: cell graph,
-            tissue_graph: tissue graph,
-            cell_instance_map: instance map for the cell graph,
-            cell_node_attributes: specific attributes of the cell nodes,
-            cell_edge_attributes: specific attributes of the cell to cell edges,
-            cell_instance_attributes: dict = specific attributes of the cell instance map,
-            tissue_instance_map: instance map for the tissue graph,
-            tissue_node_attributes: specific attributes of the tissue nodes,
-            tissue_edge_attributes: specific attributes of the tissue to tissue edges,
-            tissue_instance_attributes: dict = specific attributes of the tissue instance map,
+        Args:
+            canvas (np.ndarray): Image on which to draw the hierarchical graph.
+            cell_graph (dgl.DGLGraph): Cell graph. 
+            tissue_graph (dgl.DGLGraph): Tissue graph.
+            cell_instance_map (np.ndarray, optional): Instance map for the cell graph. Defaults to None.
+            cell_node_attributes (dict, optional): Specific attributes of the cell nodes. Defaults to None.
+            cell_edge_attributes (dict, optional): Specific attributes of the cell to cell edges. Defaults to None.
+            cell_instance_attributes (dict, optional): Specific attributes of the cell instance map. Defaults to None.
+            tissue_instance_map (np.ndarray, optional): Instance map for the tissue graph. Defaults to None.
+            tissue_node_attributes (dict, optional): Specific attributes of the tissue nodes. Defaults to None.
+            tissue_edge_attributes (dict, optional): Specific attributes of the tissue to tissue edges. Defaults to None.
+            tissue_instance_attributes (dict, optional): Specific attributes of the tissue instance map. Defaults to None.
+
+        Returns:
+            Image: Visualization output. 
         """
 
         cell_centroids = cell_graph.ndata[CENTROID]

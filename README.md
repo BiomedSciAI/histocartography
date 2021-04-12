@@ -54,9 +54,7 @@ conda activate histocartography
 
 # Using histocartography 
 
-Example 1:
-
-Example 2:
+A list of example to discover the capabiltities of the `histocartography` library is provided in `examples`. 
 
 # Papers already using this library
 

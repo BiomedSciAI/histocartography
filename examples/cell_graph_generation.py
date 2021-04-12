@@ -32,7 +32,7 @@ def generate_cell_graph(image_path):
     # 1. get image path
     image_fnames = glob(os.path.join(image_path, '*.png'))
 
-    # 2. define superpixel extractor 
+    # 2. define nuclei extractor 
     nuclei_detector = NucleiExtractor()
 
     # 3. define feature extractor 
@@ -61,7 +61,7 @@ def generate_cell_graph(image_path):
         # c. extract deep features 
         features = feature_extractor.process(image, nuclei_map)
 
-        # d. build a Region Adjacency Graph (RAG)
+        # d. build a kNN graph
         graph = knn_graph_builder.process(nuclei_map, features)
 
         # e. save the graph  

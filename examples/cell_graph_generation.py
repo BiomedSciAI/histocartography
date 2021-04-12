@@ -1,111 +1,85 @@
-"""Build tissue graphs from a list of images"""
-import numpy as np
-import cv2 
-import torch 
-import yaml
+"""
+Example: Extract a cell graph on an H&E image. 
+
+As used in:
+- "Quantifying Explainers of Graph Neural Networks in Computational Pathology", Jaume et al, CVPR, 2021.
+- "Towards Explainable Graph Representations in Digital Pathology", Jaume et al, ICML-W, 2020.
+- "Hierarchical Graph Representations in Digital Pathology", Pati et al, 2021. 
+- "HACT-Net: A Hierarchical Cell-to-Tissue Graph Neural Network for Histopathological Image Classification", Pati et al, MCCAI-W, 2020. 
+"""
+
 import os 
-from dgl.data.utils import save_graphs
-import argparse
+from glob import glob 
+from PIL import Image
+import numpy as np
 from tqdm import tqdm  
-import h5py
+from dgl.data.utils import save_graphs
 
-from histocartography.preprocessing import NucleiExtractor, DeepFeatureExtractor, KNNGraphBuilder
-from histocartography.visualization import InstanceImageVisualization
-from histocartography.utils.io import load_image
+from histocartography.utils.io import download_example_data
+from histocartography.preprocessing import (
+    NucleiExtractor,
+    DeepFeatureExtractor,
+    KNNGraphBuilder
+)
+from histocartography.visualization import OverlayGraphVisualization
 
-from sklearn.preprocessing import binarize
-from sklearn.neighbors import kneighbors_graph
 
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '-i',
-        '--image_path',
-        type=str,
-        help='path to the images.',
-        required=True
+def generate_cell_graph(image_path):
+    """
+    Generate a cell graph for all the images in image path dir. 
+    """
+
+    # 1. get image path
+    image_fnames = glob(os.path.join(image_path, '*.png'))
+
+    # 2. define superpixel extractor 
+    nuclei_detector = NucleiExtractor()
+
+    # 3. define feature extractor 
+    feature_extractor = DeepFeatureExtractor(
+        architecture='resnet34',
+        patch_size=72,
+        resize_size=224
     )
-    parser.add_argument(
-        '-f',
-        '--fnames_path',
-        type=str,
-        help='path to file with list of images to process.',
-        required=True
-    )
-    parser.add_argument(
-        '-o',
-        '--out_path',
-        type=str,
-        help='path to save the output.',
-        required=True
-    )
-    return parser.parse_args()
-
-
-
-class CellGraphBuilder:
-    """CellGraphBuilder."""
-
-    def __init__(self, out_path, verbose=True, viz=True):
-        self.out_path = out_path
-        self.verbose = verbose
-        self.viz = viz
-        os.makedirs(os.path.join(out_path, 'cell_graphs'), exist_ok=True)
-
-        self.nuclei_detector = NucleiExtractor()
-        self.feature_extractor = DeepFeatureExtractor(architecture='resnet34', patch_size=72)
-        self.cell_graph_builder = KNNGraphBuilder(thresh=50, add_loc_feats=True)
-
-        if self.viz:
-            self.visualiser = InstanceImageVisualization()
-            os.makedirs(os.path.join(out_path, 'visualization'), exist_ok=True)
-
-    def process(self, image_path, fnames_path):
-        """
-        Process the images listed in the fnames_path file. 
-        """
-
-        with open(fnames_path, 'r') as f:
-            image_fnames = [line.strip() for line in f]
-
-        for image_name in tqdm(image_fnames):
-            print('*** Testing image {}'.format(image_name))
-
-            # 1. load image
-            image = np.array(load_image(os.path.join(image_path, image_name)))
     
-            # 2. super pixel detection 
-            nuclei_map, nuclei_centroids = self.nuclei_detector.process(image)
+    # 4. define k-NN graph builder with k=5 and thresholding edges longer than 50 pixels
+    knn_graph_builder = KNNGraphBuilder(k=5, thresh=50, add_loc_feats=True)
 
-            # 3. super pixel feature extraction 
-            features = self.feature_extractor.process(image, nuclei_map)
+    # 5. define graph visualizer
+    visualizer = OverlayGraphVisualization()
 
-            # 4. build the tissue graph
-            cell_graph = self.cell_graph_builder.process(
-                structure=nuclei_centroids,
-                features=features,
-                image_size=(image.shape[1], image.shape[0])
-            )
+    # 6. process all the images 
+    for image_path in tqdm(image_fnames):
 
-            # 5. print graph properties
-            if self.verbose:
-                print('Number of nodes:', cell_graph.number_of_nodes())
-                print('Number of edges:', cell_graph.number_of_edges())
-                print('Node features:', cell_graph.ndata['feat'].shape)
-                print('Node centroids:', cell_graph.ndata['centroid'].shape)
+        # a. load image
+        _, image_name = os.path.split(image_path)
+        image = np.array(Image.open(image_path))
 
-            # 6. save DGL graph
-            cg_fname = image_name.replace('.png', '.bin')
-            save_graphs(os.path.join(self.out_path, 'cell_graphs', cg_fname), [cell_graph])
+        # b. extract nuclei 
+        nuclei_map, _ = nuclei_detector.process(image)
 
-            # 7. visualize the graph 
-            if self.viz:
-                out = self.visualiser.process(image, instance_map=nuclei_map)
-                tg_fname = image_name.replace('.png', '_cg.png')
-                out.save(os.path.join(self.out_path, 'visualization', tg_fname))
+        # c. extract deep features 
+        features = feature_extractor.process(image, nuclei_map)
 
+        # d. build a Region Adjacency Graph (RAG)
+        graph = knn_graph_builder.process(nuclei_map, features)
 
+        # e. save the graph  
+        fname = image_name.replace('.png', '.bin')
+        save_graphs(os.path.join('output', 'cell_graphs', fname), [graph])
+        
+        # f. visualize and save the graph  
+        canvas = visualizer.process(image, graph, instance_map=nuclei_map)
+        canvas.save(os.path.join('output', 'cell_graphs_viz', image_name))
+        
 if __name__ == "__main__":
-    args = parse_arguments()
-    graph_builder = CellGraphBuilder(args.out_path)
-    graph_builder.process(args.image_path, args.fnames_path)
+
+    # 1. download dummy images 
+    download_example_data('output')
+
+    # 2. create output directories 
+    os.makedirs(os.path.join('output', 'cell_graphs'), exist_ok=True)
+    os.makedirs(os.path.join('output', 'cell_graphs_viz'), exist_ok=True)
+
+    # 3. generate tissue graphs  
+    generate_cell_graph(image_path=os.path.join('output', 'images'))

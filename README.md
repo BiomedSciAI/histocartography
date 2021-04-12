@@ -8,17 +8,36 @@ High-level description of the library.
 
 # Installation 
 
-## PyPI installer
+## PyPI installer (recommended)
 
 `pip install histocartography`
 
-## From sources 
+## Development setup 
+
+- Clone the repo:
+
+```
+git clone <ADD-PUBLIC-URL> && cd histocartography
+```
 
 - Create a conda environment:
 
 ```
 conda env create -f environment.yml
 ```
+
+- Activate it:
+
+```
+conda activate histocartography
+```
+
+- Add `histocartography` to your python path:
+
+```
+export PYTHONPATH="<PATH>/histocartography:$PYTHONPATH"
+```
+
 ## Tests
 
 To ensure proper installation, run unit tests as:
@@ -35,9 +54,7 @@ conda activate histocartography
 
 # Using histocartography 
 
-Example 1:
-
-Example 2:
+A list of example to discover the capabiltities of the `histocartography` library is provided in `examples`. 
 
 # Papers already using this library
 

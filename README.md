@@ -1,12 +1,28 @@
-# histocartography
+
+
 [![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=master)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
 
-## Suggested setup for development
+High-level description of the library. 
 
-- Create the conda environment:
+# Installation 
+
+## PyPI installer
+
+`pip install histocartography`
+
+## From sources 
+
+- Create a conda environment:
 
 ```
 conda env create -f environment.yml
+```
+## Tests
+
+To ensure proper installation, run unit tests as:
+
+```sh 
+python3 -m unittest discover -v
 ```
 
 - Activate it:
@@ -15,28 +31,24 @@ conda env create -f environment.yml
 conda activate histocartography
 ```
 
-Note that some pip installations on zhc2 will fail. For all those libraries, you need to install them from sources. This is for sure the case of the DGL library that doesn't install on IBMPower without some tricks. Contact me @gja if you encounter those issues. 
+# Using histocartography 
 
-## Testing and Continuous Integration
-Add these environment variables to have access to the [Object Storage](http://data.digital-pathology.zc2.ibm.com:9000)
+Example 1:
+
+Example 2:
+
+# Papers already using this library
+
+- [Hierarchical Graph Representations for Digital Pathology](https://arxiv.org/pdf/2102.11057.pdf]), Pati et al., preprint, 2021.
+- [Quantifying Explainers of Graph Neural Networks in Computational Pathology](https://arxiv.org/pdf/2011.12646.pdf),  Jaume et al., CVPR, 2021.
+
+If you use this library, please consider citing:
+
 ```
-export AWS_ACCESS_KEY_ID=" "
-export AWS_SECRET_ACCESS_KEY=" "
+@inproceedings{pati2021,
+    title = {Hierarchical Graph Representations for Digital Pathology},
+    author = {Pushpak Pati, Guillaume Jaume, Antonio Foncubierta, Florinda Feroce, Anna Maria Anniciello, Giosuè Scognamiglio, Nadia Brancati, Maryse Fiche, Estelle Dubruc, Daniel Riccio, Maurizio Di Bonito, Giuseppe De Pietro, Gerardo Botti, Jean-Philippe Thiran, Maria Frucci, Orcun Goksel, Maria Gabrani},
+    booktitle = {https://arxiv.org/pdf/2102.11057},
+    year = {2021}
+} 
 ```
-### Training
-
-There is a sample executable script in the `bin/` folder that can be used 
-for training Histocartography machine learning pipelines.
-
-### Unit Tests
-
-Unit tests should be created in the `test/` folder.
-Run the tests with: 
-
-```sh 
-python3 -m unittest discover -v
-```
-
-## Docker support
-
-The repo contains a `Dockerfile` that builds an image containing the python package.

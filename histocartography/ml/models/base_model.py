@@ -1,7 +1,7 @@
 import os 
 import torch
 from torch.nn import Module
-
+from abc import abstractmethod
 from ..layers.multi_layer_gnn import MultiLayerGNN
 from .zoo import MODEL_NAME_TO_URL, MODEL_NAME_TO_CONFIG
 from ...utils.io import download_box_link
@@ -27,7 +27,7 @@ class BaseModel(Module):
                                a 3-class split as: "benign+pathologicalbenign+udhVSadh+feaVSdcis+malignant".
                                Defaults to None. 
             num_classes (int): Number of classes. Used if class split is not provided. Defaults to None. 
-            prtetrained (bool): If loading pretrained checkpoint trained on BRACS dataset. Defaults to False. 
+            pretrained (bool): If loading pretrained checkpoint trained on BRACS dataset. Defaults to False. 
         """
         super().__init__()
 
@@ -64,12 +64,11 @@ class BaseModel(Module):
             torch.load(os.path.join(checkpoint_path, model_name))
         )
 
-    def forward(self, graphs):
+    @abstractmethod
+    def forward(self, graph):
         """
         Forward pass
-        :param graphs:
         """
-        raise NotImplementedError('Implementation in subclasses.')
 
     def set_forward_hook(self, module, layer):
         module._modules.get(layer).register_forward_hook(self._forward_hook)

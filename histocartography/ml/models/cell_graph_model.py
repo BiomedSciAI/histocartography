@@ -1,6 +1,7 @@
 import dgl
 import os 
 import torch 
+from typing import Tuple, Union, List
 
 from ..layers.mlp import MLP
 from .base_model import BaseModel
@@ -17,10 +18,11 @@ class CellGraphModel(BaseModel):
 
     def __init__(
         self,
-        gnn_params,
-        classification_params,
-        node_dim,
-        **kwargs):
+        gnn_params: dict,
+        classification_params: dict,
+        node_dim: int,
+        **kwargs
+        ) -> None:
         """
         CellGraphModel model constructor
 
@@ -107,22 +109,27 @@ class CellGraphModel(BaseModel):
             num_layers=self.classification_params['num_layers']
         )
 
-    def forward(self, data):
+    def forward(
+            self,
+            graph: Union[dgl.DGLGraph,
+                        Tuple[torch.tensor, torch.tensor]]
+        ) -> torch.tensor:
         """
         Foward pass.
-        :param data: tuple with (DGLGraph), cell graph
+
+        Args:
+            graph (Union[dgl.DGLGraph, Tuple[torch.tensor, torch.tensor]]): Cell graph to process. 
+
+        Returns:
+            torch.tensor: Model output. 
         """
 
-        if isinstance(data, dgl.DGLGraph) or isinstance(data[0], dgl.DGLGraph):
-            # 1. GNN layers over the low level graph
-            if isinstance(data, list):
-                cell_graph = data[0]
-            else:
-                cell_graph = data
-            feats = cell_graph.ndata[GNN_NODE_FEAT_IN]
-            graph_embeddings = self.cell_graph_gnn(cell_graph, feats)
+        # 1. GNN layers over the cell graph
+        if isinstance(graph, dgl.DGLGraph):
+            feats = graph.ndata[GNN_NODE_FEAT_IN]
+            graph_embeddings = self.cell_graph_gnn(graph, feats)
         else:
-            adj, feats = data[0], data[1]
+            adj, feats = graph[0], graph[1]
             graph_embeddings = self.cell_graph_gnn(adj, feats)
 
         # 2. Run readout function

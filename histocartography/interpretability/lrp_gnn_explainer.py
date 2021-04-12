@@ -13,7 +13,7 @@ class GraphLRPExplainer(BaseExplainer):
     """
 
     def _apply_lrp(self, graph):
-        logits = self.model([deepcopy(graph)]).squeeze()
+        logits = self.model(deepcopy(graph)).squeeze()
         max_idx = logits.argmax(dim=0)
         init_relevance = torch.zeros_like(logits)
         init_relevance[max_idx] = logits[max_idx]

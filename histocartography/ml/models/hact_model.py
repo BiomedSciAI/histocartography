@@ -19,7 +19,6 @@ class HACTModel(BaseModel):
     HACT model. The information for grading tumors lies at different scales. By building 2 graphs,
     one at the cell level and one at the object level (modeled with super pixels), we can extract graph embeddings
     that once combined provide a multi-scale representation of a RoI.
-
     This implementation is using GNN layers and spatial assignment matrix to fuse the 2 layers.
     """
 
@@ -36,9 +35,9 @@ class HACTModel(BaseModel):
         TissueGraphModel model constructor
 
         Args:
-            cg_gnn_params: (dict) Cell Graph GNN configuration parameters.
-            tg_gnn_params: (dict) Tissue Graph GNN configuration parameters.
-            classification_params: (dict) classification configuration parameters.
+            cg_gnn_params (Dict): Cell Graph GNN configuration parameters.
+            tg_gnn_params (Dict): Tissue Graph GNN configuration parameters.
+            classification_params (Dict): classification configuration parameters.
             cg_node_dim (int): Cell node feature dimension. 
             tg_node_dim (int): Tissue node feature dimension. 
         """
@@ -163,11 +162,6 @@ class HACTModel(BaseModel):
     def _compute_assigned_feats(self, graph, feats, assignment):
         """
         Use the assignment matrix to agg the feats
-
-        Args:
-            graph: (DGLBatch)
-            feats: (FloatTensor)
-            assignment: (list of LongTensor)
         """
         num_nodes_per_graph = graph.batch_num_nodes
         num_nodes_per_graph.insert(0, 0)
@@ -196,6 +190,9 @@ class HACTModel(BaseModel):
             cell_graph (Union[dgl.DGLGraph, dgl.batch]): Cell graph or Batch of cell graphs. 
             tissue_graph (Union[dgl.DGLGraph, dgl.batch]): Tissue graph or Batch of tissue graphs. 
             assignment_matrix (torch.Tensor): List of assignment matrices
+        
+        Returns:
+            torch.Tensor: model output. 
         """
 
         # 1. GNN layers over the low level graph

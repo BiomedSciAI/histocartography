@@ -68,11 +68,11 @@ class CellGraphModel(BaseModel):
         cand_config = MODEL_NAME_TO_CONFIG[candidate]
 
         for cand_key, cand_val in cand_config['gnn_params'].items():
-            if hasattr(self.superpx_gnn, cand_key):
-                if cand_val != getattr(self.superpx_gnn, cand_key): 
+            if hasattr(self.cell_graph_gnn, cand_key):
+                if cand_val != getattr(self.cell_graph_gnn, cand_key): 
                     return ''
             else:
-                if cand_val != getattr(self.superpx_gnn.layers[0], cand_key): 
+                if cand_val != getattr(self.cell_graph_gnn.layers[0], cand_key): 
                     return ''
 
         for cand_key, cand_val in cand_config['classification_params'].items():

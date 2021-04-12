@@ -77,7 +77,7 @@ MODEL_NAME_TO_CONFIG = {
             'num_layers': 3,
             'agg_type': "mean",
             'act': "relu",
-            'readout_op': "none",
+            'readout_op': "concat",
             'readout_type': "mean",
             'batch_norm': False,
             'graph_norm': False,

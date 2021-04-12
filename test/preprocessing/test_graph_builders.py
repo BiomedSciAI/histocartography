@@ -27,6 +27,7 @@ class GraphBuilderTestCase(unittest.TestCase):
         download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
+        self.annotation_name = '283_dcis_4_annotation.png'
         self.out_path = os.path.join(self.data_path, 'graph_builder_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path) 
@@ -51,6 +52,56 @@ class GraphBuilderTestCase(unittest.TestCase):
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
         self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
         self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
+        self.assertEqual(graph.ndata["feat"].shape, (23, 1, 1280))  # check assigned features
+        self.assertEqual(graph.ndata["centroid"].shape, (23, 2))    # check assigned centroid
+
+    def test_rag_builder_augmentation_with_pipeline_runner(self):
+        """
+        Test rag builder with augmentation and pipeline runner.
+        """
+
+        config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'rag_graph_builder_aug.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
+        output = pipeline.run(
+            output_name=self.image_name.replace('.png', '_aug'),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        graph = output['graph']
+
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
+        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
+        self.assertEqual(graph.ndata["feat"].shape, (23, 4, 1282))  # check assigned features
+        self.assertEqual(graph.ndata["centroid"].shape, (23, 2))  # check assigned centroid
+
+    def test_rag_builder_annotation_with_pipeline_runner(self):
+        """
+        Test rag builder with annotation and pipeline runner.
+        """
+
+        config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'rag_graph_builder_annotation.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
+        output = pipeline.run(
+            output_name=self.image_name.replace('.png', '_annotation'),
+            image_path=os.path.join(self.image_path, self.image_name),
+            annotation_path=os.path.join(self.image_path, self.annotation_name)
+        )
+        graph = output['graph']
+        labels, counts = np.unique(graph.ndata['label'].numpy(), return_counts=True)
+
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
+        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
+        self.assertEqual(graph.ndata["feat"].shape, (23, 1, 1282))  # check assigned features
+        self.assertEqual(graph.ndata["centroid"].shape, (23, 2))  # check assigned centroid
+        self.assertTrue(np.array_equal(labels, np.array([0, 1, 2, 4]))) # check assigned node labels
+        self.assertTrue(np.array_equal(counts, np.array([2, 9, 2, 10])))    # check assigned node label counts
 
     def test_rag_builder(self):
         """
@@ -124,7 +175,7 @@ class GraphBuilderTestCase(unittest.TestCase):
 
         # 5. build the RAG
         knn_builder = KNNGraphBuilder()
-        graph = knn_builder.process(instance_centroids, features)
+        graph = knn_builder.process(instance_map, features)
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
         self.assertEqual(graph.number_of_nodes(), 331)  # check number of nodes

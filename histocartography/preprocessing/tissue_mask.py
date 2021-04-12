@@ -44,6 +44,9 @@ def get_tissue_mask(
     else:
         thumbnail = image
 
+    if len(np.unique(thumbnail)) == 1:
+        return None, None
+
     for _ in range(n_thresholding_steps):
 
         # gaussian smoothing of grayscale thumbnail

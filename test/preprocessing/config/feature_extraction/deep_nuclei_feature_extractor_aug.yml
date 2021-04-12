@@ -44,5 +44,6 @@ stages:
             - 0.229
             - 0.224
             - 0.225
-        patch_size: 76
+        patch_size: 72
+        resize_size: 224
         downsample_factor: 1

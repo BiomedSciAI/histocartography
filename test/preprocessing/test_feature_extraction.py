@@ -107,8 +107,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
         self.assertEqual(features.shape[0], 23)    # check number of superpixels
-        self.assertEqual(features.shape[1], 4)     # check number of augmentations
-        self.assertEqual(features.shape[2], 1280)  # check number features
+        self.assertEqual(features.shape[1], 4)   # check number of augmentations
+        self.assertEqual(features.shape[2], 1280) # check number features
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -215,9 +215,9 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(isinstance(features, torch.Tensor))     # check type
         self.assertEqual(features.ndim, 4)                      # check number of dimensions
-        self.assertEqual(features.shape[0], 4)                  # check number of augmentations
-        self.assertEqual(features.shape[1], 7)                  # check rows of feature cube
-        self.assertEqual(features.shape[2], 7)                  # check columns of feature cube
+        self.assertEqual(features.shape[0], 7)                  # check rows of feature cube
+        self.assertEqual(features.shape[1], 7)                  # check columns of feature cube
+        self.assertEqual(features.shape[2], 4)                  # check number of augmentations
         self.assertEqual(features.shape[3], 1280)               # check number features
 
         # Re-run with existing output & ensure equal

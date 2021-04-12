@@ -35,6 +35,7 @@ stages:
           - 'n'
           - 'h'
         patch_size: 112
+        resize_size: 224
         stride: 112
         batch_size: 256
         downsample_factor: 1

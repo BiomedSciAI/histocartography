@@ -37,13 +37,13 @@ class DenseGINLayer(nn.Module):
             node_dim (int): Input dimension of each node.
             out_dim (int): Output dimension of each node.
             act (str): Activation function of the update function.
-            agg_type (str): Aggregation function. Default to 'mean'.
-            hidden_dim (int): Hidden dimension of the GIN MLP. Default to 32.
-            batch_norm (bool): If we should use batch normalization. Default to True.
-            graph_norm (bool): If we should use graph normalization. Default to False.
-            with_lrp (bool): If we should use LRP. Default to False.
-            dropout (float): If we should use dropout. Default to 0.
-            verbose (bool): Verbosity. Default to False.
+            agg_type (str): Aggregation function. Defaults to 'mean'.
+            hidden_dim (int): Hidden dimension of the GIN MLP. Defaults to 32.
+            batch_norm (bool): If we should use batch normalization. Defaults to True.
+            graph_norm (bool): If we should use graph normalization. Defaults to False.
+            with_lrp (bool): If we should use LRP. Defaults to False.
+            dropout (float): If we should use dropout. Defaults to 0.
+            verbose (bool): Verbosity. Defaults to False.
         """
 
         super().__init__()

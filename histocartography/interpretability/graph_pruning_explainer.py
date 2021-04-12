@@ -17,8 +17,8 @@ from ..utils.io import is_mlflow_url, is_box_url, download_box_link
 
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-# @TODO: modify and simplify 
-MODEL_MODULE = 'histocartography.ml.models.{}'
+MODEL_MODULE = 'histocartography.ml'
+
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -84,42 +84,27 @@ class GraphPruningExplainer(BaseExplainer):
         self.node_importance = None
 
     def _convert_to_dense_gnn_model(self):
-        # @TODO: clean up this function 
         
         # load DGL-based model 
         dgl_model = self.model
 
-        # build model from config
-        model_type = str(type(dgl_model)).split('.')[3]
+        # rebuild model by replacing DGL layers by Dense layers. 
         model_name = dgl_model.__class__.__name__
+        dgl_gnn_params = dgl_model.gnn_params
+        dgl_layer_type = dgl_gnn_params['layer_type']
+        assert dgl_layer_type == 'gin_layer', "Only GIN layers are supported for using GNNExplainer."
+        dense_gnn_params = deepcopy(dgl_gnn_params)
+        dense_gnn_params['layer_type'] = 'dense_' + dgl_layer_type
 
-        gnn_params = {
-            'layer_type': "dense_gin_layer",
-            'hidden_dim': 64,
-            'output_dim': 64,
-            'num_layers': 3,
-            'agg_type': "mean",
-            'act': "relu",
-            'readout_op': "none",
-            'readout_type': "mean",
-            'batch_norm': False,
-            'graph_norm': False,
-            'dropout': 0.
-        }
-        classification_params = {
-            "hidden_dim": 128,
-            "num_layers": 2
-        }
-        
-        node_dim = 514
-        module = importlib.import_module(MODEL_MODULE.format(model_type))
+        module = importlib.import_module(MODEL_MODULE)
         model = getattr(module, model_name)(
-            gnn_params,
-            classification_params,
-            node_dim,
-            num_classes=3
+            dense_gnn_params,
+            dgl_model.classification_params,
+            dgl_model.node_dim,
+            num_classes=dgl_model.num_classes
         )
 
+        # copy weights from DGL layers to dense layers. 
         def is_int(s):
             try:
                 int(s)
@@ -155,7 +140,7 @@ class GraphPruningExplainer(BaseExplainer):
         adj = torch.tensor(sub_adj, dtype=torch.float).to(self.device)
         x = torch.tensor(sub_feat, dtype=torch.float).to(self.device)
 
-        init_logits = self.model([graph])
+        init_logits = self.model(graph)
         init_logits = init_logits.cpu().detach()
         init_probs = torch.nn.Softmax()(init_logits)
         init_pred_label = torch.argmax(init_logits, dim=1).squeeze()

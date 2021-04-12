@@ -37,7 +37,7 @@ class HoverNet(nn.Module):
 
     def forward(self, images):
         """
-        A batch of images (patches)
+        Forward pass. 
         """
 
         # 1. encode

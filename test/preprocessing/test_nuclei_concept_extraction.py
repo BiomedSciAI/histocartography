@@ -46,6 +46,7 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
         )
         concepts = nuclei_concept_extractor.process(image, instance_map)
 
+        self.assertIsInstance(concepts, np.ndarray)  # check type is np array 
         self.assertEqual(concepts.shape[0], 331)  # check number of instances
         self.assertEqual(concepts.shape[1], 14)  # check number of node features
 

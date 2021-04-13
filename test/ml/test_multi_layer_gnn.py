@@ -7,9 +7,6 @@ import os
 
 from histocartography.ml import MultiLayerGNN
 
-BASE_S3 = 's3://mlflow/'
-IS_CUDA = torch.cuda.is_available()
-
 
 class MultiLayerGNNTestCase(unittest.TestCase):
     """MultiLayerGNN class."""

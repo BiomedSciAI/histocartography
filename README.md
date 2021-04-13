@@ -43,7 +43,7 @@ export PYTHONPATH="<PATH>/histocartography:$PYTHONPATH"
 To ensure proper installation, run unit tests as:
 
 ```sh 
-python3 -m unittest discover -v
+python -m unittest discover -s test -p "test_*" -v
 ```
 
 - Activate it:

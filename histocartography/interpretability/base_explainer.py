@@ -6,7 +6,6 @@ import dgl
 import numpy as np
 import torch
 import os 
-from mlflow.pytorch import load_model
 
 from ..pipeline import PipelineStep
 

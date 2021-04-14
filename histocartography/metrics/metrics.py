@@ -2,7 +2,6 @@ from functools import partial
 import logging
 from abc import abstractmethod
 from typing import Any, List, Union
-import mlflow
 
 import numpy as np
 import sklearn.metrics

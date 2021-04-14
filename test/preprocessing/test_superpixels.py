@@ -101,7 +101,7 @@ class SuperpixelTestCase(unittest.TestCase):
         self.assertEqual(len(list(superpixels.shape)), 2)       # mask is bi-dim
         self.assertEqual(len(np.unique(superpixels)), 81)       # check number of instances
 
-        pipeline.run(metadata=metadata, cores=2)
+        pipeline.run(metadata=metadata, cores=1)
 
     def tearDown(self):
         """Tear down the tests."""

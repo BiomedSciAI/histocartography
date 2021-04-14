@@ -42,7 +42,7 @@ def generate_tissue_graph(image_path):
 
     # 3. define feature extractor: extract patches of 144x144 pixels
     # resized to 224 to match resnet input size. If the superpixel is larger
-    # than 144x144, several patches are built and the embeddings are averaged. 
+    # than 144x144, several patches are extracted and patch embeddings are averaged.
     # Everything is handled internally. Please refer to the implementation for
     # details. 
     feature_extractor = DeepFeatureExtractor(

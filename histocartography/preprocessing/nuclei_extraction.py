@@ -13,10 +13,13 @@ from typing import Optional
 
 from skimage.measure import regionprops
 from skimage.morphology import remove_small_objects, watershed
+from skimage.measure import regionprops
+from skimage.morphology import remove_small_objects
+from skimage.segmentation import watershed
+
 from scipy.ndimage import measurements
 from scipy.ndimage.morphology import binary_fill_holes
-from skimage.measure import regionprops
-from skimage.morphology import remove_small_objects, watershed
+
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from tqdm import tqdm

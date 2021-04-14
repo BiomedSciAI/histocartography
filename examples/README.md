@@ -15,17 +15,31 @@ A reference image is used to evaluate the transformation parameters, parameters 
 
 Note: The library also includes the Macenko stain normalization algortihm. 
 
+**References:**
+
+- [Structure-Preserving Color Normalization and SparseStain Separation for Histological Images.](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7460968) Vahadane et al., IEEE Transactions on Medical Imaging, 2016.
+- [A method for normalizing histology slides for quantitative analysis.](https://ieeexplore.ieee.org/document/5193250) Macenko et al., IEEE Transations Symposium on Biomedical Imaging, 2009.
+
 ## Example 2: Cell Graph (CG) generation
 
 Run the script as:
 `python cell_graph_generation.py`
 
+This example will guide you to generate a Cell Graph (CG) from an H&E stained histology image. Example images are taken from the BRACS dataset, a large cohort of breast cancert tumor regions-of-interest. The CG generation starts from a stained normalized image on top of which we extract nuclei using the HoverNet model. Then, deep features are exrtracted using a ResNet34 model pretrained on ImageNet. Finally, the graph is built by connecting nuclei, i.e., nodes, to each other to form a kNN graph. In this example, we set k to 5 and remove edges longer than 50 pixels. 
+
+**References:**
+
+- [BRACS: BReAst Carcinoma Subtyping.](https://www.bracs.icar.cnr.it/) 2021.
+- [Hover-Net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images.](https://arxiv.org/pdf/1812.06499.pdf) Graham et al., MEDIA, 2019.
+- [Hierarchical Graph Representations in Digital Pathology.](https://arxiv.org/pdf/2102.11057.pdf) Pati et al., 	arXiv:2102.11057, 2021.
+- [Quantifying Explainers of Graph Neural Networks in Computational Pathology.](https://arxiv.org/pdf/2011.12646.pdf) Jaume et al., CVPR, 2021.
 
 ## Example 3: Tissue Graph (TG) generation
 
 Run the script as:
 `python tissue_graph_generation.py`
 
+Following the Cell Graph generation example, this script will show you how to build a Tissue Graph (TG) from a stained normalized image. First, we start by extracting tissue regions in an unsupersived fashion using the SLIC superpixel extraction algorithm followed by  color merging-based superpixel merging. Then, deep features are extracted to represent the superpixels. Finally, the graph is built by connecting adjacent regions to each other resulting in a Region Adjacency Graph (RAG). 
 
 ## Example 4: Feature cube extraction
 
@@ -44,3 +58,11 @@ Note: All the `torchvision` pretrained architectures will work.
 
 Run the script as:
 `python cell_graph_explainer.py`
+
+This example allows you to generate an explanation, i.e., node-level importance scores, using the GraphGradCAM algortihm, a post-hoc explanability technique. The library also provides other graph-based explaining techniques, like GNNExplainer, GraphLRP or GraphGradCAM++. 
+
+**References:**
+
+- [Grad-CAM : Visual Explanations from Deep Networks.](https://arxiv.org/pdf/1610.02391.pdf) Selvaraju et al., ICCV, 2017. 
+- [Explainability methods  for graph  convolutional  neu-ral  networks.](https://openaccess.thecvf.com/content_CVPR_2019/papers/Pope_Explainability_Methods_for_Graph_Convolutional_Neural_Networks_CVPR_2019_paper.pdf) Pope et al., CVPR, 2019. 
+- [Quantifying Explainers of Graph Neural Networks in Computational Pathology.](https://arxiv.org/pdf/2011.12646.pdf) Jaume et al., CVPR, 2021.

@@ -35,14 +35,17 @@ def generate_cell_graph(image_path):
     # 2. define nuclei extractor 
     nuclei_detector = NucleiExtractor()
 
-    # 3. define feature extractor 
+    # 3. define feature extractor: Extract patches of 72x72 pixels around each
+    # nucleus centroid, then resize to 224 to match ResNet input size. 
     feature_extractor = DeepFeatureExtractor(
         architecture='resnet34',
         patch_size=72,
         resize_size=224
     )
     
-    # 4. define k-NN graph builder with k=5 and thresholding edges longer than 50 pixels
+    # 4. define k-NN graph builder with k=5 and thresholding edges longer
+    # than 50 pixels. Add image size-normalized centroids to the node features. 
+    # Resulting node features are 512 feats from ResNet + 2 feats for centroid. 
     knn_graph_builder = KNNGraphBuilder(k=5, thresh=50, add_loc_feats=True)
 
     # 5. define graph visualizer

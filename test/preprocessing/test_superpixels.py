@@ -32,7 +32,7 @@ class SuperpixelTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'slic_extractor.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=None, **config)
         output = pipeline.run(
@@ -61,7 +61,7 @@ class SuperpixelTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'color_merged_extractor.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -90,7 +90,7 @@ class SuperpixelTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'superpixels', 'slic_extractor.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         metadata = pd.DataFrame({'image_path': [os.path.join(self.image_path, self.image_name)]})
         pipeline = BatchPipelineRunner(save_path=self.out_path, pipeline_config=config)

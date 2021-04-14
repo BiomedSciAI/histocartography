@@ -40,7 +40,7 @@ class GraphBuilderTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'rag_graph_builder.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -62,7 +62,7 @@ class GraphBuilderTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'rag_graph_builder_aug.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -84,7 +84,7 @@ class GraphBuilderTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'rag_graph_builder_annotation.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -142,7 +142,7 @@ class GraphBuilderTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'graph_builder', 'knn_graph_builder.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(

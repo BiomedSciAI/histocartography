@@ -34,7 +34,7 @@ class TissueMaskTestCase(unittest.TestCase):
         # 1. Tissue mask detection with saving 
         config_fname = os.path.join(self.current_path, 'config', 'tissue_mask', 'tissue_mask.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.jpg', ''),

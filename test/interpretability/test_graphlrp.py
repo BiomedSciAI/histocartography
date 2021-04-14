@@ -47,7 +47,7 @@ class GraphLRPTestCase(unittest.TestCase):
         # 2. create model 
         config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = CellGraphModel(
             gnn_params=config['gnn_params'],

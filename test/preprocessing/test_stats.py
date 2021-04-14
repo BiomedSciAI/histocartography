@@ -34,7 +34,7 @@ class StatsTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'stats', 'graph_diameter.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
         pipeline = PipelineRunner(output_path=None, **config)
         output = pipeline.run(
             output_name=None,
@@ -50,7 +50,7 @@ class StatsTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'stats', 'superpixel_counter.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
             
         pipeline = PipelineRunner(output_path=None, **config)
         output = pipeline.run(

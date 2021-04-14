@@ -23,7 +23,7 @@ class MultiLayerGNNTestCase(unittest.TestCase):
         # 1. load dummy config
         config_fname = os.path.join(self.current_path, 'config', 'multi_layer_gin.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)['model']
+            config = yaml.safe_load(file)['model']
 
         # 2. dummy data
         graph = dgl.rand_graph(100, 10)
@@ -46,7 +46,7 @@ class MultiLayerGNNTestCase(unittest.TestCase):
         # 1. load dummy config
         config_fname = os.path.join(self.current_path, 'config', 'multi_layer_dense_gin.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)['model']
+            config = yaml.safe_load(file)['model']
 
         # 2. dummy data
         adjacency = torch.randint(2, (100, 100))
@@ -70,7 +70,7 @@ class MultiLayerGNNTestCase(unittest.TestCase):
         # 1. load dummy config
         config_fname = os.path.join(self.current_path, 'config', 'multi_layer_pna.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)['model']
+            config = yaml.safe_load(file)['model']
 
         # 2. dummy data
         graph = dgl.rand_graph(100, 10)

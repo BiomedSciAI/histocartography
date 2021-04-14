@@ -52,7 +52,7 @@ class HACTModelTestCase(unittest.TestCase):
         # 2. load config 
         config_fname = os.path.join(self.current_path, 'config', 'hact_model.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = HACTModel(
             cg_gnn_params=config['cg_gnn_params'],
@@ -91,7 +91,7 @@ class HACTModelTestCase(unittest.TestCase):
         # 2. load config and build model with pretrained weights
         config_fname = os.path.join(self.current_path, 'config', 'bracs_hact_5_classes_pna.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = HACTModel(
             cg_gnn_params=config['cg_gnn_params'],
@@ -131,7 +131,7 @@ class HACTModelTestCase(unittest.TestCase):
         # 2. load config and build model with pretrained weights
         config_fname = os.path.join(self.current_path, 'config', 'bracs_hact_7_classes_pna.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = HACTModel(
             cg_gnn_params=config['cg_gnn_params'],

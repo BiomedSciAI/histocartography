@@ -33,7 +33,7 @@ class StainNormalizationTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'macenko_normalizer_noref.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
         pipeline = PipelineRunner(output_path=self.out_path, **config)
@@ -53,7 +53,7 @@ class StainNormalizationTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'macenko_normalizer_ref.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
         config['stages'][1]['preprocessing']['params']['target_path'] = \
             os.path.join(self.current_path, config['stages'][1]['preprocessing']['params']['target_path'])
 
@@ -109,7 +109,7 @@ class StainNormalizationTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'vahadane_normalizer_noref.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
         pipeline = PipelineRunner(output_path=self.out_path, **config)
@@ -129,7 +129,7 @@ class StainNormalizationTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'vahadane_normalizer_ref.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
         config['stages'][1]['preprocessing']['params']['target_path'] = \
             os.path.join(self.current_path, config['stages'][1]['preprocessing']['params']['target_path'])
 
@@ -184,7 +184,7 @@ class StainNormalizationTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'stain_normalization', 'vahadane_precomputed_normalizer_fail.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         with self.assertRaises(FileNotFoundError):
             pipeline = PipelineRunner(output_path=None, **config)

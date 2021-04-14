@@ -3,7 +3,6 @@ import unittest
 import numpy as np
 import cv2 
 import torch 
-import yaml
 import dgl 
 import os 
 from PIL import Image

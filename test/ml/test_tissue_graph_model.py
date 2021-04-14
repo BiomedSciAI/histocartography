@@ -41,7 +41,7 @@ class TGModelTestCase(unittest.TestCase):
         # 2. load config 
         config_fname = os.path.join(self.current_path, 'config', 'tg_model.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = TissueGraphModel(
             gnn_params=config['gnn_params'],
@@ -69,7 +69,7 @@ class TGModelTestCase(unittest.TestCase):
         # 2. load config 
         config_fname = os.path.join(self.current_path, 'config', 'tg_model.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = TissueGraphModel(
             gnn_params=config['gnn_params'],
@@ -97,7 +97,7 @@ class TGModelTestCase(unittest.TestCase):
         # 2. Load model with pre-trained weights 
         config_fname = os.path.join(self.current_path, 'config', 'tg_bracs_tggnn_3_classes_gin.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = TissueGraphModel(
             gnn_params=config['gnn_params'],
@@ -126,7 +126,7 @@ class TGModelTestCase(unittest.TestCase):
         # 2. Load model with pre-trained weights 
         config_fname = os.path.join(self.current_path, 'config', 'tg_bracs_tggnn_5_classes_pna.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = TissueGraphModel(
             gnn_params=config['gnn_params'],
@@ -155,7 +155,7 @@ class TGModelTestCase(unittest.TestCase):
         # 2. Load model with pre-trained weights 
         config_fname = os.path.join(self.current_path, 'config', 'tg_bracs_tggnn_7_classes_pna.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         model = TissueGraphModel(
             gnn_params=config['gnn_params'],

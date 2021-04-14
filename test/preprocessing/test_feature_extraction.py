@@ -34,7 +34,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
                                     'feature_extraction',
                                     'handcrafted_feature_extractor.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -65,7 +65,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
                                     'feature_extraction',
                                     'deep_tissue_feature_extractor_noaug.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -96,7 +96,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
                                     'feature_extraction',
                                     'deep_tissue_feature_extractor_aug.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -127,7 +127,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
                                     'feature_extraction',
                                     'deep_nuclei_feature_extractor_noaug.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -148,7 +148,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
                                     'feature_extraction',
                                     'deep_nuclei_feature_extractor_aug.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -171,7 +171,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
                                     'feature_extraction',
                                     'grid_deep_tissue_feature_extractor_noaug.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -204,7 +204,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
                                     'feature_extraction',
                                     'grid_deep_tissue_feature_extractor_aug.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(

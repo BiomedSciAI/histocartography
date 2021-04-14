@@ -31,7 +31,7 @@ class GraphBuilderTestCase(unittest.TestCase):
 
         config_fname = os.path.join(self.current_path, 'config', 'assignment_matrix', 'assignment_matrix_builder.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(

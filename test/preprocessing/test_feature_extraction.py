@@ -7,7 +7,7 @@ import torch
 import shutil
 
 from histocartography import PipelineRunner
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 
 
 class FeatureExtractionTestCase(unittest.TestCase):

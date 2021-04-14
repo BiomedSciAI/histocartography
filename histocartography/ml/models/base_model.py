@@ -4,7 +4,7 @@ from torch.nn import Module
 from abc import abstractmethod
 from ..layers.multi_layer_gnn import MultiLayerGNN
 from .zoo import MODEL_NAME_TO_URL, MODEL_NAME_TO_CONFIG
-from ...utils.io import download_box_link
+from ...utils import download_box_link
 
 
 def get_number_of_classes(class_split):

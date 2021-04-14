@@ -7,7 +7,7 @@ import shutil
 import pandas as pd
 
 from histocartography import PipelineRunner, BatchPipelineRunner
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 
 
 class SuperpixelTestCase(unittest.TestCase):

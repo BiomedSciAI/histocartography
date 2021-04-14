@@ -11,7 +11,7 @@ import numpy as np
 from tqdm import tqdm  
 
 from histocartography.preprocessing import VahadaneStainNormalizer
-from histocartography.utils.io import download_example_data
+from histocartography.utils import download_example_data
 
 
 def normalize_images(image_path):

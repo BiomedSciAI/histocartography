@@ -11,8 +11,7 @@ from dgl.data.utils import load_graphs
 
 from histocartography.interpretability import GraphLRPExplainer
 from histocartography.ml import CellGraphModel
-from histocartography.utils.graph import set_graph_on_cuda
-from histocartography.utils.io import download_test_data
+from histocartography.utils import set_graph_on_cuda, download_test_data
 
 BASE_S3 = 's3://mlflow/'
 IS_CUDA = torch.cuda.is_available()

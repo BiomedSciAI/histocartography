@@ -10,7 +10,7 @@ from PIL import Image
 from histocartography import PipelineRunner
 from histocartography.preprocessing import NucleiExtractor
 from histocartography.preprocessing import NucleiConceptExtractor
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 
 
 class NucleiConceptExtractionTestCase(unittest.TestCase):

@@ -10,7 +10,7 @@ import yaml
 
 from histocartography import PipelineRunner
 from histocartography.preprocessing import NucleiExtractor
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 
 
 class NucleiExtractionTestCase(unittest.TestCase):

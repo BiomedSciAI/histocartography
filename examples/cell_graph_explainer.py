@@ -15,8 +15,7 @@ from tqdm import tqdm
 import torch 
 from dgl.data.utils import load_graphs
 
-from histocartography.utils.io import download_test_data
-from histocartography.utils.graph import set_graph_on_cuda
+from histocartography.utils import set_graph_on_cuda, download_test_data
 from histocartography.ml import CellGraphModel
 from histocartography.interpretability import GraphGradCAMExplainer
 from histocartography.visualization import OverlayGraphVisualization, InstanceImageVisualization

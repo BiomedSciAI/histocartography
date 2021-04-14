@@ -3,7 +3,7 @@ import unittest
 import hashlib
 import os
 
-from histocartography.utils.io import download_box_link
+from histocartography.utils import download_box_link
 
 
 class IOTestCase(unittest.TestCase):

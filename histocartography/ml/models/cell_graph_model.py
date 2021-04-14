@@ -8,7 +8,7 @@ from .base_model import BaseModel
 from .. import MultiLayerGNN
 from ..layers.constants import GNN_NODE_FEAT_IN
 from .zoo import MODEL_NAME_TO_URL, MODEL_NAME_TO_CONFIG
-from ...utils.io import download_box_link
+from ...utils import download_box_link
 
 
 class CellGraphModel(BaseModel):

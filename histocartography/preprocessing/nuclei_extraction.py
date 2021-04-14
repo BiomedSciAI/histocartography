@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from ..pipeline import PipelineStep
 from ..utils.image import extract_patches_from_image
-from ..utils.io import download_box_link
+from ..utils import download_box_link
 
 DATASET_TO_BOX_URL = {
     "pannuke": "https://ibm.box.com/shared/static/hrt04i3dcv1ph1veoz8x6g8a72u0uw58.pt",

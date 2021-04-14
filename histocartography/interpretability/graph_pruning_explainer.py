@@ -13,7 +13,7 @@ import importlib
 from ..ml.layers.constants import GNN_NODE_FEAT_IN
 from .base_explainer import BaseExplainer
 from ..utils.torch import torch_to_numpy
-from ..utils.io import is_box_url, download_box_link
+from ..utils import is_box_url, download_box_link
 
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'

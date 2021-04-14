@@ -15,7 +15,7 @@ import numpy as np
 from tqdm import tqdm  
 from dgl.data.utils import save_graphs
 
-from histocartography.utils.io import download_example_data
+from histocartography.utils import download_example_data
 from histocartography.preprocessing import (
     NucleiExtractor,
     DeepFeatureExtractor,

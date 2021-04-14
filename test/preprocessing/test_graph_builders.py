@@ -14,7 +14,7 @@ from histocartography.preprocessing import AugmentedDeepFeatureExtractor
 from histocartography.preprocessing import ColorMergedSuperpixelExtractor
 from histocartography.preprocessing import RAGGraphBuilder
 from histocartography.preprocessing import KNNGraphBuilder, NucleiExtractor
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 
 
 class GraphBuilderTestCase(unittest.TestCase):

@@ -13,7 +13,7 @@ from histocartography.preprocessing import (
 )
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 from histocartography.visualization.visualization import (
     HACTVisualization,
     InstanceImageVisualization,

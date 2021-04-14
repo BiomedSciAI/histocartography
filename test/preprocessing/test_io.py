@@ -11,7 +11,7 @@ import shutil
 
 from histocartography import PipelineRunner
 from histocartography.preprocessing import ImageLoader, DGLGraphLoader
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 
 
 class IOTestCase(unittest.TestCase):

@@ -25,7 +25,7 @@ stages:
       - features
       params:
         architecture: mobilenet_v2
-        num_workers: 8
+        num_workers: 1
         rotations:
           - 0
         flips:

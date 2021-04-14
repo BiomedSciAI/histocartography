@@ -52,7 +52,7 @@ class CellGraphModel(BaseModel):
             if model_name:
                 self._load_checkpoint(model_name)
             else:
-                raise NotImplementedError('There is not available CG-GNN checkpoint for the provided params.')
+                raise NotImplementedError('There is no available CG-GNN checkpoint for the provided params.')
 
     def _get_checkpoint_id(self):
 

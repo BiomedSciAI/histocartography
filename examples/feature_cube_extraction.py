@@ -1,5 +1,5 @@
 """
-Example: Extract a feature cube on a large image. 
+Example: Extract a feature cube on an image. 
 
 As used in:
 - "Neural Image Compression for Gigapixel Histopathology Image Analysis", Tellez et al, 2018. 
@@ -24,7 +24,8 @@ def feature_cube_extraction(image_path):
     # 1. get image path
     image_fnames = glob(os.path.join(image_path, '*.png'))
 
-    # 2. define feature extractor 
+    # 2. define feature extractor: extract features on patches of size 224
+    # without stride. 
     extractor = GridDeepFeatureExtractor('resnet34', patch_size=224)
 
     # 3. process all the images 

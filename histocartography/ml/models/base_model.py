@@ -27,7 +27,8 @@ class BaseModel(Module):
                                a 3-class split as: "benign+pathologicalbenign+udhVSadh+feaVSdcis+malignant".
                                Defaults to None. 
             num_classes (int): Number of classes. Used if class split is not provided. Defaults to None. 
-            pretrained (bool): If loading pretrained checkpoint trained on BRACS dataset. Defaults to False. 
+            pretrained (bool): If loading pretrained checkpoint. Currently all the pretrained were trained on the BRACS dataset. 
+                               Defaults to False. 
         """
         super().__init__()
 

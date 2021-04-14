@@ -30,7 +30,9 @@ def generate_tissue_graph(image_path):
     # 1. get image path
     image_fnames = glob(os.path.join(image_path, '*.png'))
 
-    # 2. define superpixel extractor 
+    # 2. define superpixel extractor. Here, we query 50 SLIC superpixels, 
+    # but a superpixel size (in #pixels) can be provided as well in the case
+    # where image size vary from one sample to another. 
     superpixel_detector = ColorMergedSuperpixelExtractor(
         nr_superpixels=50,
         compactness=20,
@@ -38,7 +40,11 @@ def generate_tissue_graph(image_path):
         threshold=0.02,
     )
 
-    # 3. define feature extractor 
+    # 3. define feature extractor: extract patches of 144x144 pixels
+    # resized to 224 to match resnet input size. If the superpixel is larger
+    # than 144x144, several patches are built and the embeddings are averaged. 
+    # Everything is handled internally. Please refer to the implementation for
+    # details. 
     feature_extractor = DeepFeatureExtractor(
         architecture='resnet34',
         patch_size=144,

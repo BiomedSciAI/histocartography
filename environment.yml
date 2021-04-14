@@ -15,5 +15,4 @@ dependencies:
     - opencv-python>=3.4.8.29
     - scikit-image>=0.17.2
     - dgl==0.4.3.post2
-    - yaml
-  
+    - PyYAML>=5.1.2

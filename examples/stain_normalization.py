@@ -16,15 +16,19 @@ from histocartography.utils.io import download_example_data
 
 def normalize_images(image_path):
     """
-    Process the images in image path dir. The first image is used as target.  
+    Process the images in image path dir. In this dummy example,
+    we use the first image as target for estimating normalization
+    params.  
     """
 
     # 1. get image path
     image_fnames = glob(os.path.join(image_path, '*.png'))
 
-    # 2. define stain normalizer 
+    # 2. define stain normalizer. If no target target is provided, 
+    # defaults ones are used. Note: Macenko normalization can be
+    # defined in a similar way. 
     target_image = image_fnames.pop(0)  # use the 1st image as target 
-    normalizer = VahadaneStainNormalizer(target_path=target_image)  # note: Macenko normalization can be defined in a similar way. 
+    normalizer = VahadaneStainNormalizer(target_path=target_image)  
 
     # 3. normalize all the images 
     for image_path in tqdm(image_fnames):

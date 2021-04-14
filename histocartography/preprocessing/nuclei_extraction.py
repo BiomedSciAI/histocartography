@@ -7,7 +7,6 @@ from typing import Tuple, Union
 import cv2
 import numpy as np
 import torch
-from mlflow.pytorch import load_model
 from PIL import Image
 import os
 from typing import Optional
@@ -24,7 +23,7 @@ from tqdm import tqdm
 
 from ..pipeline import PipelineStep
 from ..utils.image import extract_patches_from_image
-from ..utils.io import download_box_link, is_mlflow_url
+from ..utils.io import download_box_link
 
 DATASET_TO_BOX_URL = {
     "pannuke": "https://ibm.box.com/shared/static/hrt04i3dcv1ph1veoz8x6g8a72u0uw58.pt",
@@ -48,7 +47,7 @@ class NucleiExtractor(PipelineStep):
 
         Args:
             pretrained_data (str): Load checkpoint pretrained on some data. Options are 'pannuke' or 'monusac'. Default to 'pannuke'.
-            model_path (str): Path to a pre-trained model or mlflow URL. If none, the checkpoint specified in pretrained_data will be used. Default to None.
+            model_path (str): Path to a pre-trained model. If none, the checkpoint specified in pretrained_data will be used. Default to None.
             batch_size (int, optional): Batch size. Defaults to None.
         """
         self.pretrained_data = pretrained_data
@@ -76,10 +75,7 @@ class NucleiExtractor(PipelineStep):
 
     def _load_model_from_path(self, model_path):
         """Load nuclei extraction model from provided model."""
-        if is_mlflow_url(model_path):
-            self.model = load_model(model_path, map_location=torch.device("cpu"))
-        else:
-            self.model = torch.load(model_path)
+        self.model = torch.load(model_path)
 
     def _process(  # type: ignore[override]
         self,

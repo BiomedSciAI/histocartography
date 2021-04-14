@@ -1,7 +1,7 @@
 # Examples
 
 We present a set of small scripts that should help you understand the capabilities of the `histocartography` library. 
-All the examples are self-contained and should directly work without the need to download any data nor model. 
+All the examples are self-contained and should directly work without the need to download any data or model. 
 Naturally, the examples are limited and are not comprehensive, but should remain a good starting point to develop
 your own application with your data. 
 

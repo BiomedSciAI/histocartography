@@ -45,7 +45,8 @@ def generate_cell_graph(image_path):
     
     # 4. define k-NN graph builder with k=5 and thresholding edges longer
     # than 50 pixels. Add image size-normalized centroids to the node features. 
-    # Resulting node features are 512 feats from ResNet + 2 feats for centroid. 
+    # For e.g., resulting node features are 512 features from ResNet34 + 2
+    # normalized centroid features.
     knn_graph_builder = KNNGraphBuilder(k=5, thresh=50, add_loc_feats=True)
 
     # 5. define graph visualizer

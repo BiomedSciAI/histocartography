@@ -957,7 +957,7 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         self,
         architecture: str,
         patch_size: int,
-        resize_size: int,
+        resize_size: int = None,
         stride: int = None,
         downsample_factor: int = 1,
         normalizer: Optional[dict] = None,

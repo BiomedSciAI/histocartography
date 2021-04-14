@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://ibm.box.com/shared/static/hzutz91ez9ukpzbxk69iy5snk8ijs8p9.png" height="200">
+  <img src="https://ibm.box.com/shared/static/bgv4hk068bv26s8q6pasoxi401tt6b55.png" height="200">
 </p>
 
 [![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
@@ -8,23 +8,22 @@ High-level description of the library.
 
 # Installation 
 
-## PyPI installer
+## PyPI installer (recommended)
 
 `pip install histocartography`
 
-## From sources 
+## Development setup 
+
+- Clone the repo:
+
+```
+git clone <ADD-PUBLIC-URL> && cd histocartography
+```
 
 - Create a conda environment:
 
 ```
 conda env create -f environment.yml
-```
-## Tests
-
-To ensure proper installation, run unit tests as:
-
-```sh 
-python3 -m unittest discover -v
 ```
 
 - Activate it:
@@ -33,11 +32,51 @@ python3 -m unittest discover -v
 conda activate histocartography
 ```
 
+- Add `histocartography` to your python path:
+
+```
+export PYTHONPATH="<PATH>/histocartography:$PYTHONPATH"
+```
+
+## Tests
+
+To ensure proper installation, run unit tests as:
+
+```sh 
+python -m unittest discover -s test -p "test_*" -v
+```
+
 # Using histocartography 
 
-Example 1:
+The `histocartography` library provides a set of helpers grouped in different modules, namely `preprocessing`, `visualization`, `ml` and `interpretability`.  
 
-Example 2:
+For instance, in `histocartography`, detecting nuclei in an H&E image is as simple as:
+
+```
+from histocartography.preprocessing import NucleiExtractor
+
+detector = NucleiExtractor()
+image = np.array(Image.open('images/283_dcis_4.png'))
+instance_map, _ = detector.process(image)
+```
+
+The output can be then visualized with:
+
+```
+from histocartography.visualization import InstanceImageVisualization
+
+visualizer = InstanceImageVisualization()
+canvas = visualizer.process(image, instance_map=instance_map)
+canvas.show()
+```
+
+<p align="center">
+  <img src="" height="200">
+</p>
+
+A list of examples to discover the capabilities of the `histocartography` library is provided in `examples`. 
+
+A tutorial with detailed descriptions and visualizations of some of the main functionalities is provided [here](https://github.com/maragraziani/interpretAI_DigiPath/blob/feature/handson2%2Fpus/hands-on-session-2/hands-on-session-2.ipynb) as a notebook. 
 
 # Papers already using this library
 

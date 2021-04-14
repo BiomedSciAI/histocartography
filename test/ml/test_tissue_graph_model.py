@@ -12,6 +12,7 @@ from histocartography.utils.io import download_box_link, download_test_data
 
 
 IS_CUDA = torch.cuda.is_available()
+DEVICE = 'cuda:0' if IS_CUDA else 'cpu'
 
 
 class TGModelTestCase(unittest.TestCase):
@@ -47,7 +48,7 @@ class TGModelTestCase(unittest.TestCase):
             classification_params=config['classification_params'],
             node_dim=node_dim,
             num_classes=3
-        )
+        ).to(DEVICE)
 
         # 4. forward pass
         logits = model(graph)
@@ -75,7 +76,7 @@ class TGModelTestCase(unittest.TestCase):
             classification_params=config['classification_params'],
             node_dim=node_dim,
             num_classes=3
-        )
+        ).to(DEVICE)
 
         # 4. forward pass
         logits = model(dgl.batch([graph, graph]))
@@ -104,7 +105,7 @@ class TGModelTestCase(unittest.TestCase):
             node_dim=node_dim,
             num_classes=3,
             pretrained=True
-        )
+        ).to(DEVICE)
 
         # 4. forward pass
         logits = model(graph)
@@ -133,7 +134,7 @@ class TGModelTestCase(unittest.TestCase):
             node_dim=node_dim,
             num_classes=5,
             pretrained=True
-        )
+        ).to(DEVICE)
 
         # 4. forward pass
         logits = model(graph)
@@ -162,7 +163,7 @@ class TGModelTestCase(unittest.TestCase):
             node_dim=node_dim,
             num_classes=7,
             pretrained=True
-        )
+        ).to(DEVICE)
 
         # 4. forward pass
         logits = model(graph)

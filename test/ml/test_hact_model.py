@@ -12,6 +12,7 @@ from histocartography.utils.io import download_box_link, download_test_data
 
 
 IS_CUDA = torch.cuda.is_available()
+DEVICE = 'cuda:0' if IS_CUDA else 'cpu'
 
 
 class HACTModelTestCase(unittest.TestCase):
@@ -60,7 +61,7 @@ class HACTModelTestCase(unittest.TestCase):
             cg_node_dim=cg_node_dim,
             tg_node_dim=tg_node_dim,
             num_classes=3
-        )
+        ).to(DEVICE)
 
         # 4. forward pass
         logits = model(cell_graph, tissue_graph, assignment_matrix)
@@ -100,7 +101,7 @@ class HACTModelTestCase(unittest.TestCase):
             tg_node_dim=tg_node_dim,
             num_classes=5,
             pretrained=True
-        )
+        ).to(DEVICE)
 
         # 3. forward pass
         logits = model(cell_graph, tissue_graph, assignment_matrix)
@@ -140,7 +141,7 @@ class HACTModelTestCase(unittest.TestCase):
             tg_node_dim=tg_node_dim,
             num_classes=7,
             pretrained=True
-        )
+        ).to(DEVICE)
 
         # 3. forward pass
         logits = model(cell_graph, tissue_graph, assignment_matrix)

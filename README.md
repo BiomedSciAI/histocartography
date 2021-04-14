@@ -46,15 +46,37 @@ To ensure proper installation, run unit tests as:
 python -m unittest discover -s test -p "test_*" -v
 ```
 
-- Activate it:
-
-```
-conda activate histocartography
-```
-
 # Using histocartography 
 
-A list of example to discover the capabiltities of the `histocartography` library is provided in `examples`. 
+The `histocartography` library provides a set of helpers grouped in different modules, namely `preprocessing`, `visualization`, `ml` and `interpretability`.  
+
+For instance, in `histocartography`, detecting nuclei in an H&E image is as simple as:
+
+```
+from histocartography.preprocessing import NucleiExtractor
+
+detector = NucleiExtractor()
+image = np.array(Image.open('images/283_dcis_4.png'))
+instance_map, _ = detector.process(image)
+```
+
+The output can be then visualized with:
+
+```
+from histocartography.visualization import InstanceImageVisualization
+
+visualizer = InstanceImageVisualization()
+canvas = visualizer.process(image, instance_map=instance_map)
+canvas.show()
+```
+
+<p align="center">
+  <img src="" height="200">
+</p>
+
+A list of examples to discover the capabilities of the `histocartography` library is provided in `examples`. 
+
+A tutorial with detailed descriptions and visualizations of some of the main functionalities is provided [here](https://github.com/maragraziani/interpretAI_DigiPath/blob/feature/handson2%2Fpus/hands-on-session-2/hands-on-session-2.ipynb) as a notebook. 
 
 # Papers already using this library
 

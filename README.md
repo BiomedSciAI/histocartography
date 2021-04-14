@@ -2,7 +2,7 @@
   <img src="https://ibm.box.com/shared/static/hzutz91ez9ukpzbxk69iy5snk8ijs8p9.png" height="200">
 </p>
 
-[![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
+[![Build Status](https://travis-ci.com/histocartography/histocartography.svg?branch=main)](https://travis-ci.com/histocartography/histocartography)
 
 High-level description of the library. 
 

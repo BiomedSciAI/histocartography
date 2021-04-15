@@ -37,7 +37,7 @@ class HoverNet(nn.Module):
 
     def forward(self, images):
         """
-        Forward pass. 
+        Forward pass.
         """
 
         # 1. encode

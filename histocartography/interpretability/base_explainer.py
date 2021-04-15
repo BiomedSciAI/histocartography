@@ -5,8 +5,7 @@ from typing import Optional, Tuple
 import dgl
 import numpy as np
 import torch
-import os 
-from mlflow.pytorch import load_model
+import os
 
 from ..pipeline import PipelineStep
 

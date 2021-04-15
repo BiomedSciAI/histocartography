@@ -10,22 +10,6 @@ import csv
 import requests
 
 
-def is_mlflow_url(candidate):
-    # is it stored on s3 ?
-    if candidate.find('s3://mlflow/') != -1:
-        return True
-    # is it a remote mlflow run ?
-    if candidate.find('runs:/') != -1:
-        return True
-    # is it a remote mlflow model ?
-    if candidate.find('models:/') != -1:
-        return True
-    # is it a local run
-    if os.path.exists(os.path.join(candidate, 'MLmodel')):
-        return True
-    return False
-
-
 def is_box_url(candidate):
     # check if IBM box static link
     if 'https://ibm.box.com/shared/static/' in candidate:
@@ -63,6 +47,14 @@ def h5_to_tensor(h5_object, device):
     return tensor
 
 
+def h5_to_numpy(h5_object):
+    """
+    Convert h5 object into numpy array
+    """
+    out = np.array(h5_object[()])
+    return out
+
+
 def load_json(fname):
     """
     Load json file as a dict.
@@ -97,36 +89,62 @@ def download_box_link(url, out_fname='box.file'):
 def download_test_data(out_dir):
     # 1. download 283 dcis 4 cell graph:
     fname = os.path.join(out_dir, 'cell_graphs', '283_dcis_4.bin')
-    download_box_link('https://ibm.box.com/shared/static/nuxuhc1upe0x1mq2t7njtl7hp5m7x67f.bin', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/nuxuhc1upe0x1mq2t7njtl7hp5m7x67f.bin',
+        fname)
 
     # 2. download 283 dcis 4 tissue graph:
     fname = os.path.join(out_dir, 'tissue_graphs', '283_dcis_4.bin')
-    download_box_link('https://ibm.box.com/shared/static/cw2z7mu6n7b9mlybb83k65sn7dre0y9k.bin', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/cw2z7mu6n7b9mlybb83k65sn7dre0y9k.bin',
+        fname)
 
     # 3. download test images:
     fname = os.path.join(out_dir, 'images', '17B0031061.png')
-    download_box_link('https://ibm.box.com/shared/static/yzyrb051125k866ehaowe4gyep90wws6.png', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/yzyrb051125k866ehaowe4gyep90wws6.png',
+        fname)
 
     fname = os.path.join(out_dir, 'images', '18B000646H.png')
-    download_box_link('https://ibm.box.com/shared/static/pyj5igmqzqyezpkk4d347a7e1uw3l6y3.png', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/pyj5igmqzqyezpkk4d347a7e1uw3l6y3.png',
+        fname)
 
     fname = os.path.join(out_dir, 'images', '283_dcis_4.png')
-    download_box_link('https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png',
+        fname)
 
     fname = os.path.join(out_dir, 'images', '283_dcis_4_annotation.png')
-    download_box_link('https://ibm.box.com/shared/static/ynprh6b9naggb2bmufdd762z8ui2wmbf.png', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/ynprh6b9naggb2bmufdd762z8ui2wmbf.png',
+        fname)
 
     fname = os.path.join(out_dir, 'images', '16B0001851_Block_Region_3.jpg')
-    download_box_link('https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg',
+        fname)
+
+    # 4. download nuclei maps:
+    fname = os.path.join(out_dir, 'nuclei_maps', '283_dcis_4.h5')
+    download_box_link(
+        'https://ibm.box.com/shared/static/qdvvbz0ninnqhic2k5b7wpsshh666mm4.h5',
+        fname)
 
 
 def download_example_data(out_dir=''):
 
     fname = os.path.join(out_dir, 'images', '283_dcis_4.png')
-    download_box_link('https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png',
+        fname)
 
     fname = os.path.join(out_dir, 'images', '1238_adh_10.png')
-    download_box_link('https://ibm.box.com/shared/static/q2h5b19ay3hklf74acft1fn60i2746y2.png', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/q2h5b19ay3hklf74acft1fn60i2746y2.png',
+        fname)
 
     fname = os.path.join(out_dir, 'images', '1937_benign_4.png')
-    download_box_link('https://ibm.box.com/shared/static/lskhxrttnbpg3eoxon2j6mxrjceqr4cd.png', fname)
+    download_box_link(
+        'https://ibm.box.com/shared/static/lskhxrttnbpg3eoxon2j6mxrjceqr4cd.png',
+        fname)

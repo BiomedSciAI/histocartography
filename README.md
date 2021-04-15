@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://ibm.box.com/shared/static/bgv4hk068bv26s8q6pasoxi401tt6b55.png" height="200">
+  <img src="https://ibm.box.com/shared/static/568egs22ggn4gj080ys3m3dzd6fziga9.png" height="200">
 </p>
 
 [![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)

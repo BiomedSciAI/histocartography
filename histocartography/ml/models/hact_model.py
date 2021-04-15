@@ -3,7 +3,7 @@ from typing import Dict, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import dgl 
+import dgl
 import os
 
 from .base_model import BaseModel
@@ -30,7 +30,7 @@ class HACTModel(BaseModel):
         cg_node_dim: int,
         tg_node_dim: int,
         **kwargs
-        ) -> None:
+    ) -> None:
         """
         TissueGraphModel model constructor
 
@@ -38,8 +38,8 @@ class HACTModel(BaseModel):
             cg_gnn_params (Dict): Cell Graph GNN configuration parameters.
             tg_gnn_params (Dict): Tissue Graph GNN configuration parameters.
             classification_params (Dict): classification configuration parameters.
-            cg_node_dim (int): Cell node feature dimension. 
-            tg_node_dim (int): Tissue node feature dimension. 
+            cg_node_dim (int): Cell node feature dimension.
+            tg_node_dim (int): Tissue node feature dimension.
         """
 
         super().__init__(**kwargs)
@@ -77,7 +77,8 @@ class HACTModel(BaseModel):
             if model_name:
                 self._load_checkpoint(model_name)
             else:
-                raise NotImplementedError('There is not available HACT checkpoint for the provided params.')
+                raise NotImplementedError(
+                    'There is not available HACT checkpoint for the provided params.')
 
     def _get_checkpoint_id(self):
 
@@ -90,27 +91,30 @@ class HACTModel(BaseModel):
         if cg_layer_type != tg_layer_type:
             return ''
 
-        candidate = 'bracs_' + model_type + '_' + str(num_classes) + '_classes_' + cg_layer_type + '.pt'
+        candidate = 'bracs_' + model_type + '_' + \
+            str(num_classes) + '_classes_' + cg_layer_type + '.pt'
         if candidate not in list(MODEL_NAME_TO_URL.keys()):
             return ''
 
-        # 2nd level-check: Look at all the specific params: CG-GNN, TG-GNN, classification params   
+        # 2nd level-check: Look at all the specific params: CG-GNN, TG-GNN,
+        # classification params
         cand_config = MODEL_NAME_TO_CONFIG[candidate]
 
         for cand_key, cand_val in cand_config['cg_gnn_params'].items():
             if hasattr(self.superpx_gnn, cand_key):
-                if cand_val != getattr(self.cell_graph_gnn, cand_key): 
+                if cand_val != getattr(self.cell_graph_gnn, cand_key):
                     return ''
             else:
-                if cand_val != getattr(self.cell_graph_gnn.layers[0], cand_key): 
+                if cand_val != getattr(
+                        self.cell_graph_gnn.layers[0], cand_key):
                     return ''
 
         for cand_key, cand_val in cand_config['tg_gnn_params'].items():
             if hasattr(self.superpx_gnn, cand_key):
-                if cand_val != getattr(self.superpx_gnn, cand_key): 
+                if cand_val != getattr(self.superpx_gnn, cand_key):
                     return ''
             else:
-                if cand_val != getattr(self.superpx_gnn.layers[0], cand_key): 
+                if cand_val != getattr(self.superpx_gnn.layers[0], cand_key):
                     return ''
 
         for cand_key, cand_val in cand_config['classification_params'].items():
@@ -141,14 +145,15 @@ class HACTModel(BaseModel):
         self.cell_graph_gnn = MultiLayerGNN(
             input_dim=self.cg_node_dim,
             **self.cg_gnn_params
-            )
+        )
 
     def _build_classification_params(self):
         """
         Build classification parameters
         """
         if self.readout_op == "concat":
-            emd_dim = self.tg_gnn_params['output_dim'] * self.tg_gnn_params['num_layers']
+            emd_dim = self.tg_gnn_params['output_dim'] * \
+                self.tg_gnn_params['num_layers']
         else:
             emd_dim = self.tg_gnn_params['output_dim']
 
@@ -182,17 +187,17 @@ class HACTModel(BaseModel):
         cell_graph: Union[dgl.DGLGraph, dgl.batch],
         tissue_graph: Union[dgl.DGLGraph, dgl.batch],
         assignment_matrix: torch.Tensor
-        ) -> torch.Tensor:
+    ) -> torch.Tensor:
         """
         Foward pass.
-        
+
         Args:
-            cell_graph (Union[dgl.DGLGraph, dgl.batch]): Cell graph or Batch of cell graphs. 
-            tissue_graph (Union[dgl.DGLGraph, dgl.batch]): Tissue graph or Batch of tissue graphs. 
+            cell_graph (Union[dgl.DGLGraph, dgl.batch]): Cell graph or Batch of cell graphs.
+            tissue_graph (Union[dgl.DGLGraph, dgl.batch]): Tissue graph or Batch of tissue graphs.
             assignment_matrix (torch.Tensor): List of assignment matrices
-        
+
         Returns:
-            torch.Tensor: model output. 
+            torch.Tensor: model output.
         """
 
         # 1. GNN layers over the low level graph

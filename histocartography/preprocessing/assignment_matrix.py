@@ -10,7 +10,7 @@ from ..pipeline import PipelineStep
 
 class AssignmnentMatrixBuilder(PipelineStep):
     """
-    Assigning low-level instances to high-level instances using instance maps. 
+    Assigning low-level instances to high-level instances using instance maps.
     """
 
     def _process(
@@ -23,16 +23,20 @@ class AssignmnentMatrixBuilder(PipelineStep):
         Returns:
             np.ndarray: Constructed assignment
         """
-        return self._build_assignment_matrix(low_level_centroids, high_level_map)
+        return self._build_assignment_matrix(
+            low_level_centroids, high_level_map)
 
     def _build_assignment_matrix(
             self, low_level_centroids: np.ndarray, high_level_map: np.ndarray
     ) -> np.ndarray:
         """Construct assignment between inter-level instances"""
         low_level_centroids = low_level_centroids.astype(int)
-        high_instance_ids = np.sort(pd.unique(np.ravel(high_level_map))).astype(int)
+        high_instance_ids = np.sort(
+            pd.unique(np.ravel(high_level_map))).astype(int)
         if 0 in high_instance_ids:
-            high_instance_ids = np.delete(high_instance_ids, np.where(high_instance_ids == 0))
+            high_instance_ids = np.delete(
+                high_instance_ids, np.where(
+                    high_instance_ids == 0))
 
         low_to_high = high_level_map[
             low_level_centroids[:, 1],

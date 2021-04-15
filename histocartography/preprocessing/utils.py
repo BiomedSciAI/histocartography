@@ -42,7 +42,7 @@ def load_image(image_path: Path) -> np.ndarray:
 
 
 def save_image(image_path: Path, image: np.ndarray) -> None:
-    """Saves a provided image to a given path. 
+    """Saves a provided image to a given path.
 
     Args:
         image_path (Path): Path of the image

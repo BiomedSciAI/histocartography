@@ -1,8 +1,8 @@
-import math 
-import numpy as np 
+import math
+import numpy as np
 import cv2
 import os
-import glob 
+import glob
 
 
 STEP_SIZE = [164, 164]
@@ -35,9 +35,10 @@ def extract_patches_from_image(image, im_h, im_w):
     coords = []
     # generating subpatches from original
     for row in range(0, last_h, STEP_SIZE[0]):
-        for col in range (0, last_w, STEP_SIZE[1]):
-            win = x[row:row+WIN_SIZE[0], 
-                    col:col+WIN_SIZE[1]]
+        for col in range(0, last_w, STEP_SIZE[1]):
+            win = x[row:row + WIN_SIZE[0],
+                    col:col + WIN_SIZE[1]]
             sub_patches.append(win)
-            coords.append([col, row, col+STEP_SIZE[0], row+STEP_SIZE[1]])  # left, bottom, right, top
+            # left, bottom, right, top
+            coords.append([col, row, col + STEP_SIZE[0], row + STEP_SIZE[1]])
     return sub_patches, coords

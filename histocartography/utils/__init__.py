@@ -27,7 +27,8 @@ def dynamic_import_from(source_file: str, class_name: str) -> Any:
     module = importlib.import_module(source_file)
     return getattr(module, class_name)
 
-def signal_last(input_iterable:Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
+
+def signal_last(input_iterable: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
     iterable = iter(input_iterable)
     return_value = next(iterable)
     for value in iterable:

@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 import dgl
 import numpy as np
 import torch
-import os 
+import os
 
 from ..pipeline import PipelineStep
 

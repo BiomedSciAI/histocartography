@@ -1,11 +1,11 @@
 """Unit test for preprocessing.io"""
 import unittest
 import numpy as np
-import cv2 
-import torch 
+import cv2
+import torch
 import yaml
-import dgl 
-import os 
+import dgl
+import os
 from PIL import Image
 import shutil
 
@@ -28,7 +28,7 @@ class IOTestCase(unittest.TestCase):
         self.graph_name = '283_dcis_4.bin'
         self.out_path = os.path.join(self.data_path, 'io_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
-            shutil.rmtree(self.out_path) 
+            shutil.rmtree(self.out_path)
         os.makedirs(self.out_path)
 
     def test_image_loader_with_pipeline_runner(self):
@@ -36,7 +36,11 @@ class IOTestCase(unittest.TestCase):
         Test Image Loader with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'io', 'image_loader.yml')
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'io',
+            'image_loader.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
         pipeline = PipelineRunner(output_path=self.out_path, **config)
@@ -46,15 +50,20 @@ class IOTestCase(unittest.TestCase):
         )
         image = output['image']
 
-        self.assertTrue(isinstance(image, np.ndarray))        # output is numpy 
-        self.assertEqual(list(image.shape), [1024, 1280, 3])  # image HxW = mask HxW 
+        self.assertTrue(isinstance(image, np.ndarray))        # output is numpy
+        # image HxW = mask HxW
+        self.assertEqual(list(image.shape), [1024, 1280, 3])
 
     def test_graph_loader_with_pipeline_runner(self):
         """
         Test DGLGraph Loader with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'io', 'graph_loader.yml')
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'io',
+            'graph_loader.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
         pipeline = PipelineRunner(output_path=self.out_path, **config)
@@ -64,36 +73,51 @@ class IOTestCase(unittest.TestCase):
         )
         graph = output['graph']
 
-        self.assertTrue(isinstance(graph, dgl.DGLGraph)) # graph is DGLGraph 
-        self.assertEqual(graph.number_of_nodes(), 25)    # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 112)    # check number of nodes
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))  # graph is DGLGraph
+        self.assertEqual(
+            graph.number_of_nodes(),
+            25)    # check number of nodes
+        self.assertEqual(
+            graph.number_of_edges(),
+            112)    # check number of nodes
         self.assertTrue('centroid' in graph.ndata.keys())  # check if centroids
-        self.assertTrue('feat' in graph.ndata.keys())      # check if features 
+        self.assertTrue('feat' in graph.ndata.keys())      # check if features
 
     def test_image_loader(self):
         """
-        Test Image Loader. 
+        Test Image Loader.
         """
 
         image_loader = ImageLoader()
-        image = image_loader.process(os.path.join(self.image_path, self.image_name))
+        image = image_loader.process(
+            os.path.join(
+                self.image_path,
+                self.image_name))
 
-        self.assertTrue(isinstance(image, np.ndarray))        # output is numpy 
-        self.assertEqual(list(image.shape), [1024, 1280, 3])  # image HxW = mask HxW 
+        self.assertTrue(isinstance(image, np.ndarray))        # output is numpy
+        # image HxW = mask HxW
+        self.assertEqual(list(image.shape), [1024, 1280, 3])
 
     def test_graph_loader(self):
         """
-        Test DGLGraph Loader. 
+        Test DGLGraph Loader.
         """
 
         graph_loader = DGLGraphLoader()
-        graph = graph_loader.process(os.path.join(self.graph_path, self.graph_name))
+        graph = graph_loader.process(
+            os.path.join(
+                self.graph_path,
+                self.graph_name))
 
-        self.assertTrue(isinstance(graph, dgl.DGLGraph))   # graph is DGLGraph 
-        self.assertEqual(graph.number_of_nodes(), 25)      # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 112)      # check number of nodes
+        self.assertTrue(isinstance(graph, dgl.DGLGraph))   # graph is DGLGraph
+        self.assertEqual(
+            graph.number_of_nodes(),
+            25)      # check number of nodes
+        self.assertEqual(
+            graph.number_of_edges(),
+            112)      # check number of nodes
         self.assertTrue('centroid' in graph.ndata.keys())  # check if centroids
-        self.assertTrue('feat' in graph.ndata.keys())      # check if features 
+        self.assertTrue('feat' in graph.ndata.keys())      # check if features
 
     def tearDown(self):
         """Tear down the tests."""

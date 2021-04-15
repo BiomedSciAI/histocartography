@@ -6,7 +6,7 @@ import torch
 import yaml
 from copy import deepcopy
 import h5py
-import os 
+import os
 import shutil
 from dgl.data.utils import load_graphs
 
@@ -29,7 +29,7 @@ class GraphGradCAMTestCase(unittest.TestCase):
         self.graph_name = '283_dcis_4.bin'
         self.out_path = os.path.join(self.data_path, 'graph_graphcam_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
-            shutil.rmtree(self.out_path) 
+            shutil.rmtree(self.out_path)
         os.makedirs(self.out_path)
 
     def test_graphgradcam_with_saving(self):
@@ -43,8 +43,11 @@ class GraphGradCAMTestCase(unittest.TestCase):
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
         node_dim = graph.ndata['feat'].shape[1]
 
-        # 2. create model 
-        config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
+        # 2. create model
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'cg_bracs_cggnn_3_classes_gin.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -65,11 +68,10 @@ class GraphGradCAMTestCase(unittest.TestCase):
             output_name=self.graph_name.replace('.bin', '')
         )
 
-        # 3. tests 
+        # 3. tests
         self.assertIsInstance(importance_scores, np.ndarray)
         self.assertIsInstance(logits, np.ndarray)
         self.assertEqual(graph.number_of_nodes(), importance_scores.shape[0])
-
 
     def test_graphgradcam(self):
         """
@@ -82,8 +84,11 @@ class GraphGradCAMTestCase(unittest.TestCase):
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
         node_dim = graph.ndata['feat'].shape[1]
 
-        # 2. create model 
-        config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
+        # 2. create model
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'cg_bracs_cggnn_3_classes_gin.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -100,7 +105,7 @@ class GraphGradCAMTestCase(unittest.TestCase):
         )
         importance_scores, logits = explainer.process(graph)
 
-        # 3. tests 
+        # 3. tests
         self.assertIsInstance(importance_scores, np.ndarray)
         self.assertIsInstance(logits, np.ndarray)
         self.assertEqual(graph.number_of_nodes(), importance_scores.shape[0])
@@ -117,8 +122,11 @@ class GraphGradCAMTestCase(unittest.TestCase):
         node_dim = graph.ndata['feat'].shape[1]
         class_idx = [0, 1, 2]
 
-        # 2. create model 
-        config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
+        # 2. create model
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'cg_bracs_cggnn_3_classes_gin.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -133,9 +141,10 @@ class GraphGradCAMTestCase(unittest.TestCase):
         explainer = GraphGradCAMExplainer(
             model=model
         )
-        importance_scores, logits = explainer.process(graph, class_idx=class_idx)
+        importance_scores, logits = explainer.process(
+            graph, class_idx=class_idx)
 
-        # 3. tests 
+        # 3. tests
         self.assertIsInstance(importance_scores, np.ndarray)
         self.assertIsInstance(logits, np.ndarray)
         self.assertEqual(len(class_idx), importance_scores.shape[0])
@@ -153,8 +162,11 @@ class GraphGradCAMTestCase(unittest.TestCase):
         node_dim = graph.ndata['feat'].shape[1]
         class_idx = 0
 
-        # 2. create model 
-        config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
+        # 2. create model
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'cg_bracs_cggnn_3_classes_gin.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -169,9 +181,10 @@ class GraphGradCAMTestCase(unittest.TestCase):
         explainer = GraphGradCAMExplainer(
             model=model
         )
-        importance_scores, logits = explainer.process(graph, class_idx=class_idx)
+        importance_scores, logits = explainer.process(
+            graph, class_idx=class_idx)
 
-        # 3. tests 
+        # 3. tests
         self.assertIsInstance(importance_scores, np.ndarray)
         self.assertIsInstance(logits, np.ndarray)
         self.assertEqual(graph.number_of_nodes(), importance_scores.shape[0])
@@ -187,8 +200,11 @@ class GraphGradCAMTestCase(unittest.TestCase):
         graph = set_graph_on_cuda(graph) if IS_CUDA else graph
         node_dim = graph.ndata['feat'].shape[1]
 
-        # 2. create model 
-        config_fname = os.path.join(self.current_path, 'config', 'cg_bracs_cggnn_3_classes_gin.yml')
+        # 2. create model
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'cg_bracs_cggnn_3_classes_gin.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -205,7 +221,7 @@ class GraphGradCAMTestCase(unittest.TestCase):
         )
         importance_scores, logits = explainer.process(graph)
 
-        # 3. tests 
+        # 3. tests
         self.assertIsInstance(importance_scores, np.ndarray)
         self.assertIsInstance(logits, np.ndarray)
         self.assertEqual(graph.number_of_nodes(), importance_scores.shape[0])

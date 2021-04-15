@@ -22,7 +22,8 @@ class FileLoader(PipelineStep):
 
 
 class ImageLoader(FileLoader):
-    def _process(self, path: Union[str, Path]) -> np.ndarray:  # type: ignore[override]
+    # type: ignore[override]
+    def _process(self, path: Union[str, Path]) -> np.ndarray:
         image_path = Path(path)
         image = load_image(image_path)
         return image

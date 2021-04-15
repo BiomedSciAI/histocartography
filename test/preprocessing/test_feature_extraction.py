@@ -2,8 +2,8 @@
 import unittest
 import numpy as np
 import yaml
-import os 
-import torch 
+import os
+import torch
 import shutil
 
 from histocartography import PipelineRunner
@@ -22,7 +22,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'feature_extraction_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
-            shutil.rmtree(self.out_path) 
+            shutil.rmtree(self.out_path)
         os.makedirs(self.out_path)
 
     def test_handcrafted_feature_extractor(self):
@@ -44,8 +44,10 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
-        self.assertEqual(features.shape[1], 65)  # check number of features per instance
-        self.assertEqual(features.shape[0], 23)  # check number of instances detected
+        # check number of features per instance
+        self.assertEqual(features.shape[1], 65)
+        # check number of instances detected
+        self.assertEqual(features.shape[0], 23)
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -75,7 +77,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
-        self.assertEqual(features.shape[0], 23)    # check number of superpixels
+        # check number of superpixels
+        self.assertEqual(features.shape[0], 23)
         self.assertEqual(features.shape[1], 1280)  # check number features
 
         # Re-run with existing output & ensure equal
@@ -106,9 +109,11 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
-        self.assertEqual(features.shape[0], 23)    # check number of superpixels
-        self.assertEqual(features.shape[1], 4)   # check number of augmentations
-        self.assertEqual(features.shape[2], 1280) # check number features
+        # check number of superpixels
+        self.assertEqual(features.shape[0], 23)
+        # check number of augmentations
+        self.assertEqual(features.shape[1], 4)
+        self.assertEqual(features.shape[2], 1280)  # check number features
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -137,8 +142,10 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
-        self.assertEqual(features.shape[0], 331)             # check number of nuclei
-        self.assertEqual(features.shape[1], 1280)            # check number features
+        # check number of nuclei
+        self.assertEqual(features.shape[0], 331)
+        # check number features
+        self.assertEqual(features.shape[1], 1280)
 
     def test_deep_nuclei_feature_extractor_aug(self):
         """Test deep nuclei feature extractor with pipeline runner and with augmentation."""
@@ -159,17 +166,19 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
         self.assertEqual(features.shape[0], 331)   # check number of nuclei
-        self.assertEqual(features.shape[1], 4)     # check number of augmentations
+        # check number of augmentations
+        self.assertEqual(features.shape[1], 4)
         self.assertEqual(features.shape[2], 1280)  # check number features
 
     def test_grid_deep_tissue_feature_extractor_noaug(self):
         """
         Test grid deep tissue feature extractor with pipeline runner and without augmentation.
         """
-        config_fname = os.path.join(self.current_path,
-                                    'config',
-                                    'feature_extraction',
-                                    'grid_deep_tissue_feature_extractor_noaug.yml')
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'feature_extraction',
+            'grid_deep_tissue_feature_extractor_noaug.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -180,11 +189,18 @@ class FeatureExtractionTestCase(unittest.TestCase):
         )
         features = output['features']
 
-        self.assertTrue(isinstance(features, torch.Tensor))         # check type
-        self.assertEqual(features.ndim, 3)                          # check number of dimensions
-        self.assertEqual(features.shape[0], 7)                      # check rows of feature cube
-        self.assertEqual(features.shape[1], 7)                      # check columns of feature cube
-        self.assertEqual(features.shape[2], 1280)                   # check number features
+        self.assertTrue(
+            isinstance(
+                features,
+                torch.Tensor))         # check type
+        # check number of dimensions
+        self.assertEqual(features.ndim, 3)
+        # check rows of feature cube
+        self.assertEqual(features.shape[0], 7)
+        # check columns of feature cube
+        self.assertEqual(features.shape[1], 7)
+        # check number features
+        self.assertEqual(features.shape[2], 1280)
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -199,10 +215,11 @@ class FeatureExtractionTestCase(unittest.TestCase):
         """
         Test grid deep tissue feature extractor with pipeline runner and with augmentation.
         """
-        config_fname = os.path.join(self.current_path,
-                                    'config',
-                                    'feature_extraction',
-                                    'grid_deep_tissue_feature_extractor_aug.yml')
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'feature_extraction',
+            'grid_deep_tissue_feature_extractor_aug.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -214,11 +231,16 @@ class FeatureExtractionTestCase(unittest.TestCase):
         features = output['features']
 
         self.assertTrue(isinstance(features, torch.Tensor))     # check type
-        self.assertEqual(features.ndim, 4)                      # check number of dimensions
-        self.assertEqual(features.shape[0], 7)                  # check rows of feature cube
-        self.assertEqual(features.shape[1], 7)                  # check columns of feature cube
-        self.assertEqual(features.shape[2], 4)                  # check number of augmentations
-        self.assertEqual(features.shape[3], 1280)               # check number features
+        # check number of dimensions
+        self.assertEqual(features.ndim, 4)
+        # check rows of feature cube
+        self.assertEqual(features.shape[0], 7)
+        # check columns of feature cube
+        self.assertEqual(features.shape[1], 7)
+        # check number of augmentations
+        self.assertEqual(features.shape[2], 4)
+        # check number features
+        self.assertEqual(features.shape[3], 1280)
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(

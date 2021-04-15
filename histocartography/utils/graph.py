@@ -1,9 +1,17 @@
 import networkx as nx
-import numpy as np 
-import dgl 
+import numpy as np
+import dgl
 
 
-def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None, nuclei_labels=None):
+def adj_to_networkx(
+        adj,
+        feat,
+        node_importance=None,
+        threshold=0.1,
+        max_component=False,
+        rm_iso_nodes=False,
+        centroids=None,
+        nuclei_labels=None):
     """Cleaning a graph by thresholding its node values.
 
     Args:
@@ -27,26 +35,27 @@ def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_componen
             centroids_dict[node_id] = centroids[node_id, :]
         nx.set_node_attributes(graph, centroids_dict, 'centroid')
 
-    # build topology 
+    # build topology
     adj[adj < threshold] = 0
     edge_list = np.nonzero(adj)
     weights = adj[adj > threshold]
-    weighted_edge_list = [(from_.item(), to_.item(), weights[idx].item()) for (idx, (from_, to_)) in enumerate(edge_list)]  # if from_ <= to_
+    weighted_edge_list = [(from_.item(), to_.item(), weights[idx].item()) for (
+        idx, (from_, to_)) in enumerate(edge_list)]  # if from_ <= to_
     graph.add_weighted_edges_from(weighted_edge_list)
 
-    # set node importance 
+    # set node importance
     if node_importance is not None:
         node_importance_dict = {}
         for node_id in range(num_nodes):
             node_importance_dict[node_id] = node_importance[node_id]
         nx.set_node_attributes(graph, node_importance_dict, 'node_importance')
 
-    # set nuclei labels  
+    # set nuclei labels
     if nuclei_labels is not None:
         nuclei_labels_dict = {}
         for node_id in range(num_nodes):
             nuclei_labels_dict[node_id] = nuclei_labels[node_id]
-        nx.set_node_attributes(graph, nuclei_labels_dict, 'nuclei_label')        
+        nx.set_node_attributes(graph, nuclei_labels_dict, 'nuclei_label')
 
     # extract largest cc
     if max_component:
@@ -62,7 +71,15 @@ def adj_to_networkx(adj, feat, node_importance=None, threshold=0.1, max_componen
     return graph
 
 
-def adj_to_dgl(adj, feat, node_importance=None, threshold=0.1, max_component=False, rm_iso_nodes=False, centroids=None, nuclei_labels=None):
+def adj_to_dgl(
+        adj,
+        feat,
+        node_importance=None,
+        threshold=0.1,
+        max_component=False,
+        rm_iso_nodes=False,
+        centroids=None,
+        nuclei_labels=None):
     """Cleaning a graph by thresholding its node values.
 
     Args:
@@ -73,7 +90,15 @@ def adj_to_dgl(adj, feat, node_importance=None, threshold=0.1, max_component=Fal
         - rm_iso_nodes      : if remove isolated nodes
     """
 
-    networkx_graph = adj_to_networkx(adj, feat, node_importance, threshold, max_component, rm_iso_nodes, centroids, nuclei_labels)
+    networkx_graph = adj_to_networkx(
+        adj,
+        feat,
+        node_importance,
+        threshold,
+        max_component,
+        rm_iso_nodes,
+        centroids,
+        nuclei_labels)
     graph = dgl.DGLGraph()
 
     node_keys = []
@@ -81,10 +106,13 @@ def adj_to_dgl(adj, feat, node_importance=None, threshold=0.1, max_component=Fal
         try:
             nx.get_node_attributes(networkx_graph, cand_key)
             node_keys.append(cand_key)
-        except:
-            x = 0 # do nothing...
+        except BaseException:
+            x = 0  # do nothing...
 
-    graph.from_networkx(networkx_graph, edge_attrs=None, node_attrs=None if len(node_keys)==0 else node_keys)
+    graph.from_networkx(
+        networkx_graph,
+        edge_attrs=None,
+        node_attrs=None if len(node_keys) == 0 else node_keys)
     return graph
 
 

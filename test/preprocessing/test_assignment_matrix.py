@@ -29,7 +29,11 @@ class GraphBuilderTestCase(unittest.TestCase):
         Test assignment matrix with pipeline runner.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'assignment_matrix', 'assignment_matrix_builder.yml')
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'assignment_matrix',
+            'assignment_matrix_builder.yml')
         with open(config_fname, 'r') as file:
             config = yaml.safe_load(file)
 
@@ -40,10 +44,18 @@ class GraphBuilderTestCase(unittest.TestCase):
         )
         assignment_matrix = output['assignment_matrix']
 
-        self.assertTrue(isinstance(assignment_matrix, np.ndarray))  # check type
-        self.assertEqual(assignment_matrix.shape[0], 331)   # check number of nuclei
-        self.assertEqual(assignment_matrix.shape[1], 23)    # check number of superpixels
-        self.assertEqual(np.all(np.sum(assignment_matrix, axis=1) == 1), True)  # check all nuclei assigned to only one superpixel
+        self.assertTrue(
+            isinstance(
+                assignment_matrix,
+                np.ndarray))  # check type
+        self.assertEqual(
+            assignment_matrix.shape[0],
+            331)   # check number of nuclei
+        self.assertEqual(
+            assignment_matrix.shape[1],
+            23)    # check number of superpixels
+        # check all nuclei assigned to only one superpixel
+        self.assertEqual(np.all(np.sum(assignment_matrix, axis=1) == 1), True)
 
     def tearDown(self):
         """Tear down the tests."""

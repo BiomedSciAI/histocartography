@@ -53,21 +53,21 @@ The `histocartography` library provides a set of helpers grouped in different mo
 For instance, in `histocartography`, detecting nuclei in an H&E image is as simple as:
 
 ```
-from histocartography.preprocessing import NucleiExtractor
-
-detector = NucleiExtractor()
-image = np.array(Image.open('images/283_dcis_4.png'))
-instance_map, _ = detector.process(image)
+>> from histocartography.preprocessing import NucleiExtractor
+>> 
+>> detector = NucleiExtractor()
+>> image = np.array(Image.open('images/283_dcis_4.png'))
+>> instance_map, _ = detector.process(image)
 ```
 
 The output can be then visualized with:
 
 ```
-from histocartography.visualization import InstanceImageVisualization
-
-visualizer = InstanceImageVisualization()
-canvas = visualizer.process(image, instance_map=instance_map)
-canvas.show()
+>> from histocartography.visualization import InstanceImageVisualization
+>> 
+>> visualizer = InstanceImageVisualization()
+>> canvas = visualizer.process(image, instance_map=instance_map)
+>> canvas.show()
 ```
 
 <p align="center">

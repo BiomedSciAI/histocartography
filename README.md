@@ -7,7 +7,9 @@
 **[Documentation](https://<documentation>)**
 | **[Paper](https://arxiv.org/pdf/2102.11057.pdf)** 
 
-High-level description of the library. 
+Welcome to the `histocartography` repository! `histocartography` is a python-based library designed to ease the development of computational pathology pipelines. The library offers plug-and-play modules to address a number of common tasks in digital pathology, e.g., stain normalization, nuclei detection, tissue detection. Even more, `histocartography` includes a set helpers to work with graph-based representation of histology images. Features range from cell graph generation of an H&E image to Graph Neural Network-based modeling. All the features are grouped under a user-friendly API. 
+
+If you encounter any issue or have questions regarding the library, feel free to [open a GitHub issue](add_link), we'll do our best to address it. 
 
 # Installation 
 

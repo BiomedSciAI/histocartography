@@ -37,7 +37,6 @@ stages:
       - features
       params:
         architecture: mobilenet_v2
-        num_workers: 8
         normalizer:
           type: imagenet
           mean:

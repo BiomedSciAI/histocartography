@@ -3,6 +3,9 @@
 </p>
 
 [![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
+[![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
+[![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
+[![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
 
 **[Documentation](https://<documentation>)**
 | **[Paper](https://arxiv.org/pdf/2102.11057.pdf)** 

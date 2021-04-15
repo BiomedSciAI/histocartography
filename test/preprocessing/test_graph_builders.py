@@ -45,7 +45,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, self.image_name)
+            image_path=os.path.join(self.image_path, self.image_name),
+            cores=1
         )
         graph = output['graph']
 
@@ -67,7 +68,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.png', '_aug'),
-            image_path=os.path.join(self.image_path, self.image_name)
+            image_path=os.path.join(self.image_path, self.image_name),
+            cores=1
         )
         graph = output['graph']
 
@@ -90,7 +92,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         output = pipeline.run(
             output_name=self.image_name.replace('.png', '_annotation'),
             image_path=os.path.join(self.image_path, self.image_name),
-            annotation_path=os.path.join(self.image_path, self.annotation_name)
+            annotation_path=os.path.join(self.image_path, self.annotation_name),
+            cores=1
         )
         graph = output['graph']
         labels, counts = np.unique(graph.ndata['label'].numpy(), return_counts=True)
@@ -147,7 +150,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, self.image_name)
+            image_path=os.path.join(self.image_path, self.image_name),
+            cores=1
         )
         graph = output['graph']
 

@@ -12,6 +12,7 @@ from .graph_builders import KNNGraphBuilder
 # io
 from .io import ImageLoader
 from .io import DGLGraphLoader
+from .io import H5Loader
 
 # nuclei concept extraction
 from .nuclei_concept_extraction import NucleiConceptExtractor
@@ -48,6 +49,7 @@ __all__ = [
     'KNNGraphBuilder',
     'ImageLoader',
     'DGLGraphLoader',
+    'H5Loader',
     'NucleiConceptExtractor',
     'NucleiExtractor',
     'MacenkoStainNormalizer',

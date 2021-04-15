@@ -1,7 +1,8 @@
 import importlib
 from typing import Any, Iterable, Tuple
 
-from .io import download_example_data, download_test_data, download_box_link, is_box_url
+from .io import download_example_data, download_test_data
+from .io import download_box_link, is_box_url
 from .graph import set_graph_on_cuda, set_graph_on_cpu
 
 __all__ = [

@@ -14,6 +14,7 @@ from histocartography.preprocessing import AugmentedDeepFeatureExtractor
 from histocartography.preprocessing import ColorMergedSuperpixelExtractor
 from histocartography.preprocessing import RAGGraphBuilder
 from histocartography.preprocessing import KNNGraphBuilder, NucleiExtractor
+from histocartography.preprocessing import H5Loader
 from histocartography.utils import download_test_data
 
 
@@ -27,6 +28,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
+        self.nuclei_map_path = os.path.join(self.data_path, 'nuclei_maps')
+        self.nuclei_map_name = '283_dcis_4.h5'
         self.annotation_name = '283_dcis_4_annotation.png'
         self.out_path = os.path.join(self.data_path, 'graph_builder_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
@@ -176,7 +179,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, self.image_name)
+            image_path=os.path.join(self.image_path, self.image_name),
+            nuclei_map_path=os.path.join(self.nuclei_map_path, self.nuclei_map_name)
         )
         graph = output['graph']
 
@@ -198,9 +202,14 @@ class GraphBuilderTestCase(unittest.TestCase):
                     self.image_path,
                     self.image_name)))
 
-        # 2. run nuclei detection
-        extractor = NucleiExtractor()
-        instance_map, instance_centroids = extractor.process(image)
+        # 2. load nuclei detection
+        h5_loader = H5Loader()
+        instance_map, instance_centroids = h5_loader._process(
+            path=os.path.join(
+                self.nuclei_map_path,
+                self.nuclei_map_name
+            )
+        )
 
         # 3. extract deep features
         feature_extractor = AugmentedDeepFeatureExtractor(

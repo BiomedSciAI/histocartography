@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, Union
+import h5py
 
 import dgl
 import numpy as np
@@ -7,6 +8,7 @@ from dgl.data.utils import load_graphs
 
 from ..pipeline import PipelineStep
 from .utils import load_image
+from ..utils.io import h5_to_numpy 
 
 
 class FileLoader(PipelineStep):
@@ -38,3 +40,16 @@ class DGLGraphLoader(FileLoader):
         if len(graphs) == 1:
             return graphs[0]
         return graphs
+
+
+class H5Loader(FileLoader):
+    def _process(  # type: ignore[override]
+        self, path: Union[str, Path]
+    ) -> Any:
+        with h5py.File(path, "r") as f:
+            keys = list(f.keys())
+            if len(keys) == 1:
+                return h5_to_numpy(f[keys[0]])
+            else:
+                out = tuple([h5_to_numpy(f[key]) for key in keys])
+                return out

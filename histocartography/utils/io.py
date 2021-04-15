@@ -47,6 +47,14 @@ def h5_to_tensor(h5_object, device):
     return tensor
 
 
+def h5_to_numpy(h5_object):
+    """
+    Convert h5 object into numpy array
+    """
+    out = np.array(h5_object[()])
+    return out
+
+
 def load_json(fname):
     """
     Load json file as a dict.
@@ -115,6 +123,12 @@ def download_test_data(out_dir):
     fname = os.path.join(out_dir, 'images', '16B0001851_Block_Region_3.jpg')
     download_box_link(
         'https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg',
+        fname)
+
+    # 4. download nuclei maps:
+    fname = os.path.join(out_dir, 'nuclei_maps', '283_dcis_4.h5')
+    download_box_link(
+        'https://ibm.box.com/shared/static/qdvvbz0ninnqhic2k5b7wpsshh666mm4.h5',
         fname)
 
 

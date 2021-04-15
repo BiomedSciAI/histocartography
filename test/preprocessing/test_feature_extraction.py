@@ -20,6 +20,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
+        self.nuclei_map_path = os.path.join(self.data_path, 'nuclei_maps')
+        self.nuclei_map_name = '283_dcis_4.h5'
         self.out_path = os.path.join(self.data_path, 'feature_extraction_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path)
@@ -137,7 +139,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, self.image_name)
+            image_path=os.path.join(self.image_path, self.image_name),
+            nuclei_map_path=os.path.join(self.nuclei_map_path, self.nuclei_map_name)
         )
         features = output['features']
 
@@ -160,7 +163,8 @@ class FeatureExtractionTestCase(unittest.TestCase):
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, self.image_name)
+            image_path=os.path.join(self.image_path, self.image_name),
+            nuclei_map_path=os.path.join(self.nuclei_map_path, self.nuclei_map_name)
         )
         features = output['features']
 

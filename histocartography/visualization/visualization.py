@@ -172,8 +172,8 @@ class BaseGraphVisualization(PipelineStep):
 
         Args:
             instance_visualizer (BaseImageVisualization): Instance visualization object. Defaults to None.
-            min_max_color_normalize (bool): If the nodes/edges values, eg importance scores, should be min/max normalize. 
-                                            Only relevant if node-level colors are provided. Defaults to True.
+            min_max_color_normalize (bool): If the node/edge values, eg importance scores, should be min/max normalized. 
+                                            Only relevant if node/edge-level colors are provided. Defaults to True.
         """
         super().__init__(**kwargs)
         self.instance_visualizer = instance_visualizer

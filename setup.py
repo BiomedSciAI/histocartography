@@ -131,6 +131,7 @@ setup(
     version='0.1',
     description='Installable histocartography package.',
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     url='https://github.com/histocartography/histocartography',
     download_url='https://github.com/histocartography/histocartography/archive/refs/tags/v0.1-alpha3.tar.gz',
     author='Guillaume Jaume, Pushpak Pati, Antonio Foncubierta Rodríguez',

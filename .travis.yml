@@ -1,3 +1,5 @@
+vm:
+  size: 2x-large
 language: python
 python:
   - 3.7

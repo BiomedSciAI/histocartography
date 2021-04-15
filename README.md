@@ -4,6 +4,9 @@
 
 [![Build Status](https://travis.ibm.com/DigitalPathologyZRL/histocartography.svg?token=8FJcyLKb64p4ANuB6hHj&branch=cleanup/stable)](https://travis.ibm.com/DigitalPathologyZRL/histocartography)
 
+**[Documentation](https://<documentation>)**
+| **[Paper](https://arxiv.org/pdf/2102.11057.pdf)** 
+
 High-level description of the library. 
 
 # Installation 
@@ -78,7 +81,15 @@ A list of examples to discover the capabilities of the `histocartography` librar
 
 A tutorial with detailed descriptions and visualizations of some of the main functionalities is provided [here](https://github.com/maragraziani/interpretAI_DigiPath/blob/feature/handson2%2Fpus/hands-on-session-2/hands-on-session-2.ipynb) as a notebook. 
 
-# Papers already using this library
+# External Ressources 
+
+## Learn more about GNNs 
+
+- We have prepared a gentle introduction to Graph Neural Networks. In this tutorial, you can find [slides](https://github.com/guillaumejaume/tuto-dl-on-graphs/blob/main/slides/ml-on-graphs-tutorial.pptx), [notebooks](https://github.com/guillaumejaume/tuto-dl-on-graphs/tree/main/notebooks) and a set of [reference papers](https://github.com/guillaumejaume/tuto-dl-on-graphs).
+- For those of you interested in exploring Graph Neural Networks in depth, please refer to [this content](https://github.com/guillaumejaume/graph-neural-networks-roadmap) or [this one](https://github.com/thunlp/GNNPapers).
+
+
+## Papers already using this library
 
 - [Hierarchical Graph Representations for Digital Pathology](https://arxiv.org/pdf/2102.11057.pdf]), Pati et al., preprint, 2021.
 - [Quantifying Explainers of Graph Neural Networks in Computational Pathology](https://arxiv.org/pdf/2011.12646.pdf),  Jaume et al., CVPR, 2021.

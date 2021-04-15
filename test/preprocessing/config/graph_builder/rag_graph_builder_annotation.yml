@@ -51,6 +51,7 @@ stages:
         patch_size: 224
         stride: 224
         downsample_factor: 2
+        batch_size: 4
   - preprocessing:
         class: "ImageLoader"
         inputs:

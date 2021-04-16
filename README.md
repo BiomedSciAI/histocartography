@@ -10,9 +10,16 @@
 **[Documentation](https://<documentation>)**
 | **[Paper](https://arxiv.org/pdf/2102.11057.pdf)** 
 
-**Welcome to the `histocartography` repository!** `histocartography` is a python-based library designed to ease the development of computational pathology pipelines. The library offers plug-and-play modules to address a number of common tasks in digital pathology, e.g., *stain normalization*, *nuclei detection*, *tissue detection*. Even more, `histocartography` includes a set of helpers to work with graph-based representation of histology images. Features range from *cell graph generation* of an H&E image to *Graph Neural Network-based modeling*. All the features are grouped under a user-friendly API. 
+**Welcome to the `histocartography` repository!** `histocartography` is a python-based library designed to facilitate the development of graph-based computational pathology pipelines. The library includes plug-and-play modules to perform,
+- standard histology image pre-processing (e.g., *stain normalization*, *nuclei detection*, *tissue detection*)
+- entity-graph representation building (e.g. *cell graph*, *tissue graph*, *hierarchical graph*)
+- modeling Graph Neural Networks (e.g. *GIN*, *PNA*)
+- feature attribution based graph interpretability techniques (e.g. *GraphGradCAM*, *GraphGradCAM++*, *GNNExplainer*)
+- visualization tools 
 
-If you encounter any issue or have questions regarding the library, feel free to [open a GitHub issue](add_link), we'll do our best to address it. 
+All the functionalities are grouped under a user-friendly API. 
+
+If you encounter any issue or have questions regarding the library, feel free to [open a GitHub issue](add_link). We'll do our best to address it. 
 
 # Installation 
 
@@ -106,7 +113,7 @@ A tutorial with detailed descriptions and visualizations of some of the main fun
 
 - Hierarchical Graph Representations for Digital Pathology, Pati et al., preprint, 2021. [[pdf]](https://arxiv.org/pdf/2102.11057.pdf) [[code]]() 
 - Quantifying Explainers of Graph Neural Networks in Computational Pathology,  Jaume et al., CVPR, 2021. [[pdf]](https://arxiv.org/pdf/2011.12646.pdf) [[code]](https://github.com/histocartography/patho-quant-explainer) 
-- Learning Whole-Slide Segmentation from Inexact and Incomplete Labels using Tissue Graphs Anklin et al., 2021. [[pdf]](https://arxiv.org/pdf/2103.03129.pdf) [[code]]() 
+- Learning Whole-Slide Segmentation from Inexact and Incomplete Labels using Tissue Graphs, Anklin et al., preprint, 2021. [[pdf]](https://arxiv.org/pdf/2103.03129.pdf) [[code]]() 
 
 If you use this library, please consider citing:
 

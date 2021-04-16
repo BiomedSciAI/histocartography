@@ -144,7 +144,7 @@ setup(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU Affero General Public License v3",
         "Operating System :: OS Independent",
-    ]
+    ],
     cmdclass={
         'bdist_egg': bdist_egg,
         'build': build,

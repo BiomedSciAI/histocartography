@@ -5,6 +5,7 @@
 [![Build Status](https://travis-ci.com/histocartography/histocartography.svg?branch=main)](https://travis-ci.com/histocartography/histocartography)
 [![codecov](https://codecov.io/gh/histocartography/histocartography/branch/main/graph/badge.svg?token=OILOGEBP0Q)](https://codecov.io/gh/histocartography/histocartography)
 [![PyPI version](https://badge.fury.io/py/histocartography.svg)](https://badge.fury.io/py/histocartography)
+![GitHub](https://img.shields.io/github/license/histocartography/histocartography)
 
 
 High-level description of the library. 

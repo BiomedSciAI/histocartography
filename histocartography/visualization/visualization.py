@@ -162,17 +162,22 @@ class BaseGraphVisualization(PipelineStep):
     """
 
     def __init__(
-        self, instance_visualizer: BaseImageVisualization = None, **kwargs
+        self,
+        instance_visualizer: BaseImageVisualization = None,
+        min_max_color_normalize: bool = True,
+        **kwargs
     ) -> None:
         """
         Constructor
 
         Args:
             instance_visualizer (BaseImageVisualization): Instance visualization object. Defaults to None.
-
+            min_max_color_normalize (bool): If the node/edge values, eg importance scores, should be min/max normalized. 
+                                            Only relevant if node/edge-level colors are provided. Defaults to True.
         """
         super().__init__(**kwargs)
         self.instance_visualizer = instance_visualizer
+        self.min_max_color_normalize = min_max_color_normalize
 
     def _process(
         self,
@@ -306,6 +311,8 @@ class OverlayGraphVisualization(BaseGraphVisualization):
             node_attributes = {}
 
         colors = node_attributes.get(COLOR, [self.node_color])
+        if not isinstance(colors[0], str) and self.min_max_color_normalize:
+            colors = (colors - np.min(colors))/np.ptp(colors)
         radii = node_attributes.get(RADIUS, [self.node_radius])
         colormap = node_attributes.get(COLORMAP, self.colormap)
         thicknesses = node_attributes.get(THICKNESS, [2])
@@ -365,6 +372,8 @@ class OverlayGraphVisualization(BaseGraphVisualization):
             edge_attributes = {}
 
         colors = edge_attributes.get(COLOR, [self.edge_color])
+        if not isinstance(colors[0], str) and self.min_max_color_normalize:
+            colors = (colors - np.min(colors))/np.ptp(colors)
         thicknesses = edge_attributes.get(THICKNESS, self.edge_thickness)
         colormap = edge_attributes.get(COLORMAP, self.colormap)
         if not isinstance(colors, Iterable):

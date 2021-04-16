@@ -81,7 +81,7 @@ The output can be then visualized with:
 ```
 
 <p align="center">
-  <img src="https://ibm.box.com/shared/static/77ok9kjy1nzu0bzg3fatfzflz5e4yqyk.png" height="200">
+  <img src="https://ibm.box.com/shared/static/77ok9kjy1nzu0bzg3fatfzflz5e4yqyk.png" height="400">
 </p>
 
 A list of examples to discover the capabilities of the `histocartography` library is provided in `examples`. The examples will show you how to perform:

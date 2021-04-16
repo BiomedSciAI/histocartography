@@ -18,9 +18,12 @@ before_install:
 install:
   - conda env update -q --file environment.yml
   - pip install black pep8 
+  - pip install codecov
   - pip install -e .
 script:
   # tests
-  - python -m unittest discover -s test -p "test_*" -v
+  - coverage run -m unittest discover -s test -p "test_*" -v
   # build the docs
   #  cd docs && make html && cd ..
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

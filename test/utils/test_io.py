@@ -3,7 +3,7 @@ import unittest
 import hashlib
 import os
 
-from histocartography.utils.io import download_box_link
+from histocartography.utils import download_box_link
 
 
 class IOTestCase(unittest.TestCase):
@@ -11,7 +11,7 @@ class IOTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.box_test_url = 'https://ibm.box.com/shared/static/30uzamx0xr222waqc2dx3uptnvcb5jf0.bmp' 
+        self.box_test_url = 'https://ibm.box.com/shared/static/30uzamx0xr222waqc2dx3uptnvcb5jf0.bmp'
         self.box_md5 = 'd9002fd4dce81f0246626f1df38fdf26'
         self.box_file = 'noise.bmp'
 
@@ -22,11 +22,12 @@ class IOTestCase(unittest.TestCase):
         local_file = download_box_link(self.box_test_url, self.box_file)
         with open(local_file, "rb") as file_to_check:
             # read contents of the file
-            data = file_to_check.read()    
+            data = file_to_check.read()
             # pipe contents of the file through
             local_hash = hashlib.md5(data).hexdigest()
 
-        self.assertEqual(local_hash, self.box_md5)  # Check that file was correctly downloaded
+        # Check that file was correctly downloaded
+        self.assertEqual(local_hash, self.box_md5)
 
     def tearDown(self):
         """Tear down the tests."""

@@ -36,14 +36,21 @@ def draw_ellipse(centroid, draw, fill_col, size=5, outline=(0, 0, 255)):
 
 def draw_large_circle(centroid, draw):
     draw.ellipse(
-        (centroid[0] - 25, centroid[1] - 25, centroid[0] + 25, centroid[1] + 25),
+        (centroid[0] - 25,
+         centroid[1] - 25,
+         centroid[0] + 25,
+         centroid[1] + 25),
         outline="blue",
     )
 
 
 def draw_circle(
-    centroid, draw, radius=5, outline_color="yellow", fill_color="yellow", width=2
-):
+        centroid,
+        draw,
+        radius=5,
+        outline_color="yellow",
+        fill_color="yellow",
+        width=2):
     draw.ellipse(
         (
             centroid[0] - radius,
@@ -59,7 +66,10 @@ def draw_circle(
 
 def draw_line(source_centroid, dest_centroid, draw, fill_col, line_wid):
     draw.line(
-        (source_centroid[1], source_centroid[0], dest_centroid[1], dest_centroid[0]),
+        (source_centroid[1],
+         source_centroid[0],
+         dest_centroid[1],
+         dest_centroid[0]),
         fill=fill_col,
         width=line_wid,
     )

@@ -93,7 +93,7 @@ class MultiLayerGNN(nn.Module):
                 batch_first=True)
             self.att = nn.Linear(2 * ((num_layers * output_dim) // 2), 1)
 
-        # set kwargs as arguments for model identification 
+        # set kwargs as arguments for model identification
         for arg, val in kwargs.items():
             setattr(self, arg, val)
 

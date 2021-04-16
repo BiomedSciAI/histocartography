@@ -110,6 +110,8 @@ class GINLayer(nn.Module):
 
         if self.with_lrp:
             self.adjacency_matrix = g.adjacency_matrix(ctx=h.device).to_dense()
+            if self.agg_type == 'mean':
+                self.in_degrees = g.in_degrees().float().clamp(min=1)
             self.input_features = h.t()
 
         g.ndata[GNN_NODE_FEAT_IN] = h
@@ -140,13 +142,18 @@ class GINLayer(nn.Module):
         self.mlp.set_lrp(with_lrp)
 
     def _compute_adj_lrp(self, relevance_score):
-        # @TODO: differentiate mean and sum aggregators
-        adjacency_matrix = self.adjacency_matrix + \
+
+        assert self.agg_type != 'min', "LRP not implemented with MIN aggregation."
+        assert self.agg_type != 'max', "LRP not implemented with MAX aggregation."
+
+        adjacency_matrix = torch.clamp(self.adjacency_matrix, min=0)
+        if self.agg_type == 'mean':
+            adjacency_matrix = torch.div(adjacency_matrix, self.in_degrees)
+        adjacency_matrix = adjacency_matrix + \
             torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
-        pos_weights = torch.clamp(adjacency_matrix, min=0)
-        rel_unnorm = torch.mm(self.input_features, pos_weights.t()) + 1e-9
+        rel_unnorm = torch.mm(self.input_features, adjacency_matrix.t()) + 1e-9
         rel_unnorm = relevance_score / rel_unnorm.t()
-        contrib = torch.mm(pos_weights, rel_unnorm)
+        contrib = torch.mm(adjacency_matrix, rel_unnorm)
         relevance_score = self.input_features.t() * contrib
         return relevance_score
 

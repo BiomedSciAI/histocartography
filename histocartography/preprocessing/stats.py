@@ -137,7 +137,8 @@ class SuperpixelCounter(StatsComputer):
         """
         return "nr_superpixels"
 
-    def _process(self, superpixels: np.ndarray) -> int:  # type: ignore[override]
+    # type: ignore[override]
+    def _process(self, superpixels: np.ndarray) -> int:
         """Compute the number of superpixels
 
         Args:

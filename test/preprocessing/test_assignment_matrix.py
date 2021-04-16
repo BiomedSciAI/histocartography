@@ -4,9 +4,11 @@ import numpy as np
 import yaml
 import os
 import shutil
+import random
 
 from histocartography import PipelineRunner
-from histocartography.utils.io import download_test_data
+from histocartography.preprocessing import AssignmnentMatrixBuilder
+from histocartography.utils import download_test_data
 
 
 class GraphBuilderTestCase(unittest.TestCase):
@@ -16,34 +18,40 @@ class GraphBuilderTestCase(unittest.TestCase):
     def setUpClass(self):
         self.current_path = os.path.dirname(__file__)
         self.data_path = os.path.join(self.current_path, '..', 'data')
-        download_test_data(self.data_path)
-        self.image_path = os.path.join(self.data_path, 'images')
-        self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'assignment_matrix_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
             shutil.rmtree(self.out_path)
         os.makedirs(self.out_path)
 
-    def test_assignment_matrix_with_pipeline_runner(self):
+    def test_assignment_matrix(self):
         """
-        Test assignment matrix with pipeline runner.
+        Test assignment matrix with dummy centroids and tissue map.
         """
 
-        config_fname = os.path.join(self.current_path, 'config', 'assignment_matrix', 'assignment_matrix_builder.yml')
-        with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+        # 1. define dummy data: nuclei centroids and tissue map
+        image_size = (1000, 1000)
+        nr_nuclei = 100
+        nuclei_centroids = [[random.randint(0, image_size[0]-1), random.randint(0, image_size[1]-1)] for _ in range(nr_nuclei)]
+        nuclei_centroids = np.asarray(nuclei_centroids)
+        tissue_map = np.asarray([np.tile(np.expand_dims(np.array([i]*100), axis=1), 100) for i in range(1, 101)])
+        tissue_map = np.squeeze(tissue_map.reshape((1, 1000, 1000)), axis=0)
 
-        pipeline = PipelineRunner(output_path=self.out_path, **config)
-        output = pipeline.run(
-            name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, self.image_name)
-        )
-        assignment_matrix = output['assignment_matrix']
+        # 2. build assignment matrix 
+        builder = AssignmnentMatrixBuilder()
+        assignment_matrix = builder.process(nuclei_centroids, tissue_map)
 
-        self.assertTrue(isinstance(assignment_matrix, np.ndarray))  # check type
-        self.assertEqual(assignment_matrix.shape[0], 331)   # check number of nuclei
-        self.assertEqual(assignment_matrix.shape[1], 23)    # check number of superpixels
-        self.assertEqual(np.all(np.sum(assignment_matrix, axis=1) == 1), True)  # check all nuclei assigned to only one superpixel
+        self.assertTrue(
+            isinstance(
+                assignment_matrix,
+                np.ndarray))  # check type
+        self.assertEqual(
+            assignment_matrix.shape[0],
+            100)   # check number of nuclei
+        self.assertEqual(
+            assignment_matrix.shape[1],
+            100)    # check number of superpixels
+        # check all nuclei assigned to only one superpixel
+        self.assertEqual(np.all(np.sum(assignment_matrix, axis=1) == 1), True)
 
     def tearDown(self):
         """Tear down the tests."""

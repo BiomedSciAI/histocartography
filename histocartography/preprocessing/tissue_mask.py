@@ -1,3 +1,4 @@
+from ..pipeline import PipelineStep
 import logging
 import math
 from pathlib import Path
@@ -10,8 +11,6 @@ from scipy import ndimage
 from skimage.filters import gaussian, threshold_otsu
 
 Image.MAX_IMAGE_PIXELS = 100000000000
-
-from ..pipeline import PipelineStep
 
 
 def get_tissue_mask(
@@ -52,8 +51,11 @@ def get_tissue_mask(
         # gaussian smoothing of grayscale thumbnail
         if sigma > 0.0:
             thumbnail = gaussian(
-                thumbnail, sigma=sigma, output=None, mode="nearest", preserve_range=True
-            )
+                thumbnail,
+                sigma=sigma,
+                output=None,
+                mode="nearest",
+                preserve_range=True)
 
         # get threshold to keep analysis region
         try:
@@ -84,7 +86,11 @@ def get_tissue_mask(
 
 
 class TissueMask(PipelineStep):
-    def _process_and_save(self, *args, output_name: str, **kwargs) -> np.ndarray:
+    def _process_and_save(
+            self,
+            *args,
+            output_name: str,
+            **kwargs) -> np.ndarray:
         """Process and save in the provided path as a png image
 
         Args:
@@ -181,7 +187,10 @@ class GaussianTissueMask(TissueMask):
         return downsampled_image
 
     @staticmethod
-    def _upsample(image: np.ndarray, new_height: int, new_width: int) -> np.ndarray:
+    def _upsample(
+            image: np.ndarray,
+            new_height: int,
+            new_width: int) -> np.ndarray:
         """Upsample an input image to a speficied new height and width
         Args:
             image (np.array): Input tensor
@@ -195,7 +204,8 @@ class GaussianTissueMask(TissueMask):
         )
         return upsampled_image
 
-    def _process(self, image: np.ndarray) -> np.ndarray:  # type: ignore[override]
+    # type: ignore[override]
+    def _process(self, image: np.ndarray) -> np.ndarray:
         """Return the superpixels of a given input image
         Args:
             image (np.array): Input image
@@ -221,18 +231,22 @@ class GaussianTissueMask(TissueMask):
             if mask_ is None:
                 break
             mask_ = cv2.dilate(
-                mask_.astype(np.uint8), self.kernel, iterations=self.dilation_steps
-            )
+                mask_.astype(
+                    np.uint8),
+                self.kernel,
+                iterations=self.dilation_steps)
             image_masked = mask_ * image_gray
 
-            if image_masked[image_masked > 0].mean() < self.background_gray_value:
+            if image_masked[image_masked > 0].mean(
+            ) < self.background_gray_value:
                 tissue_mask[mask_ != 0] = 1
                 image[mask_ != 0] = (255, 255, 255)
             else:
                 break
         tissue_mask = tissue_mask.astype(np.uint8)
 
-        tissue_mask = self._upsample(tissue_mask, original_height, original_width)
+        tissue_mask = self._upsample(
+            tissue_mask, original_height, original_width)
         return tissue_mask
 
 
@@ -255,5 +269,9 @@ class AnnotationPostProcessor(PipelineStep):
         annotation[~tissue_mask.astype(bool)] = self.background_index
         return annotation
 
-    def _process_and_save(self, *args: Any, output_name: str, **kwargs: Any) -> Any:
+    def _process_and_save(
+            self,
+            *args: Any,
+            output_name: str,
+            **kwargs: Any) -> Any:
         return self._process(*args, **kwargs)

@@ -42,7 +42,8 @@ class NucleiConceptExtractor(PipelineStep):
         Returns:
             np.ndarray: nuclei concept
         """
-        nuclei_concepts = self.hc_feature_extractor.process(input_image, instance_map)
+        nuclei_concepts = self.hc_feature_extractor.process(
+            input_image, instance_map)
 
         if self.concept_names is not None:
             indices_to_keep = [
@@ -52,7 +53,7 @@ class NucleiConceptExtractor(PipelineStep):
                 1, torch.LongTensor(indices_to_keep)
             )
 
-        # convert to numpy array 
+        # convert to numpy array
         nuclei_concepts = nuclei_concepts.cpu().detach().numpy()
 
         return nuclei_concepts

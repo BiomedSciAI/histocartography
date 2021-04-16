@@ -1,8 +1,8 @@
 """Unit test for preprocessing.nuclei_extraction"""
 import unittest
 import numpy as np
-import cv2 
-import os 
+import cv2
+import os
 import shutil
 from PIL import Image
 import matplotlib
@@ -10,7 +10,7 @@ import yaml
 
 from histocartography import PipelineRunner
 from histocartography.preprocessing import NucleiExtractor
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 
 
 class NucleiExtractionTestCase(unittest.TestCase):
@@ -25,15 +25,19 @@ class NucleiExtractionTestCase(unittest.TestCase):
         self.image_name = '283_dcis_4.png'
         self.out_path = os.path.join(self.data_path, 'nuclei_extraction_test')
         if os.path.exists(self.out_path) and os.path.isdir(self.out_path):
-            shutil.rmtree(self.out_path) 
+            shutil.rmtree(self.out_path)
         os.makedirs(self.out_path)
 
     def test_nuclei_extractor_with_pipeline_runner(self):
         """Test nuclei extraction with local model."""
 
-        config_fname = os.path.join(self.current_path, 'config', 'nuclei_extraction', 'nuclei_extractor.yml')
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'nuclei_extraction',
+            'nuclei_extractor.yml')
         with open(config_fname, 'r') as file:
-            config = yaml.load(file)
+            config = yaml.safe_load(file)
 
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
@@ -43,7 +47,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
         instance_map = output['nuclei_map']
         instance_centroids = output['nuclei_centroids']
 
-        # 3. run tests 
+        # 3. run tests
         self.assertTrue(isinstance(instance_map, np.ndarray))
         self.assertTrue(isinstance(instance_centroids, np.ndarray))
         self.assertEqual(len(instance_centroids), 331)
@@ -52,7 +56,11 @@ class NucleiExtractionTestCase(unittest.TestCase):
         """Test nuclei extraction with monusac model."""
 
         # 1. load an image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
 
         # 2. extract nuclei
         extractor = NucleiExtractor(
@@ -60,7 +68,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
         )
         instance_map, instance_centroids = extractor.process(image)
 
-        # 3. run tests 
+        # 3. run tests
         self.assertEqual(instance_map.shape[0], image.shape[0])
         self.assertEqual(instance_map.shape[1], image.shape[1])
         self.assertEqual(len(instance_centroids), 134)
@@ -69,7 +77,11 @@ class NucleiExtractionTestCase(unittest.TestCase):
         """Test nuclei extraction with pannuke model."""
 
         # 1. load an image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
 
         # 2. extract nuclei
         extractor = NucleiExtractor(
@@ -77,7 +89,7 @@ class NucleiExtractionTestCase(unittest.TestCase):
         )
         instance_map, instance_centroids = extractor.process(image)
 
-        # 3. run tests 
+        # 3. run tests
         self.assertEqual(instance_map.shape[0], image.shape[0])
         self.assertEqual(instance_map.shape[1], image.shape[1])
         self.assertEqual(len(instance_centroids), 331)

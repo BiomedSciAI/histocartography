@@ -7,24 +7,26 @@ from typing import Tuple, Union
 import cv2
 import numpy as np
 import torch
-from mlflow.pytorch import load_model
 from PIL import Image
 import os
 from typing import Optional
 
 from skimage.measure import regionprops
 from skimage.morphology import remove_small_objects, watershed
+from skimage.measure import regionprops
+from skimage.morphology import remove_small_objects
+from skimage.segmentation import watershed
+
 from scipy.ndimage import measurements
 from scipy.ndimage.morphology import binary_fill_holes
-from skimage.measure import regionprops
-from skimage.morphology import remove_small_objects, watershed
+
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from tqdm import tqdm
 
 from ..pipeline import PipelineStep
 from ..utils.image import extract_patches_from_image
-from ..utils.io import download_box_link, is_mlflow_url
+from ..utils import download_box_link
 
 DATASET_TO_BOX_URL = {
     "pannuke": "https://ibm.box.com/shared/static/hrt04i3dcv1ph1veoz8x6g8a72u0uw58.pt",
@@ -48,7 +50,7 @@ class NucleiExtractor(PipelineStep):
 
         Args:
             pretrained_data (str): Load checkpoint pretrained on some data. Options are 'pannuke' or 'monusac'. Default to 'pannuke'.
-            model_path (str): Path to a pre-trained model or mlflow URL. If none, the checkpoint specified in pretrained_data will be used. Default to None.
+            model_path (str): Path to a pre-trained model. If none, the checkpoint specified in pretrained_data will be used. Default to None.
             batch_size (int, optional): Batch size. Defaults to None.
         """
         self.pretrained_data = pretrained_data
@@ -58,7 +60,8 @@ class NucleiExtractor(PipelineStep):
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
         if batch_size is None:
-            self.batch_size = 32 if cuda else 2  # bs set to 32 if GPU, otherwise 2.
+            # bs set to 32 if GPU, otherwise 2.
+            self.batch_size = 32 if cuda else 2
 
         if model_path is None:
             assert pretrained_data in [
@@ -66,8 +69,9 @@ class NucleiExtractor(PipelineStep):
                 "monusac",
             ], 'Unsupported pretrained data checkpoint. Options are "pannuke" and "monusac".'
             model_path = os.path.join(
-                os.path.dirname(__file__), CHECKPOINT_PATH, pretrained_data + ".pt"
-            )
+                os.path.dirname(__file__),
+                CHECKPOINT_PATH,
+                pretrained_data + ".pt")
             download_box_link(DATASET_TO_BOX_URL[pretrained_data], model_path)
 
         self._load_model_from_path(model_path)
@@ -76,10 +80,7 @@ class NucleiExtractor(PipelineStep):
 
     def _load_model_from_path(self, model_path):
         """Load nuclei extraction model from provided model."""
-        if is_mlflow_url(model_path):
-            self.model = load_model(model_path, map_location=torch.device("cpu"))
-        else:
-            self.model = torch.load(model_path)
+        self.model = torch.load(model_path)
 
     def _process(  # type: ignore[override]
         self,
@@ -104,7 +105,7 @@ class NucleiExtractor(PipelineStep):
 
         Args:
             input_image (np.array): Original RGB image
-            tissue_mask (Optional[np.ndarray]): Tissue mask to extract nuclei on. Defaults to None. 
+            tissue_mask (Optional[np.ndarray]): Tissue mask to extract nuclei on. Defaults to None.
 
         Returns:
             Tuple[np.ndarray, np.ndarray]: instance_map, instance_centroids
@@ -120,8 +121,10 @@ class NucleiExtractor(PipelineStep):
             return coords, patches
 
         image_loader = DataLoader(
-            image_dataset, shuffle=False, batch_size=self.batch_size, collate_fn=collate
-        )
+            image_dataset,
+            shuffle=False,
+            batch_size=self.batch_size,
+            collate_fn=collate)
         pred_map = torch.empty(
             size=(image_dataset.max_x_coord, image_dataset.max_y_coord, 3),
             dtype=torch.float32,
@@ -252,26 +255,28 @@ def process_np_hv_channels(pred: np.ndarray) -> np.ndarray:
 
     # normalizing
     h_dir = cv2.normalize(
-        h_dir, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
-    )
+        h_dir,
+        None,
+        alpha=0,
+        beta=1,
+        norm_type=cv2.NORM_MINMAX,
+        dtype=cv2.CV_32F)
     v_dir = cv2.normalize(
-        v_dir, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
-    )
+        v_dir,
+        None,
+        alpha=0,
+        beta=1,
+        norm_type=cv2.NORM_MINMAX,
+        dtype=cv2.CV_32F)
 
     # apply sobel filtering
     sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=21)
     sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=21)
 
-    sobelh = 1 - (
-        cv2.normalize(
-            sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
-        )
-    )
-    sobelv = 1 - (
-        cv2.normalize(
-            sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
-        )
-    )
+    sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1,
+                                norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+    sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1,
+                                norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
 
     # binarize
     overall = np.maximum(sobelh, sobelv)
@@ -296,7 +301,9 @@ def process_np_hv_channels(pred: np.ndarray) -> np.ndarray:
     return pred_inst
 
 
-def process_instance(pred_map: np.ndarray, output_dtype: str = "uint16") -> np.ndarray:
+def process_instance(
+        pred_map: np.ndarray,
+        output_dtype: str = "uint16") -> np.ndarray:
     """
     Post processing script for image tiles
 

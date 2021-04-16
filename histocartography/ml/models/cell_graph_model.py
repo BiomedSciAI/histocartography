@@ -1,6 +1,6 @@
 import dgl
-import os 
-import torch 
+import os
+import torch
 from typing import Tuple, Union, List
 
 from ..layers.mlp import MLP
@@ -8,7 +8,7 @@ from .base_model import BaseModel
 from .. import MultiLayerGNN
 from ..layers.constants import GNN_NODE_FEAT_IN
 from .zoo import MODEL_NAME_TO_URL, MODEL_NAME_TO_CONFIG
-from ...utils.io import download_box_link
+from ...utils import download_box_link
 
 
 class CellGraphModel(BaseModel):
@@ -22,14 +22,14 @@ class CellGraphModel(BaseModel):
         classification_params: dict,
         node_dim: int,
         **kwargs
-        ) -> None:
+    ) -> None:
         """
         CellGraphModel model constructor
 
         Args:
             gnn_params: (dict) GNN configuration parameters.
             classification_params: (dict) classification configuration parameters.
-            node_dim (int): Cell node feature dimension. 
+            node_dim (int): Cell node feature dimension.
         """
 
         super().__init__(**kwargs)
@@ -52,27 +52,30 @@ class CellGraphModel(BaseModel):
             if model_name:
                 self._load_checkpoint(model_name)
             else:
-                raise NotImplementedError('There is not available CG-GNN checkpoint for the provided params.')
+                raise NotImplementedError(
+                    'There is no available CG-GNN checkpoint for the provided params.')
 
     def _get_checkpoint_id(self):
 
         # 1st level-check: Model type, GNN layer type, num classes
-        model_type = 'cggnn' 
+        model_type = 'cggnn'
         layer_type = self.gnn_params['layer_type'].replace('_layer', '')
         num_classes = self.num_classes
-        candidate = 'bracs_' + model_type + '_' + str(num_classes) + '_classes_' + layer_type + '.pt'
+        candidate = 'bracs_' + model_type + '_' + \
+            str(num_classes) + '_classes_' + layer_type + '.pt'
         if candidate not in list(MODEL_NAME_TO_URL.keys()):
             return ''
 
-        # 2nd level-check: Look at all the specific params      
+        # 2nd level-check: Look at all the specific params
         cand_config = MODEL_NAME_TO_CONFIG[candidate]
 
         for cand_key, cand_val in cand_config['gnn_params'].items():
             if hasattr(self.cell_graph_gnn, cand_key):
-                if cand_val != getattr(self.cell_graph_gnn, cand_key): 
+                if cand_val != getattr(self.cell_graph_gnn, cand_key):
                     return ''
             else:
-                if cand_val != getattr(self.cell_graph_gnn.layers[0], cand_key): 
+                if cand_val != getattr(
+                        self.cell_graph_gnn.layers[0], cand_key):
                     return ''
 
         for cand_key, cand_val in cand_config['classification_params'].items():
@@ -91,14 +94,15 @@ class CellGraphModel(BaseModel):
         self.cell_graph_gnn = MultiLayerGNN(
             input_dim=self.node_dim,
             **self.gnn_params
-            )
+        )
 
     def _build_classification_params(self):
         """
         Build classification parameters
         """
         if self.readout_op == "concat":
-            emd_dim = self.gnn_params['output_dim'] * self.gnn_params['num_layers']
+            emd_dim = self.gnn_params['output_dim'] * \
+                self.gnn_params['num_layers']
         else:
             emd_dim = self.gnn_params['output_dim']
 
@@ -110,18 +114,18 @@ class CellGraphModel(BaseModel):
         )
 
     def forward(
-            self,
-            graph: Union[dgl.DGLGraph,
-                        Tuple[torch.tensor, torch.tensor]]
-        ) -> torch.tensor:
+        self,
+        graph: Union[dgl.DGLGraph,
+                     Tuple[torch.tensor, torch.tensor]]
+    ) -> torch.tensor:
         """
         Foward pass.
 
         Args:
-            graph (Union[dgl.DGLGraph, Tuple[torch.tensor, torch.tensor]]): Cell graph to process. 
+            graph (Union[dgl.DGLGraph, Tuple[torch.tensor, torch.tensor]]): Cell graph to process.
 
         Returns:
-            torch.tensor: Model output. 
+            torch.tensor: Model output.
         """
 
         # 1. GNN layers over the cell graph

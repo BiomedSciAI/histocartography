@@ -137,8 +137,9 @@ class BaseGraphBuilder(PipelineStep):
             graph = graphs[0]
         else:
             graph = self._process(
-                instance_map=instance_map, features=features, annotation=annotation
-            )
+                instance_map=instance_map,
+                features=features,
+                annotation=annotation)
             save_graphs(str(output_path), [graph])
         return graph
 
@@ -283,11 +284,13 @@ class RAGGraphBuilder(BaseGraphBuilder):
         super().__init__(**kwargs)
 
     def _set_node_labels(
-            self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
-    ) -> None:
+            self,
+            instance_map: np.ndarray,
+            annotation: np.ndarray,
+            graph: dgl.DGLGraph) -> None:
         """Set the node labels of the graphs using annotation map"""
         assert (
-                self.nr_annotation_classes < 256
+            self.nr_annotation_classes < 256
         ), "Cannot handle that many classes with 8-bits"
         regions = regionprops(instance_map)
         labels = torch.empty(len(regions), dtype=torch.uint8)
@@ -354,8 +357,10 @@ class KNNGraphBuilder(BaseGraphBuilder):
         super().__init__(**kwargs)
 
     def _set_node_labels(
-        self, instance_map: np.ndarray, annotation: np.ndarray, graph: dgl.DGLGraph
-    ) -> None:
+            self,
+            instance_map: np.ndarray,
+            annotation: np.ndarray,
+            graph: dgl.DGLGraph) -> None:
         """Set the node labels of the graphs using annotation"""
         regions = regionprops(instance_map)
         assert annotation.shape[0] == len(regions), \
@@ -372,8 +377,11 @@ class KNNGraphBuilder(BaseGraphBuilder):
 
         # build kNN adjacency
         adj = kneighbors_graph(
-            centroids, self.k, mode="distance", include_self=False, metric="euclidean"
-        ).toarray()
+            centroids,
+            self.k,
+            mode="distance",
+            include_self=False,
+            metric="euclidean").toarray()
 
         # filter edges that are too far (ie larger than thresh)
         if self.thresh is not None:

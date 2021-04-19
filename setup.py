@@ -128,16 +128,23 @@ scripts = []
 # TODO: Update these values according to the name of the module.
 setup(
     name='histocartography',
-    version='0.1',
+    version='0.1.2',
     description='Installable histocartography package.',
     long_description=open('README.md').read(),
-    url='https://github.ibm.com/DigitalPathologyZRL/histocartography',
-    author='Antonio Foncubierta Rodríguez',
-    author_email='fra@zurich.ibm.com',
+    long_description_content_type='text/markdown',
+    url='https://github.com/histocartography/histocartography',
+    download_url='https://github.com/histocartography/histocartography/archive/refs/tags/v0.1.2.tar.gz',
+    author='Guillaume Jaume, Pushpak Pati, Antonio Foncubierta Rodríguez',
+    author_email='guillaume.jaume2@gmail.com, antonio.foncubierta@gmail.com',
     packages=find_packages('.'),
     zip_safe=False,
     scripts=scripts,
     install_requires=PYPI_REQUIREMENTS,
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: GNU Affero General Public License v3",
+        "Operating System :: OS Independent",
+    ],
     cmdclass={
         'bdist_egg': bdist_egg,
         'build': build,

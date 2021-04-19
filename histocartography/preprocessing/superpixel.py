@@ -76,15 +76,18 @@ class SuperpixelExtractor(PipelineStep):
         logging.debug("Input size: %s", input_image.shape)
         original_height, original_width, _ = input_image.shape
         if self.downsampling_factor != 1:
-            input_image = self._downsample(input_image, self.downsampling_factor)
+            input_image = self._downsample(
+                input_image, self.downsampling_factor)
             if tissue_mask is not None:
-                tissue_mask = self._downsample(tissue_mask, self.downsampling_factor)
+                tissue_mask = self._downsample(
+                    tissue_mask, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
         superpixels = self._extract_superpixels(
             image=input_image, tissue_mask=tissue_mask
         )
         if self.downsampling_factor != 1:
-            superpixels = self._upsample(superpixels, original_height, original_width)
+            superpixels = self._upsample(
+                superpixels, original_height, original_width)
             logging.debug("Upsampled to %s", superpixels.shape)
         return superpixels
 
@@ -118,7 +121,10 @@ class SuperpixelExtractor(PipelineStep):
         return downsampled_image
 
     @staticmethod
-    def _upsample(image: np.ndarray, new_height: int, new_width: int) -> np.ndarray:
+    def _upsample(
+            image: np.ndarray,
+            new_height: int,
+            new_width: int) -> np.ndarray:
         """Upsample an input image to a speficied new height and width
         Args:
             image (np.array): Input tensor
@@ -171,7 +177,11 @@ class SLICSuperpixelExtractor(SuperpixelExtractor):
             nr_superpixels = min(nr_superpixels, self.max_nr_superpixels)
         return nr_superpixels
 
-    def _extract_superpixels(self, image: np.ndarray, *args, **kwargs) -> np.ndarray:
+    def _extract_superpixels(
+            self,
+            image: np.ndarray,
+            *args,
+            **kwargs) -> np.ndarray:
         """Perform the superpixel extraction
         Args:
             image (np.array): Input tensor
@@ -247,7 +257,8 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             np.array: Output merged superpixel tensor
         """
         if tissue_mask is not None:
-            # Remove superpixels belonging to background or having < 10% tissue content
+            # Remove superpixels belonging to background or having < 10% tissue
+            # content
             ids_initial = np.unique(initial_superpixels, return_counts=True)
             ids_masked = np.unique(
                 tissue_mask * initial_superpixels, return_counts=True
@@ -331,9 +342,11 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
         logging.debug("Input size: %s", input_image.shape)
         original_height, original_width, _ = input_image.shape
         if self.downsampling_factor is not None and self.downsampling_factor != 1:
-            input_image = self._downsample(input_image, self.downsampling_factor)
+            input_image = self._downsample(
+                input_image, self.downsampling_factor)
             if tissue_mask is not None:
-                tissue_mask = self._downsample(tissue_mask, self.downsampling_factor)
+                tissue_mask = self._downsample(
+                    tissue_mask, self.downsampling_factor)
             logging.debug("Downsampled to %s", input_image.shape)
         merged_superpixels, initial_superpixels = self._extract_superpixels(
             input_image, tissue_mask
@@ -348,7 +361,11 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             logging.debug("Upsampled to %s", merged_superpixels.shape)
         return merged_superpixels, initial_superpixels
 
-    def _process_and_save(self, *args: Any, output_name: str, **kwargs: Any) -> Any:
+    def _process_and_save(
+            self,
+            *args: Any,
+            output_name: str,
+            **kwargs: Any) -> Any:
         """Process and save in the provided path as as .h5 file
         Args:
             output_name (str): Name of output file
@@ -364,8 +381,7 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
             try:
                 with h5py.File(superpixel_output_path, "r") as input_file:
                     merged_superpixels, initial_superpixels = self._get_outputs(
-                        input_file=input_file
-                    )
+                        input_file=input_file)
             except OSError as e:
                 print(
                     f"\n\nCould not read from {superpixel_output_path}!\n\n",
@@ -373,11 +389,12 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
                     flush=True,
                 )
                 print(
-                    f"\n\nCould not read from {superpixel_output_path}!\n\n", flush=True
-                )
+                    f"\n\nCould not read from {superpixel_output_path}!\n\n",
+                    flush=True)
                 raise e
         else:
-            merged_superpixels, initial_superpixels = self._process(*args, **kwargs)
+            merged_superpixels, initial_superpixels = self._process(
+                *args, **kwargs)
             try:
                 with h5py.File(superpixel_output_path, "w") as output_file:
                     self._set_outputs(
@@ -386,14 +403,18 @@ class MergedSuperpixelExtractor(SuperpixelExtractor):
                     )
             except OSError as e:
                 print(
-                    f"\n\nCould not write to {superpixel_output_path}!\n\n", flush=True
-                )
+                    f"\n\nCould not write to {superpixel_output_path}!\n\n",
+                    flush=True)
                 raise e
         return merged_superpixels, initial_superpixels
 
 
 class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
-    def __init__(self, w_hist: float = 0.5, w_mean: float = 0.5, **kwargs) -> None:
+    def __init__(
+            self,
+            w_hist: float = 0.5,
+            w_mean: float = 0.5,
+            **kwargs) -> None:
         """Superpixel merger based on color attibutes taken from the HACT-Net Implementation
         Args:
             w_hist (float, optional): Weight of the histogram features for merging. Defaults to 0.5.
@@ -452,19 +473,24 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
 
         for n in g:
             g.nodes[n]["mean"] = g.nodes[n]["x"] / g.nodes[n]["N"]
-            g.nodes[n]["mean"] = g.nodes[n]["mean"] / np.linalg.norm(g.nodes[n]["mean"])
+            g.nodes[n]["mean"] = g.nodes[n]["mean"] / \
+                np.linalg.norm(g.nodes[n]["mean"])
 
             g.nodes[n]["y"] = np.delete(g.nodes[n]["y"], 0, axis=0)
-            g.nodes[n]["r"] = self._color_features_per_channel(g.nodes[n]["y"][:, 0])
-            g.nodes[n]["g"] = self._color_features_per_channel(g.nodes[n]["y"][:, 1])
-            g.nodes[n]["b"] = self._color_features_per_channel(g.nodes[n]["y"][:, 2])
+            g.nodes[n]["r"] = self._color_features_per_channel(
+                g.nodes[n]["y"][:, 0])
+            g.nodes[n]["g"] = self._color_features_per_channel(
+                g.nodes[n]["y"][:, 1])
+            g.nodes[n]["b"] = self._color_features_per_channel(
+                g.nodes[n]["y"][:, 2])
 
             g.nodes[n]["r"] = g.nodes[n]["r"] / np.linalg.norm(g.nodes[n]["r"])
             g.nodes[n]["g"] = g.nodes[n]["r"] / np.linalg.norm(g.nodes[n]["g"])
             g.nodes[n]["b"] = g.nodes[n]["r"] / np.linalg.norm(g.nodes[n]["b"])
 
         for x, y, d in g.edges(data=True):
-            diff_mean = np.linalg.norm(g.nodes[x]["mean"] - g.nodes[y]["mean"]) / 2
+            diff_mean = np.linalg.norm(
+                g.nodes[x]["mean"] - g.nodes[y]["mean"]) / 2
 
             diff_r = np.linalg.norm(g.nodes[x]["r"] - g.nodes[y]["r"]) / 2
             diff_g = np.linalg.norm(g.nodes[x]["g"] - g.nodes[y]["g"]) / 2
@@ -480,11 +506,16 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
     def _weighting_function(
         self, graph: graph.RAG, src: int, dst: int, n: int
     ) -> Dict[str, Any]:
-        diff_mean = np.linalg.norm(graph.nodes[dst]["mean"] - graph.nodes[n]["mean"])
+        diff_mean = np.linalg.norm(
+            graph.nodes[dst]["mean"] -
+            graph.nodes[n]["mean"])
 
-        diff_r = np.linalg.norm(graph.nodes[dst]["r"] - graph.nodes[n]["r"]) / 2
-        diff_g = np.linalg.norm(graph.nodes[dst]["g"] - graph.nodes[n]["g"]) / 2
-        diff_b = np.linalg.norm(graph.nodes[dst]["b"] - graph.nodes[n]["b"]) / 2
+        diff_r = np.linalg.norm(
+            graph.nodes[dst]["r"] - graph.nodes[n]["r"]) / 2
+        diff_g = np.linalg.norm(
+            graph.nodes[dst]["g"] - graph.nodes[n]["g"]) / 2
+        diff_b = np.linalg.norm(
+            graph.nodes[dst]["b"] - graph.nodes[n]["b"]) / 2
         diff_hist = (diff_r + diff_g + diff_b) / 3
 
         diff = self.w_hist * diff_hist + self.w_mean * diff_mean
@@ -494,7 +525,8 @@ class ColorMergedSuperpixelExtractor(MergedSuperpixelExtractor):
     def _merging_function(self, graph: graph.RAG, src: int, dst: int) -> None:
         graph.nodes[dst]["x"] += graph.nodes[src]["x"]
         graph.nodes[dst]["N"] += graph.nodes[src]["N"]
-        graph.nodes[dst]["mean"] = graph.nodes[dst]["x"] / graph.nodes[dst]["N"]
+        graph.nodes[dst]["mean"] = graph.nodes[dst]["x"] / \
+            graph.nodes[dst]["N"]
         graph.nodes[dst]["mean"] = graph.nodes[dst]["mean"] / np.linalg.norm(
             graph.nodes[dst]["mean"]
         )

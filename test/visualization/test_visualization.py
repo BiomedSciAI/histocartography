@@ -13,7 +13,7 @@ from histocartography.preprocessing import (
 )
 from histocartography.preprocessing.nuclei_extraction import NucleiExtractor
 from histocartography.preprocessing.superpixel import SLICSuperpixelExtractor
-from histocartography.utils.io import download_test_data
+from histocartography.utils import download_test_data
 from histocartography.visualization.visualization import (
     HACTVisualization,
     InstanceImageVisualization,
@@ -44,11 +44,16 @@ class GraphVizTestCase(unittest.TestCase):
         """Test Graph visualization with explanation."""
 
         # 1. load a cell graph
-        cell_graph, _ = load_graphs(os.path.join(self.cell_graph_path, self.graph_name))
+        cell_graph, _ = load_graphs(os.path.join(
+            self.cell_graph_path, self.graph_name))
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
 
         # 3. fake explainer importance scores
         importance_scores = np.random.normal(0.7, 0.1, 100)
@@ -82,11 +87,16 @@ class GraphVizTestCase(unittest.TestCase):
         """Test Graph visualization with nuclei maps."""
 
         # 1. load a cell graph
-        cell_graph, _ = load_graphs(os.path.join(self.cell_graph_path, self.graph_name))
+        cell_graph, _ = load_graphs(os.path.join(
+            self.cell_graph_path, self.graph_name))
         cell_graph = cell_graph[0]
 
         # 2. load the corresponding image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
 
         # 3. run the visualization
         visualizer = OverlayGraphVisualization(
@@ -99,16 +109,22 @@ class GraphVizTestCase(unittest.TestCase):
         # 4. save output image
         out.save(
             os.path.join(
-                self.out_path, self.image_name.replace(".png", "") + "_cg_overlay.png"
-            ),
-            quality=95
-        )
+                self.out_path,
+                self.image_name.replace(
+                    ".png",
+                    "") +
+                "_cg_overlay.png"),
+            quality=95)
 
     def test_superpixel_viz(self):
         """Test Nuclei visualization."""
 
         # 1. load the corresponding image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
 
         # 2. extract nuclei
         extractor = SLICSuperpixelExtractor(nr_superpixels=50)
@@ -122,23 +138,31 @@ class GraphVizTestCase(unittest.TestCase):
         out.save(
             os.path.join(
                 self.out_path,
-                self.image_name.replace(".png", "") + "_superpixel_overlay.png",
+                self.image_name.replace(
+                    ".png",
+                    "") +
+                "_superpixel_overlay.png",
             ),
-            quality=95
-        )
+            quality=95)
 
     def test_hact_viz(self):
         """Test hierarchical visualization."""
 
         # 1. load the corresponding image
-        image = np.array(Image.open(os.path.join(self.image_path, self.image_name)))
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
 
         # 2. load tissue graph
-        tissue_graph, _ = load_graphs(os.path.join(self.tissue_graph_path, self.graph_name))
+        tissue_graph, _ = load_graphs(os.path.join(
+            self.tissue_graph_path, self.graph_name))
         tissue_graph = tissue_graph[0]
 
         # 3. load cell graph
-        cell_graph, _ = load_graphs(os.path.join(self.cell_graph_path, self.graph_name))
+        cell_graph, _ = load_graphs(os.path.join(
+            self.cell_graph_path, self.graph_name))
         cell_graph = cell_graph[0]
 
         # 6. run the visualization
@@ -153,10 +177,12 @@ class GraphVizTestCase(unittest.TestCase):
         out.save(
             os.path.join(
                 self.out_path,
-                self.image_name.replace(".png", "") + "_hierarchical_overlay.png",
+                self.image_name.replace(
+                    ".png",
+                    "") +
+                "_hierarchical_overlay.png",
             ),
-            quality=95
-        )
+            quality=95)
 
     def tearDown(self):
         """Tear down the tests."""

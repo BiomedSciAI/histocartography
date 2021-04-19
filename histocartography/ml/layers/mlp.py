@@ -186,7 +186,9 @@ class MLP(nn.Module):
     def lrp(self, relevance_score):
         for layer_id in range(len(self.mlp) - 1, -1, -1):
             pos_weights = torch.clamp(self.mlp[layer_id][0].weight, min=0)
-            rel_unnorm = torch.mm(self.forward_activations[layer_id], pos_weights.t()) + 1e-9
+            rel_unnorm = torch.mm(
+                self.forward_activations[layer_id],
+                pos_weights.t()) + 1e-9
             rel_unnorm = relevance_score / rel_unnorm
             contrib = torch.mm(rel_unnorm, pos_weights)
             relevance_score = self.forward_activations[layer_id] * contrib

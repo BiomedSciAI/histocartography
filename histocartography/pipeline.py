@@ -54,7 +54,9 @@ class PipelineStep(ABC):
                 precompute_path = save_path
 
         if precompute:
-            self.precompute(link_path=link_path, precompute_path=precompute_path)
+            self.precompute(
+                link_path=link_path,
+                precompute_path=precompute_path)
 
     def __repr__(self) -> str:
         """Representation of a pipeline step.
@@ -62,7 +64,8 @@ class PipelineStep(ABC):
         Returns:
             str: Representation of a pipeline step.
         """
-        variables = ",".join([f"{k}={v}" for k, v in sorted(self.__dict__.items())])
+        variables = ",".join(
+            [f"{k}={v}" for k, v in sorted(self.__dict__.items())])
         return (
             f"{self.__class__.__name__}({variables})".replace(" ", "")
             .replace('"', "")
@@ -85,9 +88,8 @@ class PipelineStep(ABC):
         Args:
             link_directory (Union[None, str, Path]): Directory to link to
         """
-        if link_directory is None or Path(link_directory).parent.resolve() == Path(
-            self.output_dir
-        ):
+        if link_directory is None or Path(
+                link_directory).parent.resolve() == Path(self.output_dir):
             logging.info("Link to self skipped")
             return
         assert (
@@ -98,7 +100,8 @@ class PipelineStep(ABC):
                 logging.info("Link already exists: overwriting...")
                 os.remove(link_directory)
             else:
-                logging.critical("Link exists, but points nowhere. Ignoring...")
+                logging.critical(
+                    "Link exists, but points nowhere. Ignoring...")
                 return
         elif os.path.exists(link_directory):
             os.remove(link_directory)
@@ -129,7 +132,8 @@ class PipelineStep(ABC):
             Any: Result of the pipeline step
         """
         if output_name is not None and self.save_path is not None:
-            return self._process_and_save(*args, output_name=output_name, **kwargs)
+            return self._process_and_save(
+                *args, output_name=output_name, **kwargs)
         else:
             return self._process(*args, **kwargs)
 
@@ -164,7 +168,8 @@ class PipelineStep(ABC):
         else:
             return tuple(outputs)
 
-    def _set_outputs(self, output_file: h5py.File, outputs: Union[Tuple, Any]) -> None:
+    def _set_outputs(self, output_file: h5py.File,
+                     outputs: Union[Tuple, Any]) -> None:
         """Save the step output to a given h5 file
 
         Args:
@@ -291,7 +296,9 @@ class PipelineRunner:
             precompute_path = None
 
         for stage in self.stages:
-            stage.precompute(link_path=link_path, precompute_path=precompute_path)
+            stage.precompute(
+                link_path=link_path,
+                precompute_path=precompute_path)
 
     def run(
         self, output_name: Optional[str] = None, **inputs: Dict[str, Any]

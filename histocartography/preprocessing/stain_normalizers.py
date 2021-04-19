@@ -30,22 +30,11 @@ class StainNormalizer(PipelineStep):
             target_path (str, optional): Path of the target image for identification
             precomputed_normalizer_path (str, optional): Path of the precomputed normalizer
         """
-        self.target_path = target_path
-        super().__init__(**kwargs)
+        assert not(target_path is not None and precomputed_normalizer_path is not None), "Wrong input, provided both targeted and precomputed normalization."
 
-        self.norm_mode = -1
-        self.normalizer_save_path = None
-        if self.target_path is not None and precomputed_normalizer_path is None:
-            self.norm_mode = 1
-            if self.save_path is not None:
-                self.normalizer_save_path = self.output_dir / "normalizer.h5"
-        elif self.target_path is None and precomputed_normalizer_path is not None:
-            self.norm_mode = 2
-            self.normalizer_save_path = Path(precomputed_normalizer_path)
-        elif self.target_path is not None and precomputed_normalizer_path is not None:
-            raise ValueError(
-                "Wrong input, provided both targeted and precomputed normalization."
-            )
+        self.target_path = target_path
+        self.precomputed_normalizer_path = precomputed_normalizer_path
+        super().__init__(**kwargs)
 
     @staticmethod
     def _standardize_brightness(input_image: np.ndarray) -> np.ndarray:
@@ -58,9 +47,13 @@ class StainNormalizer(PipelineStep):
             np.array: Normalized image
         """
         upper_percentile_bound = np.percentile(input_image, 90)
-        return np.clip(input_image * 255.0 / upper_percentile_bound, 0, 255).astype(
-            np.uint8
-        )
+        return np.clip(
+            input_image *
+            255.0 /
+            upper_percentile_bound,
+            0,
+            255).astype(
+            np.uint8)
 
     @staticmethod
     def _rgb_to_od(input_image: np.ndarray) -> np.ndarray:
@@ -106,9 +99,8 @@ class StainNormalizer(PipelineStep):
             self._rgb_to_od(input_image).reshape((-1, 3)).astype(np.float32)
         )
         stain_matrix = stain_matrix.astype(np.float32)
-        concentration = np.linalg.lstsq(stain_matrix.T, optical_density.T, rcond=-1)[
-            0
-        ].T
+        concentration = np.linalg.lstsq(
+            stain_matrix.T, optical_density.T, rcond=-1)[0].T
         return concentration * (concentration > 0)
 
     @abstractmethod
@@ -158,7 +150,8 @@ class StainNormalizer(PipelineStep):
             np.array: Normalized image
         """
 
-    def _process(self, input_image: np.ndarray) -> np.ndarray:  # type: ignore[override]
+    # type: ignore[override]
+    def _process(self, input_image: np.ndarray) -> np.ndarray:
         """Stain normalizes a given image
 
         Args:
@@ -171,7 +164,12 @@ class StainNormalizer(PipelineStep):
         normalized_image = self._normalize_image(standardized_image)
         return normalized_image
 
-    def process_and_save(self, *args, output_name: str, **kwargs) -> np.ndarray:  # type: ignore[override]
+    # type: ignore[override]
+    def process_and_save(
+            self,
+            *args,
+            output_name: str,
+            **kwargs) -> np.ndarray:
         """Process and save in the provided path as a png image
 
         Args:
@@ -210,10 +208,15 @@ class StainNormalizer(PipelineStep):
             link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.
             precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.
         """
+
+        self.normalizer_save_path = None
+
         if self.save_path is not None and link_path is not None:
             self._link_to_path(Path(link_path) / "normalized_images")
 
-        if self.norm_mode == 1:
+        if self.target_path is not None and self.precomputed_normalizer_path is None:
+            if self.save_path is not None:
+                self.normalizer_save_path = self.output_dir / "normalizer.h5"
             if self.normalizer_save_path is not None:
                 if not self.normalizer_save_path.exists():
                     assert (
@@ -228,12 +231,14 @@ class StainNormalizer(PipelineStep):
                 ), "Cannot load image if target_path is None"
                 target_image = load_image(Path(self.target_path))
                 self.fit(target_image)
-        elif self.norm_mode == 2:
+        elif self.target_path is None and self.precomputed_normalizer_path is not None:
+            self.normalizer_save_path = Path(self.precomputed_normalizer_path)
             if (
                 self.normalizer_save_path is None
                 or not self.normalizer_save_path.exists()
             ):
-                raise FileNotFoundError("Precomputed normalizer does not exist.")
+                raise FileNotFoundError(
+                    "Precomputed normalizer does not exist.")
             self._load_precomputed()
         else:
             self.max_concentration_target = []
@@ -271,8 +276,6 @@ class MacenkoStainNormalizer(StainNormalizer):
         # Hidden fields
         self.stain_matrix_key = "stain_matrix"
         self.max_concentration_target_key = "max_concentration_target"
-        self.stain_matrix_target = None
-        self.max_concentration_target = None
 
     def _load_values(self, file: h5py.File) -> None:
         """Loads the values computed when fitted
@@ -282,7 +285,8 @@ class MacenkoStainNormalizer(StainNormalizer):
         """
         try:
             self.stain_matrix_target = file[self.stain_matrix_key][()]
-            self.max_concentration_target = file[self.max_concentration_target_key][()]
+            self.max_concentration_target = file[self.max_concentration_target_key][(
+            )]
         except ValueError:
             print(
                 f"Invalid stain matrix keys. Expected keys are "
@@ -319,7 +323,8 @@ class MacenkoStainNormalizer(StainNormalizer):
             np.array: Extracted stains
         """
         optical_density = self._rgb_to_od(input_image).reshape((-1, 3))
-        optical_density = optical_density[(optical_density > self.beta).any(axis=1), :]
+        optical_density = optical_density[(
+            optical_density > self.beta).any(axis=1), :]
         _, eigvecs = np.linalg.eigh(np.cov(optical_density, rowvar=False))
         eigvecs = eigvecs[:, [2, 1]]
         if eigvecs[0, 0] < 0:
@@ -356,15 +361,8 @@ class MacenkoStainNormalizer(StainNormalizer):
         ).reshape((1, 2))
         max_concentration_target = self.max_concentration_target
         source_concentrations *= max_concentration_target / max_concentration_source
-        return (
-            255
-            * np.exp(
-                -1
-                * np.dot(source_concentrations, self.stain_matrix_target).reshape(
-                    input_image.shape
-                )
-            )
-        ).astype(np.uint8)
+        return (255 * np.exp(-1 * np.dot(source_concentrations,
+                                         self.stain_matrix_target).reshape(input_image.shape))).astype(np.uint8)
 
     def fit(self, target_image: np.ndarray) -> None:
         """Fit the normalizer to a target value and save it for the future
@@ -391,7 +389,11 @@ class VahadaneStainNormalizer(StainNormalizer):
     vol. 35, no. 8, pp. 1962–1971, Aug. 2016.
     """
 
-    def __init__(self, threshold: float = 0.8, lambda_s: float = 0.1, **kwargs) -> None:
+    def __init__(
+            self,
+            threshold: float = 0.8,
+            lambda_s: float = 0.1,
+            **kwargs) -> None:
         """Create a Vahadame normalizer for a given target image
 
         Args:
@@ -405,7 +407,6 @@ class VahadaneStainNormalizer(StainNormalizer):
         super().__init__(**kwargs)
         # Hidden fields
         self.stain_matrix_key = "stain_matrix"
-        self.stain_matrix_target = None
 
     def _load_values(self, file: h5py.File) -> None:
         """Loads the values computed when fitted
@@ -459,7 +460,9 @@ class VahadaneStainNormalizer(StainNormalizer):
         Returns:
             np.array: Extracted stains
         """
-        mask = self._notwhite_mask(input_image, threshold=self.thres).reshape((-1,))
+        mask = self._notwhite_mask(
+            input_image, threshold=self.thres).reshape(
+            (-1,))
         optical_density = self._rgb_to_od(input_image).reshape((-1, 3))
         optical_density = optical_density[mask]
         n_features = optical_density.T.shape[1]
@@ -494,15 +497,8 @@ class VahadaneStainNormalizer(StainNormalizer):
         source_concentrations = self._get_concentrations(
             input_image, stain_matrix_source
         )
-        return (
-            255
-            * np.exp(
-                -1
-                * np.dot(source_concentrations, self.stain_matrix_target).reshape(
-                    input_image.shape
-                )
-            )
-        ).astype(np.uint8)
+        return (255 * np.exp(-1 * np.dot(source_concentrations,
+                                         self.stain_matrix_target).reshape(input_image.shape))).astype(np.uint8)
 
     def fit(self, target_image: np.ndarray) -> None:
         """Fit the normalizer to a target value and save it for the future

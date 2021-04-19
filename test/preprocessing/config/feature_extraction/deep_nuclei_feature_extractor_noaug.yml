@@ -1,5 +1,6 @@
 inputs:
 - image_path
+- nuclei_map_path
 outputs:
 - features
 stages:
@@ -10,14 +11,12 @@ stages:
       outputs:
       - image
   - preprocessing:
-      class: "NucleiExtractor"
+      class: "H5Loader"
       inputs:
-      - image
+      - nuclei_map_path
       outputs:
       - nuclei_map
       - nuclei_centroids
-      params:
-        pretrained_data: 'pannuke'
   - preprocessing:
       class: "DeepFeatureExtractor"
       inputs:

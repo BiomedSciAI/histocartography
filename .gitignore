@@ -116,3 +116,4 @@ tmp/
 *.hdf5
 .DS_Store
 checkpoints
+.travis.yml

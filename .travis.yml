@@ -13,6 +13,9 @@ before_install:
   - source activate histocartography
   - python --version
   - pip install -U pip==20.2.4
+  # for the documentation
+  - pip install sphinx autodoc sphinx_autodoc_typehints sphinx_rtd_theme myst_parser better_apidoc
+
 install:
   # install rdkit
   - conda env update -q --file environment.yml

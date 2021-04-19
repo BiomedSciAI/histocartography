@@ -135,7 +135,7 @@ setup(
     url='https://github.com/histocartography/histocartography',
     download_url='https://github.com/histocartography/histocartography/archive/refs/tags/v0.1.3.tar.gz',
     author='Guillaume Jaume, Pushpak Pati, Antonio Foncubierta Rodríguez',
-    author_email='guillaume.jaume2@gmail.com, antonio.foncubierta@gmail.com',
+    author_email='guillaume.jaume2@gmail.com, pushpak.nitrkl@gmail.com, antonio.foncubierta@gmail.com',
     packages=find_packages('.'),
     zip_safe=False,
     scripts=scripts,

@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'histocartography'
-copyright = '2021, Guillaume Jaume, Pushpak Pati, Antonio Foncubierta Rodríguez'
-author = 'Guillaume Jaume, Pushpak Pati, Antonio Foncubierta Rodríguez'
+copyright = '2021, Histocartography Team'
+author = 'Histocartography Team'
 
 
 # -- Generate API (auto) documentation ------------------------------------------------

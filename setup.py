@@ -11,18 +11,19 @@ from distutils.command.build import build as _build
 
 VCS_REQUIREMENTS = []
 PYPI_REQUIREMENTS = [
-    "torch",
-    "pandas",
-    "matolotlib",
-    "h5py",
-    "scikit-learn",
-    "seaborn",
-    "torchvision",
-    "pillow",
-    "opencv-python",
-    "scikit-image",
-    "dgl",
-    "pyYAML",
+    "torch==1.3.1",
+    "tqdm>=4.35.0",
+    "pandas>=0.24.2",
+    "matplotlib>=3.1.1",
+    "h5py>=2.9.0",
+    "scikit-learn>=0.22",
+    "seaborn>=0.9.0",
+    "torchvision==0.4.0",
+    "pillow>=7.2.0",
+    "opencv-python>=3.4.8.29",
+    "scikit-image>=0.17.2",
+    "dgl==0.4.3.post2",
+    "PyYAML>=5.1.2",
 ]
 regex = re.compile(r"(git|svn|hg|bzr)\+")
 if os.path.exists("requirements.txt"):

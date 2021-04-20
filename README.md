@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://ibm.box.com/shared/static/568egs22ggn4gj080ys3m3dzd6fziga9.png" height="200">
+  <img src="docs/_static/logo_large.png" height="200">
 </p>
 
 [![Build Status](https://travis-ci.com/histocartography/histocartography.svg?branch=main)](https://travis-ci.com/histocartography/histocartography)

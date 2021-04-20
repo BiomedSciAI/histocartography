@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/_static/logo_large.png" height="200">
+  <img src="https://raw.githubusercontent.com/histocartography/histocartography/main/docs/_static/logo_large.png" height="200">
 </p>
 
 [![Build Status](https://travis-ci.com/histocartography/histocartography.svg?branch=main)](https://travis-ci.com/histocartography/histocartography)

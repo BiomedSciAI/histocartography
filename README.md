@@ -7,7 +7,7 @@
 [![PyPI version](https://badge.fury.io/py/histocartography.svg)](https://badge.fury.io/py/histocartography)
 ![GitHub](https://img.shields.io/github/license/histocartography/histocartography)
 
-**[Documentation](https://<documentation>)**
+**[Documentation](https://histocartography.github.io/histocartography/)**
 | **[Paper](https://arxiv.org/pdf/2102.11057.pdf)** 
 
 **Welcome to the `histocartography` repository!** `histocartography` is a python-based library designed to facilitate the development of graph-based computational pathology pipelines. The library includes plug-and-play modules to perform,

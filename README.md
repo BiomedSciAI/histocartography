@@ -32,7 +32,7 @@ If you encounter any issue or have questions regarding the library, feel free to
 - Clone the repo:
 
 ```
-git clone <ADD-PUBLIC-URL> && cd histocartography
+git clone https://github.com/histocartography/histocartography.git && cd histocartography
 ```
 
 - Create a conda environment:

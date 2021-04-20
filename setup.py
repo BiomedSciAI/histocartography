@@ -18,7 +18,7 @@ PYPI_REQUIREMENTS = [
     "h5py>=2.9.0",
     "scikit-learn>=0.22",
     "seaborn>=0.9.0",
-    "torchvision==0.4.0",
+    "torchvision",
     "pillow>=7.2.0",
     "opencv-python>=3.4.8.29",
     "scikit-image>=0.17.2",
@@ -138,7 +138,7 @@ scripts = []
 # TODO: Update these values according to the name of the module.
 setup(
     name="histocartography",
-    version="0.1.5",
+    version="0.1.5-1",
     description="Installable histocartography package.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

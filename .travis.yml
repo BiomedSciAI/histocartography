@@ -1,3 +1,5 @@
+vm:
+  size: 2x-large
 language: python
 python:
   - 3.7
@@ -13,32 +15,25 @@ before_install:
   - source activate histocartography
   - python --version
   - pip install -U pip==20.2.4
-  # for the documentation
   - pip install sphinx autodoc sphinx_autodoc_typehints sphinx_rtd_theme myst_parser better_apidoc
-
 install:
-  # install rdkit
   - conda env update -q --file environment.yml
-  # install style dependencies
   - pip install black pep8 
-  # install the module
+  - pip install codecov
   - pip install -e .
 script:
-  # style checking
-  # - python -m black histocartography --check --diff --color
-  # - python -m pep8 --ignore=E501 histocartography
-  # static type checking
-  # - python -m mypy histocartography
   # tests
-  - python -m unittest discover -s test -p "test_*" -v
+  - coverage run -m unittest discover -s test -p "test_*" -v
   # build the docs
-  # build the docs
+  #  cd docs && make html && cd ..
   - cd docs && make html && cd ..
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 deploy:
   - provider: pages
     skip_cleanup: true
     github_token: $GITHUB_TOKEN # Set in the settings page of your repository, as a secure variable
     local_dir: docs/_build/html
-    github_url: github.ibm.com
+    github_url: github.com
     on:
       branch: main

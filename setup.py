@@ -11,14 +11,14 @@ from distutils.command.build import build as _build
 
 VCS_REQUIREMENTS = []
 PYPI_REQUIREMENTS = [
-    "torch==1.3.1",
+    "torch>=1.3.1",
     "tqdm>=4.35.0",
     "pandas>=0.24.2",
     "matplotlib>=3.1.1",
     "h5py>=2.9.0",
     "scikit-learn>=0.22",
     "seaborn>=0.9.0",
-    "torchvision",
+    "torchvision>=0.4.0",
     "pillow>=7.2.0",
     "opencv-python>=3.4.8.29",
     "scikit-image>=0.17.2",
@@ -138,12 +138,12 @@ scripts = []
 # TODO: Update these values according to the name of the module.
 setup(
     name="histocartography",
-    version="0.1.5-1",
+    version="0.1.5-2",
     description="Installable histocartography package.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/histocartography/histocartography",
-    download_url="https://github.com/histocartography/histocartography/archive/refs/tags/v0.1.5.tar.gz",
+    download_url="https://github.com/histocartography/histocartography/archive/refs/tags/v0.1.5-2.tar.gz",
     author="Guillaume Jaume, Pushpak Pati, Antonio Foncubierta Rodríguez",
     author_email="guillaume.jaume2@gmail.com, pushpak.nitrkl@gmail.com, antonio.foncubierta@gmail.com",
     packages=find_packages("."),

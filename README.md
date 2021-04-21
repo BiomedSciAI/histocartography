@@ -65,30 +65,43 @@ Running tests on cpu can take up to 20mn.
 
 # Using histocartography 
 
-The `histocartography` library provides a set of helpers grouped in different modules, namely `preprocessing`, `visualization`, `ml` and `interpretability`.  
+The `histocartography` library provides a set of helpers grouped in different modules, namely `preprocessing`, `ml`, `visualization` and `interpretability`.  
 
-For instance, in `histocartography.preprocessing`, detecting nuclei in an H&E image is as simple as:
+For instance, in `histocartography.preprocessing`, building a cell-graph from an H&E image is as simple as:
 
 ```
->> from histocartography.preprocessing import NucleiExtractor
+>> from histocartography.preprocessing import NucleiExtractor, DeepFeatureExtractor, KNNGraphBuilder
 >> 
->> detector = NucleiExtractor()
->> image = np.array(Image.open('images/283_dcis_4.png'))
->> instance_map, _ = detector.process(image)
+>> nuclei_detector = NucleiExtractor()
+>> feature_extractor = DeepFeatureExtractor(architecture='resnet34', patch_size=72)
+>> knn_graph_builder = KNNGraphBuilder(k=5, thresh=50, add_loc_feats=True)
+>>
+>> image = np.array(Image.open('docs/_static/283_dcis_4.png'))
+>> nuclei_map, _ = nuclei_detector.process(image)
+>> features = feature_extractor.process(image, nuclei_map)
+>> cell_graph = knn_graph_builder.process(nuclei_map, features)
 ```
 
 The output can be then visualized with:
 
 ```
->> from histocartography.visualization import InstanceImageVisualization
->> 
->> visualizer = InstanceImageVisualization()
->> canvas = visualizer.process(image, instance_map=instance_map)
->> canvas.show()
+>> from histocartography.visualization import OverlayGraphVisualization, InstanceImageVisualization
+
+>> visualizer = OverlayGraphVisualization(
+...     instance_visualizer=InstanceImageVisualization(
+...         instance_style="filled+outline"
+...     )
+... )
+>> viz_cg = visualizer.process(
+...     canvas=image,
+...     graph=cell_graph,
+...     instance_map=nuclei_map
+... )
+>> viz_cg.show()
 ```
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/histocartography/histocartography/main/docs/_static/1238_adh_10.png"  height="400">
+  <img src="https://raw.githubusercontent.com/histocartography/histocartography/main/docs/_static/283_dcis_4_cg.png"  height="400">
 </p>
 
 A list of examples to discover the capabilities of the `histocartography` library is provided in `examples`. The examples will show you how to perform:
@@ -125,5 +138,3 @@ If you use this library, please consider citing:
     year = {2021}
 } 
 ```
-
-

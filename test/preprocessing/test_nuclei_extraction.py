@@ -94,6 +94,27 @@ class NucleiExtractionTestCase(unittest.TestCase):
         self.assertEqual(instance_map.shape[1], image.shape[1])
         self.assertEqual(len(instance_centroids), 331)
 
+    def test_nuclei_extractor_with_bs(self):
+        """Test nuclei extraction with specified batch size."""
+
+        # 1. load an image
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
+
+        # 2. extract nuclei
+        extractor = NucleiExtractor(
+            batch_size=4
+        )
+        instance_map, instance_centroids = extractor.process(image)
+
+        # 3. run tests
+        self.assertEqual(instance_map.shape[0], image.shape[0])
+        self.assertEqual(instance_map.shape[1], image.shape[1])
+        self.assertEqual(len(instance_centroids), 331)
+
     def tearDown(self):
         """Tear down the tests."""
 

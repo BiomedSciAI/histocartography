@@ -35,6 +35,9 @@ DATASET_TO_BOX_URL = {
 
 CHECKPOINT_PATH = "../../checkpoints"
 
+GPU_DEFAULT_BATCH_SIZE = 16
+CPU_DEFAULT_BATCH_SIZE = 2
+
 
 class NucleiExtractor(PipelineStep):
     """Nuclei extraction"""
@@ -60,8 +63,10 @@ class NucleiExtractor(PipelineStep):
         cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda else "cpu")
         if batch_size is None:
-            # bs set to 32 if GPU, otherwise 2.
-            self.batch_size = 32 if cuda else 2
+            # bs set to 16 if GPU, otherwise 2.
+            self.batch_size = GPU_DEFAULT_BATCH_SIZE if cuda else CPU_DEFAULT_BATCH_SIZE
+        else:
+            self.batch_size = batch_size
 
         if model_path is None:
             assert pretrained_data in [
@@ -79,7 +84,7 @@ class NucleiExtractor(PipelineStep):
         self.model.eval()
 
     def _load_model_from_path(self, model_path):
-        """Load nuclei extraction model from provided model."""
+        """Load nuclei extraction model from provided model path."""
         self.model = torch.load(model_path)
 
     def _process(  # type: ignore[override]

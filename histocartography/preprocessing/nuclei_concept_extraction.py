@@ -42,8 +42,8 @@ class NucleiConceptExtractor(PipelineStep):
         Returns:
             np.ndarray: nuclei concept
         """
-        nuclei_concepts = self.hc_feature_extractor.process(
-            input_image, instance_map)
+
+        nuclei_concepts = self.hc_feature_extractor.process(input_image, instance_map)
 
         if self.concept_names is not None:
             indices_to_keep = [

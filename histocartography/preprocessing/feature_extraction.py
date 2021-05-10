@@ -183,17 +183,15 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             torch.Tensor: Extracted shape, color and texture features:
                           Shape:   area, convex_area, eccentricity, equivalent_diameter, euler_number, extent, filled_area,
                                    major_axis_length, minor_axis_length, orientation, perimiter, solidity;
-                          Color:   Per channel (RGB) histogram with 8 bins:
-                                   mean, std, median, skewness, energy;
-                          Texture: entropy, glcm_contrast, glcm_dissililarity, glcm_homogeneity, glcm_energy, glcm_ASM
+                          Texture: glcm_contrast, glcm_dissililarity, glcm_homogeneity, glcm_energy, glcm_ASM, glcm_dispersion
                                    (glcm = grey-level co-occurance matrix);
+                          Crowdedness: mean_crowdedness, std_crowdedness
+
         """
         node_feat = []
 
         img_gray = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
         img_square = np.square(input_image)
-
-        img_entropy = Entropy(img_gray, disk(3))
 
         # For each instance
         regions = regionprops(instance_map)
@@ -204,13 +202,11 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             centroids)
 
         for region_id, region in enumerate(regions):
-            sp_mask = np.array(instance_map == region["label"], np.uint8)
-            sp_rgb = cv2.bitwise_and(input_image, input_image, mask=sp_mask)
-            sp_gray = img_gray * sp_mask
-            mask_size = np.sum(sp_mask)
-            mask_idx = np.where(sp_mask != 0)
 
-            # Compute using mask [12 features]
+            sp_mask = instance_map[region['bbox'][0]:region['bbox'][2], region['bbox'][1]:region['bbox'][3]] == region['label'] 
+            sp_gray = img_gray[region['bbox'][0]:region['bbox'][2], region['bbox'][1]:region['bbox'][3]] * sp_mask
+
+            # Compute using mask [16 features]
             area = region["area"]
             convex_area = region["convex_area"]
             eccentricity = region["eccentricity"]
@@ -223,9 +219,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             orientation = region["orientation"]
             perimeter = region["perimeter"]
             solidity = region["solidity"]
-            convex_hull_perimeter = self._compute_convex_hull_perimeter(
-                sp_mask, instance_map
-            )
+            convex_hull_perimeter = self._compute_convex_hull_perimeter(sp_mask)
             roughness = convex_hull_perimeter / perimeter
             shape_factor = 4 * np.pi * area / convex_hull_perimeter ** 2
             ellipticity = minor_axis_length / major_axis_length
@@ -250,22 +244,6 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 roundness,
             ]
 
-            # (rgb color space) [13 x 3 features]
-            feats_r = self._color_features_per_channel(
-                sp_rgb[:, :, 0], img_square[:, :, 0], mask_idx, mask_size
-            )
-            feats_g = self._color_features_per_channel(
-                sp_rgb[:, :, 1], img_square[:, :, 1], mask_idx, mask_size
-            )
-            feats_b = self._color_features_per_channel(
-                sp_rgb[:, :, 2], img_square[:, :, 2], mask_idx, mask_size
-            )
-            feats_color = [feats_r, feats_g, feats_b]
-            feats_color = [item for sublist in feats_color for item in sublist]
-
-            # Entropy (gray color space) [1 feature]
-            entropy = cv2.mean(img_entropy, mask=sp_mask)[0]
-
             # GLCM texture features (gray color space) [5 features]
             glcm = greycomatrix(sp_gray, [1], [0])
             # Filter out the first row and column
@@ -282,17 +260,14 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             glcm_ASM = greycoprops(filt_glcm, prop="ASM")
             glcm_ASM = glcm_ASM[0, 0]
             glcm_dispersion = np.std(filt_glcm)
-            glcm_entropy = np.mean(Entropy(np.squeeze(filt_glcm), disk(3)))
 
             feats_texture = [
-                entropy,
                 glcm_contrast,
                 glcm_dissimilarity,
                 glcm_homogeneity,
                 glcm_energy,
                 glcm_ASM,
                 glcm_dispersion,
-                glcm_entropy,
             ]
 
             feats_crowdedness = [
@@ -300,8 +275,7 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
                 all_std_crowdedness[region_id],
             ]
 
-            sp_feats = feats_shape + feats_color + feats_texture + feats_crowdedness
-
+            sp_feats = feats_shape + feats_texture + feats_crowdedness
             features = np.hstack(sp_feats)
             node_feat.append(features)
 
@@ -324,32 +298,15 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
         mean_crow = np.reshape(np.mean(x, axis=1), newshape=(-1, 1))
         return mean_crow, std_crowd
 
-    @staticmethod
-    def bounding_box(img):
-        rows = np.any(img, axis=1)
-        cols = np.any(img, axis=0)
-        rmin, rmax = np.where(rows)[0][[0, -1]]
-        cmin, cmax = np.where(cols)[0][[0, -1]]
-        rmax += 1
-        cmax += 1
-        return [rmin, rmax, cmin, cmax]
-
-    def _compute_convex_hull_perimeter(self, sp_mask, instance_map):
+    def _compute_convex_hull_perimeter(self, sp_mask):
         """Compute the perimeter of the convex hull induced by the input mask."""
-        y1, y2, x1, x2 = self.bounding_box(sp_mask)
-        y1 = y1 - 2 if y1 - 2 >= 0 else y1
-        x1 = x1 - 2 if x1 - 2 >= 0 else x1
-        x2 = x2 + 2 if x2 + 2 <= instance_map.shape[1] - 1 else x2
-        y2 = y2 + 2 if y2 + 2 <= instance_map.shape[0] - 1 else y2
-        nuclei_map = sp_mask[y1:y2, x1:x2]
-
         if cv2.__version__[0] == "3":
             _, contours, _ = cv2.findContours(
-                nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+                np.uint8(sp_mask), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
             )
         elif cv2.__version__[0] == "4":
             contours, _ = cv2.findContours(
-                nuclei_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+                np.uint8(sp_mask), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
             )
         hull = cv2.convexHull(contours[0])
         convex_hull_perimeter = cv2.arcLength(hull, True)
@@ -1243,53 +1200,12 @@ HANDCRAFTED_FEATURES_NAMES = {
     "shape_factor": 13,
     "ellipticity": 14,
     "roundness": 15,
-    "feats_r_hist_bin1": 16,
-    "feats_r_hist_bin2": 17,
-    "feats_r_hist_bin3": 18,
-    "feats_r_hist_bin4": 19,
-    "feats_r_hist_bin5": 20,
-    "feats_r_hist_bin6": 21,
-    "feats_r_hist_bin7": 22,
-    "feats_r_hist_bin8": 23,
-    "feats_r_color_mean": 24,
-    "feats_r_color_std": 25,
-    "feats_r_color_median": 26,
-    "feats_r_color_skewness": 27,
-    "feats_r_color_energy": 28,
-    "feats_g_hist_bin1": 29,
-    "feats_g_hist_bin2": 30,
-    "feats_g_hist_bin3": 31,
-    "feats_g_hist_bin4": 32,
-    "feats_g_hist_bin5": 33,
-    "feats_g_hist_bin6": 34,
-    "feats_g_hist_bin7": 35,
-    "feats_g_hist_bin8": 36,
-    "feats_g_color_mean": 37,
-    "feats_g_color_std": 38,
-    "feats_g_color_median": 39,
-    "feats_g_color_skewness": 40,
-    "feats_g_color_energy": 41,
-    "feats_b_hist_bin1": 42,
-    "feats_b_hist_bin2": 43,
-    "feats_b_hist_bin3": 44,
-    "feats_b_hist_bin4": 45,
-    "feats_b_hist_bin5": 46,
-    "feats_b_hist_bin6": 47,
-    "feats_b_hist_bin7": 48,
-    "feats_b_hist_bin8": 49,
-    "feats_b_color_mean": 50,
-    "feats_b_color_std": 51,
-    "feats_b_color_median": 52,
-    "feats_b_color_skewness": 53,
-    "feats_b_color_energy": 54,
-    "entropy": 55,
-    "glcm_contrast": 56,
-    "glcm_dissimilarity": 57,
-    "glcm_homogeneity": 58,
-    "glcm_energy": 59,
-    "glcm_ASM": 60,
-    "glcm_dispersion": 61,
-    "glcm_entropy": 62,
-    "mean_crowdedness": 63,
-    "std_crowdedness": 64,
+    "glcm_contrast": 16,
+    "glcm_dissimilarity": 17,
+    "glcm_homogeneity": 18,
+    "glcm_energy": 19,
+    "glcm_ASM": 20,
+    "glcm_dispersion": 21,
+    "mean_crowdedness": 22,
+    "std_crowdedness": 23,
 }

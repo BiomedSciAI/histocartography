@@ -148,7 +148,7 @@ class GINLayer(nn.Module):
 
         adjacency_matrix = torch.clamp(self.adjacency_matrix, min=0)
         if self.agg_type == 'mean':
-            adjacency_matrix = torch.div(adjacency_matrix, self.in_degrees)
+            adjacency_matrix = torch.div(adjacency_matrix, self.in_degrees.to(adjacency_matrix.device))
         adjacency_matrix = adjacency_matrix + \
             torch.eye(self.adjacency_matrix.shape[0]).to(relevance_score.device)
         rel_unnorm = torch.mm(self.input_features, adjacency_matrix.t()) + 1e-9

@@ -13,7 +13,7 @@ gnn_params:
   towers: 1
   pretrans_layers: 1
   posttrans_layers: 1
-  divide_input: True
+  divide_input: False
   residual: False
 classification_params:
   num_layers: 2

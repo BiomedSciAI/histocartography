@@ -8,12 +8,12 @@ cg_gnn_params:
   scalers: "identity amplification attenuation"
   avg_d: 4
   dropout: 0.
-  graph_norm: False
+  graph_norm: True
   batch_norm: True
   towers: 1
   pretrans_layers: 1
   posttrans_layers: 1
-  divide_input: True
+  divide_input: False
   residual: False
 tg_gnn_params:
   layer_type: "pna_layer"
@@ -25,12 +25,12 @@ tg_gnn_params:
   scalers: "identity amplification attenuation"
   avg_d: 4
   dropout: 0.
-  graph_norm: False
+  graph_norm: True
   batch_norm: True
   towers: 1
   pretrans_layers: 1
   posttrans_layers: 1
-  divide_input: True
+  divide_input: False
   residual: False
 classification_params:
   num_layers: 2

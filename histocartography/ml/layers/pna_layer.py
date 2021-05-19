@@ -205,14 +205,11 @@ class PNATower(nn.Module):
 
         # graph and batch normalization
         if self.graph_norm:
-            if isinstance(
-                    g, dgl.DGLGraph) or isinstance(
-                    g, dgl.DGLHeteroGraph):
-                num_nodes = [g.number_of_nodes()]
-            else:
+            if hasattr(g, 'batch_num_nodes'):
                 num_nodes = g.batch_num_nodes
-            snorm_n = torch.FloatTensor(list(itertools.chain(
-                *[[np.sqrt(1 / n)] * n for n in num_nodes]))).to(h.device)
+            else:
+                num_nodes = [g.number_of_nodes()]
+            snorm_n = torch.FloatTensor(list(itertools.chain(*[[np.sqrt(1 / n)] * n for n in num_nodes]))).to(h.device)
             h = h * snorm_n[:, None]
         if self.batch_norm:
             h = self.batchnorm_h(h)

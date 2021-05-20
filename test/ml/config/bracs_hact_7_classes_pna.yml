@@ -1,7 +1,7 @@
 cg_gnn_params:
   layer_type: "pna_layer"
   output_dim: 64
-  num_layers: 4
+  num_layers: 3
   readout_op: "lstm"
   readout_type: "mean"
   aggregators: "mean max min std"
@@ -13,12 +13,12 @@ cg_gnn_params:
   towers: 1
   pretrans_layers: 1
   posttrans_layers: 1
-  divide_input: True
-  residual: True
+  divide_input: False
+  residual: False
 tg_gnn_params:
   layer_type: "pna_layer"
   output_dim: 64
-  num_layers: 4
+  num_layers: 3
   readout_op: "lstm"
   readout_type: "mean"
   aggregators: "mean max min std"
@@ -30,8 +30,8 @@ tg_gnn_params:
   towers: 1
   pretrans_layers: 1
   posttrans_layers: 1
-  divide_input: True
-  residual: True
+  divide_input: False
+  residual: False
 classification_params:
   num_layers: 2
   hidden_dim: 128

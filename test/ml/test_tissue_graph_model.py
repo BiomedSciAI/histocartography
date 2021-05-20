@@ -119,38 +119,6 @@ class TGModelTestCase(unittest.TestCase):
         self.assertEqual(logits.shape[0], 1)
         self.assertEqual(logits.shape[1], 3)
 
-    def test_pretrained_bracs_tggnn_5_classes_pna(self):
-        """Test bracs_tggnn_5_classes_pna model."""
-
-        # 1. Load a tissue graph
-        graph, _ = load_graphs(os.path.join(self.graph_path, self.graph_name))
-        graph = graph[0]
-        graph = set_graph_on_cuda(graph) if IS_CUDA else graph
-        node_dim = graph.ndata['feat'].shape[1]
-
-        # 2. Load model with pre-trained weights
-        config_fname = os.path.join(
-            self.current_path,
-            'config',
-            'tg_bracs_tggnn_5_classes_pna.yml')
-        with open(config_fname, 'r') as file:
-            config = yaml.safe_load(file)
-
-        model = TissueGraphModel(
-            gnn_params=config['gnn_params'],
-            classification_params=config['classification_params'],
-            node_dim=node_dim,
-            num_classes=5,
-            pretrained=True
-        ).to(DEVICE)
-
-        # 4. forward pass
-        logits = model(graph)
-
-        self.assertIsInstance(logits, torch.Tensor)
-        self.assertEqual(logits.shape[0], 1)
-        self.assertEqual(logits.shape[1], 5)
-
     def test_pretrained_bracs_tggnn_7_classes_pna(self):
         """Test bracs_tggnn_7_classes_pna model."""
 

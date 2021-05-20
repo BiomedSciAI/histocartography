@@ -12,6 +12,7 @@ from histocartography.preprocessing import NucleiExtractor, H5Loader
 from histocartography.preprocessing import NucleiConceptExtractor
 from histocartography.utils import download_test_data
 
+import time 
 
 class NucleiConceptExtractionTestCase(unittest.TestCase):
     """NucleiConceptExtractionTestCase class."""
@@ -32,7 +33,7 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
         os.makedirs(self.out_path)
 
     def test_concept_extractor(self):
-        """Test nuclei extraction with local model."""
+        """Test nuclei concept extraction."""
 
         # 1. load an image
         image = np.array(
@@ -51,14 +52,41 @@ class NucleiConceptExtractionTestCase(unittest.TestCase):
         )
 
         # 3. extract nuclei concepts
-        nuclei_concept_extractor = NucleiConceptExtractor(
-            concept_names='area,perimeter,roughness,eccentricity,roundness,shape_factor,mean_crowdedness,std_crowdedness,glcm_dissimilarity,glcm_contrast,glcm_homogeneity,glcm_ASM,glcm_entropy,glcm_dispersion')
+        nuclei_concept_extractor = NucleiConceptExtractor()
         concepts = nuclei_concept_extractor.process(image, instance_map)
 
         self.assertIsInstance(concepts, np.ndarray)  # check type is np array
         self.assertEqual(concepts.shape[0], 331)  # check number of instances
         # check number of node features
-        self.assertEqual(concepts.shape[1], 14)
+        self.assertEqual(concepts.shape[1], 24)
+
+    def test_concept_extractor_with_list(self):
+        """Test nuclei extraction with list of concepts."""
+
+        # 1. load an image
+        image = np.array(
+            Image.open(
+                os.path.join(
+                    self.image_path,
+                    self.image_name)))
+
+        # 2. load nuclei
+        h5_loader = H5Loader()
+        instance_map, instance_centroids = h5_loader._process(
+            path=os.path.join(
+                self.nuclei_map_path,
+                self.nuclei_map_name
+            )
+        )
+
+        # 3. extract nuclei concepts
+        nuclei_concept_extractor = NucleiConceptExtractor(concept_names='area,eccentricity')
+        concepts = nuclei_concept_extractor.process(image, instance_map)
+
+        self.assertIsInstance(concepts, np.ndarray)  # check type is np array
+        self.assertEqual(concepts.shape[0], 331)  # check number of instances
+        # check number of node features
+        self.assertEqual(concepts.shape[1], 2)
 
     def tearDown(self):
         """Tear down the tests."""

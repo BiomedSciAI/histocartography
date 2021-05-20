@@ -47,7 +47,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
         # check number of features per instance
-        self.assertEqual(features.shape[1], 65)
+        self.assertEqual(features.shape[1], 24)
         # check number of instances detected
         self.assertEqual(features.shape[0], 23)
 

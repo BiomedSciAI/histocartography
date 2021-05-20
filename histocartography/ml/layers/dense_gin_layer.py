@@ -85,7 +85,7 @@ class DenseGINLayer(nn.Module):
             adj = adj / degree
 
         if self.add_self:
-            adj = adj + torch.eye(adj.size(1)).to(adj.device)
+            adj = adj.float() + torch.eye(adj.size(1)).to(adj.device)
 
         # adjust h dim
         if len(h.shape) < 3:

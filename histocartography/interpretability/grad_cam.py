@@ -179,6 +179,8 @@ class GradCAMpp(BaseCAM):
         # Backpropagate
         self._backprop(scores, class_idx)
 
+        self.backward_hook = list(reversed(self.backward_hook))
+
         # Compute alpha
         grad_2 = [f.pow(2) for f in self.backward_hook]
         grad_3 = [f.pow(3) for f in self.backward_hook]

@@ -138,7 +138,7 @@ scripts = []
 # TODO: Update these values according to the name of the module.
 setup(
     name="histocartography",
-    version="0.1.5-2",
+    version="0.2.0",
     description="Installable histocartography package.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

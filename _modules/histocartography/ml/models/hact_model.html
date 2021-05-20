@@ -1,0 +1,431 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.ml.models.hact_model &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.ml.models.hact_model</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.ml.models.hact_model</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">dgl</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">.base_model</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+<span class="kn">from</span> <span class="nn">..layers.constants</span> <span class="kn">import</span> <span class="n">GNN_NODE_FEAT_IN</span>
+<span class="kn">from</span> <span class="nn">..layers.mlp</span> <span class="kn">import</span> <span class="n">MLP</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">MultiLayerGNN</span>
+<span class="kn">from</span> <span class="nn">.zoo</span> <span class="kn">import</span> <span class="n">MODEL_NAME_TO_URL</span><span class="p">,</span> <span class="n">MODEL_NAME_TO_CONFIG</span>
+<span class="kn">from</span> <span class="nn">...utils</span> <span class="kn">import</span> <span class="n">download_box_link</span>
+
+
+<div class="viewcode-block" id="HACTModel"><a class="viewcode-back" href="../../../../api/histocartography.ml.models.hact_model.html#histocartography.ml.models.hact_model.HACTModel">[docs]</a><span class="k">class</span> <span class="nc">HACTModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    HACT model. The information for grading tumors lies at different scales. By building 2 graphs,</span>
+<span class="sd">    one at the cell level and one at the object level (modeled with super pixels), we can extract graph embeddings</span>
+<span class="sd">    that once combined provide a multi-scale representation of a RoI.</span>
+<span class="sd">    This implementation is using GNN layers and spatial assignment matrix to fuse the 2 layers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="HACTModel.__init__"><a class="viewcode-back" href="../../../../api/histocartography.ml.models.hact_model.html#histocartography.ml.models.hact_model.HACTModel.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cg_gnn_params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+        <span class="n">tg_gnn_params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+        <span class="n">classification_params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+        <span class="n">cg_node_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">tg_node_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        TissueGraphModel model constructor</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cg_gnn_params (Dict): Cell Graph GNN configuration parameters.</span>
+<span class="sd">            tg_gnn_params (Dict): Tissue Graph GNN configuration parameters.</span>
+<span class="sd">            classification_params (Dict): classification configuration parameters.</span>
+<span class="sd">            cg_node_dim (int): Cell node feature dimension.</span>
+<span class="sd">            tg_node_dim (int): Tissue node feature dimension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># 1- set class attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cg_node_dim</span> <span class="o">=</span> <span class="n">cg_node_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tg_node_dim</span> <span class="o">=</span> <span class="n">tg_node_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cg_gnn_params</span> <span class="o">=</span> <span class="n">cg_gnn_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tg_gnn_params</span> <span class="o">=</span> <span class="n">tg_gnn_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">classification_params</span> <span class="o">=</span> <span class="n">classification_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">readout_op</span> <span class="o">=</span> <span class="n">cg_gnn_params</span><span class="p">[</span><span class="s1">&#39;readout_op&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">with_rlp</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout_op</span> <span class="o">==</span> <span class="n">tg_gnn_params</span><span class="p">[</span><span class="s1">&#39;readout_op&#39;</span><span class="p">],</span> <span class="s2">&quot;Please the same readout operator for TG and CG. Options are &#39;concat&#39;, &#39;lstm&#39;, &#39;none&#39;&quot;</span>
+
+        <span class="c1"># 2- build cell graph params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_cell_graph_params</span><span class="p">()</span>
+
+        <span class="c1"># 3- build super pixel graph params</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout_op</span> <span class="o">==</span> <span class="s2">&quot;concat&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cg_tg_node_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tg_node_dim</span> <span class="o">+</span>\
+                <span class="bp">self</span><span class="o">.</span><span class="n">cg_gnn_params</span><span class="p">[</span><span class="s1">&#39;output_dim&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cg_gnn_params</span><span class="p">[</span><span class="s1">&#39;num_layers&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cg_tg_node_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tg_node_dim</span> <span class="o">+</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">cg_gnn_params</span><span class="p">[</span><span class="s1">&#39;output_dim&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_tissue_graph_params</span><span class="p">()</span>
+
+        <span class="c1"># 4- build classification params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_classification_params</span><span class="p">()</span>
+
+        <span class="c1"># 5- load pretrained weights if needed</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrained</span><span class="p">:</span>
+            <span class="n">model_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_checkpoint_id</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">model_name</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_load_checkpoint</span><span class="p">(</span><span class="n">model_name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="s1">&#39;There is not available HACT checkpoint for the provided params.&#39;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_checkpoint_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># 1st level-check: Model type, GNN layer type, num classes</span>
+        <span class="n">model_type</span> <span class="o">=</span> <span class="s1">&#39;hact&#39;</span>
+        <span class="n">cg_layer_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cg_gnn_params</span><span class="p">[</span><span class="s1">&#39;layer_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_layer&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">tg_layer_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tg_gnn_params</span><span class="p">[</span><span class="s1">&#39;layer_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_layer&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span>
+
+        <span class="k">if</span> <span class="n">cg_layer_type</span> <span class="o">!=</span> <span class="n">tg_layer_type</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="n">candidate</span> <span class="o">=</span> <span class="s1">&#39;bracs_&#39;</span> <span class="o">+</span> <span class="n">model_type</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> \
+            <span class="nb">str</span><span class="p">(</span><span class="n">num_classes</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_classes_&#39;</span> <span class="o">+</span> <span class="n">cg_layer_type</span> <span class="o">+</span> <span class="s1">&#39;.pt&#39;</span>
+        <span class="k">if</span> <span class="n">candidate</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">MODEL_NAME_TO_URL</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="c1"># 2nd level-check: Look at all the specific params: CG-GNN, TG-GNN,</span>
+        <span class="c1"># classification params</span>
+        <span class="n">cand_config</span> <span class="o">=</span> <span class="n">MODEL_NAME_TO_CONFIG</span><span class="p">[</span><span class="n">candidate</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">cand_key</span><span class="p">,</span> <span class="n">cand_val</span> <span class="ow">in</span> <span class="n">cand_config</span><span class="p">[</span><span class="s1">&#39;cg_gnn_params&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">superpx_gnn</span><span class="p">,</span> <span class="n">cand_key</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">cand_val</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cell_graph_gnn</span><span class="p">,</span> <span class="n">cand_key</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cand_val</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">cell_graph_gnn</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cand_key</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="k">for</span> <span class="n">cand_key</span><span class="p">,</span> <span class="n">cand_val</span> <span class="ow">in</span> <span class="n">cand_config</span><span class="p">[</span><span class="s1">&#39;tg_gnn_params&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">superpx_gnn</span><span class="p">,</span> <span class="n">cand_key</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">cand_val</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">superpx_gnn</span><span class="p">,</span> <span class="n">cand_key</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cand_val</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">superpx_gnn</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cand_key</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="k">for</span> <span class="n">cand_key</span><span class="p">,</span> <span class="n">cand_val</span> <span class="ow">in</span> <span class="n">cand_config</span><span class="p">[</span><span class="s1">&#39;classification_params&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">cand_val</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pred_layer</span><span class="p">,</span> <span class="n">cand_key</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="n">cand_config</span><span class="p">[</span><span class="s1">&#39;cg_node_dim&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cg_node_dim</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="n">cand_config</span><span class="p">[</span><span class="s1">&#39;tg_node_dim&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tg_node_dim</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="k">return</span> <span class="n">candidate</span>
+
+    <span class="k">def</span> <span class="nf">_build_tissue_graph_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build multi layer GNN for tissue processing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">superpx_gnn</span> <span class="o">=</span> <span class="n">MultiLayerGNN</span><span class="p">(</span>
+            <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cg_tg_node_dim</span><span class="p">,</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">tg_gnn_params</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_build_cell_graph_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build cell graph multi layer GNN</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_graph_gnn</span> <span class="o">=</span> <span class="n">MultiLayerGNN</span><span class="p">(</span>
+            <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cg_node_dim</span><span class="p">,</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">cg_gnn_params</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_build_classification_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build classification parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout_op</span> <span class="o">==</span> <span class="s2">&quot;concat&quot;</span><span class="p">:</span>
+            <span class="n">emd_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tg_gnn_params</span><span class="p">[</span><span class="s1">&#39;output_dim&#39;</span><span class="p">]</span> <span class="o">*</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">tg_gnn_params</span><span class="p">[</span><span class="s1">&#39;num_layers&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">emd_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tg_gnn_params</span><span class="p">[</span><span class="s1">&#39;output_dim&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pred_layer</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+            <span class="n">in_dim</span><span class="o">=</span><span class="n">emd_dim</span><span class="p">,</span>
+            <span class="n">hidden_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">classification_params</span><span class="p">[</span><span class="s1">&#39;hidden_dim&#39;</span><span class="p">],</span>
+            <span class="n">out_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="p">,</span>
+            <span class="n">num_layers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">classification_params</span><span class="p">[</span><span class="s1">&#39;num_layers&#39;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_compute_assigned_feats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">,</span> <span class="n">feats</span><span class="p">,</span> <span class="n">assignment</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use the assignment matrix to agg the feats</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_nodes_per_graph</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">batch_num_nodes</span>
+        <span class="n">num_nodes_per_graph</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">num_nodes_per_graph</span><span class="p">[:</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">num_nodes_per_graph</span><span class="p">))]</span>
+
+        <span class="n">ll_h_concat</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">intervals</span><span class="p">)):</span>
+            <span class="n">h_agg</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span>
+                <span class="n">assignment</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">feats</span><span class="p">[</span><span class="n">intervals</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]:</span><span class="n">intervals</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="p">:]</span>
+            <span class="p">)</span>
+            <span class="n">ll_h_concat</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">h_agg</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">ll_h_concat</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HACTModel.forward"><a class="viewcode-back" href="../../../../api/histocartography.ml.models.hact_model.html#histocartography.ml.models.hact_model.HACTModel.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cell_graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">,</span> <span class="n">dgl</span><span class="o">.</span><span class="n">batch</span><span class="p">],</span>
+        <span class="n">tissue_graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">,</span> <span class="n">dgl</span><span class="o">.</span><span class="n">batch</span><span class="p">],</span>
+        <span class="n">assignment_matrix</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Foward pass.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cell_graph (Union[dgl.DGLGraph, dgl.batch]): Cell graph or Batch of cell graphs.</span>
+<span class="sd">            tissue_graph (Union[dgl.DGLGraph, dgl.batch]): Tissue graph or Batch of tissue graphs.</span>
+<span class="sd">            assignment_matrix (torch.Tensor): List of assignment matrices</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: model output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># 1. GNN layers over the low level graph</span>
+        <span class="n">ll_feats</span> <span class="o">=</span> <span class="n">cell_graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">GNN_NODE_FEAT_IN</span><span class="p">]</span>
+        <span class="n">ll_h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_graph_gnn</span><span class="p">(</span><span class="n">cell_graph</span><span class="p">,</span> <span class="n">ll_feats</span><span class="p">,</span> <span class="n">with_readout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># 2. Sum the low level features according to assignment matrix</span>
+        <span class="n">ll_h_concat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_assigned_feats</span><span class="p">(</span>
+            <span class="n">cell_graph</span><span class="p">,</span> <span class="n">ll_h</span><span class="p">,</span> <span class="n">assignment_matrix</span><span class="p">)</span>
+
+        <span class="n">tissue_graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">GNN_NODE_FEAT_IN</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">ll_h_concat</span><span class="p">,</span> <span class="n">tissue_graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">GNN_NODE_FEAT_IN</span><span class="p">]),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># 3. GNN layers over the high level graph</span>
+        <span class="n">hl_feats</span> <span class="o">=</span> <span class="n">tissue_graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">GNN_NODE_FEAT_IN</span><span class="p">]</span>
+        <span class="n">graph_embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">superpx_gnn</span><span class="p">(</span><span class="n">tissue_graph</span><span class="p">,</span> <span class="n">hl_feats</span><span class="p">)</span>
+
+        <span class="c1"># 4. Classification layers</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_layer</span><span class="p">(</span><span class="n">graph_embeddings</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">logits</span></div>
+
+<div class="viewcode-block" id="HACTModel.set_rlp"><a class="viewcode-back" href="../../../../api/histocartography.ml.models.hact_model.html#histocartography.ml.models.hact_model.HACTModel.set_rlp">[docs]</a>    <span class="k">def</span> <span class="nf">set_rlp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">with_rlp</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;LRP not implemented for HACT model.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HACTModel.rlp"><a class="viewcode-back" href="../../../../api/histocartography.ml.models.hact_model.html#histocartography.ml.models.hact_model.HACTModel.rlp">[docs]</a>    <span class="k">def</span> <span class="nf">rlp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out_relevance_score</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;LRP not implemented for HACT model.&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,452 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.pipeline module &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="histocartography.interpretability package" href="histocartography.interpretability.html" />
+    <link rel="prev" title="histocartography package" href="histocartography.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="histocartography.html">histocartography package</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">histocartography.pipeline module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.interpretability.html">histocartography.interpretability package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.metrics.html">histocartography.metrics package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.ml.html">histocartography.ml package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.preprocessing.html">histocartography.preprocessing package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.utils.html">histocartography.utils package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.visualization.html">histocartography.visualization package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.html#summary">Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.html#reference">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="histocartography.html">histocartography package</a> &raquo;</li>
+        
+      <li>histocartography.pipeline module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/api/histocartography.pipeline.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="module-histocartography.pipeline">
+<span id="histocartography-pipeline-module"></span><h1>histocartography.pipeline module<a class="headerlink" href="#module-histocartography.pipeline" title="Permalink to this headline">¶</a></h1>
+<p>Pipeline utilities</p>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h2>
+<p>Classes:</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#histocartography.pipeline.BatchPipelineRunner" title="histocartography.pipeline.BatchPipelineRunner"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BatchPipelineRunner</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#histocartography.pipeline.PipelineRunner" title="histocartography.pipeline.PipelineRunner"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineRunner</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#histocartography.pipeline.PipelineStep" title="histocartography.pipeline.PipelineStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code></a></p></td>
+<td><p>Base pipelines step</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineStep">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">PipelineStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precompute</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">link_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precompute_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineStep"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineStep" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
+<p>Base pipelines step</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineStep.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precompute</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">link_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precompute_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineStep.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineStep.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Abstract class that helps with saving and loading precomputed results</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>save_path</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>Path</em><em>]</em><em>, </em><em>optional</em>) – Base path to save results to.
+When set to None, the results are not saved to disk. Defaults to None.</p></li>
+<li><p><strong>precompute</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to perform the precomputation necessary
+for the step. Defaults to True.</p></li>
+<li><p><strong>link_path</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>Path</em><em>]</em><em>, </em><em>optional</em>) – Path to link the output directory
+to. When None, no link is created. Only supported when save_path is not None.
+Defaults to None.</p></li>
+<li><p><strong>precompute_path</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>Path</em><em>]</em><em>, </em><em>optional</em>) – Path to save the output of
+the precomputation to. If not specified it defaults to the output directory
+of the step when save_path is not None. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineStep.precompute">
+<span class="sig-name descname"><span class="pre">precompute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">link_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precompute_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineStep.precompute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineStep.precompute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Precompute all necessary information for this step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>link_path</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>Path</em><em>]</em><em>, </em><em>optional</em>) – Path to link the output to. Defaults to None.</p></li>
+<li><p><strong>precompute_path</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>str</em><em>, </em><em>Path</em><em>]</em><em>, </em><em>optional</em>) – Path to load/save the precomputation outputs. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineStep.process">
+<span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Any</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineStep.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineStep.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main process function of the step and outputs the result. Try to saves the output when output_name is passed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>output_name</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – Unique identifier of the passed datapoint. Defaults to None.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Result of the pipeline step</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Any</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineRunner">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">PipelineRunner</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stages</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_intermediate</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precompute</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineRunner"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineRunner.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stages</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_intermediate</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precompute</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineRunner.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineRunner.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a pipeline runner for a given configuration</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>output_path</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – Path to the output and intermediate files.
+When set to None the runner does not save the outputs. Defaults to None.</p></li>
+<li><p><strong>inputs</strong> (<em>Optional</em><em>[</em><em>Iterable</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Inputs to the pipeline. Defaults to None.</p></li>
+<li><p><strong>outputs</strong> (<em>Optional</em><em>[</em><em>Iterable</em><em>[</em><em>str</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – Outputs of the pipeline. Defaults to None.</p></li>
+<li><p><strong>stages</strong> (<em>Iterable</em><em>[</em><em>dict</em><em>]</em><em>, </em><em>optional</em>) – Stages to complete. Defaults to [].</p></li>
+<li><p><strong>save_intermediate</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save the intermediate steps. Defaults to False.</p></li>
+<li><p><strong>precompute</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to perform the precomputation steps. Defaults to True.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineRunner.precompute">
+<span class="sig-name descname"><span class="pre">precompute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_intermediate</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineRunner.precompute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineRunner.precompute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the precomputation step of the pipeline.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>save_intermediate</strong> (<em>bool</em>) – Whether to save intermediate outputs</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.PipelineRunner.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">inputs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><a class="reference internal" href="../_modules/histocartography/pipeline.html#PipelineRunner.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.PipelineRunner.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the preprocessing pipeline for a given name and input parameters and return the specified outputs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>output_name</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – Unique identifier of the datapoint. Defaults to None.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Output of the pipeline as defined in the configuration</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Dict[str, Any]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.pipeline.BatchPipelineRunner">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">BatchPipelineRunner</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pipeline_config</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_intermediate</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#BatchPipelineRunner"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.BatchPipelineRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.BatchPipelineRunner.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pipeline_config</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_intermediate</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#BatchPipelineRunner.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.BatchPipelineRunner.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run Helper that runs the pipeline for multiple inputs with multiprocessing support</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pipeline_config</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Configuration of the pipeline</p></li>
+<li><p><strong>save_path</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Path to save the outputs to</p></li>
+<li><p><strong>save_intermediate</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to save intermediate outputs. Defaults to False.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.BatchPipelineRunner.link_output">
+<span class="sig-name descname"><span class="pre">link_output</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">link_directory</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#BatchPipelineRunner.link_output"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.BatchPipelineRunner.link_output" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Creates a symlink between the output directory of the pipeline and the provided path.</dt><dd><p>Overwrites link if it already exists.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>link_directory</strong> (<em>str</em>) – Path to link the output directory to</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.BatchPipelineRunner.precompute">
+<span class="sig-name descname"><span class="pre">precompute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/pipeline.html#BatchPipelineRunner.precompute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.BatchPipelineRunner.precompute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Precompute all necessary information for all stages</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.pipeline.BatchPipelineRunner.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cores</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_out</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><a class="reference internal" href="../_modules/histocartography/pipeline.html#BatchPipelineRunner.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.pipeline.BatchPipelineRunner.run" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Runs the pipeline for the provided metadata dataframe and a specified</dt><dd><p>number of cores for multiprocessing.
+Does not support saving of outputs</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metadata</strong> (<em>pd.DataFrame</em>) – Dataframe with the columns as defined in the config inputs</p></li>
+<li><p><strong>cores</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of cores to use for multiprocessing. Defaults to 1.</p></li>
+<li><p><strong>return_out</strong> (<em>bool</em><em>, </em><em>optional</em>) – If the method should also return the output batch data.
+If True, make sure you have enough memory. Only supported
+for single-core processing. Default to False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>If return_out is True, returns the processed output.</dt><dd><p>Otherwise returns None</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>batched_out (Optional[Dict[str, Dict[str, Any]]])</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="reference">
+<h2>Reference<a class="headerlink" href="#reference" title="Permalink to this headline">¶</a></h2>
+<p>If you use <cite>histocartography</cite> in your projects, please cite the following:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@inproceedings</span><span class="p">{</span><span class="n">pati2021</span><span class="p">,</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">Hierarchical</span> <span class="n">Graph</span> <span class="n">Representations</span> <span class="k">for</span> <span class="n">Digital</span> <span class="n">Pathology</span><span class="p">},</span>
+    <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Pushpak</span> <span class="n">Pati</span><span class="p">,</span> <span class="n">Guillaume</span> <span class="n">Jaume</span><span class="p">,</span> <span class="n">Antonio</span> <span class="n">Foncubierta</span><span class="p">,</span> <span class="n">Florinda</span> <span class="n">Feroce</span><span class="p">,</span> <span class="n">Anna</span> <span class="n">Maria</span> <span class="n">Anniciello</span><span class="p">,</span> <span class="n">Giosuè</span> <span class="n">Scognamiglio</span><span class="p">,</span> <span class="n">Nadia</span> <span class="n">Brancati</span><span class="p">,</span> <span class="n">Maryse</span> <span class="n">Fiche</span><span class="p">,</span> <span class="n">Estelle</span> <span class="n">Dubruc</span><span class="p">,</span> <span class="n">Daniel</span> <span class="n">Riccio</span><span class="p">,</span> <span class="n">Maurizio</span> <span class="n">Di</span> <span class="n">Bonito</span><span class="p">,</span> <span class="n">Giuseppe</span> <span class="n">De</span> <span class="n">Pietro</span><span class="p">,</span> <span class="n">Gerardo</span> <span class="n">Botti</span><span class="p">,</span> <span class="n">Jean</span><span class="o">-</span><span class="n">Philippe</span> <span class="n">Thiran</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Frucci</span><span class="p">,</span> <span class="n">Orcun</span> <span class="n">Goksel</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Gabrani</span><span class="p">},</span>
+    <span class="n">booktitle</span> <span class="o">=</span> <span class="p">{</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">arxiv</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">pdf</span><span class="o">/</span><span class="mf">2102.11057</span><span class="p">},</span>
+    <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2021</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="histocartography.interpretability.html" class="btn btn-neutral float-right" title="histocartography.interpretability package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="histocartography.html" class="btn btn-neutral float-left" title="histocartography package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

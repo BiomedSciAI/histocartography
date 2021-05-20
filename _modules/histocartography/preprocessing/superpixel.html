@@ -1,0 +1,760 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.preprocessing.superpixel &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.preprocessing.superpixel</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.preprocessing.superpixel</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module handles everything related to superpixels&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">skimage.color.colorconv</span> <span class="kn">import</span> <span class="n">rgb2hed</span>
+<span class="kn">from</span> <span class="nn">skimage.future</span> <span class="kn">import</span> <span class="n">graph</span>
+<span class="kn">from</span> <span class="nn">skimage.segmentation</span> <span class="kn">import</span> <span class="n">slic</span>
+
+<span class="kn">from</span> <span class="nn">..pipeline</span> <span class="kn">import</span> <span class="n">PipelineStep</span>
+
+
+<div class="viewcode-block" id="SuperpixelExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.SuperpixelExtractor">[docs]</a><span class="k">class</span> <span class="nc">SuperpixelExtractor</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to extract superpixels from images&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SuperpixelExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.SuperpixelExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">nr_superpixels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">superpixel_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_nr_superpixels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">blur_kernel_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">compactness</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">max_iterations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.03</span><span class="p">,</span>
+        <span class="n">connectivity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">color_space</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;rgb&quot;</span><span class="p">,</span>
+        <span class="n">downsampling_factor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Abstract class that extracts superpixels from RGB Images</span>
+<span class="sd">        Args:</span>
+<span class="sd">            nr_superpixels (None, int): The number of super pixels before any merging.</span>
+<span class="sd">            superpixel_size (None, int): The size of super pixels before any merging.</span>
+<span class="sd">            max_nr_superpixels (int, optional): Upper bound for the number of super pixels.</span>
+<span class="sd">                                                Useful when providing a superpixel size.</span>
+<span class="sd">            blur_kernel_size (float, optional): Size of the blur kernel. Defaults to 0.</span>
+<span class="sd">            compactness (int, optional): Compactness of the superpixels. Defaults to 30.</span>
+<span class="sd">            max_iterations (int, optional): Number of iterations of the slic algorithm. Defaults to 10.</span>
+<span class="sd">            threshold (float, optional): Connectivity threshold. Defaults to 0.03.</span>
+<span class="sd">            connectivity (int, optional): Connectivity for merging graph. Defaults to 2.</span>
+<span class="sd">            downsampling_factor (int, optional): Downsampling factor from the input image</span>
+<span class="sd">                                                 resolution. Defaults to 1.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">nr_superpixels</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">superpixel_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span>
+            <span class="n">nr_superpixels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">superpixel_size</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Provide value for either nr_superpixels or superpixel_size&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nr_superpixels</span> <span class="o">=</span> <span class="n">nr_superpixels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">superpixel_size</span> <span class="o">=</span> <span class="n">superpixel_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_nr_superpixels</span> <span class="o">=</span> <span class="n">max_nr_superpixels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">blur_kernel_size</span> <span class="o">=</span> <span class="n">blur_kernel_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compactness</span> <span class="o">=</span> <span class="n">compactness</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_iterations</span> <span class="o">=</span> <span class="n">max_iterations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connectivity</span> <span class="o">=</span> <span class="n">connectivity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">color_space</span> <span class="o">=</span> <span class="n">color_space</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="o">=</span> <span class="n">downsampling_factor</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tissue_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Return the superpixels of a given input image</span>
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.array): Input image</span>
+<span class="sd">            tissue_mask (None, np.array): Input tissue mask</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Extracted superpixels</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Input size: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">input_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">original_height</span><span class="p">,</span> <span class="n">original_width</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">input_image</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">input_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span>
+                <span class="n">input_image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tissue_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">tissue_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span>
+                    <span class="n">tissue_mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Downsampled to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">input_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_superpixels</span><span class="p">(</span>
+            <span class="n">image</span><span class="o">=</span><span class="n">input_image</span><span class="p">,</span> <span class="n">tissue_mask</span><span class="o">=</span><span class="n">tissue_mask</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upsample</span><span class="p">(</span>
+                <span class="n">superpixels</span><span class="p">,</span> <span class="n">original_height</span><span class="p">,</span> <span class="n">original_width</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Upsampled to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">superpixels</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">superpixels</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_extract_superpixels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tissue_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Perform the superpixel extraction</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">            tissue_mask (np.array): Tissue mask tensor</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_downsample</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">downsampling_factor</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Downsample an input image with a given downsampling factor</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">            downsampling_factor (int): Factor to downsample</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">new_height</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">height</span> <span class="o">/</span> <span class="n">downsampling_factor</span><span class="p">)</span>
+        <span class="n">new_width</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">downsampling_factor</span><span class="p">)</span>
+        <span class="n">downsampled_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">downsampled_image</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_upsample</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">new_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">new_width</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Upsample an input image to a speficied new height and width</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">            new_height (int): Target height</span>
+<span class="sd">            new_width (int): Target width</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">upsampled_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">upsampled_image</span>
+
+<div class="viewcode-block" id="SuperpixelExtractor.precompute"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.SuperpixelExtractor.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Precompute all necessary information</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.</span>
+<span class="sd">            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">link_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_link_to_path</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">link_path</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;superpixels&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SLICSuperpixelExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.SLICSuperpixelExtractor">[docs]</a><span class="k">class</span> <span class="nc">SLICSuperpixelExtractor</span><span class="p">(</span><span class="n">SuperpixelExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Use the SLIC algorithm to extract superpixels.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SLICSuperpixelExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.SLICSuperpixelExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Extract superpixels with the SLIC algorithm&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_nr_superpixels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Compute the number of superpixels for initial segmentation</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            int: Output number of superpixels</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">superpixel_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">superpixel_size</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">nr_superpixels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nr_superpixels</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_nr_superpixels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nr_superpixels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_nr_superpixels</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">nr_superpixels</span>
+
+    <span class="k">def</span> <span class="nf">_extract_superpixels</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Perform the superpixel extraction</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">color_space</span> <span class="o">==</span> <span class="s2">&quot;hed&quot;</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">rgb2hed</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_nr_superpixels</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">superpixels</span> <span class="o">=</span> <span class="n">slic</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span>
+            <span class="n">sigma</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">blur_kernel_size</span><span class="p">,</span>
+            <span class="n">n_segments</span><span class="o">=</span><span class="n">nr_superpixels</span><span class="p">,</span>
+            <span class="n">max_iter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span>
+            <span class="n">compactness</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">compactness</span><span class="p">,</span>
+            <span class="n">start_label</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">superpixels</span></div>
+
+
+<div class="viewcode-block" id="MergedSuperpixelExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.MergedSuperpixelExtractor">[docs]</a><span class="k">class</span> <span class="nc">MergedSuperpixelExtractor</span><span class="p">(</span><span class="n">SuperpixelExtractor</span><span class="p">):</span>
+<div class="viewcode-block" id="MergedSuperpixelExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.MergedSuperpixelExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Extract superpixels with the SLIC algorithm&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_nr_superpixels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Compute the number of superpixels for initial segmentation</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            int: Output number of superpixels</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">superpixel_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">superpixel_size</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">nr_superpixels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nr_superpixels</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_nr_superpixels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nr_superpixels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_nr_superpixels</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">nr_superpixels</span>
+
+    <span class="k">def</span> <span class="nf">_extract_initial_superpixels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Extract initial superpixels using SLIC</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nr_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_nr_superpixels</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">superpixels</span> <span class="o">=</span> <span class="n">slic</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span>
+            <span class="n">sigma</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">blur_kernel_size</span><span class="p">,</span>
+            <span class="n">n_segments</span><span class="o">=</span><span class="n">nr_superpixels</span><span class="p">,</span>
+            <span class="n">compactness</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">compactness</span><span class="p">,</span>
+            <span class="n">max_iter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iterations</span><span class="p">,</span>
+            <span class="n">start_label</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">superpixels</span>
+
+    <span class="k">def</span> <span class="nf">_merge_superpixels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">initial_superpixels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">tissue_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Merge the initial superpixels to return merged superpixels</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input image</span>
+<span class="sd">            initial_superpixels (np.array): Initial superpixels</span>
+<span class="sd">            tissue_mask (None, np.array): Tissue mask</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output merged superpixel tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">tissue_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Remove superpixels belonging to background or having &lt; 10% tissue</span>
+            <span class="c1"># content</span>
+            <span class="n">ids_initial</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">initial_superpixels</span><span class="p">,</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">ids_masked</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span>
+                <span class="n">tissue_mask</span> <span class="o">*</span> <span class="n">initial_superpixels</span><span class="p">,</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+
+            <span class="n">ctr</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">superpixels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">initial_superpixels</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ids_initial</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+                <span class="nb">id</span> <span class="o">=</span> <span class="n">ids_initial</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">ids_masked</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="nb">id</span> <span class="o">==</span> <span class="n">ids_masked</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">ratio</span> <span class="o">=</span> <span class="n">ids_masked</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span> <span class="o">/</span> <span class="n">ids_initial</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">ratio</span> <span class="o">&gt;=</span> <span class="mf">0.1</span><span class="p">:</span>
+                        <span class="n">superpixels</span><span class="p">[</span><span class="n">initial_superpixels</span> <span class="o">==</span> <span class="nb">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">ctr</span>
+                        <span class="n">ctr</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">initial_superpixels</span> <span class="o">=</span> <span class="n">superpixels</span>
+
+        <span class="c1"># Merge superpixels within tissue region</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_graph</span><span class="p">(</span><span class="n">input_image</span><span class="p">,</span> <span class="n">initial_superpixels</span><span class="p">)</span>
+        <span class="n">merged_superpixels</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">merge_hierarchical</span><span class="p">(</span>
+            <span class="n">initial_superpixels</span><span class="p">,</span>
+            <span class="n">g</span><span class="p">,</span>
+            <span class="n">thresh</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span>
+            <span class="n">rag_copy</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">in_place_merge</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">merge_func</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_merging_function</span><span class="p">,</span>
+            <span class="n">weight_func</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_weighting_function</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">merged_superpixels</span> <span class="o">+=</span> <span class="mi">1</span>  <span class="c1"># Handle regionprops that ignores all values of 0</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">initial_superpixels</span><span class="p">)</span>
+        <span class="n">mask</span><span class="p">[</span><span class="n">initial_superpixels</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">merged_superpixels</span> <span class="o">=</span> <span class="n">merged_superpixels</span> <span class="o">*</span> <span class="n">mask</span>
+        <span class="k">return</span> <span class="n">merged_superpixels</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_generate_graph</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">superpixels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">graph</span><span class="o">.</span><span class="n">RAG</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Generate a graph based on the input image and initial superpixel segmentation.&quot;&quot;&quot;</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_weighting_function</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">graph</span><span class="o">.</span><span class="n">RAG</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Handle merging of nodes of a region boundary region adjacency graph.&quot;&quot;&quot;</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_merging_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">graph</span><span class="o">.</span><span class="n">RAG</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Call back called before merging 2 nodes.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_extract_superpixels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tissue_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Perform superpixel extraction</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">            tissue_mask (np.array, optional): Input tissue mask</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Extracted merged superpixels.</span>
+<span class="sd">            np.array: Extracted init superpixels, ie before merging.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">initial_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_initial_superpixels</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">merged_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_merge_superpixels</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="n">initial_superpixels</span><span class="p">,</span> <span class="n">tissue_mask</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">initial_superpixels</span>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tissue_mask</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Return the superpixels of a given input image</span>
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.array): Input image.</span>
+<span class="sd">            tissue_mask (None, np.array): Tissue mask.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Extracted merged superpixels.</span>
+<span class="sd">            np.array: Extracted init superpixels, ie before merging.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Input size: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">input_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">original_height</span><span class="p">,</span> <span class="n">original_width</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">input_image</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">input_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span>
+                <span class="n">input_image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tissue_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">tissue_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span>
+                    <span class="n">tissue_mask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Downsampled to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">input_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">initial_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_superpixels</span><span class="p">(</span>
+            <span class="n">input_image</span><span class="p">,</span> <span class="n">tissue_mask</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">merged_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upsample</span><span class="p">(</span>
+                <span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">original_height</span><span class="p">,</span> <span class="n">original_width</span>
+            <span class="p">)</span>
+            <span class="n">initial_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upsample</span><span class="p">(</span>
+                <span class="n">initial_superpixels</span><span class="p">,</span> <span class="n">original_height</span><span class="p">,</span> <span class="n">original_width</span>
+            <span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Upsampled to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">merged_superpixels</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">initial_superpixels</span>
+
+    <span class="k">def</span> <span class="nf">_process_and_save</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+            <span class="n">output_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Process and save in the provided path as as .h5 file</span>
+<span class="sd">        Args:</span>
+<span class="sd">            output_name (str): Name of output file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Can only save intermediate output if base_path was not None when constructing the object&quot;</span>
+        <span class="n">superpixel_output_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2">.h5&quot;</span>
+        <span class="k">if</span> <span class="n">superpixel_output_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: Output of </span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2"> already exists, using it instead of recomputing&quot;</span>
+            <span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">superpixel_output_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">input_file</span><span class="p">:</span>
+                    <span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">initial_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_outputs</span><span class="p">(</span>
+                        <span class="n">input_file</span><span class="o">=</span><span class="n">input_file</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Could not read from </span><span class="si">{</span><span class="n">superpixel_output_path</span><span class="si">}</span><span class="s2">!</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span>
+                    <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Could not read from </span><span class="si">{</span><span class="n">superpixel_output_path</span><span class="si">}</span><span class="s2">!</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">initial_superpixels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">superpixel_output_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">output_file</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_set_outputs</span><span class="p">(</span>
+                        <span class="n">output_file</span><span class="o">=</span><span class="n">output_file</span><span class="p">,</span>
+                        <span class="n">outputs</span><span class="o">=</span><span class="p">(</span><span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">initial_superpixels</span><span class="p">),</span>
+                    <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Could not write to </span><span class="si">{</span><span class="n">superpixel_output_path</span><span class="si">}</span><span class="s2">!</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">return</span> <span class="n">merged_superpixels</span><span class="p">,</span> <span class="n">initial_superpixels</span></div>
+
+
+<div class="viewcode-block" id="ColorMergedSuperpixelExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.ColorMergedSuperpixelExtractor">[docs]</a><span class="k">class</span> <span class="nc">ColorMergedSuperpixelExtractor</span><span class="p">(</span><span class="n">MergedSuperpixelExtractor</span><span class="p">):</span>
+<div class="viewcode-block" id="ColorMergedSuperpixelExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.superpixel.html#histocartography.preprocessing.superpixel.ColorMergedSuperpixelExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">w_hist</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+            <span class="n">w_mean</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Superpixel merger based on color attibutes taken from the HACT-Net Implementation</span>
+<span class="sd">        Args:</span>
+<span class="sd">            w_hist (float, optional): Weight of the histogram features for merging. Defaults to 0.5.</span>
+<span class="sd">            w_mean (float, optional): Weight of the mean features for merging. Defaults to 0.5.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w_hist</span> <span class="o">=</span> <span class="n">w_hist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w_mean</span> <span class="o">=</span> <span class="n">w_mean</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_color_features_per_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img_ch</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Extract color histograms from image channel</span>
+<span class="sd">        Args:</span>
+<span class="sd">            img_ch (np.ndarray): Image channel</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.ndarray: Histogram of the image channel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hist</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">img_ch</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">257</span><span class="p">,</span> <span class="mi">64</span><span class="p">))</span>  <span class="c1"># 8 bins</span>
+        <span class="k">return</span> <span class="n">hist</span>
+
+    <span class="k">def</span> <span class="nf">_generate_graph</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">superpixels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">graph</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Construct RAG graph using initial superpixel instance map</span>
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.ndarray): Input image</span>
+<span class="sd">            superpixels (np.ndarray): Initial superpixel instance map</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            graph: Constructed graph</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">RAG</span><span class="p">(</span><span class="n">superpixels</span><span class="p">,</span> <span class="n">connectivity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connectivity</span><span class="p">)</span>
+        <span class="k">if</span> <span class="mi">0</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">remove_node</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># remove background node</span>
+
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">g</span><span class="p">:</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">n</span><span class="p">],</span>
+                    <span class="s2">&quot;N&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+                    <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+                    <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+                    <span class="s2">&quot;g&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+                    <span class="s2">&quot;b&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">ndindex</span><span class="p">(</span><span class="n">superpixels</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">superpixels</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">current</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">current</span><span class="p">][</span><span class="s2">&quot;N&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">current</span><span class="p">][</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">input_image</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">current</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">current</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">],</span> <span class="n">input_image</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">g</span><span class="p">:</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;N&quot;</span><span class="p">]</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">/</span> \
+                <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">])</span>
+
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_color_features_per_channel</span><span class="p">(</span>
+                <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_color_features_per_channel</span><span class="p">(</span>
+                <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_color_features_per_channel</span><span class="p">(</span>
+                <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">][:,</span> <span class="mi">2</span><span class="p">])</span>
+
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">])</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">])</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">edges</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">diff_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+                <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">x</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+
+            <span class="n">diff_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">x</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">diff_g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">x</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">diff_b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">x</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">y</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">diff_hist</span> <span class="o">=</span> <span class="p">(</span><span class="n">diff_r</span> <span class="o">+</span> <span class="n">diff_g</span> <span class="o">+</span> <span class="n">diff_b</span><span class="p">)</span> <span class="o">/</span> <span class="mi">3</span>
+
+            <span class="n">diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_hist</span> <span class="o">*</span> <span class="n">diff_hist</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_mean</span> <span class="o">*</span> <span class="n">diff_mean</span>
+
+            <span class="n">d</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">diff</span>
+
+        <span class="k">return</span> <span class="n">g</span>
+
+    <span class="k">def</span> <span class="nf">_weighting_function</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">graph</span><span class="o">.</span><span class="n">RAG</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="n">diff_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">-</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">])</span>
+
+        <span class="n">diff_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">diff_g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">diff_b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">diff_hist</span> <span class="o">=</span> <span class="p">(</span><span class="n">diff_r</span> <span class="o">+</span> <span class="n">diff_g</span> <span class="o">+</span> <span class="n">diff_b</span><span class="p">)</span> <span class="o">/</span> <span class="mi">3</span>
+
+        <span class="n">diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_hist</span> <span class="o">*</span> <span class="n">diff_hist</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">w_mean</span> <span class="o">*</span> <span class="n">diff_mean</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="n">diff</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_merging_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">graph</span><span class="o">.</span><span class="n">RAG</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">src</span><span class="p">][</span><span class="s2">&quot;x&quot;</span><span class="p">]</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;N&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">src</span><span class="p">][</span><span class="s2">&quot;N&quot;</span><span class="p">]</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">/</span> \
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;N&quot;</span><span class="p">]</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">],</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">src</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_color_features_per_channel</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_color_features_per_channel</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_color_features_per_channel</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">][:,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;g&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;r&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">dst</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">]</span>
+        <span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

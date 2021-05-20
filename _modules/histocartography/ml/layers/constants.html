@@ -1,0 +1,330 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.ml.layers.constants &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.ml.layers.constants</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.ml.layers.constants</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch.nn</span> <span class="kn">import</span> <span class="n">ReLU</span><span class="p">,</span> <span class="n">Tanh</span><span class="p">,</span> <span class="n">Sigmoid</span><span class="p">,</span> <span class="n">ELU</span><span class="p">,</span> <span class="n">LeakyReLU</span><span class="p">,</span> <span class="n">PReLU</span>
+<span class="kn">import</span> <span class="nn">dgl</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+<span class="n">ACTIVATIONS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;relu&#39;</span><span class="p">:</span> <span class="n">ReLU</span><span class="p">(),</span>
+    <span class="s1">&#39;tanh&#39;</span><span class="p">:</span> <span class="n">Tanh</span><span class="p">(),</span>
+    <span class="s1">&#39;sigmoid&#39;</span><span class="p">:</span> <span class="n">Sigmoid</span><span class="p">(),</span>
+    <span class="s1">&#39;elu&#39;</span><span class="p">:</span> <span class="n">ELU</span><span class="p">(),</span>
+    <span class="s1">&#39;PReLU&#39;</span><span class="p">:</span> <span class="n">PReLU</span><span class="p">(),</span>
+    <span class="s1">&#39;leaky_relu&#39;</span><span class="p">:</span> <span class="n">LeakyReLU</span><span class="p">()</span>
+<span class="p">}</span>
+
+
+<span class="n">GNN_MSG</span> <span class="o">=</span> <span class="s1">&#39;gnn_msg&#39;</span>
+<span class="n">GNN_NODE_FEAT_IN</span> <span class="o">=</span> <span class="s1">&#39;feat&#39;</span>
+<span class="n">GNN_NODE_FEAT_OUT</span> <span class="o">=</span> <span class="s1">&#39;gnn_node_feat_out&#39;</span>
+<span class="n">GNN_AGG_MSG</span> <span class="o">=</span> <span class="s1">&#39;gnn_agg_msg&#39;</span>
+<span class="n">GNN_EDGE_WEIGHT</span> <span class="o">=</span> <span class="s1">&#39;gnn_edge_weight&#39;</span>
+<span class="n">GNN_EDGE_FEAT</span> <span class="o">=</span> <span class="s1">&#39;gnn_edge_feat&#39;</span>
+<span class="n">CENTROID</span> <span class="o">=</span> <span class="s1">&#39;centroid&#39;</span>
+
+
+<span class="n">AVAILABLE_LAYER_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;gin_layer&#39;</span><span class="p">:</span> <span class="s1">&#39;GINLayer&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;dense_gin_layer&#39;</span><span class="p">:</span> <span class="s1">&#39;DenseGINLayer&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pna_layer&#39;</span><span class="p">:</span> <span class="s1">&#39;PNALayer&#39;</span>
+<span class="p">}</span>
+
+
+<span class="n">GNN_MODULE</span> <span class="o">=</span> <span class="s1">&#39;histocartography.ml.layers.</span><span class="si">{}</span><span class="s1">&#39;</span>
+
+
+<div class="viewcode-block" id="min_nodes"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.min_nodes">[docs]</a><span class="k">def</span> <span class="nf">min_nodes</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">features</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">dgl.backend</span> <span class="kn">import</span> <span class="n">pytorch</span>
+    <span class="n">feat</span> <span class="o">=</span> <span class="n">pytorch</span><span class="o">.</span><span class="n">pad_packed_tensor</span><span class="p">(</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">features</span><span class="p">],</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">batch_num_nodes</span><span class="p">,</span>
+        <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">pytorch</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></div>
+
+
+<span class="n">READOUT_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;sum&#39;</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">sum_nodes</span><span class="p">,</span>
+    <span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">mean_nodes</span><span class="p">,</span>
+    <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">max_nodes</span><span class="p">,</span>
+    <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="n">min_nodes</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="reduce_min"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.reduce_min">[docs]</a><span class="k">def</span> <span class="nf">reduce_min</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="reduce_max"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.reduce_max">[docs]</a><span class="k">def</span> <span class="nf">reduce_max</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<span class="n">REDUCE_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;sum&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span>
+    <span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span>
+    <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="n">reduce_max</span><span class="p">,</span>
+    <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="n">reduce_min</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-5</span>
+
+
+<div class="viewcode-block" id="aggregate_mean"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.aggregate_mean">[docs]</a><span class="k">def</span> <span class="nf">aggregate_mean</span><span class="p">(</span><span class="n">h</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="aggregate_max"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.aggregate_max">[docs]</a><span class="k">def</span> <span class="nf">aggregate_max</span><span class="p">(</span><span class="n">h</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="aggregate_min"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.aggregate_min">[docs]</a><span class="k">def</span> <span class="nf">aggregate_min</span><span class="p">(</span><span class="n">h</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="aggregate_std"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.aggregate_std">[docs]</a><span class="k">def</span> <span class="nf">aggregate_std</span><span class="p">(</span><span class="n">h</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">aggregate_var</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="aggregate_var"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.aggregate_var">[docs]</a><span class="k">def</span> <span class="nf">aggregate_var</span><span class="p">(</span><span class="n">h</span><span class="p">):</span>
+    <span class="n">h_mean_squares</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">h</span> <span class="o">*</span> <span class="n">h</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">h_mean</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">h_mean_squares</span> <span class="o">-</span> <span class="n">h_mean</span> <span class="o">*</span> <span class="n">h_mean</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">var</span></div>
+
+
+<span class="n">AGGREGATORS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="n">aggregate_mean</span><span class="p">,</span>
+    <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="n">aggregate_max</span><span class="p">,</span>
+    <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="n">aggregate_min</span><span class="p">,</span>
+    <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="n">aggregate_std</span>
+<span class="p">}</span>
+
+
+<span class="c1"># each scaler is a function that takes as input X (B x N x Din), adj (B x N x N) and</span>
+<span class="c1"># avg_d (dictionary containing averages over training set) and returns</span>
+<span class="c1"># X_scaled (B x N x Din) as output</span>
+
+<div class="viewcode-block" id="scale_identity"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.scale_identity">[docs]</a><span class="k">def</span> <span class="nf">scale_identity</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">D</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">avg_d</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">h</span></div>
+
+
+<div class="viewcode-block" id="scale_amplification"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.scale_amplification">[docs]</a><span class="k">def</span> <span class="nf">scale_amplification</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">avg_d</span><span class="p">):</span>
+    <span class="c1"># log(D + 1) / d * h     where d is the average of the ``log(D + 1)`` in</span>
+    <span class="c1"># the training set</span>
+    <span class="k">return</span> <span class="n">h</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">D</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">avg_d</span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="scale_attenuation"><a class="viewcode-back" href="../../../../api/histocartography.ml.layers.constants.html#histocartography.ml.layers.constants.scale_attenuation">[docs]</a><span class="k">def</span> <span class="nf">scale_attenuation</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">avg_d</span><span class="p">):</span>
+    <span class="c1"># (log(D + 1))^-1 / d * X     where d is the average of the ``log(D + 1))^-1`` in the training set</span>
+    <span class="k">return</span> <span class="n">h</span> <span class="o">*</span> <span class="p">(</span><span class="n">avg_d</span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">D</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span></div>
+
+
+<span class="n">SCALERS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;identity&#39;</span><span class="p">:</span> <span class="n">scale_identity</span><span class="p">,</span>
+    <span class="s1">&#39;amplification&#39;</span><span class="p">:</span> <span class="n">scale_amplification</span><span class="p">,</span>
+    <span class="s1">&#39;attenuation&#39;</span><span class="p">:</span> <span class="n">scale_attenuation</span>
+<span class="p">}</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

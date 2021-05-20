@@ -1,0 +1,1416 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.preprocessing.feature_extraction &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.preprocessing.feature_extraction</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.preprocessing.feature_extraction</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Extract features from images for a given structure&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torchvision</span>
+<span class="kn">from</span> <span class="nn">histocartography.utils</span> <span class="kn">import</span> <span class="n">dynamic_import_from</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">skew</span>
+<span class="kn">from</span> <span class="nn">skimage.feature</span> <span class="kn">import</span> <span class="n">greycomatrix</span><span class="p">,</span> <span class="n">greycoprops</span>
+<span class="kn">from</span> <span class="nn">skimage.filters.rank</span> <span class="kn">import</span> <span class="n">entropy</span> <span class="k">as</span> <span class="n">Entropy</span>
+<span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">regionprops</span>
+<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">disk</span>
+<span class="kn">from</span> <span class="nn">sklearn.metrics.pairwise</span> <span class="kn">import</span> <span class="n">euclidean_distances</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">Dataset</span>
+<span class="kn">from</span> <span class="nn">torchvision</span> <span class="kn">import</span> <span class="n">transforms</span>
+<span class="kn">from</span> <span class="nn">tqdm.auto</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span> <span class="nn">..pipeline</span> <span class="kn">import</span> <span class="n">PipelineStep</span>
+
+
+<div class="viewcode-block" id="FeatureExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.FeatureExtractor">[docs]</a><span class="k">class</span> <span class="nc">FeatureExtractor</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for feature extraction&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Extract features from the input_image for the defined instance_map</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.array): Original RGB image.</span>
+<span class="sd">            instance_map (np.array): Extracted instance_map.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Extracted features.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_features</span><span class="p">(</span><span class="n">input_image</span><span class="p">,</span> <span class="n">instance_map</span><span class="p">)</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_extract_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract features from the input_image for the defined structure.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.array): Original RGB image.</span>
+<span class="sd">            structure (np.array): Structure to extract features.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Extracted features</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="FeatureExtractor.precompute"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.FeatureExtractor.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Precompute all necessary information</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.</span>
+<span class="sd">            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">link_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_link_to_path</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">link_path</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;features&quot;</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_preprocess_architecture</span><span class="p">(</span><span class="n">architecture</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Preprocess the architecture string to avoid characters that are not allowed as paths.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            architecture (str): Unprocessed architecture name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Architecture name to use for the save path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">architecture</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;s3://mlflow&quot;</span><span class="p">):</span>
+            <span class="n">processed_architecture</span> <span class="o">=</span> <span class="n">architecture</span><span class="p">[</span><span class="mi">5</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">processed_architecture</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">experiment_id</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">metric</span> <span class="o">=</span> <span class="n">processed_architecture</span>
+                <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;MLflow(</span><span class="si">{</span><span class="n">experiment_id</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">run_id</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">processed_architecture</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">experiment_id</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">processed_architecture</span>
+                <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;MLflow(</span><span class="si">{</span><span class="n">experiment_id</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;MLflow(</span><span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">processed_architecture</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">elif</span> <span class="n">architecture</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.pth&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Local(</span><span class="si">{</span><span class="n">architecture</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">architecture</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_downsample</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">downsampling_factor</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Downsample an input image with a given downsampling factor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor.</span>
+<span class="sd">            downsampling_factor (int): Factor to downsample.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">new_height</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">height</span> <span class="o">/</span> <span class="n">downsampling_factor</span><span class="p">)</span>
+        <span class="n">new_width</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">downsampling_factor</span><span class="p">)</span>
+        <span class="n">downsampled_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">downsampled_image</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_upsample</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">new_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">new_width</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Upsample an input image to a speficied new height and width.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor.</span>
+<span class="sd">            new_height (int): Target height.</span>
+<span class="sd">            new_width (int): Target width.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">upsampled_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">upsampled_image</span></div>
+
+
+<div class="viewcode-block" id="HandcraftedFeatureExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.HandcraftedFeatureExtractor">[docs]</a><span class="k">class</span> <span class="nc">HandcraftedFeatureExtractor</span><span class="p">(</span><span class="n">FeatureExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to extract handcrafted features from instance maps&quot;&quot;&quot;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_color_features_per_channel</span><span class="p">(</span>
+            <span class="n">img_rgb_ch</span><span class="p">,</span>
+            <span class="n">img_rgb_sq_ch</span><span class="p">,</span>
+            <span class="n">mask_idx</span><span class="p">,</span>
+            <span class="n">mask_size</span><span class="p">):</span>
+        <span class="n">codes</span> <span class="o">=</span> <span class="n">img_rgb_ch</span><span class="p">[</span><span class="n">mask_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mask_idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+        <span class="n">hist</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">codes</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">257</span><span class="p">,</span> <span class="mi">32</span><span class="p">))</span>  <span class="c1"># 8 bins</span>
+        <span class="n">feats_</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">hist</span> <span class="o">/</span> <span class="n">mask_size</span><span class="p">)</span>
+        <span class="n">color_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+        <span class="n">color_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+        <span class="n">color_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+        <span class="n">color_skewness</span> <span class="o">=</span> <span class="n">skew</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+
+        <span class="n">codes</span> <span class="o">=</span> <span class="n">img_rgb_sq_ch</span><span class="p">[</span><span class="n">mask_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mask_idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+        <span class="n">color_energy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+
+        <span class="n">feats_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">color_mean</span><span class="p">)</span>
+        <span class="n">feats_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">color_std</span><span class="p">)</span>
+        <span class="n">feats_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">color_median</span><span class="p">)</span>
+        <span class="n">feats_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">color_skewness</span><span class="p">)</span>
+        <span class="n">feats_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">color_energy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">feats_</span>
+
+    <span class="k">def</span> <span class="nf">_extract_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract handcrafted features from the input_image in the defined instance_map regions.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.array): Original RGB Image.</span>
+<span class="sd">            instance_map (np.array): Extracted instance_map. Different regions have different int values,</span>
+<span class="sd">                                     the background is defined to have value 0 and is ignored.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Extracted shape, color and texture features:</span>
+<span class="sd">                          Shape:   area, convex_area, eccentricity, equivalent_diameter, euler_number, extent, filled_area,</span>
+<span class="sd">                                   major_axis_length, minor_axis_length, orientation, perimiter, solidity;</span>
+<span class="sd">                          Texture: glcm_contrast, glcm_dissililarity, glcm_homogeneity, glcm_energy, glcm_ASM, glcm_dispersion</span>
+<span class="sd">                                   (glcm = grey-level co-occurance matrix);</span>
+<span class="sd">                          Crowdedness: mean_crowdedness, std_crowdedness</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">node_feat</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">img_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">input_image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2GRAY</span><span class="p">)</span>
+        <span class="n">img_square</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">input_image</span><span class="p">)</span>
+
+        <span class="c1"># For each instance</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">instance_map</span><span class="p">)</span>
+
+        <span class="c1"># pre-extract centroids to compute crowdedness</span>
+        <span class="n">centroids</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">centroid</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">regions</span><span class="p">]</span>
+        <span class="n">all_mean_crowdedness</span><span class="p">,</span> <span class="n">all_std_crowdedness</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_crowdedness</span><span class="p">(</span>
+            <span class="n">centroids</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">region_id</span><span class="p">,</span> <span class="n">region</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">regions</span><span class="p">):</span>
+
+            <span class="n">sp_mask</span> <span class="o">=</span> <span class="n">instance_map</span><span class="p">[</span><span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span><span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span> <span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span><span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">3</span><span class="p">]]</span> <span class="o">==</span> <span class="n">region</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> 
+            <span class="n">sp_gray</span> <span class="o">=</span> <span class="n">img_gray</span><span class="p">[</span><span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span><span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span> <span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span><span class="n">region</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">][</span><span class="mi">3</span><span class="p">]]</span> <span class="o">*</span> <span class="n">sp_mask</span>
+
+            <span class="c1"># Compute using mask [16 features]</span>
+            <span class="n">area</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;area&quot;</span><span class="p">]</span>
+            <span class="n">convex_area</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;convex_area&quot;</span><span class="p">]</span>
+            <span class="n">eccentricity</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;eccentricity&quot;</span><span class="p">]</span>
+            <span class="n">equivalent_diameter</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;equivalent_diameter&quot;</span><span class="p">]</span>
+            <span class="n">euler_number</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;euler_number&quot;</span><span class="p">]</span>
+            <span class="n">extent</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;extent&quot;</span><span class="p">]</span>
+            <span class="n">filled_area</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;filled_area&quot;</span><span class="p">]</span>
+            <span class="n">major_axis_length</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;major_axis_length&quot;</span><span class="p">]</span>
+            <span class="n">minor_axis_length</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;minor_axis_length&quot;</span><span class="p">]</span>
+            <span class="n">orientation</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;orientation&quot;</span><span class="p">]</span>
+            <span class="n">perimeter</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;perimeter&quot;</span><span class="p">]</span>
+            <span class="n">solidity</span> <span class="o">=</span> <span class="n">region</span><span class="p">[</span><span class="s2">&quot;solidity&quot;</span><span class="p">]</span>
+            <span class="n">convex_hull_perimeter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_convex_hull_perimeter</span><span class="p">(</span><span class="n">sp_mask</span><span class="p">)</span>
+            <span class="n">roughness</span> <span class="o">=</span> <span class="n">convex_hull_perimeter</span> <span class="o">/</span> <span class="n">perimeter</span>
+            <span class="n">shape_factor</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">area</span> <span class="o">/</span> <span class="n">convex_hull_perimeter</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">ellipticity</span> <span class="o">=</span> <span class="n">minor_axis_length</span> <span class="o">/</span> <span class="n">major_axis_length</span>
+            <span class="n">roundness</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">area</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">perimeter</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+            <span class="n">feats_shape</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">area</span><span class="p">,</span>
+                <span class="n">convex_area</span><span class="p">,</span>
+                <span class="n">eccentricity</span><span class="p">,</span>
+                <span class="n">equivalent_diameter</span><span class="p">,</span>
+                <span class="n">euler_number</span><span class="p">,</span>
+                <span class="n">extent</span><span class="p">,</span>
+                <span class="n">filled_area</span><span class="p">,</span>
+                <span class="n">major_axis_length</span><span class="p">,</span>
+                <span class="n">minor_axis_length</span><span class="p">,</span>
+                <span class="n">orientation</span><span class="p">,</span>
+                <span class="n">perimeter</span><span class="p">,</span>
+                <span class="n">solidity</span><span class="p">,</span>
+                <span class="n">roughness</span><span class="p">,</span>
+                <span class="n">shape_factor</span><span class="p">,</span>
+                <span class="n">ellipticity</span><span class="p">,</span>
+                <span class="n">roundness</span><span class="p">,</span>
+            <span class="p">]</span>
+
+            <span class="c1"># GLCM texture features (gray color space) [5 features]</span>
+            <span class="n">glcm</span> <span class="o">=</span> <span class="n">greycomatrix</span><span class="p">(</span><span class="n">sp_gray</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="c1"># Filter out the first row and column</span>
+            <span class="n">filt_glcm</span> <span class="o">=</span> <span class="n">glcm</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">1</span><span class="p">:,</span> <span class="p">:,</span> <span class="p">:]</span>
+
+            <span class="n">glcm_contrast</span> <span class="o">=</span> <span class="n">greycoprops</span><span class="p">(</span><span class="n">filt_glcm</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s2">&quot;contrast&quot;</span><span class="p">)</span>
+            <span class="n">glcm_contrast</span> <span class="o">=</span> <span class="n">glcm_contrast</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">glcm_dissimilarity</span> <span class="o">=</span> <span class="n">greycoprops</span><span class="p">(</span><span class="n">filt_glcm</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s2">&quot;dissimilarity&quot;</span><span class="p">)</span>
+            <span class="n">glcm_dissimilarity</span> <span class="o">=</span> <span class="n">glcm_dissimilarity</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">glcm_homogeneity</span> <span class="o">=</span> <span class="n">greycoprops</span><span class="p">(</span><span class="n">filt_glcm</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s2">&quot;homogeneity&quot;</span><span class="p">)</span>
+            <span class="n">glcm_homogeneity</span> <span class="o">=</span> <span class="n">glcm_homogeneity</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">glcm_energy</span> <span class="o">=</span> <span class="n">greycoprops</span><span class="p">(</span><span class="n">filt_glcm</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s2">&quot;energy&quot;</span><span class="p">)</span>
+            <span class="n">glcm_energy</span> <span class="o">=</span> <span class="n">glcm_energy</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">glcm_ASM</span> <span class="o">=</span> <span class="n">greycoprops</span><span class="p">(</span><span class="n">filt_glcm</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s2">&quot;ASM&quot;</span><span class="p">)</span>
+            <span class="n">glcm_ASM</span> <span class="o">=</span> <span class="n">glcm_ASM</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">glcm_dispersion</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">filt_glcm</span><span class="p">)</span>
+
+            <span class="n">feats_texture</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">glcm_contrast</span><span class="p">,</span>
+                <span class="n">glcm_dissimilarity</span><span class="p">,</span>
+                <span class="n">glcm_homogeneity</span><span class="p">,</span>
+                <span class="n">glcm_energy</span><span class="p">,</span>
+                <span class="n">glcm_ASM</span><span class="p">,</span>
+                <span class="n">glcm_dispersion</span><span class="p">,</span>
+            <span class="p">]</span>
+
+            <span class="n">feats_crowdedness</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">all_mean_crowdedness</span><span class="p">[</span><span class="n">region_id</span><span class="p">],</span>
+                <span class="n">all_std_crowdedness</span><span class="p">[</span><span class="n">region_id</span><span class="p">],</span>
+            <span class="p">]</span>
+
+            <span class="n">sp_feats</span> <span class="o">=</span> <span class="n">feats_shape</span> <span class="o">+</span> <span class="n">feats_texture</span> <span class="o">+</span> <span class="n">feats_crowdedness</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">sp_feats</span><span class="p">)</span>
+            <span class="n">node_feat</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+
+        <span class="n">node_feat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">node_feat</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">node_feat</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_compute_crowdedness</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="n">n_centroids</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">centroids</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n_centroids</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">mean_crow</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">*</span> <span class="n">n_centroids</span><span class="p">)</span>
+            <span class="n">std_crow</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">*</span> <span class="n">n_centroids</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mean_crow</span><span class="p">,</span> <span class="n">std_crow</span>
+        <span class="k">if</span> <span class="n">n_centroids</span> <span class="o">&lt;</span> <span class="n">k</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">n_centroids</span> <span class="o">-</span> <span class="mi">2</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="n">euclidean_distances</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">centroids</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">kth</span><span class="o">=</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">take_along_axis</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[:,</span> <span class="p">:</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">std_crowd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">newshape</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">mean_crow</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">newshape</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">mean_crow</span><span class="p">,</span> <span class="n">std_crowd</span>
+
+    <span class="k">def</span> <span class="nf">_compute_convex_hull_perimeter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_mask</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compute the perimeter of the convex hull induced by the input mask.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">cv2</span><span class="o">.</span><span class="n">__version__</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;3&quot;</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">contours</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">findContours</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">(</span><span class="n">sp_mask</span><span class="p">),</span> <span class="n">cv2</span><span class="o">.</span><span class="n">RETR_TREE</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CHAIN_APPROX_SIMPLE</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">cv2</span><span class="o">.</span><span class="n">__version__</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;4&quot;</span><span class="p">:</span>
+            <span class="n">contours</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">findContours</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">(</span><span class="n">sp_mask</span><span class="p">),</span> <span class="n">cv2</span><span class="o">.</span><span class="n">RETR_TREE</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CHAIN_APPROX_SIMPLE</span>
+            <span class="p">)</span>
+        <span class="n">hull</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">convexHull</span><span class="p">(</span><span class="n">contours</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">convex_hull_perimeter</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">arcLength</span><span class="p">(</span><span class="n">hull</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">convex_hull_perimeter</span></div>
+
+
+<div class="viewcode-block" id="PatchFeatureExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.PatchFeatureExtractor">[docs]</a><span class="k">class</span> <span class="nc">PatchFeatureExtractor</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to use a CNN to extract features from an image&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PatchFeatureExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.PatchFeatureExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">architecture</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a patch feature extracter of a given architecture and put it on GPU if available.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            architecture (str): String of architecture. According to torchvision.models syntax.</span>
+<span class="sd">            device (torch.device): Torch Device.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span>
+
+        <span class="k">if</span> <span class="n">architecture</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;s3://mlflow&quot;</span><span class="p">):</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_mlflow_model</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">architecture</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">architecture</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.pth&quot;</span><span class="p">):</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_local_model</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">architecture</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_torchvision_model</span><span class="p">(</span><span class="n">architecture</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_num_features</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_classifier</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_num_features</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the number of features of a given model.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (nn.Module): A PyTorch model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: Number of output features.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">):</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">model</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">resnet</span><span class="o">.</span><span class="n">ResNet</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">in_features</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">classifier</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">classifier</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">classifier</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">):</span>
+                <span class="n">classifier</span> <span class="o">=</span> <span class="n">classifier</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">classifier</span><span class="o">.</span><span class="n">in_features</span>
+
+    <span class="k">def</span> <span class="nf">_get_local_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a model from a local path.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): Path to the model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            nn.Module: A PyTorch model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">map_location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span>
+
+    <span class="k">def</span> <span class="nf">_get_mlflow_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a MLflow model from a given URL.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            url (str): Model url.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            nn.Module: A PyTorch model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">mlflow</span>
+
+        <span class="n">model</span> <span class="o">=</span> <span class="n">mlflow</span><span class="o">.</span><span class="n">pytorch</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">map_location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span>
+
+    <span class="k">def</span> <span class="nf">_get_torchvision_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">architecture</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a torchvision model from a given architecture string.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            architecture (str): Torchvision model description.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            nn.Module: A pretrained pytorch model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">model_class</span> <span class="o">=</span> <span class="n">dynamic_import_from</span><span class="p">(</span><span class="s2">&quot;torchvision.models&quot;</span><span class="p">,</span> <span class="n">architecture</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model_class</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_remove_classifier</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the model without the classifier to get embeddings.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (nn.Module): Classifiation model.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            nn.Module: Embedding model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">):</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">model</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">resnet</span><span class="o">.</span><span class="n">ResNet</span><span class="p">):</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">fc</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">classifier</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">model</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patch</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes the embedding of a normalized image input.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (torch.Tensor): Normalized image input.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Embedding of image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="n">patch</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">patch</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">embeddings</span></div>
+
+
+<div class="viewcode-block" id="InstanceMapPatchDataset"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.InstanceMapPatchDataset">[docs]</a><span class="k">class</span> <span class="nc">InstanceMapPatchDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to use a give image and extracted instance maps as a dataset&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="InstanceMapPatchDataset.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.InstanceMapPatchDataset.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">patch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">stride</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">resize_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">fill_value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span><span class="p">,</span>
+        <span class="n">mean</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">std</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a dataset for a given image and extracted instance map with desired patches</span>
+<span class="sd">        of (patch_size, patch_size, 3). If fill_value is not None, it fills up pixels outside the</span>
+<span class="sd">        instance maps with this value (all channels).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.ndarray): RGB input image.</span>
+<span class="sd">            instance map (np.ndarray): Extracted instance map.</span>
+<span class="sd">            patch_size (int): Desired size of patch.</span>
+<span class="sd">            stride (int): Desired stride for patch extraction. If None, stride is set to patch size. Defaults to None.</span>
+<span class="sd">            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the</span>
+<span class="sd">                               patches of size patch_size are provided to the network. Defaults to None.</span>
+<span class="sd">            fill_value (Optional[int]): Value to fill outside the instance maps</span>
+<span class="sd">                                        (None means do not fill).</span>
+<span class="sd">            mean (list[float], optional): Channel-wise mean for image normalization.</span>
+<span class="sd">            std (list[float], optional): Channel-wise std for image normalization.</span>
+<span class="sd">            transform (Callable): Transform to apply. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_map</span> <span class="o">=</span> <span class="n">instance_map</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">=</span> <span class="n">patch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_size</span> <span class="o">=</span> <span class="n">resize_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean</span> <span class="o">=</span> <span class="n">mean</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="o">=</span> <span class="n">std</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">,</span>
+            <span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">),</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">),</span>
+                <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+            <span class="n">constant_values</span><span class="o">=</span><span class="n">fill_value</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instance_map</span><span class="p">,</span>
+            <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">),</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)),</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+            <span class="n">constant_values</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">*</span> <span class="mf">0.25</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">properties</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_map</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warning_threshold</span> <span class="o">=</span> <span class="mf">0.75</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_coordinates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_instance_index</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_overlap</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">basic_transforms</span> <span class="o">=</span> <span class="p">[</span><span class="n">transforms</span><span class="o">.</span><span class="n">ToPILImage</span><span class="p">()]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">Resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resize_size</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+        <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_transform</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">(</span><span class="n">basic_transforms</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_precompute</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warning</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_add_patch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">center_x</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">center_y</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract and include patch information.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            center_x (int): Centroid x-coordinate of the patch.</span>
+<span class="sd">            center_y (int): Centroid y-coordinate of the patch.</span>
+<span class="sd">            index (int): Instance index to which the patch belongs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_mask</span><span class="p">)</span>
+        <span class="n">mask</span><span class="p">[</span><span class="n">center_y</span> <span class="o">-</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span> <span class="o">-</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span><span class="p">:</span> <span class="n">center_y</span> <span class="o">+</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span> <span class="o">-</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span><span class="p">,</span> <span class="n">center_x</span> <span class="o">-</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span> <span class="o">-</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span><span class="p">:</span> <span class="n">center_x</span> <span class="o">+</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span> <span class="o">-</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">overlap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_mask</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">overlap</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">:</span>
+            <span class="n">loc</span> <span class="o">=</span> <span class="p">[</span><span class="n">center_x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span><span class="p">,</span> <span class="n">center_y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">patch_coordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loc</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">patch_instance_index</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">patch_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">patch_overlap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">overlap</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_patch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loc</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract patch from image.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            loc (list): Top-left (x,y) coordinate of a patch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">min_x</span> <span class="o">=</span> <span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">min_y</span> <span class="o">=</span> <span class="n">loc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">max_x</span> <span class="o">=</span> <span class="n">min_x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="n">max_y</span> <span class="o">=</span> <span class="n">min_y</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">[</span><span class="n">min_y</span><span class="p">:</span><span class="n">max_y</span><span class="p">,</span> <span class="n">min_x</span><span class="p">:</span><span class="n">max_x</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_precompute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Precompute instance-wise patch information for all instances in the input image.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">region</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">patch_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="c1"># Extract center</span>
+            <span class="n">center_y</span><span class="p">,</span> <span class="n">center_x</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">centroid</span>
+            <span class="n">center_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">center_x</span><span class="p">))</span>
+            <span class="n">center_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">center_y</span><span class="p">))</span>
+
+            <span class="c1"># Bounding box</span>
+            <span class="n">min_y</span><span class="p">,</span> <span class="n">min_x</span><span class="p">,</span> <span class="n">max_y</span><span class="p">,</span> <span class="n">max_x</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">bbox</span>
+
+            <span class="c1"># Instant mask</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instance_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_map</span><span class="p">[</span>
+                <span class="n">min_y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span><span class="p">:</span> <span class="n">max_y</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span><span class="p">,</span>
+                <span class="n">min_x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span><span class="p">:</span> <span class="n">max_x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instance_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance_mask</span> <span class="o">==</span> <span class="n">region</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">offset_x</span> <span class="o">=</span> <span class="n">min_x</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">offset_y</span> <span class="o">=</span> <span class="n">min_y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span>
+
+            <span class="c1"># Extract patch information (coordinates, index)</span>
+            <span class="c1"># quadrant 1</span>
+            <span class="n">y_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_y</span><span class="p">)</span>
+            <span class="k">while</span> <span class="n">y_</span> <span class="o">&gt;=</span> <span class="n">min_y</span><span class="p">:</span>
+                <span class="n">x_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_x</span><span class="p">)</span>
+                <span class="k">while</span> <span class="n">x_</span> <span class="o">&gt;=</span> <span class="n">min_x</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_patch</span><span class="p">(</span><span class="n">x_</span><span class="p">,</span> <span class="n">y_</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+
+                    <span class="c1"># Include at least one patch centered at the centroid</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">loc</span> <span class="o">=</span> <span class="p">[</span><span class="n">x_</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span><span class="p">,</span> <span class="n">y_</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size_2</span><span class="p">]</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">patch_coordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loc</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">patch_instance_index</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">patch_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">x_</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+                <span class="n">y_</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+
+            <span class="c1"># quadrant 4</span>
+            <span class="n">y_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_y</span><span class="p">)</span>
+            <span class="k">while</span> <span class="n">y_</span> <span class="o">&gt;=</span> <span class="n">min_y</span><span class="p">:</span>
+                <span class="n">x_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_x</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+                <span class="k">while</span> <span class="n">x_</span> <span class="o">&lt;=</span> <span class="n">max_x</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_patch</span><span class="p">(</span><span class="n">x_</span><span class="p">,</span> <span class="n">y_</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+                    <span class="n">x_</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+                <span class="n">y_</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+
+            <span class="c1"># quadrant 2</span>
+            <span class="n">y_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_y</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+            <span class="k">while</span> <span class="n">y_</span> <span class="o">&lt;=</span> <span class="n">max_y</span><span class="p">:</span>
+                <span class="n">x_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_x</span><span class="p">)</span>
+                <span class="k">while</span> <span class="n">x_</span> <span class="o">&gt;=</span> <span class="n">min_x</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_patch</span><span class="p">(</span><span class="n">x_</span><span class="p">,</span> <span class="n">y_</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+                    <span class="n">x_</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+                <span class="n">y_</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+
+            <span class="c1"># quadrant 3</span>
+            <span class="n">y_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_y</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+            <span class="k">while</span> <span class="n">y_</span> <span class="o">&lt;=</span> <span class="n">max_y</span><span class="p">:</span>
+                <span class="n">x_</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">center_x</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+                <span class="k">while</span> <span class="n">x_</span> <span class="o">&lt;=</span> <span class="n">max_x</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_patch</span><span class="p">(</span><span class="n">x_</span><span class="p">,</span> <span class="n">y_</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+                    <span class="n">x_</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+                <span class="n">y_</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+
+    <span class="k">def</span> <span class="nf">_warning</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check patch coverage statistics to identify if provided patch size includes too much background.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_overlap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_overlap</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_overlap</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">warning_threshold</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Provided patch size is large&quot;</span><span class="p">)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Suggestion: Reduce patch size to include relevant context.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads an image for a given patch index.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index (int): Patch index.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple[int, torch.Tensor]: instance_index, image as tensor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_patch</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_coordinates</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_transform</span><span class="p">(</span><span class="n">patch</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_instance_index</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">patch</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the length of the dataset.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: Length of the dataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_coordinates</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DeepFeatureExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.DeepFeatureExtractor">[docs]</a><span class="k">class</span> <span class="nc">DeepFeatureExtractor</span><span class="p">(</span><span class="n">FeatureExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to extract deep features from instance maps&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="DeepFeatureExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.DeepFeatureExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">architecture</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">patch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">resize_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stride</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">downsample_factor</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">fill_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">255</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a deep feature extractor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            architecture (str): Name of the architecture to use. According to torchvision.models syntax.</span>
+<span class="sd">            patch_size (int): Desired size of patch.</span>
+<span class="sd">            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the</span>
+<span class="sd">                               patches of size patch_size are provided to the network. Defaults to None.</span>
+<span class="sd">            stride (int): Desired stride for patch extraction. If None, stride is set to patch size. Defaults to None.</span>
+<span class="sd">            downsample_factor (int): Downsampling factor for image analysis. Defaults to 1.</span>
+<span class="sd">            normalizer (dict): Dictionary of channel-wise mean and standard deviation for image</span>
+<span class="sd">                               normalization. If None, using ImageNet normalization factors. Defaults to None.</span>
+<span class="sd">            batch_size (int): Batch size during processing of patches. Defaults to 32.</span>
+<span class="sd">            fill_value (int): Constant pixel value for image padding. Defaults to 255.</span>
+<span class="sd">            num_workers (int): Number of workers in data loader. Defaults to 0.</span>
+<span class="sd">            verbose (bool): tqdm processing bar. Defaults to False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">architecture</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_preprocess_architecture</span><span class="p">(</span><span class="n">architecture</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">=</span> <span class="n">patch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_size</span> <span class="o">=</span> <span class="n">resize_size</span>
+        <span class="k">if</span> <span class="n">stride</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">patch_size</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span> <span class="o">=</span> <span class="n">downsample_factor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Handle GPU</span>
+        <span class="n">cuda</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda:0&quot;</span> <span class="k">if</span> <span class="n">cuda</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_mean</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_std</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_mean</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.485</span><span class="p">,</span> <span class="mf">0.456</span><span class="p">,</span> <span class="mf">0.406</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_std</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.229</span><span class="p">,</span> <span class="mf">0.224</span><span class="p">,</span> <span class="mf">0.225</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_feature_extractor</span> <span class="o">=</span> <span class="n">PatchFeatureExtractor</span><span class="p">(</span>
+            <span class="n">architecture</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fill_value</span> <span class="o">=</span> <span class="n">fill_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">architecture_unprocessed</span> <span class="o">=</span> <span class="n">architecture</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="n">num_workers</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">set_num_threads</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_collate_patches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Patch collate function&quot;&quot;&quot;</span>
+        <span class="n">instance_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">patches</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">instance_indices</span><span class="p">,</span> <span class="n">patches</span>
+
+    <span class="k">def</span> <span class="nf">_extract_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract features for a given RGB image and its extracted instance_map.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.ndarray): RGB input image.</span>
+<span class="sd">            instance_map (np.ndarray): Extracted instance_map.</span>
+<span class="sd">            transform (Callable): Transform to apply. Defaults to None.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Extracted features of shape [nr_instances, nr_features]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">input_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span><span class="n">input_image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span><span class="p">)</span>
+            <span class="n">instance_map</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span>
+                <span class="n">instance_map</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span><span class="p">)</span>
+
+        <span class="n">image_dataset</span> <span class="o">=</span> <span class="n">InstanceMapPatchDataset</span><span class="p">(</span>
+            <span class="n">image</span><span class="o">=</span><span class="n">input_image</span><span class="p">,</span>
+            <span class="n">instance_map</span><span class="o">=</span><span class="n">instance_map</span><span class="p">,</span>
+            <span class="n">resize_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">resize_size</span><span class="p">,</span>
+            <span class="n">patch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span>
+            <span class="n">stride</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stride</span><span class="p">,</span>
+            <span class="n">fill_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fill_value</span><span class="p">,</span>
+            <span class="n">mean</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer_mean</span><span class="p">,</span>
+            <span class="n">std</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer_std</span><span class="p">,</span>
+            <span class="n">transform</span><span class="o">=</span><span class="n">transform</span>
+        <span class="p">)</span>
+        <span class="n">image_loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span>
+            <span class="n">image_dataset</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">collate_fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_collate_patches</span>
+        <span class="p">)</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+            <span class="n">size</span><span class="o">=</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">image_dataset</span><span class="o">.</span><span class="n">properties</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">patch_feature_extractor</span><span class="o">.</span><span class="n">num_features</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">embeddings</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">instance_indices</span><span class="p">,</span> <span class="n">patches</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+            <span class="n">image_loader</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">image_loader</span><span class="p">),</span> <span class="n">disable</span><span class="o">=</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+        <span class="p">):</span>
+            <span class="n">emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_feature_extractor</span><span class="p">(</span><span class="n">patches</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">instance_indices</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">embeddings</span><span class="p">:</span>
+                    <span class="n">embeddings</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">emb</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                    <span class="n">embeddings</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">embeddings</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">emb</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">embeddings</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">features</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">features</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="AugmentedDeepFeatureExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.AugmentedDeepFeatureExtractor">[docs]</a><span class="k">class</span> <span class="nc">AugmentedDeepFeatureExtractor</span><span class="p">(</span><span class="n">DeepFeatureExtractor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to extract deep features from instance maps with different augmentations&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="AugmentedDeepFeatureExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.AugmentedDeepFeatureExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rotations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">flips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a feature extractor that extracts feature for all of the given augmentations.</span>
+<span class="sd">        Otherwise works the same as the DeepFeatureExtractor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.</span>
+<span class="sd">            flips (Optional[List[int]], optional): List of flips to use, in {&#39;n&#39;, &#39;h&#39;, &#39;v&#39;}. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rotations</span> <span class="o">=</span> <span class="n">rotations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flips</span> <span class="o">=</span> <span class="n">flips</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">_build_augmentations</span><span class="p">(</span>
+            <span class="n">rotations</span><span class="o">=</span><span class="n">rotations</span><span class="p">,</span>
+            <span class="n">flips</span><span class="o">=</span><span class="n">flips</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span>
+            <span class="n">fill_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fill_value</span><span class="p">,</span>
+            <span class="n">output_size</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_extract_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract features for a given RGB image and its extracted instance_map for all augmentations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.ndarray): RGB input image.</span>
+<span class="sd">            instance_map (np.ndarray): Extracted instance_map.</span>
+<span class="sd">            transform (Callable): Transform to apply. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Extracted features of shape [nr_instances, nr_augmentations, nr_features].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">all_features</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_extract_features</span><span class="p">(</span>
+                <span class="n">input_image</span><span class="p">,</span> <span class="n">instance_map</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">transform</span><span class="p">)</span>
+            <span class="n">all_features</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+
+        <span class="n">all_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">all_features</span><span class="p">)</span>
+        <span class="n">all_features</span> <span class="o">=</span> <span class="n">all_features</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">all_features</span></div>
+
+
+<div class="viewcode-block" id="GridPatchDataset"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.GridPatchDataset">[docs]</a><span class="k">class</span> <span class="nc">GridPatchDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+<div class="viewcode-block" id="GridPatchDataset.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.GridPatchDataset.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">patch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">resize_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">stride</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">mean</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">std</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a dataset for a given image and extracted instance maps with desired patches</span>
+<span class="sd">        of (size, size, 3).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.ndarray): RGB input image.</span>
+<span class="sd">            patch_size (int): Desired size of patches.</span>
+<span class="sd">            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the</span>
+<span class="sd">                               patches of size patch_size are provided to the network. Defaults to None.</span>
+<span class="sd">            stride (int): Desired stride for patch extraction.</span>
+<span class="sd">            mean (list[float], optional): Channel-wise mean for image normalization.</span>
+<span class="sd">            std (list[float], optional): Channel-wise std for image normalization.</span>
+<span class="sd">            transform (list[transforms], optional): List of transformations for input image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">basic_transforms</span> <span class="o">=</span> <span class="p">[</span><span class="n">transforms</span><span class="o">.</span><span class="n">ToPILImage</span><span class="p">()]</span>
+        <span class="k">if</span> <span class="n">resize_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">Resize</span><span class="p">(</span><span class="n">resize_size</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+        <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">mean</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">std</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">basic_transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_transform</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">(</span><span class="n">basic_transforms</span><span class="p">)</span>
+
+        <span class="n">x_top_pad</span><span class="p">,</span> <span class="n">x_bottom_pad</span> <span class="o">=</span> <span class="n">_get_pad_size</span><span class="p">(</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+        <span class="n">y_top_pad</span><span class="p">,</span> <span class="n">y_bottom_pad</span> <span class="o">=</span> <span class="n">_get_pad_size</span><span class="p">(</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+        <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ConstantPad2d</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">x_bottom_pad</span><span class="p">,</span> <span class="n">x_top_pad</span><span class="p">,</span> <span class="n">y_bottom_pad</span><span class="p">,</span> <span class="n">y_top_pad</span><span class="p">),</span> <span class="mi">255</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">as_tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">image</span><span class="p">))</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span>
+            <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]))</span><span class="o">.</span><span class="n">permute</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">=</span> <span class="n">patch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_patches</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_generate_patches</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extract patches&quot;&quot;&quot;</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">unfold</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span><span class="p">)</span><span class="o">.</span><span class="n">unfold</span><span class="p">(</span>
+            <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stride</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outshape</span> <span class="o">=</span> <span class="p">(</span><span class="n">patches</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">patches</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">patches</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads an image for a given patch index.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index (int): Patch index.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple[int, torch.Tensor]: Patch index, image as tensor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_transform</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">patches</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">index</span><span class="p">,</span> <span class="n">patch</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patches</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GridDeepFeatureExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.GridDeepFeatureExtractor">[docs]</a><span class="k">class</span> <span class="nc">GridDeepFeatureExtractor</span><span class="p">(</span><span class="n">FeatureExtractor</span><span class="p">):</span>
+<div class="viewcode-block" id="GridDeepFeatureExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.GridDeepFeatureExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">architecture</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">patch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">resize_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stride</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">downsample_factor</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">normalizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">fill_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">255</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a deep feature extractor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            architecture (str): Name of the architecture to use. According to torchvision.models syntax.</span>
+<span class="sd">            patch_size (int): Desired size of patches.</span>
+<span class="sd">            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the</span>
+<span class="sd">                               patches of size patch_size are provided to the network. Defaults to None.</span>
+<span class="sd">            stride (int): Desired stride for patch extraction. If None, stride is set to patch size. Defaults to None.</span>
+<span class="sd">            downsample_factor (int): Downsampling factor for image analysis. Defaults to 1.</span>
+<span class="sd">            normalizer (dict): Dictionary of channel-wise mean and standard deviation for image</span>
+<span class="sd">                               normalization. If None, using ImageNet normalization factors. Defaults to None.</span>
+<span class="sd">            batch_size (int): Batch size during processing of patches. Defaults to 32.</span>
+<span class="sd">            fill_value (int): Constant pixel value for image padding. Defaults to 255.</span>
+<span class="sd">            num_workers (int): Number of workers in data loader. Defaults to 0.</span>
+<span class="sd">            verbose (bool): tqdm processing bar. Defaults to False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">architecture</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_preprocess_architecture</span><span class="p">(</span><span class="n">architecture</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span> <span class="o">=</span> <span class="n">patch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_size</span> <span class="o">=</span> <span class="n">resize_size</span>
+        <span class="k">if</span> <span class="n">stride</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">patch_size</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stride</span> <span class="o">=</span> <span class="n">stride</span>
+
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span> <span class="o">=</span> <span class="n">downsample_factor</span>
+        <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+
+        <span class="c1"># Handle GPU</span>
+        <span class="n">cuda</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda:0&quot;</span> <span class="k">if</span> <span class="n">cuda</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">normalizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_mean</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_std</span> <span class="o">=</span> <span class="n">normalizer</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_mean</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.485</span><span class="p">,</span> <span class="mf">0.456</span><span class="p">,</span> <span class="mf">0.406</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalizer_std</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.229</span><span class="p">,</span> <span class="mf">0.224</span><span class="p">,</span> <span class="mf">0.225</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patch_feature_extractor</span> <span class="o">=</span> <span class="n">PatchFeatureExtractor</span><span class="p">(</span>
+            <span class="n">architecture</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fill_value</span> <span class="o">=</span> <span class="n">fill_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">architecture_unprocessed</span> <span class="o">=</span> <span class="n">architecture</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="n">num_workers</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">set_num_threads</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_collate_patches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Patch collate function&quot;&quot;&quot;</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">patches</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">indices</span><span class="p">,</span> <span class="n">patches</span>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_features</span><span class="p">(</span><span class="n">input_image</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract_features</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">transform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract features for a given RGB image in patches.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.ndarray): RGB input image.</span>
+<span class="sd">            transform (Callable): Transform to apply. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Extracted features of shape [image.shape[0] // size * image.shape[1] // size, nr_features].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">input_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span><span class="n">input_image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_factor</span><span class="p">)</span>
+
+        <span class="n">patch_dataset</span> <span class="o">=</span> <span class="n">GridPatchDataset</span><span class="p">(</span>
+            <span class="n">image</span><span class="o">=</span><span class="n">input_image</span><span class="p">,</span>
+            <span class="n">patch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span>
+            <span class="n">resize_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">resize_size</span><span class="p">,</span>
+            <span class="n">stride</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stride</span><span class="p">,</span>
+            <span class="n">mean</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer_mean</span><span class="p">,</span>
+            <span class="n">std</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalizer_std</span><span class="p">,</span>
+            <span class="n">transform</span><span class="o">=</span><span class="n">transform</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">patch_loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span>
+            <span class="n">patch_dataset</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">collate_fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_collate_patches</span>
+        <span class="p">)</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+            <span class="n">size</span><span class="o">=</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">patch_dataset</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">patch_feature_extractor</span><span class="o">.</span><span class="n">num_features</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">patches</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+            <span class="n">patch_loader</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">patch_loader</span><span class="p">),</span> <span class="n">disable</span><span class="o">=</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+        <span class="p">):</span>
+            <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_feature_extractor</span><span class="p">(</span><span class="n">patches</span><span class="p">)</span>
+            <span class="n">features</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">embeddings</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">features</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">patch_dataset</span><span class="o">.</span><span class="n">outshape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">patch_dataset</span><span class="o">.</span><span class="n">outshape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GridAugmentedDeepFeatureExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.GridAugmentedDeepFeatureExtractor">[docs]</a><span class="k">class</span> <span class="nc">GridAugmentedDeepFeatureExtractor</span><span class="p">(</span><span class="n">GridDeepFeatureExtractor</span><span class="p">):</span>
+<div class="viewcode-block" id="GridAugmentedDeepFeatureExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.feature_extraction.html#histocartography.preprocessing.feature_extraction.GridAugmentedDeepFeatureExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rotations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">flips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a feature extractor that extracts feature for all of the given augmentations.</span>
+<span class="sd">        Otherwise works the same as the DeepFeatureExtractor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rotations (Optional[List[int]], optional): List of rotations to use. Defaults to None.</span>
+<span class="sd">            flips (Optional[List[int]], optional): List of flips to use, in {&#39;n&#39;, &#39;h&#39;, &#39;v&#39;}. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rotations</span> <span class="o">=</span> <span class="n">rotations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flips</span> <span class="o">=</span> <span class="n">flips</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">_build_augmentations</span><span class="p">(</span>
+            <span class="n">rotations</span><span class="o">=</span><span class="n">rotations</span><span class="p">,</span>
+            <span class="n">flips</span><span class="o">=</span><span class="n">flips</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span>
+            <span class="n">fill_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fill_value</span><span class="p">,</span>
+            <span class="n">output_size</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_size</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_extract_features</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract features for a given RGB image and its extracted instance_map for all augmentations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.ndarray): RGB input image.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor: Extracted features of shape [nr_rows, nr_cols, nr_augmentations, nr_features].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">all_features</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">transform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_extract_features</span><span class="p">(</span><span class="n">input_image</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">transform</span><span class="p">)</span>
+            <span class="n">all_features</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="n">all_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">all_features</span><span class="p">)</span>
+        <span class="n">all_features</span> <span class="o">=</span> <span class="n">all_features</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">all_features</span></div>
+
+
+<span class="k">def</span> <span class="nf">_build_augmentations</span><span class="p">(</span>
+    <span class="n">rotations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">flips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">padding</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">fill_value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span><span class="p">,</span>
+    <span class="n">output_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Returns a list of callable augmentation functions for the given specification</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rotations (Optional[List[int]], optional): List of rotation angles. Defaults to None.</span>
+<span class="sd">        flips (Optional[List[Any]], optional): List of flips. Options are no rotation &quot;n&quot;,</span>
+<span class="sd">            horizontal flip &quot;h&quot; and vertical flip &quot;v&quot;. Defaults to None.</span>
+<span class="sd">        padding (Optional[int], optional): Number of pixels to pad before rotation. Defaults to None.</span>
+<span class="sd">        fill_value (Optional[int], optional): Fill value of padded pixels. Defaults to 255.</span>
+<span class="sd">        output_size (Optional[Tuple], optional): Output size to center crop after rotation. Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List[Callable]: List of callable augmentation functions</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">rotations</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">rotations</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">flips</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">flips</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;n&quot;</span><span class="p">]</span>
+    <span class="n">augmentaions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">angle</span> <span class="ow">in</span> <span class="n">rotations</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">flip</span> <span class="ow">in</span> <span class="n">flips</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">angle</span> <span class="o">%</span> <span class="mi">90</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">transforms</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span>
+                        <span class="n">a</span><span class="o">=</span><span class="n">angle</span><span class="p">:</span> <span class="n">transforms</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span>
+                            <span class="n">x</span><span class="p">,</span>
+                            <span class="n">angle</span><span class="o">=</span><span class="n">a</span><span class="p">))]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">transforms</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span>
+                        <span class="n">padding</span><span class="o">=</span><span class="n">padding</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">fill_value</span><span class="p">),</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">angle</span><span class="p">:</span> <span class="n">transforms</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span>
+                            <span class="n">x</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="n">a</span><span class="p">)),</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">transforms</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">center_crop</span><span class="p">(</span>
+                            <span class="n">x</span><span class="p">,</span> <span class="n">output_size</span><span class="o">=</span><span class="n">output_size</span><span class="p">)),</span> <span class="p">]</span>
+            <span class="k">if</span> <span class="n">flip</span> <span class="o">==</span> <span class="s2">&quot;h&quot;</span><span class="p">:</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">transforms</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">transforms</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">hflip</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+            <span class="k">if</span> <span class="n">flip</span> <span class="o">==</span> <span class="s2">&quot;v&quot;</span><span class="p">:</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">transforms</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">transforms</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">vflip</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+            <span class="n">augmentaions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">(</span><span class="n">t</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">augmentaions</span>
+
+
+<span class="k">def</span> <span class="nf">_get_pad_size</span><span class="p">(</span><span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">stride</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Computes the necessary top and bottom padding size to evenly devide an input size into patches with a given stride</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        size (int): Size of input</span>
+<span class="sd">        patch_size (int): Patch size</span>
+<span class="sd">        stride (int): Stride</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[int, int]: Amount of top and bottom-pad</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">size</span> <span class="o">-</span> <span class="n">patch_size</span><span class="p">)</span> <span class="o">/</span> <span class="n">stride</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">pad_size</span> <span class="o">=</span> <span class="p">((</span><span class="n">target</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">stride</span> <span class="o">+</span> <span class="n">patch_size</span><span class="p">)</span> <span class="o">-</span> <span class="n">size</span>
+    <span class="n">top_pad</span> <span class="o">=</span> <span class="n">pad_size</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">bottom_pad</span> <span class="o">=</span> <span class="n">pad_size</span> <span class="o">-</span> <span class="n">top_pad</span>
+    <span class="k">return</span> <span class="n">top_pad</span><span class="p">,</span> <span class="n">bottom_pad</span>
+
+
+<span class="n">HANDCRAFTED_FEATURES_NAMES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;area&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s2">&quot;convex_area&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;eccentricity&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;equivalent_diameter&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="s2">&quot;euler_number&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="s2">&quot;extent&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="s2">&quot;filled_area&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+    <span class="s2">&quot;major_axis_length&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+    <span class="s2">&quot;minor_axis_length&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s2">&quot;orientation&quot;</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+    <span class="s2">&quot;perimeter&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s2">&quot;solidity&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">,</span>
+    <span class="s2">&quot;roughness&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+    <span class="s2">&quot;shape_factor&quot;</span><span class="p">:</span> <span class="mi">13</span><span class="p">,</span>
+    <span class="s2">&quot;ellipticity&quot;</span><span class="p">:</span> <span class="mi">14</span><span class="p">,</span>
+    <span class="s2">&quot;roundness&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">,</span>
+    <span class="s2">&quot;glcm_contrast&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+    <span class="s2">&quot;glcm_dissimilarity&quot;</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span>
+    <span class="s2">&quot;glcm_homogeneity&quot;</span><span class="p">:</span> <span class="mi">18</span><span class="p">,</span>
+    <span class="s2">&quot;glcm_energy&quot;</span><span class="p">:</span> <span class="mi">19</span><span class="p">,</span>
+    <span class="s2">&quot;glcm_ASM&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="s2">&quot;glcm_dispersion&quot;</span><span class="p">:</span> <span class="mi">21</span><span class="p">,</span>
+    <span class="s2">&quot;mean_crowdedness&quot;</span><span class="p">:</span> <span class="mi">22</span><span class="p">,</span>
+    <span class="s2">&quot;std_crowdedness&quot;</span><span class="p">:</span> <span class="mi">23</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

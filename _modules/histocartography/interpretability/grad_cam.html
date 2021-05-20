@@ -1,0 +1,520 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.interpretability.grad_cam &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.interpretability.grad_cam</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.interpretability.grad_cam</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">dgl</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+
+<span class="kn">from</span> <span class="nn">.base_explainer</span> <span class="kn">import</span> <span class="n">BaseExplainer</span>
+<span class="kn">from</span> <span class="nn">..utils.graph</span> <span class="kn">import</span> <span class="n">copy_graph</span>
+
+<span class="n">EPS</span> <span class="o">=</span> <span class="mf">10e-7</span>
+
+
+<div class="viewcode-block" id="BaseCAM"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.BaseCAM">[docs]</a><span class="k">class</span> <span class="nc">BaseCAM</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+<div class="viewcode-block" id="BaseCAM.__init__"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.BaseCAM.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">conv_layers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        BaseCAM constructor.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            model (torch.nn.Module): Input model.</span>
+<span class="sd">            conv_layer (List[str]): List of tensor names to compute activations on.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">forward_hook</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+
+        <span class="c1"># Forward hooks</span>
+        <span class="k">for</span> <span class="n">conv_layer</span> <span class="ow">in</span> <span class="n">conv_layers</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unable to find submodule </span><span class="si">{</span><span class="n">conv_layers</span><span class="si">}</span><span class="s2"> in the model&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_modules</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">conv_layer</span><span class="p">)</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_set_forward_hook</span><span class="p">))</span>
+        <span class="c1"># Backward hooks</span>
+        <span class="k">for</span> <span class="n">conv_layer</span> <span class="ow">in</span> <span class="n">conv_layers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_modules</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">conv_layer</span><span class="p">)</span><span class="o">.</span><span class="n">register_backward_hook</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_set_backward_hook</span><span class="p">))</span>
+        <span class="c1"># Enable hooks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># Should ReLU be used before normalization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># Model output is used by the extractor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_forward_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Hook activations (forward hook).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">forward_hook</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_backward_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Hook gradient (backward hook).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BaseCAM.clear_hooks"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.BaseCAM.clear_hooks">[docs]</a>    <span class="k">def</span> <span class="nf">clear_hooks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clear model hooks.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">handle</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="p">:</span>
+            <span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_normalize</span><span class="p">(</span><span class="n">cams</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;CAM normalization.&quot;&quot;&quot;</span>
+        <span class="n">cams</span> <span class="o">-=</span> <span class="n">cams</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">cams</span> <span class="o">/=</span> <span class="n">cams</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="k">return</span> <span class="n">cams</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">_precheck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check for invalid computation cases&quot;&quot;&quot;</span>
+
+        <span class="c1"># Check that forward has already occurred</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_hook</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+                <span class="s2">&quot;Inputs need to be forwarded in the model for the conv features to be hooked&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check class_idx value</span>
+        <span class="k">if</span> <span class="n">class_idx</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Incorrect `class_idx` argument value&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check scores arg</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Model output scores is required to be passed to compute CAMs&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute CAM for a specified class</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            class_idx (int): Output class index of the target class whose CAM will be computed.</span>
+<span class="sd">            scores (torch.Tensor[1, K], optional): Forward output scores of the hooked model, ie logits.</span>
+<span class="sd">            normalized (bool, optional): Whether the CAM should be normalized.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            torch.Tensor[M, N]: Class activation map of hooked conv layer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Integrity check</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_precheck</span><span class="p">(</span><span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">)</span>
+
+        <span class="c1"># Get map weight</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_weights</span><span class="p">(</span><span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">)</span>
+        <span class="n">is_cuda</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">is_cuda</span>
+
+        <span class="c1"># Perform the weighted combination to get the CAM</span>
+        <span class="n">forwards</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forward_hook</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">forwards</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">batch_cams</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">weights</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">forwards</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_cuda</span><span class="p">:</span>
+            <span class="n">batch_cams</span> <span class="o">=</span> <span class="n">batch_cams</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span><span class="p">:</span>
+            <span class="n">batch_cams</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">batch_cams</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Normalize the CAM</span>
+        <span class="k">if</span> <span class="n">normalized</span><span class="p">:</span>
+            <span class="n">batch_cams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="n">batch_cams</span><span class="p">)</span>
+
+        <span class="c1"># Average out the different weights of the layers</span>
+        <span class="n">batch_cams</span> <span class="o">=</span> <span class="n">batch_cams</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">batch_cams</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">()&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_backprop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Backpropagate the loss for a specific output class&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_hook</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Apply forward path before calling backward hook.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Backpropagate to get the gradients on the hooked layer</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[:,</span> <span class="n">class_idx</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GradCAM"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.GradCAM">[docs]</a><span class="k">class</span> <span class="nc">GradCAM</span><span class="p">(</span><span class="n">BaseCAM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Class activation map extraction as in `&quot;Grad-CAM: Visual Explanations from Deep Networks</span>
+<span class="sd">        via Gradient-based Localization&quot; &lt;https://arxiv.org/pdf/1610.02391.pdf&gt;`_.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+        <span class="n">grads</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span><span class="p">)),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">grads</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GradCAMpp"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.GradCAMpp">[docs]</a><span class="k">class</span> <span class="nc">GradCAMpp</span><span class="p">(</span><span class="n">BaseCAM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class activation map extraction as in `&quot;Grad-CAM++: Improved Visual Explanations for</span>
+<span class="sd">    Deep Convolutional Networks&quot; &lt;https://arxiv.org/pdf/1710.11063.pdf&gt;`_.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span><span class="p">))</span>
+
+        <span class="c1"># Compute alpha</span>
+        <span class="n">grad_2</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span><span class="p">]</span>
+        <span class="n">grad_3</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span><span class="p">]</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="p">[</span><span class="n">g2</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="mi">2</span> <span class="o">*</span> <span class="n">g2</span> <span class="o">+</span> <span class="p">(</span><span class="n">g3</span> <span class="o">*</span> <span class="n">a</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="p">)</span> <span class="k">for</span> <span class="n">g2</span><span class="p">,</span> <span class="n">g3</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grad_2</span><span class="p">,</span> <span class="n">grad_3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_hook</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span>
+                    <span class="n">g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                    <span class="n">alpha</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span><span class="p">)]</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">weights</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backward_hook</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseGraphGradCAMExplainer"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.BaseGraphGradCAMExplainer">[docs]</a><span class="k">class</span> <span class="nc">BaseGraphGradCAMExplainer</span><span class="p">(</span><span class="n">BaseExplainer</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseGraphGradCAMExplainer.__init__"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.BaseGraphGradCAMExplainer.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">gnn_layer_name</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">gnn_layer_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        BaseGraphGradCAMExplainer explainer constructor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            gnn_layer_name (List[str]): List of reference layers to use for computing CAM</span>
+<span class="sd">                                        Default to None. If None tries to automatically infer</span>
+<span class="sd">                                        from the model.</span>
+<span class="sd">            gnn_layer_ids: (List[str]): List of reference layer IDs to use for computing CAM</span>
+<span class="sd">                                        Default to None. If None tries to automatically infer</span>
+<span class="sd">                                        from the model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gnn_layer_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">gnn_layer_ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">all_param_names</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span>
+                <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">named_parameters</span><span class="p">()]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">isdigit</span><span class="p">(),</span> <span class="nb">set</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_param_names</span><span class="p">])))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_name</span> <span class="o">=</span> <span class="n">all_param_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_ids</span> <span class="o">=</span> <span class="n">gnn_layer_ids</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_name</span> <span class="o">=</span> <span class="n">gnn_layer_name</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Compute node importances for a single class</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            graph (dgl.DGLGraph): Graph to explain.</span>
+<span class="sd">            class_idx (Union[None, int, List[int]]): Class indices (index) to explain. If None results in using the winning class.</span>
+<span class="sd">                                                     If a list is provided, explainer all the class indices provided.</span>
+<span class="sd">                                                     Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            node_importance (np.ndarray): Node-level importance scores.</span>
+<span class="sd">            logits (np.ndarray): Prediction logits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">class_idx</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">class_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">class_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">class_idx</span><span class="p">]</span>
+        <span class="n">node_importances</span><span class="p">,</span> <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_all</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">node_importances</span><span class="p">,</span> <span class="n">logits</span>
+
+    <span class="k">def</span> <span class="nf">_get_extractor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Abstract class.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_process_all</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">,</span> <span class="n">classes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Compute node importances for all classes</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            graph (dgl.DGLGraph): Graph to explain</span>
+<span class="sd">            classes (List[int]): Classes to explain</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            node_importance (np.ndarray): Node-level importance scores</span>
+<span class="sd">            logits (np.ndarray): Prediction logits</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">graph_copy</span> <span class="o">=</span> <span class="n">copy_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_extractor</span><span class="p">()</span>
+        <span class="n">original_logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">graph_copy</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">original_logits</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">original_logits</span> <span class="o">=</span> <span class="n">original_logits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">classes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">classes</span> <span class="o">=</span> <span class="p">[</span><span class="n">original_logits</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()]</span>
+        <span class="n">all_class_importances</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">class_idx</span> <span class="ow">in</span> <span class="n">classes</span><span class="p">:</span>
+            <span class="n">node_importance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="p">(</span>
+                <span class="n">class_idx</span><span class="p">,</span> <span class="n">original_logits</span><span class="p">,</span> <span class="n">normalized</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+            <span class="n">all_class_importances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node_importance</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">extractor</span><span class="o">.</span><span class="n">clear_hooks</span><span class="p">()</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="n">original_logits</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">node_importances</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">all_class_importances</span><span class="p">)</span>
+        <span class="n">node_importances</span> <span class="o">=</span> <span class="n">node_importances</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">node_importances</span><span class="p">,</span> <span class="n">logits</span></div>
+
+
+<div class="viewcode-block" id="GraphGradCAMExplainer"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.GraphGradCAMExplainer">[docs]</a><span class="k">class</span> <span class="nc">GraphGradCAMExplainer</span><span class="p">(</span><span class="n">BaseGraphGradCAMExplainer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Explain a graph with GradCAM.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_extractor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">GradCAM</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_name</span><span class="p">)</span><span class="o">.</span><span class="n">layers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_ids</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphGradCAMPPExplainer"><a class="viewcode-back" href="../../../api/histocartography.interpretability.grad_cam.html#histocartography.interpretability.grad_cam.GraphGradCAMPPExplainer">[docs]</a><span class="k">class</span> <span class="nc">GraphGradCAMPPExplainer</span><span class="p">(</span><span class="n">BaseGraphGradCAMExplainer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Explain a graph with GradCAM++.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_extractor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">GradCAMpp</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_name</span><span class="p">)</span><span class="o">.</span><span class="n">layers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gnn_layer_ids</span>
+        <span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

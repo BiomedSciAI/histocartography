@@ -1,0 +1,596 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.preprocessing.graph_builders &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.preprocessing.graph_builders</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.preprocessing.graph_builders</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module handles all the graph building&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">dgl</span>
+<span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">dgl.data.utils</span> <span class="kn">import</span> <span class="n">load_graphs</span><span class="p">,</span> <span class="n">save_graphs</span>
+<span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">regionprops</span>
+<span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="kn">import</span> <span class="n">kneighbors_graph</span>
+
+<span class="kn">from</span> <span class="nn">..pipeline</span> <span class="kn">import</span> <span class="n">PipelineStep</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">fast_histogram</span>
+
+
+<span class="n">LABEL</span> <span class="o">=</span> <span class="s2">&quot;label&quot;</span>
+<span class="n">CENTROID</span> <span class="o">=</span> <span class="s2">&quot;centroid&quot;</span>
+<span class="n">FEATURES</span> <span class="o">=</span> <span class="s2">&quot;feat&quot;</span>
+
+
+<div class="viewcode-block" id="two_hop_neighborhood"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.two_hop_neighborhood">[docs]</a><span class="k">def</span> <span class="nf">two_hop_neighborhood</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Increases the connectivity of a given graph by an additional hop</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        graph (dgl.DGLGraph): Input graph</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        dgl.DGLGraph: Output graph</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">adjacency_matrix</span><span class="p">()</span><span class="o">.</span><span class="n">to_dense</span><span class="p">()</span>
+    <span class="n">A_tilde</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">*</span> <span class="p">((</span><span class="n">A</span> <span class="o">+</span> <span class="n">A</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">A</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">ngraph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">convert_matrix</span><span class="o">.</span><span class="n">from_numpy_matrix</span><span class="p">(</span><span class="n">A_tilde</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+    <span class="n">new_graph</span> <span class="o">=</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">()</span>
+    <span class="n">new_graph</span><span class="o">.</span><span class="n">from_networkx</span><span class="p">(</span><span class="n">ngraph</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">new_graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">edata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">new_graph</span><span class="o">.</span><span class="n">edata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+    <span class="k">return</span> <span class="n">new_graph</span></div>
+
+
+<div class="viewcode-block" id="BaseGraphBuilder"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.BaseGraphBuilder">[docs]</a><span class="k">class</span> <span class="nc">BaseGraphBuilder</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base interface class for graph building.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BaseGraphBuilder.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.BaseGraphBuilder.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">nr_annotation_classes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="n">annotation_background_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">add_loc_feats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Base Graph Builder constructor.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            nr_annotation_classes (int): Number of classes in annotation. Used only if setting node labels.</span>
+<span class="sd">            annotation_background_class (int): Background class label in annotation. Used only if setting node labels.</span>
+<span class="sd">            add_loc_feats (bool): Flag to include location-based features (ie normalized centroids)</span>
+<span class="sd">                                  in node feature representation.</span>
+<span class="sd">                                  Defaults to False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nr_annotation_classes</span> <span class="o">=</span> <span class="n">nr_annotation_classes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">annotation_background_class</span> <span class="o">=</span> <span class="n">annotation_background_class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_loc_feats</span> <span class="o">=</span> <span class="n">add_loc_feats</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">features</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">annotation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Generates a graph from a given instance_map and features</span>
+<span class="sd">        Args:</span>
+<span class="sd">            instance_map (np.array): Instance map depicting tissue components</span>
+<span class="sd">            features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)</span>
+<span class="sd">            annotation (Union[None, np.array], optional): Optional node level to include.</span>
+<span class="sd">                                                          Defaults to None.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            dgl.DGLGraph: The constructed graph</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># add nodes</span>
+        <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">()</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_nodes</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">)</span>
+
+        <span class="c1"># add image size as graph data</span>
+        <span class="n">image_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">instance_map</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">instance_map</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>  <span class="c1"># (x, y)</span>
+
+        <span class="c1"># get instance centroids</span>
+        <span class="n">centroids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_node_centroids</span><span class="p">(</span><span class="n">instance_map</span><span class="p">)</span>
+
+        <span class="c1"># add node content</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_node_centroids</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_node_features</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">annotation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_node_labels</span><span class="p">(</span><span class="n">instance_map</span><span class="p">,</span> <span class="n">annotation</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span>
+
+        <span class="c1"># build edges</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_topology</span><span class="p">(</span><span class="n">instance_map</span><span class="p">,</span> <span class="n">centroids</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">graph</span>
+
+    <span class="k">def</span> <span class="nf">_process_and_save</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">features</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">annotation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">output_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Process and save in provided directory</span>
+<span class="sd">        Args:</span>
+<span class="sd">            output_name (str): Name of output file</span>
+<span class="sd">            instance_map (np.ndarray): Instance map depicting tissue components</span>
+<span class="sd">                                       (eg nuclei, tissue superpixels)</span>
+<span class="sd">            features (torch.Tensor): Features of each node. Shape (nr_nodes, nr_features)</span>
+<span class="sd">            annotation (Optional[np.ndarray], optional): Optional node level to include.</span>
+<span class="sd">                                                         Defaults to None.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            dgl.DGLGraph: [description]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Can only save intermediate output if base_path was not None during construction&quot;</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2">.bin&quot;</span>
+        <span class="k">if</span> <span class="n">output_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Output of </span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2"> already exists, using it instead of recomputing&quot;</span>
+            <span class="p">)</span>
+            <span class="n">graphs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">load_graphs</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">graphs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+            <span class="n">graph</span> <span class="o">=</span> <span class="n">graphs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">graph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="p">(</span>
+                <span class="n">instance_map</span><span class="o">=</span><span class="n">instance_map</span><span class="p">,</span>
+                <span class="n">features</span><span class="o">=</span><span class="n">features</span><span class="p">,</span>
+                <span class="n">annotation</span><span class="o">=</span><span class="n">annotation</span><span class="p">)</span>
+            <span class="n">save_graphs</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">),</span> <span class="p">[</span><span class="n">graph</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">graph</span>
+
+    <span class="k">def</span> <span class="nf">_get_node_centroids</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get the centroids of the graphs</span>
+<span class="sd">        Args:</span>
+<span class="sd">            instance_map (np.ndarray): Instance map depicting tissue components</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            centroids (np.ndarray): Node centroids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">instance_map</span><span class="p">)</span>
+        <span class="n">centroids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">regions</span><span class="p">),</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">region</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">regions</span><span class="p">):</span>
+            <span class="n">center_y</span><span class="p">,</span> <span class="n">center_x</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">centroid</span>  <span class="c1"># (y, x)</span>
+            <span class="n">center_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">center_x</span><span class="p">))</span>
+            <span class="n">center_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">center_y</span><span class="p">))</span>
+            <span class="n">centroids</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">center_x</span>
+            <span class="n">centroids</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">center_y</span>
+        <span class="k">return</span> <span class="n">centroids</span>
+
+    <span class="k">def</span> <span class="nf">_set_node_centroids</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">centroids</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Set the centroids of the graphs</span>
+<span class="sd">        Args:</span>
+<span class="sd">            centroids (np.ndarray): Node centroids</span>
+<span class="sd">            graph (dgl.DGLGraph): Graph to add the centroids to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">CENTROID</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">centroids</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_node_features</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">features</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+            <span class="n">image_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Set the provided node features</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            features (torch.Tensor): Node features</span>
+<span class="sd">            image_size (Tuple[int,int]): Image dimension (x, y)</span>
+<span class="sd">            graph (dgl.DGLGraph): Graph to add the features to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_loc_feats</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">FEATURES</span><span class="p">]</span> <span class="o">=</span> <span class="n">features</span>
+        <span class="k">elif</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_loc_feats</span>
+                <span class="ow">and</span> <span class="n">image_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="c1"># compute normalized centroid features</span>
+            <span class="n">centroids</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">CENTROID</span><span class="p">]</span>
+
+            <span class="n">normalized_centroids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">centroids</span><span class="p">)</span>  <span class="c1"># (x, y)</span>
+            <span class="n">normalized_centroids</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">centroids</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">normalized_centroids</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">centroids</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">features</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">normalized_centroids</span> <span class="o">=</span> <span class="n">normalized_centroids</span> \
+                    <span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> \
+                    <span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">concat_dim</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="k">elif</span> <span class="n">features</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">concat_dim</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="n">concat_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="n">features</span><span class="p">,</span>
+                    <span class="n">normalized_centroids</span>
+                <span class="p">),</span>
+                <span class="n">dim</span><span class="o">=</span><span class="n">concat_dim</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">FEATURES</span><span class="p">]</span> <span class="o">=</span> <span class="n">concat_features</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Please provide image size to add the normalized centroid to the node features.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_set_node_labels</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">annotation</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Set the node labels of the graphs</span>
+<span class="sd">        Args:</span>
+<span class="sd">            instance_map (np.ndarray): Instance map depicting tissue components</span>
+<span class="sd">            annotation (np.ndarray): Annotations, eg node labels</span>
+<span class="sd">            graph (dgl.DGLGraph): Graph to add the centroids to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_build_topology</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">centroids</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Generate the graph topology from the provided instance_map</span>
+<span class="sd">        Args:</span>
+<span class="sd">            instance_map (np.array): Instance map depicting tissue components</span>
+<span class="sd">            centroids (np.array): Node centroids</span>
+<span class="sd">            graph (dgl.DGLGraph): Graph to add the edges</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BaseGraphBuilder.precompute"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.BaseGraphBuilder.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Precompute all necessary information</span>
+<span class="sd">        Args:</span>
+<span class="sd">            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.</span>
+<span class="sd">            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">link_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_link_to_path</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">link_path</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;graphs&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="RAGGraphBuilder"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.RAGGraphBuilder">[docs]</a><span class="k">class</span> <span class="nc">RAGGraphBuilder</span><span class="p">(</span><span class="n">BaseGraphBuilder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Super-pixel Graphs class for graph building.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="RAGGraphBuilder.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.RAGGraphBuilder.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">hops</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create a graph builder that uses a provided kernel size to detect connectivity</span>
+<span class="sd">        Args:</span>
+<span class="sd">            kernel_size (int, optional): Size of the kernel to detect connectivity. Defaults to 5.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;*** RAG Graph Builder ***&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">hops</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+            <span class="n">hops</span><span class="p">,</span> <span class="nb">int</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Invalid hops </span><span class="si">{</span><span class="n">hops</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">hops</span><span class="p">)</span><span class="si">}</span><span class="s2">). Must be integer &gt;= 0&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span> <span class="o">=</span> <span class="n">kernel_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hops</span> <span class="o">=</span> <span class="n">hops</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_node_labels</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">annotation</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Set the node labels of the graphs using annotation map&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nr_annotation_classes</span> <span class="o">&lt;</span> <span class="mi">256</span>
+        <span class="p">),</span> <span class="s2">&quot;Cannot handle that many classes with 8-bits&quot;</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">instance_map</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">region_label</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">regions</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">histogram</span> <span class="o">=</span> <span class="n">fast_histogram</span><span class="p">(</span>
+                <span class="n">annotation</span><span class="p">[</span><span class="n">instance_map</span> <span class="o">==</span> <span class="n">region_label</span><span class="p">],</span>
+                <span class="n">nr_values</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nr_annotation_classes</span>
+            <span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">histogram</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+            <span class="n">mask</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">annotation_background_class</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">histogram</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">assignment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotation_background_class</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">histogram</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">annotation_background_class</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">assignment</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">histogram</span><span class="p">)</span>
+            <span class="n">labels</span><span class="p">[</span><span class="n">region_label</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">assignment</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">LABEL</span><span class="p">]</span> <span class="o">=</span> <span class="n">labels</span>
+
+    <span class="k">def</span> <span class="nf">_build_topology</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">centroids</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create the graph topology from the instance connectivty in the instance_map&quot;&quot;&quot;</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">instance_map</span><span class="p">)</span>
+        <span class="n">instance_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">adjacency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">instance_ids</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">instance_ids</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">instance_id</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">instance_ids</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">instance_map</span> <span class="o">==</span> <span class="n">instance_id</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+            <span class="n">dilation</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">boundary</span> <span class="o">=</span> <span class="n">dilation</span> <span class="o">-</span> <span class="n">mask</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">instance_map</span><span class="p">[</span><span class="n">boundary</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)])</span>
+            <span class="n">instance_id</span> <span class="o">-=</span> <span class="mi">1</span>  <span class="c1"># because instance_map id starts from 1</span>
+            <span class="n">idx</span> <span class="o">-=</span> <span class="mi">1</span>  <span class="c1"># because instance_map id starts from 1</span>
+            <span class="n">adjacency</span><span class="p">[</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">edge_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">adjacency</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_edges</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">edge_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">list</span><span class="p">(</span><span class="n">edge_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hops</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">graph</span> <span class="o">=</span> <span class="n">two_hop_neighborhood</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KNNGraphBuilder"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.KNNGraphBuilder">[docs]</a><span class="k">class</span> <span class="nc">KNNGraphBuilder</span><span class="p">(</span><span class="n">BaseGraphBuilder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    k-Nearest Neighbors Graph class for graph building.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="KNNGraphBuilder.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.graph_builders.html#histocartography.preprocessing.graph_builders.KNNGraphBuilder.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="n">thresh</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create a graph builder that uses the (thresholded) kNN algorithm to define the graph topology.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            k (int, optional): Number of neighbors. Defaults to 5.</span>
+<span class="sd">            thresh (int, optional): Maximum allowed distance between 2 nodes. Defaults to None (no thresholding).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;*** kNN Graph Builder ***&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="n">k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span> <span class="o">=</span> <span class="n">thresh</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_node_labels</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">annotation</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Set the node labels of the graphs using annotation&quot;&quot;&quot;</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">instance_map</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">annotation</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">regions</span><span class="p">),</span> \
+            <span class="s2">&quot;Number of annotations do not match number of nodes&quot;</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">LABEL</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">annotation</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_build_topology</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">instance_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">centroids</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">graph</span><span class="p">:</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Build topology using (thresholded) kNN&quot;&quot;&quot;</span>
+
+        <span class="c1"># build kNN adjacency</span>
+        <span class="n">adj</span> <span class="o">=</span> <span class="n">kneighbors_graph</span><span class="p">(</span>
+            <span class="n">centroids</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;distance&quot;</span><span class="p">,</span>
+            <span class="n">include_self</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">metric</span><span class="o">=</span><span class="s2">&quot;euclidean&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+
+        <span class="c1"># filter edges that are too far (ie larger than thresh)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">adj</span><span class="p">[</span><span class="n">adj</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">edge_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">adj</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_edges</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">edge_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">list</span><span class="p">(</span><span class="n">edge_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

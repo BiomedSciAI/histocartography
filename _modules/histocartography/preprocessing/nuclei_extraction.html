@@ -1,0 +1,531 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.preprocessing.nuclei_extraction &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.preprocessing.nuclei_extraction</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.preprocessing.nuclei_extraction</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Detect and Classify nuclei from an image with the HoverNet model.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">regionprops</span>
+<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">remove_small_objects</span><span class="p">,</span> <span class="n">watershed</span>
+<span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">regionprops</span>
+<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">remove_small_objects</span>
+<span class="kn">from</span> <span class="nn">skimage.segmentation</span> <span class="kn">import</span> <span class="n">watershed</span>
+
+<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">measurements</span>
+<span class="kn">from</span> <span class="nn">scipy.ndimage.morphology</span> <span class="kn">import</span> <span class="n">binary_fill_holes</span>
+
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">Dataset</span>
+<span class="kn">from</span> <span class="nn">torchvision</span> <span class="kn">import</span> <span class="n">transforms</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span> <span class="nn">..pipeline</span> <span class="kn">import</span> <span class="n">PipelineStep</span>
+<span class="kn">from</span> <span class="nn">..utils.image</span> <span class="kn">import</span> <span class="n">extract_patches_from_image</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">download_box_link</span>
+
+<span class="n">DATASET_TO_BOX_URL</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;pannuke&quot;</span><span class="p">:</span> <span class="s2">&quot;https://ibm.box.com/shared/static/hrt04i3dcv1ph1veoz8x6g8a72u0uw58.pt&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;monusac&quot;</span><span class="p">:</span> <span class="s2">&quot;https://ibm.box.com/shared/static/u563aoydow9w2kpgw0l8esuklegdtdij.pt&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">CHECKPOINT_PATH</span> <span class="o">=</span> <span class="s2">&quot;../../checkpoints&quot;</span>
+
+<span class="n">GPU_DEFAULT_BATCH_SIZE</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="n">CPU_DEFAULT_BATCH_SIZE</span> <span class="o">=</span> <span class="mi">2</span>
+
+
+<div class="viewcode-block" id="NucleiExtractor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.nuclei_extraction.html#histocartography.preprocessing.nuclei_extraction.NucleiExtractor">[docs]</a><span class="k">class</span> <span class="nc">NucleiExtractor</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Nuclei extraction&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="NucleiExtractor.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.nuclei_extraction.html#histocartography.preprocessing.nuclei_extraction.NucleiExtractor.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pretrained_data</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pannuke&quot;</span><span class="p">,</span>
+        <span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create a nuclei extractor</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pretrained_data (str): Load checkpoint pretrained on some data. Options are &#39;pannuke&#39; or &#39;monusac&#39;. Default to &#39;pannuke&#39;.</span>
+<span class="sd">            model_path (str): Path to a pre-trained model. If none, the checkpoint specified in pretrained_data will be used. Default to None.</span>
+<span class="sd">            batch_size (int, optional): Batch size. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pretrained_data</span> <span class="o">=</span> <span class="n">pretrained_data</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># set class attributes</span>
+        <span class="n">cuda</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda:0&quot;</span> <span class="k">if</span> <span class="n">cuda</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">batch_size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># bs set to 16 if GPU, otherwise 2.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">GPU_DEFAULT_BATCH_SIZE</span> <span class="k">if</span> <span class="n">cuda</span> <span class="k">else</span> <span class="n">CPU_DEFAULT_BATCH_SIZE</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+
+        <span class="k">if</span> <span class="n">model_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">pretrained_data</span> <span class="ow">in</span> <span class="p">[</span>
+                <span class="s2">&quot;pannuke&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;monusac&quot;</span><span class="p">,</span>
+            <span class="p">],</span> <span class="s1">&#39;Unsupported pretrained data checkpoint. Options are &quot;pannuke&quot; and &quot;monusac&quot;.&#39;</span>
+            <span class="n">model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span>
+                <span class="n">CHECKPOINT_PATH</span><span class="p">,</span>
+                <span class="n">pretrained_data</span> <span class="o">+</span> <span class="s2">&quot;.pt&quot;</span><span class="p">)</span>
+            <span class="n">download_box_link</span><span class="p">(</span><span class="n">DATASET_TO_BOX_URL</span><span class="p">[</span><span class="n">pretrained_data</span><span class="p">],</span> <span class="n">model_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_model_from_path</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_load_model_from_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load nuclei extraction model from provided model path.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">tissue_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Extract nuclei from the input_image</span>
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.array): Original RGB image</span>
+<span class="sd">            tissue_mask (None, np.array): Input tissue mask.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple[np.ndarray, np.ndarray, np.ndarray]: instance_map, instance_centroids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_nuclei</span><span class="p">(</span><span class="n">input_image</span><span class="p">,</span> <span class="n">tissue_mask</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_extract_nuclei</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">tissue_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Extract features from the input_image for the defined structure</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_image (np.array): Original RGB image</span>
+<span class="sd">            tissue_mask (Optional[np.ndarray]): Tissue mask to extract nuclei on. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple[np.ndarray, np.ndarray]: instance_map, instance_centroids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">tissue_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">input_image</span><span class="p">[</span><span class="n">tissue_mask</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+
+        <span class="n">image_dataset</span> <span class="o">=</span> <span class="n">ImageToPatchDataset</span><span class="p">(</span><span class="n">input_image</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">collate</span><span class="p">(</span><span class="n">batch</span><span class="p">):</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+            <span class="n">patches</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">patches</span>
+
+        <span class="n">image_loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span>
+            <span class="n">image_dataset</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">collate_fn</span><span class="o">=</span><span class="n">collate</span><span class="p">)</span>
+        <span class="n">pred_map</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+            <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">image_dataset</span><span class="o">.</span><span class="n">max_x_coord</span><span class="p">,</span> <span class="n">image_dataset</span><span class="o">.</span><span class="n">max_y_coord</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">coords</span><span class="p">,</span> <span class="n">image_batch</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+            <span class="n">image_loader</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Patch-level nuclei detection&quot;</span>
+        <span class="p">):</span>
+            <span class="n">image_batch</span> <span class="o">=</span> <span class="n">image_batch</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">image_batch</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                    <span class="n">left</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># left, bottom, right, top</span>
+                    <span class="n">bottom</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">right</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">top</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span>
+                    <span class="n">pred_map</span><span class="p">[</span><span class="n">bottom</span><span class="p">:</span><span class="n">top</span><span class="p">,</span> <span class="n">left</span><span class="p">:</span><span class="n">right</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:]</span>
+
+        <span class="c1"># crop to original image size</span>
+        <span class="n">pred_map</span> <span class="o">=</span> <span class="n">pred_map</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">pred_map</span> <span class="o">=</span> <span class="n">pred_map</span><span class="p">[:</span> <span class="n">image_dataset</span><span class="o">.</span><span class="n">im_h</span><span class="p">,</span> <span class="p">:</span> <span class="n">image_dataset</span><span class="o">.</span><span class="n">im_w</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="c1"># post process instance map</span>
+        <span class="n">instance_map</span> <span class="o">=</span> <span class="n">process_instance</span><span class="p">(</span><span class="n">pred_map</span><span class="p">)</span>
+
+        <span class="c1"># extract the centroid location in the instance map</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">instance_map</span><span class="p">)</span>
+        <span class="n">instance_centroids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">regions</span><span class="p">),</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">region</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">regions</span><span class="p">):</span>
+            <span class="n">center_y</span><span class="p">,</span> <span class="n">center_x</span> <span class="o">=</span> <span class="n">region</span><span class="o">.</span><span class="n">centroid</span>  <span class="c1"># row, col</span>
+            <span class="n">center_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">center_x</span><span class="p">))</span>
+            <span class="n">center_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">center_y</span><span class="p">))</span>
+            <span class="n">instance_centroids</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">center_x</span>
+            <span class="n">instance_centroids</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">center_y</span>
+
+        <span class="k">return</span> <span class="n">instance_map</span><span class="p">,</span> <span class="n">instance_centroids</span>
+
+<div class="viewcode-block" id="NucleiExtractor.precompute"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.nuclei_extraction.html#histocartography.preprocessing.nuclei_extraction.NucleiExtractor.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Precompute all necessary information</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.</span>
+<span class="sd">            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">link_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_link_to_path</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">link_path</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;nuclei_maps&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ImageToPatchDataset"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.nuclei_extraction.html#histocartography.preprocessing.nuclei_extraction.ImageToPatchDataset">[docs]</a><span class="k">class</span> <span class="nc">ImageToPatchDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to transform an image as a set of patched wrapped in a pytorch dataset&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ImageToPatchDataset.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.nuclei_extraction.html#histocartography.preprocessing.nuclei_extraction.ImageToPatchDataset.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create a dataset for a given image and extracted instance maps with desired patches.</span>
+<span class="sd">           Patches have shape of (3, 256, 256) as defined by HoverNet model.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.ndarray): RGB input image</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_transform</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">(),</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">im_h</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">im_w</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_patches</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coords</span> <span class="o">=</span> <span class="n">extract_patches_from_image</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">im_h</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">im_w</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nr_patches</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_patches</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_y_coord</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">coord</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">coord</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_x_coord</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">coord</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">coord</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">])</span></div>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Loads an image for a given instance maps index</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index (int): patch index</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple[int, torch.Tensor]: index, image as tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_patches</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="n">transformed_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_transform</span><span class="p">(</span><span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">patch</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">coord</span><span class="p">,</span> <span class="n">transformed_image</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Returns the length of the dataset</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: Length of the dataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nr_patches</span></div>
+
+
+<div class="viewcode-block" id="process_np_hv_channels"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.nuclei_extraction.html#histocartography.preprocessing.nuclei_extraction.process_np_hv_channels">[docs]</a><span class="k">def</span> <span class="nf">process_np_hv_channels</span><span class="p">(</span><span class="n">pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process Nuclei Prediction with XY Coordinate Map</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pred (np.ndarray): HoverNet model output, that contains:</span>
+<span class="sd">                            - channel 0 contain probability map of nuclei</span>
+<span class="sd">                            - channel 1 contains X-map</span>
+<span class="sd">                            - channel 2 contains Y-map</span>
+<span class="sd">    Returns:</span>
+<span class="sd">         pred_instance (np.ndarray): instance map</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># post-process probability map</span>
+    <span class="n">proba_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">pred</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># extract proba maps</span>
+    <span class="n">proba_map</span><span class="p">[</span><span class="n">proba_map</span> <span class="o">&gt;=</span> <span class="mf">0.5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">proba_map</span><span class="p">[</span><span class="n">proba_map</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">proba_map</span> <span class="o">=</span> <span class="n">measurements</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">proba_map</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">proba_map</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">proba_map</span><span class="p">,</span> <span class="n">min_size</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">proba_map</span><span class="p">[</span><span class="n">proba_map</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">h_dir</span> <span class="o">=</span> <span class="n">pred</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span>  <span class="c1"># extract horizontal map</span>
+    <span class="n">v_dir</span> <span class="o">=</span> <span class="n">pred</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">2</span><span class="p">]</span>  <span class="c1"># extract vertical map</span>
+
+    <span class="c1"># normalizing</span>
+    <span class="n">h_dir</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span>
+        <span class="n">h_dir</span><span class="p">,</span>
+        <span class="kc">None</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">beta</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">norm_type</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">NORM_MINMAX</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">CV_32F</span><span class="p">)</span>
+    <span class="n">v_dir</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span>
+        <span class="n">v_dir</span><span class="p">,</span>
+        <span class="kc">None</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">beta</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">norm_type</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">NORM_MINMAX</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">CV_32F</span><span class="p">)</span>
+
+    <span class="c1"># apply sobel filtering</span>
+    <span class="n">sobelh</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">h_dir</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">21</span><span class="p">)</span>
+    <span class="n">sobelv</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">v_dir</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CV_64F</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">21</span><span class="p">)</span>
+
+    <span class="n">sobelh</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">sobelh</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                <span class="n">norm_type</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">NORM_MINMAX</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">CV_32F</span><span class="p">))</span>
+    <span class="n">sobelv</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">sobelv</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                <span class="n">norm_type</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">NORM_MINMAX</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">CV_32F</span><span class="p">))</span>
+
+    <span class="c1"># binarize</span>
+    <span class="n">overall</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">sobelh</span><span class="p">,</span> <span class="n">sobelv</span><span class="p">)</span>
+    <span class="n">overall</span> <span class="o">=</span> <span class="n">overall</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">proba_map</span><span class="p">)</span>
+    <span class="n">overall</span><span class="p">[</span><span class="n">overall</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">dist</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">overall</span><span class="p">)</span> <span class="o">*</span> <span class="n">proba_map</span>
+    <span class="n">dist</span> <span class="o">=</span> <span class="o">-</span><span class="n">cv2</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">overall</span><span class="p">[</span><span class="n">overall</span> <span class="o">&gt;=</span> <span class="mf">0.5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">overall</span><span class="p">[</span><span class="n">overall</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">marker</span> <span class="o">=</span> <span class="n">proba_map</span> <span class="o">-</span> <span class="n">overall</span>
+    <span class="n">marker</span><span class="p">[</span><span class="n">marker</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">marker</span> <span class="o">=</span> <span class="n">binary_fill_holes</span><span class="p">(</span><span class="n">marker</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;uint8&quot;</span><span class="p">)</span>
+    <span class="n">kernel</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">getStructuringElement</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">MORPH_ELLIPSE</span><span class="p">,</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+    <span class="n">marker</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">morphologyEx</span><span class="p">(</span><span class="n">marker</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">MORPH_OPEN</span><span class="p">,</span> <span class="n">kernel</span><span class="p">)</span>
+    <span class="n">marker</span> <span class="o">=</span> <span class="n">measurements</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">marker</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">marker</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">marker</span><span class="p">,</span> <span class="n">min_size</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">pred_inst</span> <span class="o">=</span> <span class="n">watershed</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">marker</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">proba_map</span><span class="p">,</span> <span class="n">watershed_line</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pred_inst</span></div>
+
+
+<div class="viewcode-block" id="process_instance"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.nuclei_extraction.html#histocartography.preprocessing.nuclei_extraction.process_instance">[docs]</a><span class="k">def</span> <span class="nf">process_instance</span><span class="p">(</span>
+        <span class="n">pred_map</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">output_dtype</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;uint16&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Post processing script for image tiles</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pred_map (np.ndarray): commbined output of np and hv branches</span>
+<span class="sd">        output_dtype (str): data type of output</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pred_inst (np.ndarray): pixel-wise nuclear instance segmentation prediction</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pred_inst</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">pred_map</span><span class="p">)</span>
+    <span class="n">pred_inst</span> <span class="o">=</span> <span class="n">process_np_hv_channels</span><span class="p">(</span><span class="n">pred_inst</span><span class="p">)</span>
+    <span class="n">pred_inst</span> <span class="o">=</span> <span class="n">pred_inst</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">output_dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pred_inst</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

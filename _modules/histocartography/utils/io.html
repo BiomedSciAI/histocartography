@@ -1,0 +1,357 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.utils.io &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../utils.html">histocartography.utils</a> &raquo;</li>
+        
+      <li>histocartography.utils.io</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.utils.io</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">PIL</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+
+<div class="viewcode-block" id="is_box_url"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.is_box_url">[docs]</a><span class="k">def</span> <span class="nf">is_box_url</span><span class="p">(</span><span class="n">candidate</span><span class="p">):</span>
+    <span class="c1"># check if IBM box static link</span>
+    <span class="k">if</span> <span class="s1">&#39;https://ibm.box.com/shared/static/&#39;</span> <span class="ow">in</span> <span class="n">candidate</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="buffer_plot_and_get"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.buffer_plot_and_get">[docs]</a><span class="k">def</span> <span class="nf">buffer_plot_and_get</span><span class="p">(</span><span class="n">fig</span><span class="p">):</span>
+    <span class="n">buf</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">()</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+    <span class="n">buf</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_filename"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.get_filename">[docs]</a><span class="k">def</span> <span class="nf">get_filename</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get file name in the path</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="check_for_dir"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.check_for_dir">[docs]</a><span class="k">def</span> <span class="nf">check_for_dir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if directory exists, if not, makes a new directory</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">path</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="h5_to_tensor"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.h5_to_tensor">[docs]</a><span class="k">def</span> <span class="nf">h5_to_tensor</span><span class="p">(</span><span class="n">h5_object</span><span class="p">,</span> <span class="n">device</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert h5 object into torch tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h5_object</span><span class="p">[()]))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tensor</span></div>
+
+
+<div class="viewcode-block" id="h5_to_numpy"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.h5_to_numpy">[docs]</a><span class="k">def</span> <span class="nf">h5_to_numpy</span><span class="p">(</span><span class="n">h5_object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert h5 object into numpy array</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h5_object</span><span class="p">[()])</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="load_json"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.load_json">[docs]</a><span class="k">def</span> <span class="nf">load_json</span><span class="p">(</span><span class="n">fname</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load json file as a dict.</span>
+<span class="sd">    :param fname: (str) path to json</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">in_config</span><span class="p">:</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">in_config</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">params</span></div>
+
+
+<div class="viewcode-block" id="write_json"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.write_json">[docs]</a><span class="k">def</span> <span class="nf">write_json</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="download_box_link"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.download_box_link">[docs]</a><span class="k">def</span> <span class="nf">download_box_link</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">out_fname</span><span class="o">=</span><span class="s1">&#39;box.file&#39;</span><span class="p">):</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_fname</span><span class="p">)</span>
+    <span class="n">check_for_dir</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">out_fname</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;File already downloaded.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out_fname</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">out_fname</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">large_file</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="mi">1024</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">chunk</span><span class="p">:</span>
+                <span class="n">large_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out_fname</span></div>
+
+
+<div class="viewcode-block" id="download_test_data"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.download_test_data">[docs]</a><span class="k">def</span> <span class="nf">download_test_data</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+    <span class="c1"># 1. download 283 dcis 4 cell graph:</span>
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;cell_graphs&#39;</span><span class="p">,</span> <span class="s1">&#39;283_dcis_4.bin&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/nuxuhc1upe0x1mq2t7njtl7hp5m7x67f.bin&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="c1"># 2. download 283 dcis 4 tissue graph:</span>
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;tissue_graphs&#39;</span><span class="p">,</span> <span class="s1">&#39;283_dcis_4.bin&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/cw2z7mu6n7b9mlybb83k65sn7dre0y9k.bin&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="c1"># 3. download test images:</span>
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;17B0031061.png&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/yzyrb051125k866ehaowe4gyep90wws6.png&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;18B000646H.png&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/pyj5igmqzqyezpkk4d347a7e1uw3l6y3.png&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;283_dcis_4.png&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;283_dcis_4_annotation.png&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/ynprh6b9naggb2bmufdd762z8ui2wmbf.png&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;16B0001851_Block_Region_3.jpg&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="c1"># 4. download nuclei maps:</span>
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;nuclei_maps&#39;</span><span class="p">,</span> <span class="s1">&#39;283_dcis_4.h5&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/qdvvbz0ninnqhic2k5b7wpsshh666mm4.h5&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="download_example_data"><a class="viewcode-back" href="../../../api/histocartography.utils.io.html#histocartography.utils.io.download_example_data">[docs]</a><span class="k">def</span> <span class="nf">download_example_data</span><span class="p">(</span><span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;283_dcis_4.png&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/r9ad48jn974e9xtpztk72qfplcg5nv5g.png&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;1238_adh_10.png&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/q2h5b19ay3hklf74acft1fn60i2746y2.png&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;images&#39;</span><span class="p">,</span> <span class="s1">&#39;1937_benign_4.png&#39;</span><span class="p">)</span>
+    <span class="n">download_box_link</span><span class="p">(</span>
+        <span class="s1">&#39;https://ibm.box.com/shared/static/lskhxrttnbpg3eoxon2j6mxrjceqr4cd.png&#39;</span><span class="p">,</span>
+        <span class="n">fname</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,464 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.visualization.visualization module &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="histocartography.visualization package" href="histocartography.visualization.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="histocartography.html">histocartography package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="histocartography.pipeline.html">histocartography.pipeline module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.interpretability.html">histocartography.interpretability package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.metrics.html">histocartography.metrics package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.ml.html">histocartography.ml package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.preprocessing.html">histocartography.preprocessing package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.utils.html">histocartography.utils package</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="histocartography.visualization.html">histocartography.visualization package</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">histocartography.visualization.visualization module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#summary">Summary</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="histocartography.visualization.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="histocartography.visualization.html#reference">Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.html#summary">Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="histocartography.html#reference">Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="histocartography.html">histocartography package</a> &raquo;</li>
+        
+          <li><a href="histocartography.visualization.html">histocartography.visualization package</a> &raquo;</li>
+        
+      <li>histocartography.visualization.visualization module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/api/histocartography.visualization.visualization.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="module-histocartography.visualization.visualization">
+<span id="histocartography-visualization-visualization-module"></span><h1>histocartography.visualization.visualization module<a class="headerlink" href="#module-histocartography.visualization.visualization" title="Permalink to this headline">¶</a></h1>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h2>
+<p>Classes:</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseGraphVisualization</span></code></a></p></td>
+<td><p>Base visualization class</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#histocartography.visualization.visualization.BaseImageVisualization" title="histocartography.visualization.visualization.BaseImageVisualization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseImageVisualization</span></code></a></p></td>
+<td><p>Base visualization class</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#histocartography.visualization.visualization.HACTVisualization" title="histocartography.visualization.visualization.HACTVisualization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HACTVisualization</span></code></a></p></td>
+<td><p>Hierarchical Cell to Tissue visualization class</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#histocartography.visualization.visualization.InstanceImageVisualization" title="histocartography.visualization.visualization.InstanceImageVisualization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">InstanceImageVisualization</span></code></a></p></td>
+<td><p>Instance Image Visualization.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#histocartography.visualization.visualization.OverlayGraphVisualization" title="histocartography.visualization.visualization.OverlayGraphVisualization"><code class="xref py py-obj docutils literal notranslate"><span class="pre">OverlayGraphVisualization</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseImageVisualization">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">BaseImageVisualization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance_style</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'outline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thickness</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormap</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseImageVisualization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseImageVisualization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="histocartography.pipeline.html#histocartography.pipeline.PipelineStep" title="histocartography.pipeline.PipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">histocartography.pipeline.PipelineStep</span></code></a></p>
+<p>Base visualization class</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseImageVisualization.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance_style</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'outline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thickness</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormap</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseImageVisualization.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseImageVisualization.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base visualization class constructor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>instance_style</strong> (<em>str</em>) – Defines how to represent the instances (when available).
+Options are ‘fill’, ‘outline’, ‘fill+outline’. Defaults to ‘outline’.</p></li>
+<li><p><strong>color</strong> (<em>str</em>) – Matplotlib named color to (fill) or (outline) the instances. Defaults to ‘black’.</p></li>
+<li><p><strong>thickness</strong> (<em>int</em>) – Thickness of the instance outline. Defaults to 1.</p></li>
+<li><p><strong>colormap</strong> (<em>str</em>) – Colormap to use to map labels to colors. Defaults to None.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em>) – Blending of the background image to the instances. Defaults to 0.5.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseImageVisualization.draw_instances">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">draw_instances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">canvas</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_map</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_attributes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseImageVisualization.draw_instances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseImageVisualization.draw_instances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Abstract method that performs drawing of instances on top of the canvas</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>canvas</strong> (<em>np.ndarray</em>) – Background on top of which the visualization is drawn.</p></li>
+<li><p><strong>instance_map</strong> (<em>np.ndarray</em>) – Segmentation mask of instances, brinary or with individual labels for each entity.</p></li>
+<li><p><strong>instance_attributes</strong> (<em>dict</em>) – Dictionary of attributes to be applied to instances.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.InstanceImageVisualization">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">InstanceImageVisualization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance_style</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'outline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thickness</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormap</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#InstanceImageVisualization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.InstanceImageVisualization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#histocartography.visualization.visualization.BaseImageVisualization" title="histocartography.visualization.visualization.BaseImageVisualization"><code class="xref py py-class docutils literal notranslate"><span class="pre">histocartography.visualization.visualization.BaseImageVisualization</span></code></a></p>
+<p>Instance Image Visualization. Generic instance visualization.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.InstanceImageVisualization.draw_instances">
+<span class="sig-name descname"><span class="pre">draw_instances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">canvas</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_map</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_attributes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">&lt;module</span> <span class="pre">‘PIL.Image’</span> <span class="pre">from</span> <span class="pre">‘/home/travis/conda/envs/histocartography/lib/python3.7/site-packages/PIL/Image.py’&gt;</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#InstanceImageVisualization.draw_instances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.InstanceImageVisualization.draw_instances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Drawing of instances on top of the canvas</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>canvas</strong> (<em>np.ndarray</em>) – Background on top of which the visualization is drawn.</p></li>
+<li><p><strong>instance_map</strong> (<em>np.ndarray</em>) – Segmentation mask of instances, brinary or with individual labels for each entity. Defaults to None.</p></li>
+<li><p><strong>instance_attributes</strong> (<em>dict</em>) – Dictionary of attributes to be applied to instances. Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Canvas with visualization.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>viz_canvas (Image)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseGraphVisualization">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">BaseGraphVisualization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance_visualizer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#histocartography.visualization.visualization.BaseImageVisualization" title="histocartography.visualization.visualization.BaseImageVisualization"><span class="pre">histocartography.visualization.visualization.BaseImageVisualization</span></a><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_max_color_normalize</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseGraphVisualization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="histocartography.pipeline.html#histocartography.pipeline.PipelineStep" title="histocartography.pipeline.PipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">histocartography.pipeline.PipelineStep</span></code></a></p>
+<p>Base visualization class</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseGraphVisualization.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance_visualizer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#histocartography.visualization.visualization.BaseImageVisualization" title="histocartography.visualization.visualization.BaseImageVisualization"><span class="pre">histocartography.visualization.visualization.BaseImageVisualization</span></a><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_max_color_normalize</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseGraphVisualization.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseGraphVisualization.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>instance_visualizer</strong> (<a class="reference internal" href="#histocartography.visualization.visualization.BaseImageVisualization" title="histocartography.visualization.visualization.BaseImageVisualization"><em>BaseImageVisualization</em></a>) – Instance visualization object. Defaults to None.</p></li>
+<li><p><strong>min_max_color_normalize</strong> (<em>bool</em>) – If the node/edge values, eg importance scores, should be min/max normalized.
+Only relevant if node/edge-level colors are provided. Defaults to True.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseGraphVisualization.draw_nodes">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">draw_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">draw:</span> <span class="pre">&lt;module</span> <span class="pre">'PIL.ImageDraw'</span> <span class="pre">from</span> <span class="pre">'/home/travis/conda/envs/histocartography/lib/python3.7/site-packages/PIL/ImageDraw.py'&gt;</span></em>, <em class="sig-param"><span class="pre">graph:</span> <span class="pre">dgl.graph.DGLGraph</span></em>, <em class="sig-param"><span class="pre">node_attributes:</span> <span class="pre">dict</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseGraphVisualization.draw_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseGraphVisualization.draw_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw nodes on the canvas</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseGraphVisualization.draw_edges">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">draw_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">draw:</span> <span class="pre">&lt;module</span> <span class="pre">'PIL.ImageDraw'</span> <span class="pre">from</span> <span class="pre">'/home/travis/conda/envs/histocartography/lib/python3.7/site-packages/PIL/ImageDraw.py'&gt;</span></em>, <em class="sig-param"><span class="pre">graph:</span> <span class="pre">dgl.graph.DGLGraph</span></em>, <em class="sig-param"><span class="pre">edge_attributes:</span> <span class="pre">dict</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseGraphVisualization.draw_edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseGraphVisualization.draw_edges" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw edges on the canvas</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseGraphVisualization.draw_instances">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">draw_instances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">canvas</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_map</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_attributes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseGraphVisualization.draw_instances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseGraphVisualization.draw_instances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw instances on the canvas</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.BaseGraphVisualization.graph_preprocessing">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">graph_preprocessing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dgl.graph.DGLGraph</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#BaseGraphVisualization.graph_preprocessing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.BaseGraphVisualization.graph_preprocessing" title="Permalink to this definition">¶</a></dt>
+<dd><p>preprocesses the graph (e.g., to reorganize spatially)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.OverlayGraphVisualization">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">OverlayGraphVisualization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_style</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'outline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'yellow'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_radius</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_style</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'line'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'blue'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_thickness</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'viridis'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_colormap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#OverlayGraphVisualization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.OverlayGraphVisualization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><code class="xref py py-class docutils literal notranslate"><span class="pre">histocartography.visualization.visualization.BaseGraphVisualization</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.OverlayGraphVisualization.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_style</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'outline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'yellow'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_radius</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_style</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'line'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'blue'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_thickness</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'viridis'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_colormap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#OverlayGraphVisualization.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.OverlayGraphVisualization.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Overlay graph visualization class. It overlays a graph drawn with
+PIL on top of an image canvas using the provided instance_visualizer.
+Nodes outside of the canvas support willbe ignored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>node_style</strong> (<em>str</em><em>, </em><em>optional</em>) – Style to represent the nodes. Options are “filled”,
+“outline” or “filled+outline”.  Defaults to “outline”.</p></li>
+<li><p><strong>node_color</strong> (<em>str</em><em>, </em><em>optional</em>) – Node color. Defaults to “yellow”.</p></li>
+<li><p><strong>node_radius</strong> (<em>int</em><em>, </em><em>optional</em>) – Node radius. Defaults to 5.</p></li>
+<li><p><strong>edge_style</strong> (<em>str</em><em>, </em><em>optional</em>) – Edge style. Defaults to “line”.</p></li>
+<li><p><strong>edge_color</strong> (<em>str</em><em>, </em><em>optional</em>) – Edge color. Defaults to “blue”.</p></li>
+<li><p><strong>edge_thickness</strong> (<em>int</em><em>, </em><em>optional</em>) – Edge thickness. Defaults to 2.</p></li>
+<li><p><strong>colormap</strong> (<em>str</em><em>, </em><em>optional</em>) – Matplotlib colormap. Defaults to “viridis”.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.OverlayGraphVisualization.graph_preprocessing">
+<span class="sig-name descname"><span class="pre">graph_preprocessing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dgl.graph.DGLGraph</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#OverlayGraphVisualization.graph_preprocessing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.OverlayGraphVisualization.graph_preprocessing" title="Permalink to this definition">¶</a></dt>
+<dd><p>preprocesses the graph (e.g., to reorganize spatially)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.OverlayGraphVisualization.draw_nodes">
+<span class="sig-name descname"><span class="pre">draw_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">draw:</span> <span class="pre">&lt;module</span> <span class="pre">'PIL.ImageDraw'</span> <span class="pre">from</span> <span class="pre">'/home/travis/conda/envs/histocartography/lib/python3.7/site-packages/PIL/ImageDraw.py'&gt;</span></em>, <em class="sig-param"><span class="pre">graph:</span> <span class="pre">dgl.graph.DGLGraph</span></em>, <em class="sig-param"><span class="pre">node_attributes:</span> <span class="pre">Optional[dict]</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#OverlayGraphVisualization.draw_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.OverlayGraphVisualization.draw_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draws the nodes on top of the canvas.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.OverlayGraphVisualization.draw_edges">
+<span class="sig-name descname"><span class="pre">draw_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">draw:</span> <span class="pre">&lt;module</span> <span class="pre">'PIL.ImageDraw'</span> <span class="pre">from</span> <span class="pre">'/home/travis/conda/envs/histocartography/lib/python3.7/site-packages/PIL/ImageDraw.py'&gt;</span></em>, <em class="sig-param"><span class="pre">graph:</span> <span class="pre">dgl.graph.DGLGraph</span></em>, <em class="sig-param"><span class="pre">edge_attributes:</span> <span class="pre">Optional[dict]</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#OverlayGraphVisualization.draw_edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.OverlayGraphVisualization.draw_edges" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draws the edges on top of the canvas.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.OverlayGraphVisualization.draw_instances">
+<span class="sig-name descname"><span class="pre">draw_instances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">canvas</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_map</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance_attributes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#OverlayGraphVisualization.draw_instances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.OverlayGraphVisualization.draw_instances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draws instances on the canvas.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.HACTVisualization">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">HACTVisualization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell_visualizer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><span class="pre">histocartography.visualization.visualization.BaseGraphVisualization</span></a><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tissue_visualizer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><span class="pre">histocartography.visualization.visualization.BaseGraphVisualization</span></a><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#HACTVisualization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.HACTVisualization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="histocartography.pipeline.html#histocartography.pipeline.PipelineStep" title="histocartography.pipeline.PipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">histocartography.pipeline.PipelineStep</span></code></a></p>
+<p>Hierarchical Cell to Tissue visualization class</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="histocartography.visualization.visualization.HACTVisualization.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell_visualizer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><span class="pre">histocartography.visualization.visualization.BaseGraphVisualization</span></a><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tissue_visualizer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><span class="pre">histocartography.visualization.visualization.BaseGraphVisualization</span></a><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="reference internal" href="../_modules/histocartography/visualization/visualization.html#HACTVisualization.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#histocartography.visualization.visualization.HACTVisualization.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cell_visualizer</strong> (<a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><em>BaseGraphVisualization</em></a>) – Object to use for the cell visualization. Defaults to None.</p></li>
+<li><p><strong>tissue_visualizer</strong> (<a class="reference internal" href="#histocartography.visualization.visualization.BaseGraphVisualization" title="histocartography.visualization.visualization.BaseGraphVisualization"><em>BaseGraphVisualization</em></a>) – Object to use for the tissue visualization. Defaults to None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="reference">
+<h2>Reference<a class="headerlink" href="#reference" title="Permalink to this headline">¶</a></h2>
+<p>If you use <cite>histocartography</cite> in your projects, please cite the following:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@inproceedings</span><span class="p">{</span><span class="n">pati2021</span><span class="p">,</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">Hierarchical</span> <span class="n">Graph</span> <span class="n">Representations</span> <span class="k">for</span> <span class="n">Digital</span> <span class="n">Pathology</span><span class="p">},</span>
+    <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Pushpak</span> <span class="n">Pati</span><span class="p">,</span> <span class="n">Guillaume</span> <span class="n">Jaume</span><span class="p">,</span> <span class="n">Antonio</span> <span class="n">Foncubierta</span><span class="p">,</span> <span class="n">Florinda</span> <span class="n">Feroce</span><span class="p">,</span> <span class="n">Anna</span> <span class="n">Maria</span> <span class="n">Anniciello</span><span class="p">,</span> <span class="n">Giosuè</span> <span class="n">Scognamiglio</span><span class="p">,</span> <span class="n">Nadia</span> <span class="n">Brancati</span><span class="p">,</span> <span class="n">Maryse</span> <span class="n">Fiche</span><span class="p">,</span> <span class="n">Estelle</span> <span class="n">Dubruc</span><span class="p">,</span> <span class="n">Daniel</span> <span class="n">Riccio</span><span class="p">,</span> <span class="n">Maurizio</span> <span class="n">Di</span> <span class="n">Bonito</span><span class="p">,</span> <span class="n">Giuseppe</span> <span class="n">De</span> <span class="n">Pietro</span><span class="p">,</span> <span class="n">Gerardo</span> <span class="n">Botti</span><span class="p">,</span> <span class="n">Jean</span><span class="o">-</span><span class="n">Philippe</span> <span class="n">Thiran</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Frucci</span><span class="p">,</span> <span class="n">Orcun</span> <span class="n">Goksel</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Gabrani</span><span class="p">},</span>
+    <span class="n">booktitle</span> <span class="o">=</span> <span class="p">{</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">arxiv</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">pdf</span><span class="o">/</span><span class="mf">2102.11057</span><span class="p">},</span>
+    <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2021</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="histocartography.visualization.html" class="btn btn-neutral float-left" title="histocartography.visualization package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

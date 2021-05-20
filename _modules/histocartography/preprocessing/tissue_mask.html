@@ -1,0 +1,482 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.preprocessing.tissue_mask &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.preprocessing.tissue_mask</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.preprocessing.tissue_mask</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">..pipeline</span> <span class="kn">import</span> <span class="n">PipelineStep</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">ndimage</span>
+<span class="kn">from</span> <span class="nn">skimage.filters</span> <span class="kn">import</span> <span class="n">gaussian</span><span class="p">,</span> <span class="n">threshold_otsu</span>
+
+<span class="n">Image</span><span class="o">.</span><span class="n">MAX_IMAGE_PIXELS</span> <span class="o">=</span> <span class="mi">100000000000</span>
+
+
+<div class="viewcode-block" id="get_tissue_mask"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.tissue_mask.html#histocartography.preprocessing.tissue_mask.get_tissue_mask">[docs]</a><span class="k">def</span> <span class="nf">get_tissue_mask</span><span class="p">(</span>
+    <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">n_thresholding_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">min_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Get binary tissue mask</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image (np.ndarray):</span>
+<span class="sd">            (m, n, 3) nd array of thumbnail RGB image</span>
+<span class="sd">            or (m, n) nd array of thumbnail grayscale image</span>
+<span class="sd">        n_thresholding_steps (int, optional): number of gaussian smoothign steps. Defaults to 1.</span>
+<span class="sd">        sigma (float, optional): sigma of gaussian filter. Defaults to 0.0.</span>
+<span class="sd">        min_size (int, optional): minimum size (in pixels) of contiguous tissue regions to keep. Defaults to 500.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[np.ndarray, np.ndarray]:</span>
+<span class="sd">            np int32 array</span>
+<span class="sd">                each unique value represents a unique tissue region</span>
+<span class="sd">            np bool array</span>
+<span class="sd">                largest contiguous tissue region.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="c1"># grayscale thumbnail (inverted)</span>
+        <span class="n">thumbnail</span> <span class="o">=</span> <span class="mi">255</span> <span class="o">-</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2GRAY</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">thumbnail</span> <span class="o">=</span> <span class="n">image</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">thumbnail</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_thresholding_steps</span><span class="p">):</span>
+
+        <span class="c1"># gaussian smoothing of grayscale thumbnail</span>
+        <span class="k">if</span> <span class="n">sigma</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">thumbnail</span> <span class="o">=</span> <span class="n">gaussian</span><span class="p">(</span>
+                <span class="n">thumbnail</span><span class="p">,</span>
+                <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">,</span>
+                <span class="n">preserve_range</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># get threshold to keep analysis region</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">thresh</span> <span class="o">=</span> <span class="n">threshold_otsu</span><span class="p">(</span><span class="n">thumbnail</span><span class="p">[</span><span class="n">thumbnail</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>  <span class="c1"># all values are zero</span>
+            <span class="n">thresh</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># replace pixels outside analysis region with upper quantile pixels</span>
+        <span class="n">thumbnail</span><span class="p">[</span><span class="n">thumbnail</span> <span class="o">&lt;</span> <span class="n">thresh</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># convert to binary</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="mi">0</span> <span class="o">+</span> <span class="p">(</span><span class="n">thumbnail</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># find connected components</span>
+    <span class="n">labeled</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+
+    <span class="c1"># only keep</span>
+    <span class="n">unique</span><span class="p">,</span> <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">labeled</span><span class="p">[</span><span class="n">labeled</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">],</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">discard</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">in1d</span><span class="p">(</span><span class="n">labeled</span><span class="p">,</span> <span class="n">unique</span><span class="p">[</span><span class="n">counts</span> <span class="o">&lt;</span> <span class="n">min_size</span><span class="p">])</span>
+        <span class="n">discard</span> <span class="o">=</span> <span class="n">discard</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">labeled</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">labeled</span><span class="p">[</span><span class="n">discard</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># largest tissue region</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">labeled</span> <span class="o">==</span> <span class="n">unique</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">counts</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">labeled</span><span class="p">,</span> <span class="n">mask</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="TissueMask"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.tissue_mask.html#histocartography.preprocessing.tissue_mask.TissueMask">[docs]</a><span class="k">class</span> <span class="nc">TissueMask</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_process_and_save</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+            <span class="n">output_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Process and save in the provided path as a png image</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output_name (str): Name of output file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Can only save intermediate output if base_path was not None during construction&quot;</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2">.png&quot;</span>
+        <span class="k">if</span> <span class="n">output_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">: Output of </span><span class="si">%s</span><span class="s2"> already exists, using it instead of recomputing&quot;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                <span class="n">output_name</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">input_file</span><span class="p">:</span>
+                    <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Could not open </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">output_path</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">error</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="c1"># with Image.fromarray(np.uint8(output*255)) as output_image:</span>
+            <span class="k">with</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="k">as</span> <span class="n">output_image</span><span class="p">:</span>
+                <span class="n">output_image</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+<div class="viewcode-block" id="TissueMask.precompute"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.tissue_mask.html#histocartography.preprocessing.tissue_mask.TissueMask.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Precompute all necessary information</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            link_path (Union[None, str, Path], optional): Path to link to. Defaults to None.</span>
+<span class="sd">            precompute_path (Union[None, str, Path], optional): Path to save precomputation outputs. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">link_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_link_to_path</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">link_path</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;tissue_masks&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="GaussianTissueMask"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.tissue_mask.html#histocartography.preprocessing.tissue_mask.GaussianTissueMask">[docs]</a><span class="k">class</span> <span class="nc">GaussianTissueMask</span><span class="p">(</span><span class="n">TissueMask</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to extract tissue mask from images&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="GaussianTissueMask.__init__"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.tissue_mask.html#histocartography.preprocessing.tissue_mask.GaussianTissueMask.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">n_thresholding_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">min_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">kernel_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">dilation_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">background_gray_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">228</span><span class="p">,</span>
+        <span class="n">downsampling_factor</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            n_thresholding_steps (int, optional): Number of gaussian smoothing steps. Defaults to 1.</span>
+<span class="sd">            sigma (int, optional): Sigma of gaussian filter. Defaults to 20.</span>
+<span class="sd">            min_size (int, optional): Minimum size (in pixels) of contiguous tissue regions to keep. Defaults to 10.</span>
+<span class="sd">            kernel_size (int, optional): Dilation kernel size. Defaults to 20.</span>
+<span class="sd">            dilation_steps (int, optional): Number of dilation steps. Defaults to 1.</span>
+<span class="sd">            background_gray_value (int, optional): Gray value of background pixels (usually high). Defaults to 228.</span>
+<span class="sd">            downsampling_factor (int, optional): Downsampling factor from the input image</span>
+<span class="sd">                                                 resolution. Defaults to 4.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_thresholding_steps</span> <span class="o">=</span> <span class="n">n_thresholding_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_size</span> <span class="o">=</span> <span class="n">min_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span> <span class="o">=</span> <span class="n">kernel_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dilation_steps</span> <span class="o">=</span> <span class="n">dilation_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">background_gray_value</span> <span class="o">=</span> <span class="n">background_gray_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="o">=</span> <span class="n">downsampling_factor</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">),</span> <span class="s2">&quot;uint8&quot;</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_downsample</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">downsampling_factor</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Downsample an input image with a given downsampling factor</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">            downsampling_factor (int): Factor to downsample</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">new_height</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">height</span> <span class="o">/</span> <span class="n">downsampling_factor</span><span class="p">)</span>
+        <span class="n">new_width</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">downsampling_factor</span><span class="p">)</span>
+        <span class="n">downsampled_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">downsampled_image</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_upsample</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+            <span class="n">new_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">new_width</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Upsample an input image to a speficied new height and width</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input tensor</span>
+<span class="sd">            new_height (int): Target height</span>
+<span class="sd">            new_width (int): Target width</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Output tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">upsampled_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+            <span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">upsampled_image</span>
+
+    <span class="c1"># type: ignore[override]</span>
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Return the superpixels of a given input image</span>
+<span class="sd">        Args:</span>
+<span class="sd">            image (np.array): Input image</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: Extracted tissue mask</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Downsample image</span>
+        <span class="n">original_height</span><span class="p">,</span> <span class="n">original_width</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_downsample</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsampling_factor</span><span class="p">)</span>
+
+        <span class="n">tissue_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">image_gray</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2GRAY</span><span class="p">)</span>
+
+        <span class="c1"># Detect tissue region</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">mask_</span> <span class="o">=</span> <span class="n">get_tissue_mask</span><span class="p">(</span>
+                <span class="n">image</span><span class="p">,</span>
+                <span class="n">n_thresholding_steps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_thresholding_steps</span><span class="p">,</span>
+                <span class="n">sigma</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span>
+                <span class="n">min_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_size</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">mask_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">mask_</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span>
+                <span class="n">mask_</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span>
+                <span class="n">iterations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dilation_steps</span><span class="p">)</span>
+            <span class="n">image_masked</span> <span class="o">=</span> <span class="n">mask_</span> <span class="o">*</span> <span class="n">image_gray</span>
+
+            <span class="k">if</span> <span class="n">image_masked</span><span class="p">[</span><span class="n">image_masked</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+            <span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_gray_value</span><span class="p">:</span>
+                <span class="n">tissue_mask</span><span class="p">[</span><span class="n">mask_</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">image</span><span class="p">[</span><span class="n">mask_</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="n">tissue_mask</span> <span class="o">=</span> <span class="n">tissue_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="n">tissue_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_upsample</span><span class="p">(</span>
+            <span class="n">tissue_mask</span><span class="p">,</span> <span class="n">original_height</span><span class="p">,</span> <span class="n">original_width</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tissue_mask</span></div>
+
+
+<div class="viewcode-block" id="AnnotationPostProcessor"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.tissue_mask.html#histocartography.preprocessing.tissue_mask.AnnotationPostProcessor">[docs]</a><span class="k">class</span> <span class="nc">AnnotationPostProcessor</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">background_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">background_index</span> <span class="o">=</span> <span class="n">background_index</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AnnotationPostProcessor.mkdir"><a class="viewcode-back" href="../../../api/histocartography.preprocessing.tissue_mask.html#histocartography.preprocessing.tissue_mask.AnnotationPostProcessor.mkdir">[docs]</a>    <span class="k">def</span> <span class="nf">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create path to output files&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Can only create directory if base_path was not None when constructing the object&quot;</span>
+        <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_path</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">annotation</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tissue_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">annotation</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">annotation</span><span class="p">[</span><span class="o">~</span><span class="n">tissue_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_index</span>
+        <span class="k">return</span> <span class="n">annotation</span>
+
+    <span class="k">def</span> <span class="nf">_process_and_save</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+            <span class="n">output_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

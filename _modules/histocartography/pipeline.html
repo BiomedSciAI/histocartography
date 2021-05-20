@@ -1,0 +1,674 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.pipeline &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>histocartography.pipeline</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.pipeline</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Pipeline utilities&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">tqdm.auto</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span> <span class="nn">histocartography.utils</span> <span class="kn">import</span> <span class="n">dynamic_import_from</span><span class="p">,</span> <span class="n">signal_last</span>
+
+
+<div class="viewcode-block" id="PipelineStep"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineStep">[docs]</a><span class="k">class</span> <span class="nc">PipelineStep</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base pipelines step&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PipelineStep.__init__"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineStep.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">save_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Abstract class that helps with saving and loading precomputed results</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            save_path (Union[None, str, Path], optional): Base path to save results to.</span>
+<span class="sd">                When set to None, the results are not saved to disk. Defaults to None.</span>
+<span class="sd">            precompute (bool, optional): Whether to perform the precomputation necessary</span>
+<span class="sd">                for the step. Defaults to True.</span>
+<span class="sd">            link_path (Union[None, str, Path], optional): Path to link the output directory</span>
+<span class="sd">                to. When None, no link is created. Only supported when save_path is not None.</span>
+<span class="sd">                Defaults to None.</span>
+<span class="sd">            precompute_path (Union[None, str, Path], optional): Path to save the output of</span>
+<span class="sd">                the precomputation to. If not specified it defaults to the output directory</span>
+<span class="sd">                of the step when save_path is not None. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">link_path</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;link_path only supported when save_path is not None&quot;</span>
+
+        <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="o">=</span> <span class="n">save_path</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_path</span><span class="p">)</span> <span class="o">/</span> <span class="n">name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_key</span> <span class="o">=</span> <span class="s2">&quot;default_key&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mkdir</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">precompute_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">precompute_path</span> <span class="o">=</span> <span class="n">save_path</span>
+
+        <span class="k">if</span> <span class="n">precompute</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">precompute</span><span class="p">(</span>
+                <span class="n">link_path</span><span class="o">=</span><span class="n">link_path</span><span class="p">,</span>
+                <span class="n">precompute_path</span><span class="o">=</span><span class="n">precompute_path</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Representation of a pipeline step.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Representation of a pipeline step.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">variables</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">())])</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(</span><span class="si">{</span><span class="n">variables</span><span class="si">}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_mkdir</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create path to output files&quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Can only create directory if base_path was not None when constructing the object&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_link_to_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">link_directory</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Links the output directory to the given directory.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            link_directory (Union[None, str, Path]): Directory to link to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">link_directory</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">Path</span><span class="p">(</span>
+                <span class="n">link_directory</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span> <span class="o">==</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">):</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Link to self skipped&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Linking only supported when saving is enabled, i.e. when save_path is passed in the constructor.&quot;</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">link_directory</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">link_directory</span><span class="p">):</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Link already exists: overwriting...&quot;</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">link_directory</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span>
+                    <span class="s2">&quot;Link exists, but points nowhere. Ignoring...&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+        <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">link_directory</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">link_directory</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">link_directory</span><span class="p">,</span> <span class="n">target_is_directory</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PipelineStep.precompute"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineStep.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Precompute all necessary information for this step</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            link_path (Union[None, str, Path], optional): Path to link the output to. Defaults to None.</span>
+<span class="sd">            precompute_path (Union[None, str, Path], optional): Path to load/save the precomputation outputs. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="PipelineStep.process"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineStep.process">[docs]</a>    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">output_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Main process function of the step and outputs the result. Try to saves the output when output_name is passed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output_name (Optional[str], optional): Unique identifier of the passed datapoint. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: Result of the pipeline step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">output_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_and_save</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">output_name</span><span class="o">=</span><span class="n">output_name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Abstract method that performs the computation of the pipeline step</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: Result of the pipeline step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_file</span><span class="p">:</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Extracts the step output from a given h5 file</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_file (h5py.File): File to load from</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Union[Any, Tuple]: Previously computed output of the step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">nr_outputs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_file</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="c1"># Legacy, remove at some point</span>
+        <span class="k">if</span> <span class="n">nr_outputs</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_key</span> <span class="ow">in</span> <span class="n">input_file</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">input_file</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">output_key</span><span class="p">][()]])</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nr_outputs</span><span class="p">):</span>
+            <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">input_file</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">][()])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_file</span><span class="p">:</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">,</span>
+                     <span class="n">outputs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Save the step output to a given h5 file</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output_file (h5py.File): File to write to</span>
+<span class="sd">            outputs (Union[Tuple, Any]): Computed step output</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">outputs</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">output</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outputs</span><span class="p">):</span>
+            <span class="n">output_file</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">data</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+                <span class="n">compression</span><span class="o">=</span><span class="s2">&quot;gzip&quot;</span><span class="p">,</span>
+                <span class="n">compression_opts</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_process_and_save</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">output_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Process and save in the provided path as as .h5 file</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output_name (str): Unique identifier of the the passed datapoint</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            read_error (OSError): When the unable to read to self.output_dir/output_name.h5</span>
+<span class="sd">            write_error (OSError): When the unable to write to self.output_dir/output_name.h5</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: Result of the pipeline step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Can only save intermediate output if base_path was not None when constructing the object&quot;</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2">.h5&quot;</span>
+        <span class="k">if</span> <span class="n">output_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: Output of </span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2"> already exists, using it instead of recomputing&quot;</span>
+            <span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">input_file</span><span class="p">:</span>
+                    <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_outputs</span><span class="p">(</span><span class="n">input_file</span><span class="o">=</span><span class="n">input_file</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">read_error</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Could not read from </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">!</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">read_error</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">output_file</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_set_outputs</span><span class="p">(</span><span class="n">output_file</span><span class="o">=</span><span class="n">output_file</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="n">output</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">write_error</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Could not write to </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">!</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">write_error</span>
+        <span class="k">return</span> <span class="n">output</span></div>
+
+
+<div class="viewcode-block" id="PipelineRunner"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineRunner">[docs]</a><span class="k">class</span> <span class="nc">PipelineRunner</span><span class="p">:</span>
+<div class="viewcode-block" id="PipelineRunner.__init__"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineRunner.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">output_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">inputs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">outputs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stages</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">save_intermediate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">precompute</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Create a pipeline runner for a given configuration</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output_path (Optional[str], optional): Path to the output and intermediate files.</span>
+<span class="sd">                When set to None the runner does not save the outputs. Defaults to None.</span>
+<span class="sd">            inputs (Optional[Iterable[str]], optional): Inputs to the pipeline. Defaults to None.</span>
+<span class="sd">            outputs (Optional[Iterable[str]], optional): Outputs of the pipeline. Defaults to None.</span>
+<span class="sd">            stages (Iterable[dict], optional): Stages to complete. Defaults to [].</span>
+<span class="sd">            save_intermediate (bool, optional): Whether to save the intermediate steps. Defaults to False.</span>
+<span class="sd">            precompute (bool, optional): Whether to perform the precomputation steps. Defaults to True.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">outputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">outputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PipelineStep</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stage_configs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">output_path</span>
+        <span class="k">for</span> <span class="n">is_last_stage</span><span class="p">,</span> <span class="n">stage</span> <span class="ow">in</span> <span class="n">signal_last</span><span class="p">(</span><span class="n">stages</span><span class="p">):</span>
+            <span class="n">requires_saving</span> <span class="o">=</span> <span class="n">output_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+                <span class="n">save_intermediate</span> <span class="ow">or</span> <span class="n">is_last_stage</span>
+            <span class="p">)</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">config</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">stage</span><span class="o">.</span><span class="n">items</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">stage_class</span> <span class="o">=</span> <span class="n">dynamic_import_from</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;histocartography.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;class&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">pipeline_stage</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+                <span class="n">stage_class</span><span class="p">,</span>
+                <span class="n">save_path</span><span class="o">=</span><span class="n">path</span> <span class="k">if</span> <span class="n">requires_saving</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">precompute</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;params&quot;</span><span class="p">,</span> <span class="p">{}),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pipeline_stage</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stage_configs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">requires_saving</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Cannot update nested path if no save path is defined&quot;</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">output_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final_path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="k">if</span> <span class="n">precompute</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">precompute</span><span class="p">(</span><span class="n">save_intermediate</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineRunner.precompute"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineRunner.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_intermediate</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Run the precomputation step of the pipeline.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            save_intermediate (bool): Whether to save intermediate outputs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">link_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+        <span class="n">precompute_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">link_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_path</span>
+            <span class="k">if</span> <span class="n">save_intermediate</span><span class="p">:</span>
+                <span class="n">precompute_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">precompute_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_path</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">link_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">precompute_path</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">stage</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">:</span>
+            <span class="n">stage</span><span class="o">.</span><span class="n">precompute</span><span class="p">(</span>
+                <span class="n">link_path</span><span class="o">=</span><span class="n">link_path</span><span class="p">,</span>
+                <span class="n">precompute_path</span><span class="o">=</span><span class="n">precompute_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineRunner.run"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.PipelineRunner.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">output_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">inputs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Run the preprocessing pipeline for a given name and input parameters and return the specified outputs</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output_name (Optional[str], optional): Unique identifier of the datapoint. Defaults to None.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict[str, Any]: Output of the pipeline as defined in the configuration</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Validate inputs</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">output_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Saving is only possible when output_path has been passed to the constructor.&quot;</span>
+        <span class="k">for</span> <span class="n">input_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">input_name</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">input_name</span><span class="si">}</span><span class="s2"> not found in keyword arguments&quot;</span>
+
+        <span class="c1"># Compute pipelines steps</span>
+        <span class="n">variables</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">stage</span><span class="p">,</span> <span class="n">config</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stage_configs</span><span class="p">):</span>
+            <span class="n">step_input</span> <span class="o">=</span> <span class="p">[</span><span class="n">variables</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;inputs&quot;</span><span class="p">]]</span>
+            <span class="n">step_output</span> <span class="o">=</span> <span class="n">stage</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="o">*</span><span class="n">step_input</span><span class="p">,</span> <span class="n">output_name</span><span class="o">=</span><span class="n">output_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">step_output</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="n">step_output</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">step_output</span><span class="p">])</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">step_output</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;outputs&quot;</span><span class="p">,</span> <span class="p">[])),</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Number of outputs in config mismatches actual number of outputs in </span><span class="si">{</span><span class="n">stage</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">step_output</span><span class="p">)</span><span class="si">}</span><span class="s2"> outputs of type </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">step_output</span><span class="p">))</span><span class="si">}</span><span class="s2">,&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;but expected </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;outputs&#39;</span><span class="p">,</span> <span class="p">[]))</span><span class="si">}</span><span class="s2"> outputs&quot;</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;outputs&quot;</span><span class="p">,</span> <span class="p">[]),</span> <span class="n">step_output</span><span class="p">):</span>
+                <span class="n">variables</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="c1"># Handle output</span>
+        <span class="k">for</span> <span class="n">output_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="n">output_name</span> <span class="ow">in</span> <span class="n">variables</span>
+            <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_name</span><span class="si">}</span><span class="s2"> should be returned, but was never computed&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">variables</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">}</span></div></div>
+
+
+<div class="viewcode-block" id="BatchPipelineRunner"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.BatchPipelineRunner">[docs]</a><span class="k">class</span> <span class="nc">BatchPipelineRunner</span><span class="p">:</span>
+<div class="viewcode-block" id="BatchPipelineRunner.__init__"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.BatchPipelineRunner.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pipeline_config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">save_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">save_intermediate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Run Helper that runs the pipeline for multiple inputs with multiprocessing support</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pipeline_config (Dict[str, Any]): Configuration of the pipeline</span>
+<span class="sd">            save_path (Optional[str]): Path to save the outputs to</span>
+<span class="sd">            save_intermediate (bool, optional): Whether to save intermediate outputs. Defaults to False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_config</span> <span class="o">=</span> <span class="n">pipeline_config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_path</span> <span class="o">=</span> <span class="n">save_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_intermediate</span> <span class="o">=</span> <span class="n">save_intermediate</span></div>
+
+    <span class="k">def</span> <span class="nf">_build_pipeline_runner</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PipelineRunner</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Builds and returns a PipelineRunner with the correct configuration</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            PipelineRunner: Runner object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pipeline_config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">PipelineRunner</span><span class="p">(</span>
+            <span class="n">output_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">save_path</span><span class="p">,</span>
+            <span class="n">save_intermediate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">save_intermediate</span><span class="p">,</span>
+            <span class="n">precompute</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">config</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_worker_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">series</span><span class="o">.</span><span class="n">Series</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Runs the task of a single worker</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data (Tuple[Any, pd.core.series.Series]): The index and row of the dataframe,</span>
+<span class="sd">                                                      as returned from df.iterrows()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Disable multiprocessing</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;OPENBLAS_NUM_THREADS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;MKL_NUM_THREADS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;OMP_NUM_THREADS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+
+        <span class="n">name</span><span class="p">,</span> <span class="n">row</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pipeline_runner</span><span class="p">()</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">output_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">row</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchPipelineRunner.link_output"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.BatchPipelineRunner.link_output">[docs]</a>    <span class="k">def</span> <span class="nf">link_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">link_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Creates a symlink between the output directory of the pipeline and the provided path.</span>
+<span class="sd">           Overwrites link if it already exists.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            link_directory (str): Path to link the output directory to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tmp_pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pipeline_runner</span><span class="p">()</span>
+        <span class="n">final_path</span> <span class="o">=</span> <span class="n">tmp_pipeline</span><span class="o">.</span><span class="n">final_path</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">final_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="s2">&quot;Cannot link output if the pipeline is setup not to save outputs&quot;</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">link_directory</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">link_directory</span><span class="p">):</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;Link already exists: overwriting...&quot;</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">link_directory</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span>
+                    <span class="s2">&quot;Link path already exists, but it is something else than a link. Ignoring...&quot;</span>
+                <span class="p">)</span>
+                <span class="k">return</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="n">final_path</span><span class="p">,</span> <span class="n">link_directory</span><span class="p">,</span> <span class="n">target_is_directory</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created symlink: </span><span class="si">{</span><span class="n">link_directory</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">final_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BatchPipelineRunner.precompute"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.BatchPipelineRunner.precompute">[docs]</a>    <span class="k">def</span> <span class="nf">precompute</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Precompute all necessary information for all stages&quot;&quot;&quot;</span>
+        <span class="n">tmp_runner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pipeline_runner</span><span class="p">()</span>
+        <span class="n">tmp_runner</span><span class="o">.</span><span class="n">precompute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_intermediate</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BatchPipelineRunner.run"><a class="viewcode-back" href="../../api/histocartography.pipeline.html#histocartography.pipeline.BatchPipelineRunner.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">cores</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">return_out</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]:</span>
+        <span class="sd">&quot;&quot;&quot;Runs the pipeline for the provided metadata dataframe and a specified</span>
+<span class="sd">           number of cores for multiprocessing.</span>
+<span class="sd">           Does not support saving of outputs</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            metadata (pd.DataFrame): Dataframe with the columns as defined in the config inputs</span>
+<span class="sd">            cores (int, optional): Number of cores to use for multiprocessing. Defaults to 1.</span>
+<span class="sd">            return_out (bool, optional): If the method should also return the output batch data.</span>
+<span class="sd">                If True, make sure you have enough memory. Only supported</span>
+<span class="sd">                for single-core processing. Default to False.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            batched_out (Optional[Dict[str, Dict[str, Any]]]): If return_out is True, returns the processed output.</span>
+<span class="sd">                Otherwise returns None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span>
+            <span class="n">return_out</span> <span class="ow">and</span> <span class="n">cores</span> <span class="o">&gt;</span> <span class="mi">1</span>
+        <span class="p">),</span> <span class="s2">&quot;Option to return output only supported with single-core processing.&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">precompute</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">cores</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">batched_out</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+            <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pipeline_runner</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+                <span class="n">metadata</span><span class="o">.</span><span class="n">iterrows</span><span class="p">(),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">metadata</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span>
+            <span class="p">):</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">output_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">row</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">return_out</span><span class="p">:</span>
+                    <span class="n">batched_out</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
+            <span class="k">if</span> <span class="n">return_out</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">batched_out</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">worker_pool</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">cores</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+                <span class="n">worker_pool</span><span class="o">.</span><span class="n">imap_unordered</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_worker_task</span><span class="p">,</span>
+                    <span class="n">metadata</span><span class="o">.</span><span class="n">iterrows</span><span class="p">(),</span>
+                <span class="p">),</span>
+                <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">metadata</span><span class="p">),</span>
+                <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="n">worker_pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">worker_pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">None</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

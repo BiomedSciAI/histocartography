@@ -1,0 +1,366 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>histocartography.utils.graph &mdash; histocartography  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> histocartography
+          
+
+          
+            
+            <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/histocartography.html">histocartography package</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">histocartography</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../utils.html">histocartography.utils</a> &raquo;</li>
+        
+      <li>histocartography.utils.graph</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for histocartography.utils.graph</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">dgl</span>
+
+
+<div class="viewcode-block" id="adj_to_networkx"><a class="viewcode-back" href="../../../api/histocartography.utils.graph.html#histocartography.utils.graph.adj_to_networkx">[docs]</a><span class="k">def</span> <span class="nf">adj_to_networkx</span><span class="p">(</span>
+        <span class="n">adj</span><span class="p">,</span>
+        <span class="n">feat</span><span class="p">,</span>
+        <span class="n">node_importance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">max_component</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">rm_iso_nodes</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">centroids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">nuclei_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Cleaning a graph by thresholding its node values.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        - adj               :  Adjacency matrix.</span>
+<span class="sd">        - feat              :  An array of node features.</span>
+<span class="sd">        - threshold         :  The weight threshold.</span>
+<span class="sd">        - max_component     :  if return the largest cc</span>
+<span class="sd">        - rm_iso_nodes      : if remove isolated nodes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># build nodes</span>
+    <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">adj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">DiGraph</span><span class="p">()</span>
+    <span class="n">graph</span><span class="o">.</span><span class="n">add_nodes_from</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">))</span>
+
+    <span class="c1"># set node features</span>
+    <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">feat</span><span class="p">,</span> <span class="s1">&#39;feat&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">centroids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">centroids_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">):</span>
+            <span class="n">centroids_dict</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">centroids</span><span class="p">[</span><span class="n">node_id</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">centroids_dict</span><span class="p">,</span> <span class="s1">&#39;centroid&#39;</span><span class="p">)</span>
+
+    <span class="c1"># build topology</span>
+    <span class="n">adj</span><span class="p">[</span><span class="n">adj</span> <span class="o">&lt;</span> <span class="n">threshold</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">edge_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">adj</span><span class="p">)</span>
+    <span class="n">weights</span> <span class="o">=</span> <span class="n">adj</span><span class="p">[</span><span class="n">adj</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">]</span>
+    <span class="n">weighted_edge_list</span> <span class="o">=</span> <span class="p">[(</span><span class="n">from_</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">to_</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">weights</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">())</span> <span class="k">for</span> <span class="p">(</span>
+        <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">from_</span><span class="p">,</span> <span class="n">to_</span><span class="p">))</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">edge_list</span><span class="p">)]</span>  <span class="c1"># if from_ &lt;= to_</span>
+    <span class="n">graph</span><span class="o">.</span><span class="n">add_weighted_edges_from</span><span class="p">(</span><span class="n">weighted_edge_list</span><span class="p">)</span>
+
+    <span class="c1"># set node importance</span>
+    <span class="k">if</span> <span class="n">node_importance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">node_importance_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">):</span>
+            <span class="n">node_importance_dict</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">node_importance</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span>
+        <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">node_importance_dict</span><span class="p">,</span> <span class="s1">&#39;node_importance&#39;</span><span class="p">)</span>
+
+    <span class="c1"># set nuclei labels</span>
+    <span class="k">if</span> <span class="n">nuclei_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">nuclei_labels_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">):</span>
+            <span class="n">nuclei_labels_dict</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">nuclei_labels</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span>
+        <span class="n">nx</span><span class="o">.</span><span class="n">set_node_attributes</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">nuclei_labels_dict</span><span class="p">,</span> <span class="s1">&#39;nuclei_label&#39;</span><span class="p">)</span>
+
+    <span class="c1"># extract largest cc</span>
+    <span class="k">if</span> <span class="n">max_component</span><span class="p">:</span>
+        <span class="n">largest_cc</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">connected_components</span><span class="p">(</span><span class="n">graph</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="nb">len</span><span class="p">)</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">subgraph</span><span class="p">(</span><span class="n">largest_cc</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># rm isolated nodes</span>
+    <span class="k">if</span> <span class="n">rm_iso_nodes</span><span class="p">:</span>
+        <span class="n">iso</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">isolates</span><span class="p">(</span><span class="n">graph</span><span class="p">))</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">remove_nodes_from</span><span class="p">(</span><span class="n">iso</span><span class="p">)</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">convert_node_labels_to_integers</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">graph</span></div>
+
+
+<div class="viewcode-block" id="adj_to_dgl"><a class="viewcode-back" href="../../../api/histocartography.utils.graph.html#histocartography.utils.graph.adj_to_dgl">[docs]</a><span class="k">def</span> <span class="nf">adj_to_dgl</span><span class="p">(</span>
+        <span class="n">adj</span><span class="p">,</span>
+        <span class="n">feat</span><span class="p">,</span>
+        <span class="n">node_importance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">max_component</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">rm_iso_nodes</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">centroids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">nuclei_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Cleaning a graph by thresholding its node values.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        - adj               :  Adjacency matrix.</span>
+<span class="sd">        - feat              :  An array of node features.</span>
+<span class="sd">        - threshold         :  The weight threshold.</span>
+<span class="sd">        - max_component     :  if return the largest cc</span>
+<span class="sd">        - rm_iso_nodes      : if remove isolated nodes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">networkx_graph</span> <span class="o">=</span> <span class="n">adj_to_networkx</span><span class="p">(</span>
+        <span class="n">adj</span><span class="p">,</span>
+        <span class="n">feat</span><span class="p">,</span>
+        <span class="n">node_importance</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="p">,</span>
+        <span class="n">max_component</span><span class="p">,</span>
+        <span class="n">rm_iso_nodes</span><span class="p">,</span>
+        <span class="n">centroids</span><span class="p">,</span>
+        <span class="n">nuclei_labels</span><span class="p">)</span>
+    <span class="n">graph</span> <span class="o">=</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">()</span>
+
+    <span class="n">node_keys</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">cand_key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;node_importance&#39;</span><span class="p">,</span> <span class="s1">&#39;centroid&#39;</span><span class="p">,</span> <span class="s1">&#39;feat&#39;</span><span class="p">,</span> <span class="s1">&#39;nuclei_label&#39;</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">nx</span><span class="o">.</span><span class="n">get_node_attributes</span><span class="p">(</span><span class="n">networkx_graph</span><span class="p">,</span> <span class="n">cand_key</span><span class="p">)</span>
+            <span class="n">node_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cand_key</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># do nothing...</span>
+
+    <span class="n">graph</span><span class="o">.</span><span class="n">from_networkx</span><span class="p">(</span>
+        <span class="n">networkx_graph</span><span class="p">,</span>
+        <span class="n">edge_attrs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">node_attrs</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">node_keys</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">graph</span></div>
+
+
+<div class="viewcode-block" id="set_graph_on_cuda"><a class="viewcode-back" href="../../../api/histocartography.utils.graph.html#histocartography.utils.graph.set_graph_on_cuda">[docs]</a><span class="k">def</span> <span class="nf">set_graph_on_cuda</span><span class="p">(</span><span class="n">graph</span><span class="p">):</span>
+    <span class="n">cuda_graph</span> <span class="o">=</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">()</span>
+    <span class="n">cuda_graph</span><span class="o">.</span><span class="n">add_nodes</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">())</span>
+    <span class="n">cuda_graph</span><span class="o">.</span><span class="n">add_edges</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">edges</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">graph</span><span class="o">.</span><span class="n">edges</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">key_graph</span><span class="p">,</span> <span class="n">val_graph</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">cuda_graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key_graph</span><span class="p">,</span> <span class="n">val_graph</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">edata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">cuda_graph</span><span class="o">.</span><span class="n">edata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">cuda_graph</span></div>
+
+
+<div class="viewcode-block" id="set_graph_on_cpu"><a class="viewcode-back" href="../../../api/histocartography.utils.graph.html#histocartography.utils.graph.set_graph_on_cpu">[docs]</a><span class="k">def</span> <span class="nf">set_graph_on_cpu</span><span class="p">(</span><span class="n">graph</span><span class="p">):</span>
+    <span class="n">cpu_graph</span> <span class="o">=</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">()</span>
+    <span class="n">cpu_graph</span><span class="o">.</span><span class="n">add_nodes</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">())</span>
+    <span class="n">cpu_graph</span><span class="o">.</span><span class="n">add_edges</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">edges</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">graph</span><span class="o">.</span><span class="n">edges</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">key_graph</span><span class="p">,</span> <span class="n">val_graph</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">cpu_graph</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key_graph</span><span class="p">,</span> <span class="n">val_graph</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">edata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">cpu_graph</span><span class="o">.</span><span class="n">edata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edata</span><span class="p">[</span><span class="n">key_graph</span><span class="p">]</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">cpu_graph</span></div>
+
+
+<div class="viewcode-block" id="to_cpu"><a class="viewcode-back" href="../../../api/histocartography.utils.graph.html#histocartography.utils.graph.to_cpu">[docs]</a><span class="k">def</span> <span class="nf">to_cpu</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">set_graph_on_cpu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="to_device"><a class="viewcode-back" href="../../../api/histocartography.utils.graph.html#histocartography.utils.graph.to_device">[docs]</a><span class="k">def</span> <span class="nf">to_device</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">set_graph_on_cuda</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="copy_graph"><a class="viewcode-back" href="../../../api/histocartography.utils.graph.html#histocartography.utils.graph.copy_graph">[docs]</a><span class="k">def</span> <span class="nf">copy_graph</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="n">graph_copy</span> <span class="o">=</span> <span class="n">dgl</span><span class="o">.</span><span class="n">DGLGraph</span><span class="p">(</span><span class="n">graph_data</span><span class="o">=</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">ndata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">graph_copy</span><span class="o">.</span><span class="n">ndata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">edata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">graph_copy</span><span class="o">.</span><span class="n">edata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">graph_copy</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Histocartography Team.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

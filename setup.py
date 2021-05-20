@@ -143,7 +143,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/histocartography/histocartography",
-    download_url="https://github.com/histocartography/histocartography/archive/refs/tags/v0.1.5-2.tar.gz",
+    download_url="https://github.com/histocartography/histocartography/archive/refs/tags/v0.2.0.tar.gz",
     author="Guillaume Jaume, Pushpak Pati, Antonio Foncubierta Rodríguez",
     author_email="guillaume.jaume2@gmail.com, pushpak.nitrkl@gmail.com, antonio.foncubierta@gmail.com",
     packages=find_packages("."),

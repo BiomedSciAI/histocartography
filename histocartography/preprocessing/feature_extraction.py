@@ -498,7 +498,7 @@ class InstanceMapPatchDataset(Dataset):
         self.properties = regionprops(self.instance_map)
         self.warning_threshold = 0.75
         self.patch_coordinates = []
-        self.patch_instance_index = []
+        self.patch_region_count = []
         self.patch_overlap = []
 
         basic_transforms = [transforms.ToPILImage()]
@@ -514,32 +514,25 @@ class InstanceMapPatchDataset(Dataset):
         self._precompute()
         self._warning()
 
-    def _add_patch(self, center_x: int, center_y: int, index: int) -> None:
+    def _add_patch(self, center_x: int, center_y: int, instance_index: int, region_count: int) -> None:
         """
         Extract and include patch information.
 
         Args:
-            center_x (int): Centroid x-coordinate of the patch.
-            center_y (int): Centroid y-coordinate of the patch.
-            index (int): Instance index to which the patch belongs.
+            center_x (int): Centroid x-coordinate of the patch wrt. the instance map.
+            center_y (int): Centroid y-coordinate of the patch wrt. the instance map.
+            instance_index (int): Instance index to which the patch belongs.
+            region_count (int): Region count indicates the location of the patch wrt. the list of patch coords.
         """
-        mask = np.zeros_like(self.instance_mask)
-        mask[center_y -
-             self.patch_size_2 -
-             self.offset_y: center_y +
-             self.patch_size_2 -
-             self.offset_y, center_x -
-             self.patch_size_2 -
-             self.offset_x: center_x +
-             self.patch_size_2 -
-             self.offset_x] = 1
-
-        overlap = np.sum(mask * self.instance_mask)
+        mask = self.instance_map[
+            center_y - self.patch_size_2: center_y + self.patch_size_2,
+            center_x - self.patch_size_2: center_x + self.patch_size_2
+        ]
+        overlap = np.sum(mask == instance_index)
         if overlap > self.threshold:
             loc = [center_x - self.patch_size_2, center_y - self.patch_size_2]
             self.patch_coordinates.append(loc)
-            self.patch_instance_index.append(index)
-            self.patch_count += 1
+            self.patch_region_count.append(region_count)
             self.patch_overlap.append(overlap)
 
     def _get_patch(self, loc: list) -> np.ndarray:
@@ -557,41 +550,26 @@ class InstanceMapPatchDataset(Dataset):
 
     def _precompute(self):
         """Precompute instance-wise patch information for all instances in the input image."""
-        for index, region in enumerate(self.properties):
-            self.patch_count = 0
+        for region_count, region in enumerate(self.properties):
 
-            # Extract center
+            # Extract centroid
             center_y, center_x = region.centroid
             center_x = int(round(center_x))
             center_y = int(round(center_y))
 
-            # Bounding box
+            # Extract bounding box
             min_y, min_x, max_y, max_x = region.bbox
 
-            # Instant mask
-            self.instance_mask = self.instance_map[
-                min_y - self.patch_size_2: max_y + self.patch_size_2,
-                min_x - self.patch_size_2: max_x + self.patch_size_2
-            ]
-            self.instance_mask = np.array(
-                self.instance_mask == region.label, dtype=int)
-            self.offset_x = min_x - self.patch_size_2
-            self.offset_y = min_y - self.patch_size_2
+            # Include one patch centered at the centroid
+            self._add_patch(center_x, center_y, region.label, region_count)
 
-            # Extract patch information (coordinates, index)
+            # Extract patch information around the centroid patch 
             # quadrant 1
             y_ = copy.deepcopy(center_y)
             while y_ >= min_y:
                 x_ = copy.deepcopy(center_x)
                 while x_ >= min_x:
-                    self._add_patch(x_, y_, index)
-
-                    # Include at least one patch centered at the centroid
-                    if self.patch_count == 0:
-                        loc = [x_ - self.patch_size_2, y_ - self.patch_size_2]
-                        self.patch_coordinates.append(loc)
-                        self.patch_instance_index.append(index)
-                        self.patch_count += 1
+                    self._add_patch(x_, y_, region.label, region_count)
                     x_ -= self.stride
                 y_ -= self.stride
 
@@ -600,7 +578,7 @@ class InstanceMapPatchDataset(Dataset):
             while y_ >= min_y:
                 x_ = copy.deepcopy(center_x) + self.stride
                 while x_ <= max_x:
-                    self._add_patch(x_, y_, index)
+                    self._add_patch(x_, y_, region.label, region_count)
                     x_ += self.stride
                 y_ -= self.stride
 
@@ -609,7 +587,7 @@ class InstanceMapPatchDataset(Dataset):
             while y_ <= max_y:
                 x_ = copy.deepcopy(center_x)
                 while x_ >= min_x:
-                    self._add_patch(x_, y_, index)
+                    self._add_patch(x_, y_, region.label, region_count)
                     x_ -= self.stride
                 y_ += self.stride
 
@@ -618,7 +596,7 @@ class InstanceMapPatchDataset(Dataset):
             while y_ <= max_y:
                 x_ = copy.deepcopy(center_x) + self.stride
                 while x_ <= max_x:
-                    self._add_patch(x_, y_, index)
+                    self._add_patch(x_, y_, region.label, region_count)
                     x_ += self.stride
                 y_ += self.stride
 
@@ -644,7 +622,7 @@ class InstanceMapPatchDataset(Dataset):
         """
         patch = self._get_patch(self.patch_coordinates[index])
         patch = self.dataset_transform(patch)
-        return self.patch_instance_index[index], patch
+        return self.patch_region_count[index], patch
 
     def __len__(self) -> int:
         """

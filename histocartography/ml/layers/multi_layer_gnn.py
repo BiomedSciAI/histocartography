@@ -22,7 +22,7 @@ class MultiLayerGNN(nn.Module):
         output_dim=32,
         num_layers=3,
         readout_op="concat",
-        readout_type="mean",
+        readout_type="mean",  # @TODO: attention readout noted as att
         **kwargs
     ) -> None:
         """
@@ -57,7 +57,12 @@ class MultiLayerGNN(nn.Module):
         self.layer_type = layer_type
         self.output_dim = output_dim
         self.readout_op = readout_op
+
+        # readout type: 'sum', 'mean', 'att', 'min', 'max'
         self.readout_type = readout_type
+        if self.readout_type == 'att':
+            from .gated_attention import GatedAttention
+            self.attention_readout = GatedAttention(node_dim=output_dim*num_layers if readout_op=='concat' else output_dim)
 
         # input layer
         self.layers.append(getattr(module, AVAILABLE_LAYER_TYPES[layer_type])(
@@ -131,7 +136,11 @@ class MultiLayerGNN(nn.Module):
 
             # readout
             if with_readout:
-                return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
+                # if attention, call the learnable module, otherwise use built-in readout 
+                if self.readout_type == 'att':
+                    return self.attention_readout(g)
+                else:
+                    return READOUT_TYPES[self.readout_type](g, GNN_NODE_FEAT_OUT)
 
             return g.ndata.pop(GNN_NODE_FEAT_OUT)
 

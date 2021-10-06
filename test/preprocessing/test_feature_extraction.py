@@ -1,6 +1,7 @@
 """Unit test for preprocessing.feature_extraction"""
 import unittest
 import numpy as np
+import pandas as pd
 import yaml
 import os
 import torch
@@ -250,6 +251,44 @@ class FeatureExtractionTestCase(unittest.TestCase):
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
             image_path=os.path.join(self.image_path, self.image_name)
+        )
+        reload_features = output['features']
+
+        self.assertTrue(np.array_equal(features, reload_features))
+
+    def test_masked_grid_deep_tissue_feature_extractor(self):
+        """
+        Test grid deep tissue feature extractor with pipeline runner and without augmentation.
+        """
+        config_fname = os.path.join(
+            self.current_path,
+            'config',
+            'feature_extraction',
+            'masked_grid_deep_tissue_feature_extractor.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.safe_load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
+        output = pipeline.run(
+            output_name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, '283_dcis_4_background.png')
+        )
+        index_filter = output['index_filter']
+        features = output['features']
+
+        # check type
+        self.assertTrue(isinstance(index_filter, pd.DataFrame))
+        self.assertTrue(isinstance(features, pd.DataFrame))
+        # check dimensions
+        self.assertEqual(index_filter.shape, (1, 49))
+        self.assertEqual(features.shape, (1280, 49))
+        # check that all patches at the border are invalid (background)
+        self.assertEqual(list(index_filter.loc['is_valid']), [False]*7 + ([False] + [True]*5 + [False])*5 + [False]*7)
+
+        # Re-run with existing output & ensure equal
+        output = pipeline.run(
+            output_name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, '283_dcis_4_background.png')
         )
         reload_features = output['features']
 

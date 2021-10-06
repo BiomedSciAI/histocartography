@@ -5,12 +5,15 @@ import math
 import warnings
 from abc import abstractmethod
 from pathlib import Path
+from collections import OrderedDict
+from copy import deepcopy
 from typing import Any, Callable, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
 import torch
 import torchvision
+from histocartography.preprocessing.tissue_mask import GaussianTissueMask
 from histocartography.utils import dynamic_import_from
 from scipy.stats import skew
 from skimage.feature import greycomatrix, greycoprops
@@ -859,8 +862,9 @@ class GridPatchDataset(Dataset):
         """
         super().__init__()
         basic_transforms = [transforms.ToPILImage()]
-        if resize_size is not None:
-            basic_transforms.append(transforms.Resize(resize_size))
+        self.resize_size = resize_size
+        if self.resize_size is not None:
+            basic_transforms.append(transforms.Resize(self.resize_size))
         if transform is not None:
             basic_transforms.append(transform)
         basic_transforms.append(transforms.ToTensor())
@@ -868,26 +872,27 @@ class GridPatchDataset(Dataset):
             basic_transforms.append(transforms.Normalize(mean, std))
         self.dataset_transform = transforms.Compose(basic_transforms)
 
-        x_top_pad, x_bottom_pad = _get_pad_size(
+        self.x_top_pad, self.x_bottom_pad = _get_pad_size(
             image.shape[1], patch_size, stride)
-        y_top_pad, y_bottom_pad = _get_pad_size(
+        self.y_top_pad, self.y_bottom_pad = _get_pad_size(
             image.shape[0], patch_size, stride)
-        pad = torch.nn.ConstantPad2d(
-            (x_bottom_pad, x_top_pad, y_bottom_pad, y_top_pad), 255
+        self.pad = torch.nn.ConstantPad2d(
+            (self.x_bottom_pad, self.x_top_pad, self.y_bottom_pad, self.y_top_pad), 255
         )
-        self.image = pad(torch.as_tensor(np.array(image)).permute(
+        self.image = self.pad(torch.as_tensor(np.array(image)).permute(
             [2, 0, 1])).permute([1, 2, 0])
         self.patch_size = patch_size
         self.stride = stride
-        self.patches = self._generate_patches()
+        self.patches = self._generate_patches(self.image)
 
-    def _generate_patches(self):
+    def _generate_patches(self, image):
         """Extract patches"""
-        patches = self.image.unfold(0, self.patch_size, self.stride).unfold(
+        n_channels = image.shape[-1]
+        patches = image.unfold(0, self.patch_size, self.stride).unfold(
             1, self.patch_size, self.stride
         )
         self.outshape = (patches.shape[0], patches.shape[1])
-        patches = patches.reshape([-1, 3, self.patch_size, self.patch_size])
+        patches = patches.reshape([-1, n_channels, self.patch_size, self.patch_size])
         return patches
 
     def __getitem__(self, index: int):
@@ -906,6 +911,74 @@ class GridPatchDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.patches)
+
+
+class MaskedGridPatchDataset(GridPatchDataset):
+    def __init__(
+        self,
+        image: np.ndarray,
+        mask: np.ndarray,
+        patch_size: int,
+        resize_size: int,
+        stride: int,
+        mean: Optional[List[float]] = None,
+        std: Optional[List[float]] = None,
+        transform: Optional[Callable] = None
+    ) -> None:
+        """
+        Create a dataset for a given image and mask, with extracted patches of (size, size, 3).
+
+        Args:
+            image (np.ndarray): RGB input image.
+            mask (np.ndarray): Binary mask.
+            patch_size (int): Desired size of patches.
+            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the
+                               patches of size patch_size are provided to the network. Defaults to None.
+            stride (int): Desired stride for patch extraction.
+            mean (list[float], optional): Channel-wise mean for image normalization.
+            std (list[float], optional): Channel-wise std for image normalization.
+            transform (list[transforms], optional): List of transformations for input image.
+        """
+        super().__init__(image,
+                         patch_size,
+                         resize_size,
+                         stride,
+                         mean=mean,
+                         std=std,
+                         transform=transform)
+
+        self.mask_transform = None
+        if self.resize_size is not None:
+            basic_transforms = [transforms.ToPILImage(),
+                                transforms.Resize(self.resize_size),
+                                transforms.ToTensor()]
+            self.mask_transform = transforms.Compose(basic_transforms)
+
+        self.pad = torch.nn.ConstantPad2d(
+            (self.x_bottom_pad, self.x_top_pad, self.y_bottom_pad, self.y_top_pad), 0
+        )
+        self.mask = self.pad(torch.as_tensor(np.array(mask)).permute(
+            [2, 0, 1])).permute([1, 2, 0])
+        self.mask_patches = self._generate_patches(self.mask)
+
+    def __getitem__(self, index: int):
+        """
+        Loads an image and corresponding mask patch for a given index.
+
+        Args:
+            index (int): Patch index.
+
+        Returns:
+            Tuple[int, torch.Tensor, torch.Tensor]: Patch index, image as tensor, mask as tensor.
+        """
+        image_patch = self.dataset_transform(self.patches[index].numpy().transpose([1, 2, 0]))
+        if self.mask_transform is not None:
+            # after resizing, the mask should still be binary and of type uint8
+            mask_patch = self.mask_transform(255*self.mask_patches[index].numpy().transpose([1, 2, 0]))
+            mask_patch = torch.round(mask_patch).type(torch.uint8)
+        else:
+            mask_patch = self.mask_patches[index]
+        return index, image_patch, mask_patch
 
 
 class GridDeepFeatureExtractor(FeatureExtractor):
@@ -1088,6 +1161,159 @@ class GridAugmentedDeepFeatureExtractor(GridDeepFeatureExtractor):
         all_features = all_features.permute(1, 2, 0, 3)
         return all_features
 
+
+class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
+    def __init__(
+        self,
+        architecture: str,
+        patch_size: int,
+        resize_size: int = None,
+        stride: int = None,
+        downsample_factor: int = 1,
+        normalizer: Optional[dict] = None,
+        batch_size: int = 32,
+        fill_value: int = 255,
+        tissue_thresh: float = 0.1,
+        num_workers: int = 0,
+        verbose: bool = False,
+        **kwargs
+    ) -> None:
+        """
+        Create a deep feature extractor that can process an image with a corresponding tissue mask.
+
+        Args:
+            architecture (str): Name of the architecture to use. According to torchvision.models syntax.
+            patch_size (int): Desired size of patches.
+            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the
+                               patches of size patch_size are provided to the network. Defaults to None.
+            stride (int): Desired stride for patch extraction. If None, stride is set to patch size. Defaults to None.
+            downsample_factor (int): Downsampling factor for image analysis. Defaults to 1.
+            normalizer (dict): Dictionary of channel-wise mean and standard deviation for image
+                               normalization. If None, using ImageNet normalization factors. Defaults to None.
+            batch_size (int): Batch size during processing of patches. Defaults to 32.
+            fill_value (int): Constant pixel value for image padding. Defaults to 255.
+            tissue_thresh (float): Minimum fraction of tissue (vs background) for a patch to be considered as valid.
+            num_workers (int): Number of workers in data loader. Defaults to 0.
+            verbose (bool): tqdm processing bar. Defaults to False.
+        """
+        super().__init__(architecture,
+                         patch_size,
+                         resize_size,
+                         stride,
+                         downsample_factor,
+                         normalizer=normalizer,
+                         batch_size=batch_size,
+                         fill_value=fill_value,
+                         num_workers=num_workers,
+                         verbose=verbose,
+                         **kwargs)
+        self.tissue_thresh = tissue_thresh
+
+    def _collate_patches(self, batch):
+        """Patch collate function"""
+        indices = [item[0] for item in batch]
+        patches = [item[1] for item in batch]
+        mask_patches = [item[2] for item in batch]
+        patches = torch.stack(patches)
+        mask_patches = torch.stack(mask_patches)
+        return indices, patches, mask_patches
+
+    def _process(  # type: ignore[override]
+        self, input_image: np.ndarray
+    ) -> Tuple['OrderedDict[Tuple[int, int], bool]',
+               'OrderedDict[Tuple[int, int], torch.Tensor]',
+               'OrderedDict[Tuple[int, int], torch.Tensor]']:
+        return self._extract_features(input_image)
+
+    def _extract_features(  # type: ignore[override]
+        self, input_image: np.ndarray
+    ) -> Tuple['OrderedDict[Tuple[int, int], bool]',
+               'OrderedDict[Tuple[int, int], torch.Tensor]',
+               'OrderedDict[Tuple[int, int], torch.Tensor]']:
+        """
+        Generate tissue mask and extract features of patches from a given RGB image.
+        Record which patches are valid and which ones are not.
+
+        Args:
+            input_image (np.ndarray): RGB input image.
+
+        Returns:
+            Tuple['OrderedDict[Tuple[int, int], bool]',
+                  'OrderedDict[Tuple[int, int], torch.Tensor]',
+                  'OrderedDict[Tuple[int, int], torch.Tensor]']: Index filter, patches, patch features.
+        """
+        if self.downsample_factor != 1:
+            input_image = self._downsample(input_image, self.downsample_factor)
+        img_h, img_w = input_image.shape[0], input_image.shape[1]
+
+        # generate tissue mask
+        mask_generator = GaussianTissueMask()
+        mask = mask_generator.process(image=input_image).reshape(img_h, img_w, 1)
+
+        # create dataloader for image and corresponding mask patches
+        masked_patch_dataset = MaskedGridPatchDataset(image=input_image,
+                                                      mask=mask,
+                                                      resize_size=self.resize_size,
+                                                      patch_size=self.patch_size,
+                                                      stride=self.stride)
+        patch_loader = DataLoader(masked_patch_dataset,
+                                  shuffle=False,
+                                  batch_size=self.batch_size,
+                                  num_workers=self.num_workers,
+                                  collate_fn=self._collate_patches)
+
+        # create dictionaries where the keys are the patch indices
+        all_index_filter = OrderedDict(
+            {(x, y): None for y in range(masked_patch_dataset.outshape[1])
+                          for x in range(masked_patch_dataset.outshape[0])}
+        )
+        all_patches = deepcopy(all_index_filter)
+        all_features = deepcopy(all_index_filter)
+
+        # extract features of all patches and record which patches are (in)valid
+        indices = list(all_features.keys())
+        offset = 0
+        for _, img_patches, mask_patches in tqdm(patch_loader,
+                                                       total=len(patch_loader),
+                                                       disable=not self.verbose):
+            index_filter, features = self._validate_and_extract_features(img_patches, mask_patches)
+            for i in range(len(index_filter)):
+                all_index_filter[indices[offset+i]] = index_filter[i]
+                all_patches[indices[offset+i]] = img_patches[i].cpu().detach()
+                all_features[indices[offset+i]] = features[i].cpu().detach()
+            offset += len(index_filter)
+
+        return all_index_filter, all_patches, all_features
+
+    def _validate_and_extract_features(
+        self,
+        img_patches: torch.Tensor,
+        mask_patches: torch.Tensor,
+    ) -> Tuple[List[bool], torch.Tensor]:
+        """
+        Record which image patches are valid and which ones are not.
+        Extract features from the given image patches.
+
+        Args:
+            img_patches (torch.Tensor): Batch of image patches.
+            mask_patches (torch.Tensor): Batch of mask patches.
+
+        Returns:
+            Tuple[List[bool], torch.Tensor]: Boolean filter for (in)valid patches, extracted patch features.
+        """
+        # record valid and invalid patches (sufficient area of tissue compared to background)
+        index_filter = []
+        for mask_p in mask_patches:
+            tissue_fraction = (mask_p == 1).sum() / torch.numel(mask_p)
+            if tissue_fraction >= self.tissue_thresh:
+                index_filter.append(True)
+            else:
+                index_filter.append(False)
+
+        # extract features of all patches
+        img_patches.to(self.device)
+        features = self.patch_feature_extractor(img_patches)
+        return index_filter, features
 
 def _build_augmentations(
     rotations: Optional[List[int]] = None,

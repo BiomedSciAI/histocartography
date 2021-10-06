@@ -11,6 +11,7 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
+import pandas as pd
 import torch
 import torchvision
 from histocartography.preprocessing.tissue_mask import GaussianTissueMask
@@ -1220,16 +1221,12 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
 
     def _process(  # type: ignore[override]
         self, input_image: np.ndarray
-    ) -> Tuple['OrderedDict[Tuple[int, int], bool]',
-               'OrderedDict[Tuple[int, int], torch.Tensor]',
-               'OrderedDict[Tuple[int, int], torch.Tensor]']:
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         return self._extract_features(input_image)
 
     def _extract_features(  # type: ignore[override]
         self, input_image: np.ndarray
-    ) -> Tuple['OrderedDict[Tuple[int, int], bool]',
-               'OrderedDict[Tuple[int, int], torch.Tensor]',
-               'OrderedDict[Tuple[int, int], torch.Tensor]']:
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generate tissue mask and extract features of patches from a given RGB image.
         Record which patches are valid and which ones are not.
@@ -1238,9 +1235,7 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
             input_image (np.ndarray): RGB input image.
 
         Returns:
-            Tuple['OrderedDict[Tuple[int, int], bool]',
-                  'OrderedDict[Tuple[int, int], torch.Tensor]',
-                  'OrderedDict[Tuple[int, int], torch.Tensor]']: Index filter, patches, patch features.
+            Tuple[pd.DataFrame, pd.DataFrame]: Boolean index filter, patch features.
         """
         if self.downsample_factor != 1:
             input_image = self._downsample(input_image, self.downsample_factor)
@@ -1264,10 +1259,9 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
 
         # create dictionaries where the keys are the patch indices
         all_index_filter = OrderedDict(
-            {(x, y): None for y in range(masked_patch_dataset.outshape[1])
-                          for x in range(masked_patch_dataset.outshape[0])}
+            {(h, w): None for h in range(masked_patch_dataset.outshape[0])
+                for w in range(masked_patch_dataset.outshape[1])}
         )
-        all_patches = deepcopy(all_index_filter)
         all_features = deepcopy(all_index_filter)
 
         # extract features of all patches and record which patches are (in)valid
@@ -1279,11 +1273,15 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
             index_filter, features = self._validate_and_extract_features(img_patches, mask_patches)
             for i in range(len(index_filter)):
                 all_index_filter[indices[offset+i]] = index_filter[i]
-                all_patches[indices[offset+i]] = img_patches[i].cpu().detach()
-                all_features[indices[offset+i]] = features[i].cpu().detach()
+                all_features[indices[offset+i]] = features[i].cpu().detach().numpy()
             offset += len(index_filter)
 
-        return all_index_filter, all_patches, all_features
+        # convert to pandas dataframes to allow storing as .h5 files
+        all_index_filter = pd.DataFrame(all_index_filter, index=['is_valid'])
+        all_features = pd.DataFrame(np.transpose(np.stack(list(all_features.values()))),
+                                    columns=list(all_features.keys()))
+
+        return all_index_filter, all_features
 
     def _validate_and_extract_features(
         self,

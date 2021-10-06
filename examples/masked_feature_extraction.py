@@ -34,8 +34,8 @@ def masked_feature_extraction(image_path):
         image_name = image_name.replace('.png', '')
         image = np.array(Image.open(image_path))
 
-        # b. extract index filter, patches, and patch features
-        index_filter, patches, features = extractor.process(image)
+        # b. extract index filter and patch features
+        index_filter, features = extractor.process(image)
 
         # c. save all patch features
         np.save(os.path.join('output', 'masked_features', image_name), features)

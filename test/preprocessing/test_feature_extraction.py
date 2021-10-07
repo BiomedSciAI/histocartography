@@ -21,6 +21,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '283_dcis_4.png'
+        self.bg_image_name = '283_dcis_4_background.png'
         self.nuclei_map_path = os.path.join(self.data_path, 'nuclei_maps')
         self.nuclei_map_name = '283_dcis_4.h5'
         self.out_path = os.path.join(self.data_path, 'feature_extraction_test')
@@ -271,7 +272,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         pipeline = PipelineRunner(output_path=self.out_path, **config)
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, '283_dcis_4_background.png')
+            image_path=os.path.join(self.image_path, self.bg_image_name)
         )
         index_filter = output['index_filter']
         features = output['features']
@@ -288,7 +289,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         # Re-run with existing output & ensure equal
         output = pipeline.run(
             output_name=self.image_name.replace('.png', ''),
-            image_path=os.path.join(self.image_path, '283_dcis_4_background.png')
+            image_path=os.path.join(self.image_path, self.bg_image_name)
         )
         reload_features = output['features']
 

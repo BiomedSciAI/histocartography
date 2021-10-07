@@ -120,6 +120,11 @@ def download_test_data(out_dir):
         'https://ibm.box.com/shared/static/ynprh6b9naggb2bmufdd762z8ui2wmbf.png',
         fname)
 
+    fname = os.path.join(out_dir, 'images', '283_dcis_4_background.png')
+    download_box_link(
+        'https://ibm.box.com/shared/static/03kh4umccufuw2t0mott39d2c01jjj14.png',
+        fname)
+
     fname = os.path.join(out_dir, 'images', '16B0001851_Block_Region_3.jpg')
     download_box_link(
         'https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg',

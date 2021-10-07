@@ -1309,7 +1309,6 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
                 index_filter.append(False)
 
         # extract features of all patches
-        img_patches.to(self.device)
         features = self.patch_feature_extractor(img_patches)
         return index_filter, features
 

@@ -1220,12 +1220,12 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
         return indices, patches, mask_patches
 
     def _process(  # type: ignore[override]
-        self, input_image: np.ndarray
+        self, input_image: np.ndarray, mask: np.ndarray
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        return self._extract_features(input_image)
+        return self._extract_features(input_image, mask)
 
     def _extract_features(  # type: ignore[override]
-        self, input_image: np.ndarray
+        self, input_image: np.ndarray, mask: np.ndarray
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generate tissue mask and extract features of patches from a given RGB image.
@@ -1239,11 +1239,8 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
         """
         if self.downsample_factor != 1:
             input_image = self._downsample(input_image, self.downsample_factor)
-        img_h, img_w = input_image.shape[0], input_image.shape[1]
-
-        # generate tissue mask
-        mask_generator = GaussianTissueMask()
-        mask = mask_generator.process(image=input_image).reshape(img_h, img_w, 1)
+            mask = self._downsample(mask, self.downsample_factor)
+        mask = np.expand_dims(mask, axis=2)
 
         # create dataloader for image and corresponding mask patches
         masked_patch_dataset = MaskedGridPatchDataset(image=input_image,

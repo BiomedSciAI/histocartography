@@ -276,6 +276,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         )
         index_filter = output['index_filter']
         features = output['features']
+        mask = output['mask']
 
         # check type
         self.assertTrue(isinstance(index_filter, pd.DataFrame))
@@ -283,8 +284,13 @@ class FeatureExtractionTestCase(unittest.TestCase):
         # check dimensions
         self.assertEqual(index_filter.shape, (1, 49))
         self.assertEqual(features.shape, (1280, 49))
-        # check that all patches at the border are invalid (background)
-        self.assertEqual(list(index_filter.loc['is_valid']), [False]*7 + ([False] + [True]*5 + [False])*5 + [False]*7)
+        self.assertEqual(mask.shape, (717, 717))
+        # check that all background patches are invalid
+        gt_index_filter = ([False]*7
+                           + ([False] + [True]*5 + [False])*4
+                           + [False] + [True]*3 + [False]*3
+                           + [False]*7)
+        self.assertEqual(list(index_filter.loc['is_valid']), gt_index_filter)
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(

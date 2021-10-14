@@ -917,36 +917,16 @@ class GridPatchDataset(Dataset):
 class MaskedGridPatchDataset(GridPatchDataset):
     def __init__(
         self,
-        image: np.ndarray,
         mask: np.ndarray,
-        patch_size: int,
-        resize_size: int,
-        stride: int,
-        mean: Optional[List[float]] = None,
-        std: Optional[List[float]] = None,
-        transform: Optional[Callable] = None
+        **kwargs
     ) -> None:
         """
         Create a dataset for a given image and mask, with extracted patches of (size, size, 3).
 
         Args:
-            image (np.ndarray): RGB input image.
             mask (np.ndarray): Binary mask.
-            patch_size (int): Desired size of patches.
-            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the
-                               patches of size patch_size are provided to the network. Defaults to None.
-            stride (int): Desired stride for patch extraction.
-            mean (list[float], optional): Channel-wise mean for image normalization.
-            std (list[float], optional): Channel-wise std for image normalization.
-            transform (list[transforms], optional): List of transformations for input image.
         """
-        super().__init__(image,
-                         patch_size,
-                         resize_size,
-                         stride,
-                         mean=mean,
-                         std=std,
-                         transform=transform)
+        super().__init__(**kwargs)
 
         self.mask_transform = None
         if self.resize_size is not None:
@@ -1166,48 +1146,16 @@ class GridAugmentedDeepFeatureExtractor(GridDeepFeatureExtractor):
 class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
     def __init__(
         self,
-        architecture: str,
-        patch_size: int,
-        resize_size: int = None,
-        stride: int = None,
-        downsample_factor: int = 1,
-        normalizer: Optional[dict] = None,
-        batch_size: int = 32,
-        fill_value: int = 255,
         tissue_thresh: float = 0.1,
-        num_workers: int = 0,
-        verbose: bool = False,
         **kwargs
     ) -> None:
         """
         Create a deep feature extractor that can process an image with a corresponding tissue mask.
 
         Args:
-            architecture (str): Name of the architecture to use. According to torchvision.models syntax.
-            patch_size (int): Desired size of patches.
-            resize_size (int): Desired resized size to input the network. If None, no resizing is done and the
-                               patches of size patch_size are provided to the network. Defaults to None.
-            stride (int): Desired stride for patch extraction. If None, stride is set to patch size. Defaults to None.
-            downsample_factor (int): Downsampling factor for image analysis. Defaults to 1.
-            normalizer (dict): Dictionary of channel-wise mean and standard deviation for image
-                               normalization. If None, using ImageNet normalization factors. Defaults to None.
-            batch_size (int): Batch size during processing of patches. Defaults to 32.
-            fill_value (int): Constant pixel value for image padding. Defaults to 255.
             tissue_thresh (float): Minimum fraction of tissue (vs background) for a patch to be considered as valid.
-            num_workers (int): Number of workers in data loader. Defaults to 0.
-            verbose (bool): tqdm processing bar. Defaults to False.
         """
-        super().__init__(architecture,
-                         patch_size,
-                         resize_size,
-                         stride,
-                         downsample_factor,
-                         normalizer=normalizer,
-                         batch_size=batch_size,
-                         fill_value=fill_value,
-                         num_workers=num_workers,
-                         verbose=verbose,
-                         **kwargs)
+        super().__init__(**kwargs)
         self.tissue_thresh = tissue_thresh
 
     def _collate_patches(self, batch):

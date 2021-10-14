@@ -1213,9 +1213,11 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
         indices = list(all_features.keys())
         offset = 0
         for _, img_patches, mask_patches in tqdm(patch_loader,
-                                                       total=len(patch_loader),
-                                                       disable=not self.verbose):
+                                                 total=len(patch_loader),
+                                                 disable=not self.verbose):
             index_filter, features = self._validate_and_extract_features(img_patches, mask_patches)
+            if len(img_patches) == 1:
+                features = features.unsqueeze(dim=0)
             for i in range(len(index_filter)):
                 all_index_filter[indices[offset+i]] = index_filter[i]
                 all_features[indices[offset+i]] = features[i].cpu().detach().numpy()

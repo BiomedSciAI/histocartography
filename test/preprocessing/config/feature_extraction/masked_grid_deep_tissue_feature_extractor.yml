@@ -1,0 +1,49 @@
+inputs:
+- image_path
+outputs:
+- mask
+- index_filter
+- features
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - preprocessing:
+      class: "GaussianTissueMask"
+      inputs:
+      - image
+      outputs:
+      - mask
+      params:
+        sigma: 5
+        kernel_size: 15
+  - preprocessing:
+      class: "MaskedGridDeepFeatureExtractor"
+      inputs:
+      - image
+      - mask
+      outputs:
+      - index_filter
+      - features
+      params:
+        architecture: mobilenet_v2
+        num_workers: 0
+        normalizer:
+          type: imagenet
+          mean:
+            - 0.485
+            - 0.456
+            - 0.406
+          std:
+            - 0.229
+            - 0.224
+            - 0.225
+        patch_size: 112
+        resize_size: 224
+        stride: 112
+        batch_size: 256
+        downsample_factor: 1
+        tissue_thresh: 0.8

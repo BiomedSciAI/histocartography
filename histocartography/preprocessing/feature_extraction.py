@@ -321,13 +321,21 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
 class PatchFeatureExtractor:
     """Helper class to use a CNN to extract features from an image"""
 
-    def __init__(self, architecture: str, device: torch.device) -> None:
+    def __init__(
+        self,
+        architecture: str,
+        device: torch.device,
+        patch_size: int,
+        extraction_layer: Optional[str] = None
+    ) -> None:
         """
         Create a patch feature extracter of a given architecture and put it on GPU if available.
 
         Args:
             architecture (str): String of architecture. According to torchvision.models syntax.
             device (torch.device): Torch Device.
+            patch_size (int): Desired size of patch.
+            extraction_layer (Optional[str]): Name of the network module from where the features are extracted.
         """
         self.device = device
 
@@ -338,30 +346,42 @@ class PatchFeatureExtractor:
         else:
             model = self._get_torchvision_model(architecture).to(self.device)
 
-        self.num_features = self._get_num_features(model)
-        self.model = self._remove_classifier(model)
+        self._validate_model(model)
+        self.model = self._remove_layers(model, extraction_layer)
+        self.num_features = self._get_num_features(model, patch_size)
         self.model.eval()
 
     @staticmethod
-    def _get_num_features(model: nn.Module) -> int:
+    def _validate_model(model: nn.Module) -> None:
+        """
+        Raise an error if the model does not have the required attributes.
+
+        Args:
+            model (nn.Module): A PyTorch model.
+        """
+        if not isinstance(model, torchvision.models.resnet.ResNet):
+            if not hasattr(model, 'classifier'):
+                raise ValueError('Please provide either a ResNet-type architecture or'
+                                 + ' an architecture that has the attribute "classifier".')
+
+            if not (hasattr(model, 'features') or hasattr(model, 'model')):
+                raise ValueError('Please provide an architecture that has the attribute'
+                                 + ' "features" or "model".')
+
+    def _get_num_features(self, model: nn.Module, patch_size: int) -> int:
         """
         Get the number of features of a given model.
 
         Args:
             model (nn.Module): A PyTorch model.
+            patch_size (int): Desired size of patch.
 
         Returns:
             int: Number of output features.
         """
-        if hasattr(model, "model"):
-            model = model.model
-        if isinstance(model, torchvision.models.resnet.ResNet):
-            return model.fc.in_features
-        else:
-            classifier = model.classifier[-1]
-            if isinstance(classifier, nn.Sequential):
-                classifier = classifier[-1]
-            return classifier.in_features
+        dummy_patch = torch.randn(1, 3, patch_size, patch_size).to(self.device)
+        features = model(dummy_patch)
+        return features.shape[-1]
 
     def _get_local_model(self, path: str) -> nn.Module:
         """
@@ -407,22 +427,36 @@ class PatchFeatureExtractor:
         return model
 
     @staticmethod
-    def _remove_classifier(model: nn.Module) -> nn.Module:
+    def _remove_layers(model: nn.Module, extraction_layer: Optional[str] = None) -> nn.Module:
         """
-        Returns the model without the classifier to get embeddings.
+        Returns the model without the unused layers to get embeddings.
 
         Args:
-            model (nn.Module): Classifiation model.
+            model (nn.Module): Classification model.
 
         Returns:
             nn.Module: Embedding model.
         """
         if hasattr(model, "model"):
             model = model.model
+            if extraction_layer is not None:
+                model = _remove_modules(model, extraction_layer)
         if isinstance(model, torchvision.models.resnet.ResNet):
-            model.fc = nn.Sequential()
+            if extraction_layer is None:
+                # remove classifier
+                model.fc = nn.Sequential()
+            else:
+                # remove all layers after the extraction layer
+                model = _remove_modules(model, extraction_layer)
         else:
-            model.classifier[-1] = nn.Sequential()
+            # remove classifier
+            model.classifier = nn.Sequential()
+            if extraction_layer is not None:
+                # remove average pooling layer if necessary
+                if hasattr(model, 'avgpool'):
+                    model.avgpool = nn.Sequential()
+                # remove all layers in the feature extractor after the extraction layer
+                model.features = _remove_modules(model.features, extraction_layer)
         return model
 
     def __call__(self, patch: torch.Tensor) -> torch.Tensor:
@@ -666,6 +700,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         num_workers: int = 0,
         verbose: bool = False,
         with_instance_masking: bool = False,
+        extraction_layer: str = None,
         **kwargs,
     ) -> None:
         """
@@ -713,7 +748,7 @@ class DeepFeatureExtractor(FeatureExtractor):
             self.normalizer_mean = [0.485, 0.456, 0.406]
             self.normalizer_std = [0.229, 0.224, 0.225]
         self.patch_feature_extractor = PatchFeatureExtractor(
-            architecture, device=self.device
+            architecture, device=self.device, patch_size=patch_size, extraction_layer=extraction_layer
         )
         self.fill_value = fill_value
         self.batch_size = batch_size
@@ -991,6 +1026,7 @@ class GridDeepFeatureExtractor(FeatureExtractor):
         fill_value: int = 255,
         num_workers: int = 0,
         verbose: bool = False,
+        extraction_layer: str = None,
         **kwargs,
     ) -> None:
         """
@@ -1040,7 +1076,7 @@ class GridDeepFeatureExtractor(FeatureExtractor):
             self.normalizer_mean = [0.485, 0.456, 0.406]
             self.normalizer_std = [0.229, 0.224, 0.225]
         self.patch_feature_extractor = PatchFeatureExtractor(
-            architecture, device=self.device
+            architecture, device=self.device, patch_size=patch_size, extraction_layer=extraction_layer
         )
         self.batch_size = batch_size
         self.fill_value = fill_value
@@ -1330,6 +1366,22 @@ def _build_augmentations(
             augmentaions.append(transforms.Compose(t))
     return augmentaions
 
+def _remove_modules(model: nn.Module, last_layer: str) -> nn.Module:
+    """
+    Remove all modules in the model that come after a given layer.
+
+    Args:
+        model (nn.Module): A PyTorch model.
+        last_layer (str): Last layer to keep in the model.
+
+    Returns:
+        nn.Module: Model without pruned modules.
+    """
+    modules = [n for n, _ in model.named_children()]
+    modules_to_remove = modules[modules.index(last_layer)+1:]
+    for mod in modules_to_remove:
+        setattr(model, mod, nn.Sequential())
+    return model
 
 def _get_pad_size(size: int, patch_size: int, stride: int) -> Tuple[int, int]:
     """Computes the necessary top and bottom padding size to evenly devide an input size into patches with a given stride

@@ -1231,7 +1231,9 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
                                                       mask=mask,
                                                       resize_size=self.resize_size,
                                                       patch_size=self.patch_size,
-                                                      stride=self.stride)
+                                                      stride=self.stride,
+                                                      mean=self.normalizer_mean,
+                                                      std=self.normalizer_std)
         patch_loader = DataLoader(masked_patch_dataset,
                                   shuffle=False,
                                   batch_size=self.batch_size,

@@ -379,7 +379,7 @@ class PatchFeatureExtractor:
         Returns:
             int: Number of output features.
         """
-        dummy_patch = torch.randn(1, 3, patch_size, patch_size).to(self.device)
+        dummy_patch = torch.zeros(1, 3, patch_size, patch_size).to(self.device)
         features = model(dummy_patch)
         return features.shape[-1]
 

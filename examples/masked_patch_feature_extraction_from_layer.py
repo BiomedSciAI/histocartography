@@ -49,8 +49,8 @@ def masked_feature_extraction(image_path):
         n_channels = 1024
         h = w = 16
         avg_pooler = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        feat_tensor = torch.tensor(np.array(features))
-        feat_tensor = feat_tensor.reshape(feat_tensor.shape[-1], n_channels, h, w)
+        feat_tensor = torch.tensor(np.array(features)).permute([1, 0])
+        feat_tensor = feat_tensor.reshape(feat_tensor.shape[0], n_channels, h, w)
         feat_tensor = avg_pooler(feat_tensor).squeeze().cpu().detach().numpy()
         avg_features = pd.DataFrame(np.transpose(feat_tensor), columns=features.columns)
 

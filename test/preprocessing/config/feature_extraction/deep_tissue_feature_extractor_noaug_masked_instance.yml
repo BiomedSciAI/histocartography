@@ -17,9 +17,9 @@ stages:
       - merged_superpixels_map
       - initial_superpixels_map
       params:
-        superpixel_size: 100
+        superpixel_size: 1000
         max_nr_superpixels: 10000
-        downsampling_factor: 8
+        downsampling_factor: 2
   - preprocessing:
       class: "DeepFeatureExtractor"
       inputs:

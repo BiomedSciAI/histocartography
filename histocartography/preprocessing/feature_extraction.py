@@ -556,18 +556,11 @@ class InstanceMapPatchDataset(Dataset):
         max_x = min_x + self.patch_size
         max_y = min_y + self.patch_size
 
-        patch = self.image[min_y:max_y, min_x:max_x]
+        patch = copy.deepcopy(self.image[min_y:max_y, min_x:max_x])
 
         if self.with_instance_masking:
             instance_mask = ~(self.instance_map[min_y:max_y, min_x:max_x] == region_id)
-            print('Mask size:', np.sum(instance_mask))
-            print('patch size', patch.shape)
-            from PIL import Image
-            im = Image.fromarray(np.uint8(patch))
-            im.show()
             patch[instance_mask, :] = self.fill_value
-            im = Image.fromarray(np.uint8(patch))
-            im.show()
 
         return patch
 
@@ -583,11 +576,8 @@ class InstanceMapPatchDataset(Dataset):
             # Extract bounding box
             min_y, min_x, max_y, max_x = region.bbox
 
-            # Include one patch centered at the centroid
-            self._add_patch(center_x, center_y, region.label, region_count)
-
             # Extract patch information around the centroid patch 
-            # quadrant 1
+            # quadrant 1 (includes centroid patch)
             y_ = copy.deepcopy(center_y)
             while y_ >= min_y:
                 x_ = copy.deepcopy(center_x)

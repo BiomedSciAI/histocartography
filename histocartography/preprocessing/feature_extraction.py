@@ -454,12 +454,12 @@ class InstanceMapPatchDataset(Dataset):
         fill_value: Optional[int] = 255,
         mean: Optional[List[float]] = None,
         std: Optional[List[float]] = None,
-        transform: Optional[Callable] = None
+        transform: Optional[Callable] = None,
+        with_instance_masking: Optional[bool] = False,
     ) -> None:
         """
         Create a dataset for a given image and extracted instance map with desired patches
-        of (patch_size, patch_size, 3). If fill_value is not None, it fills up pixels outside the
-        instance maps with this value (all channels).
+        of (patch_size, patch_size, 3). 
 
         Args:
             image (np.ndarray): RGB input image.
@@ -468,15 +468,17 @@ class InstanceMapPatchDataset(Dataset):
             stride (int): Desired stride for patch extraction. If None, stride is set to patch size. Defaults to None.
             resize_size (int): Desired resized size to input the network. If None, no resizing is done and the
                                patches of size patch_size are provided to the network. Defaults to None.
-            fill_value (Optional[int]): Value to fill outside the instance maps
-                                        (None means do not fill).
+            fill_value (Optional[int]): Value to fill outside the instance maps. Defaults to 255. 
             mean (list[float], optional): Channel-wise mean for image normalization.
             std (list[float], optional): Channel-wise std for image normalization.
             transform (Callable): Transform to apply. Defaults to None.
+            with_instance_masking (bool): If pixels outside instance should be masked. Defaults to False.
         """
         self.image = image
         self.instance_map = instance_map
         self.patch_size = patch_size
+        self.with_instance_masking = with_instance_masking
+        self.fill_value = fill_value
         self.stride = stride
         self.resize_size = resize_size
         self.mean = mean
@@ -503,6 +505,7 @@ class InstanceMapPatchDataset(Dataset):
         self.warning_threshold = 0.75
         self.patch_coordinates = []
         self.patch_region_count = []
+        self.patch_instance_ids = []
         self.patch_overlap = []
 
         basic_transforms = [transforms.ToPILImage()]
@@ -537,20 +540,36 @@ class InstanceMapPatchDataset(Dataset):
             loc = [center_x - self.patch_size_2, center_y - self.patch_size_2]
             self.patch_coordinates.append(loc)
             self.patch_region_count.append(region_count)
+            self.patch_instance_ids.append(instance_index)
             self.patch_overlap.append(overlap)
 
-    def _get_patch(self, loc: list) -> np.ndarray:
+    def _get_patch(self, loc: list, region_id: int = None) -> np.ndarray:
         """
         Extract patch from image.
 
         Args:
             loc (list): Top-left (x,y) coordinate of a patch.
+            region_id (int): Index of the region being processed. Defaults to None. 
         """
         min_x = loc[0]
         min_y = loc[1]
         max_x = min_x + self.patch_size
         max_y = min_y + self.patch_size
-        return self.image[min_y:max_y, min_x:max_x]
+
+        patch = self.image[min_y:max_y, min_x:max_x]
+
+        if self.with_instance_masking:
+            instance_mask = ~(self.instance_map[min_y:max_y, min_x:max_x] == region_id)
+            print('Mask size:', np.sum(instance_mask))
+            print('patch size', patch.shape)
+            from PIL import Image
+            im = Image.fromarray(np.uint8(patch))
+            im.show()
+            patch[instance_mask, :] = self.fill_value
+            im = Image.fromarray(np.uint8(patch))
+            im.show()
+
+        return patch
 
     def _precompute(self):
         """Precompute instance-wise patch information for all instances in the input image."""
@@ -624,7 +643,10 @@ class InstanceMapPatchDataset(Dataset):
         Returns:
             Tuple[int, torch.Tensor]: instance_index, image as tensor.
         """
-        patch = self._get_patch(self.patch_coordinates[index])
+        patch = self._get_patch(
+            self.patch_coordinates[index],
+            self.patch_instance_ids[index]
+        )
         patch = self.dataset_transform(patch)
         return self.patch_region_count[index], patch
 
@@ -653,6 +675,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         fill_value: int = 255,
         num_workers: int = 0,
         verbose: bool = False,
+        with_instance_masking: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -671,6 +694,7 @@ class DeepFeatureExtractor(FeatureExtractor):
             fill_value (int): Constant pixel value for image padding. Defaults to 255.
             num_workers (int): Number of workers in data loader. Defaults to 0.
             verbose (bool): tqdm processing bar. Defaults to False.
+            with_instance_masking (bool): If pixels outside instance should be masked. Defaults to False.
         """
         self.architecture = self._preprocess_architecture(architecture)
         self.patch_size = patch_size
@@ -680,6 +704,7 @@ class DeepFeatureExtractor(FeatureExtractor):
         else:
             self.stride = stride
         self.downsample_factor = downsample_factor
+        self.with_instance_masking = with_instance_masking
         self.verbose = verbose
         if normalizer is not None:
             self.normalizer = normalizer.get("type", "unknown")
@@ -744,7 +769,8 @@ class DeepFeatureExtractor(FeatureExtractor):
             fill_value=self.fill_value,
             mean=self.normalizer_mean,
             std=self.normalizer_std,
-            transform=transform
+            transform=transform,
+            with_instance_masking=self.with_instance_masking,
         )
         image_loader = DataLoader(
             image_dataset,

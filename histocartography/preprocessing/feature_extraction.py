@@ -576,42 +576,113 @@ class InstanceMapPatchDataset(Dataset):
             # Extract bounding box
             min_y, min_x, max_y, max_x = region.bbox
 
-            # Extract patch information around the centroid patch 
-            # quadrant 1 (includes centroid patch)
-            y_ = copy.deepcopy(center_y)
-            while y_ >= min_y:
-                x_ = copy.deepcopy(center_x)
-                while x_ >= min_x:
-                    self._add_patch(x_, y_, region.label, region_count)
-                    x_ -= self.stride
-                y_ -= self.stride
-
-            # quadrant 4
-            y_ = copy.deepcopy(center_y)
-            while y_ >= min_y:
-                x_ = copy.deepcopy(center_x) + self.stride
-                while x_ <= max_x:
-                    self._add_patch(x_, y_, region.label, region_count)
-                    x_ += self.stride
-                y_ -= self.stride
-
-            # quadrant 2
-            y_ = copy.deepcopy(center_y) + self.stride
+            y_ = copy.deepcopy(min_y)
             while y_ <= max_y:
-                x_ = copy.deepcopy(center_x)
-                while x_ >= min_x:
-                    self._add_patch(x_, y_, region.label, region_count)
-                    x_ -= self.stride
-                y_ += self.stride
-
-            # quadrant 3
-            y_ = copy.deepcopy(center_y) + self.stride
-            while y_ <= max_y:
-                x_ = copy.deepcopy(center_x) + self.stride
+                x_ = copy.deepcopy(min_x)
                 while x_ <= max_x:
                     self._add_patch(x_, y_, region.label, region_count)
                     x_ += self.stride
                 y_ += self.stride
+
+        from PIL import Image, ImageDraw
+        from skimage import segmentation
+        for region_count, region in enumerate(self.properties):
+
+            # crop image and instance map 
+            # min_y, min_x, max_y, max_x = region.bbox
+            image_crop = copy.deepcopy(self.image) # self.image[min_y:max_y, min_x:max_x]
+            instance_crop = copy.deepcopy(self.instance_map) # self.instance_map[min_y:max_y, min_x:max_x]
+
+            # extract all the patches 
+            patch_coords = [coords for coords, region_id in zip(self.patch_coordinates, self.patch_region_count) if region_id == region_count]
+            print(patch_coords)
+
+            image_crop = segmentation.mark_boundaries(image_crop, instance_crop, color=(0, 0, 0))
+            image_crop = Image.fromarray(np.uint8(image_crop * 255))
+            drawer = ImageDraw.Draw(image_crop)
+
+            for coords in patch_coords:
+                drawer.rectangle([(coords[0], coords[1]), (coords[0] + self.patch_size, coords[1] + self.patch_size)], outline=(0, 255, 0))
+
+            image_crop.show()
+
+    # def _precompute(self):
+    #     """Precompute instance-wise patch information for all instances in the input image."""
+    #     for region_count, region in enumerate(self.properties):
+
+    #         # Extract centroid
+    #         center_y, center_x = region.centroid
+    #         center_x = int(round(center_x))
+    #         center_y = int(round(center_y))
+
+    #         # Extract bounding box
+    #         min_y, min_x, max_y, max_x = region.bbox
+
+    #         # Extract patch information around the centroid patch 
+    #         # quadrant 1 (includes centroid patch)
+    #         y_ = copy.deepcopy(center_y)
+    #         while y_ >= min_y:
+    #             x_ = copy.deepcopy(center_x)
+    #             while x_ >= min_x:
+    #                 self._add_patch(x_, y_, region.label, region_count)
+    #                 print('Add patch:', region_count)
+    #                 x_ -= self.stride
+    #             y_ -= self.stride
+
+    #         # quadrant 4
+    #         y_ = copy.deepcopy(center_y)
+    #         while y_ >= min_y:
+    #             x_ = copy.deepcopy(center_x) + self.stride
+    #             while x_ <= max_x:
+    #                 self._add_patch(x_, y_, region.label, region_count)
+    #                 x_ += self.stride
+    #             y_ -= self.stride
+
+    #         # quadrant 2
+    #         y_ = copy.deepcopy(center_y) + self.stride
+    #         while y_ <= max_y:
+    #             x_ = copy.deepcopy(center_x)
+    #             while x_ >= min_x:
+    #                 self._add_patch(x_, y_, region.label, region_count)
+    #                 x_ -= self.stride
+    #             y_ += self.stride
+
+    #         # quadrant 3
+    #         y_ = copy.deepcopy(center_y) + self.stride
+    #         while y_ <= max_y:
+    #             x_ = copy.deepcopy(center_x) + self.stride
+    #             while x_ <= max_x:
+    #                 self._add_patch(x_, y_, region.label, region_count)
+    #                 x_ += self.stride
+    #             y_ += self.stride
+
+    #     # @TODO: debug purposes --> 
+    #     # for each superpixel:
+    #     # - crop the image
+    #     # - draw superpx contours
+    #     # - draw all the patch contours 
+    #     from PIL import Image, ImageDraw
+    #     from skimage import segmentation
+    #     for region_count, region in enumerate(self.properties):
+
+    #         # crop image and instance map 
+    #         # min_y, min_x, max_y, max_x = region.bbox
+    #         image_crop = copy.deepcopy(self.image) # self.image[min_y:max_y, min_x:max_x]
+    #         instance_crop = copy.deepcopy(self.instance_map) # self.instance_map[min_y:max_y, min_x:max_x]
+
+    #         # extract all the patches 
+    #         patch_coords = [coords for coords, region_id in zip(self.patch_coordinates, self.patch_region_count) if region_id == region_count]
+    #         print(patch_coords)
+
+    #         image_crop = segmentation.mark_boundaries(image_crop, instance_crop, color=(0, 0, 0))
+    #         image_crop = Image.fromarray(np.uint8(image_crop * 255))
+    #         drawer = ImageDraw.Draw(image_crop)
+
+    #         for coords in patch_coords:
+    #             drawer.rectangle([(coords[0], coords[1]), (coords[0] + self.patch_size, coords[1] + self.patch_size)], outline=(0, 255, 0))
+
+    #         image_crop.show()
+    #         # break
 
     def _warning(self):
         """Check patch coverage statistics to identify if provided patch size includes too much background."""

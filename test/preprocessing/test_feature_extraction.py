@@ -94,6 +94,39 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(np.array_equal(features, reload_features))
 
+    def test_deep_tissue_feature_extractor_noaug_masked_instance(self):
+        """
+        Test deep tissue feature extractor with pipeline runner without augmentation
+        and by masking the pixels outside the instance.
+        """
+        config_fname = os.path.join(self.current_path,
+                                    'config',
+                                    'feature_extraction',
+                                    'deep_tissue_feature_extractor_noaug_masked_instance.yml')
+        with open(config_fname, 'r') as file:
+            config = yaml.safe_load(file)
+
+        pipeline = PipelineRunner(output_path=self.out_path, **config)
+        output = pipeline.run(
+            output_name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        features = output['features']
+
+        self.assertTrue(isinstance(features, torch.Tensor))  # check type
+        # check number of superpixels
+        self.assertEqual(features.shape[0], 43)
+        self.assertEqual(features.shape[1], 1280)  # check number features
+
+        # Re-run with existing output & ensure equal
+        output = pipeline.run(
+            output_name=self.image_name.replace('.png', ''),
+            image_path=os.path.join(self.image_path, self.image_name)
+        )
+        reload_features = output['features']
+
+        self.assertTrue(np.array_equal(features, reload_features))
+
     def test_deep_tissue_feature_extractor_aug(self):
         """
         Test deep tissue feature extractor with pipeline runner and with augmentation.

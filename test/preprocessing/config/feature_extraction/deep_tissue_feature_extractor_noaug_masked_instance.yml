@@ -1,0 +1,47 @@
+inputs:
+- image_path
+outputs:
+- features
+stages:
+  - preprocessing:
+      class: "ImageLoader"
+      inputs:
+      - image_path
+      outputs:
+      - image
+  - preprocessing:
+      class: "ColorMergedSuperpixelExtractor"
+      inputs:
+      - image
+      outputs:
+      - merged_superpixels_map
+      - initial_superpixels_map
+      params:
+        superpixel_size: 1000
+        max_nr_superpixels: 10000
+        downsampling_factor: 2
+  - preprocessing:
+      class: "DeepFeatureExtractor"
+      inputs:
+      - image
+      - merged_superpixels_map
+      outputs:
+      - features
+      params:
+        architecture: mobilenet_v2
+        num_workers: 1
+        normalizer:
+          type: imagenet
+          mean:
+            - 0.485
+            - 0.456
+            - 0.406
+          std:
+            - 0.229
+            - 0.224
+            - 0.225
+        patch_size: 112
+        resize_size: 224
+        stride: 112
+        downsample_factor: 1
+        with_instance_masking: True

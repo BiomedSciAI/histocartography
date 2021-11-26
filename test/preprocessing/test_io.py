@@ -10,7 +10,7 @@ from PIL import Image
 import shutil
 
 from histocartography import PipelineRunner
-from histocartography.preprocessing import ImageLoader, DGLGraphLoader
+from histocartography.preprocessing import ImageLoader, WSILoader, DGLGraphLoader
 from histocartography.utils import download_test_data
 
 
@@ -24,6 +24,7 @@ class IOTestCase(unittest.TestCase):
         download_test_data(self.data_path)
         self.image_path = os.path.join(self.data_path, 'images')
         self.image_name = '16B0001851_Block_Region_3.jpg'
+        self.wsi_name = '3937.svs'
         self.graph_path = os.path.join(self.data_path, 'tissue_graphs')
         self.graph_name = '283_dcis_4.bin'
         self.out_path = os.path.join(self.data_path, 'io_test')
@@ -97,6 +98,27 @@ class IOTestCase(unittest.TestCase):
         self.assertTrue(isinstance(image, np.ndarray))        # output is numpy
         # image HxW = mask HxW
         self.assertEqual(list(image.shape), [1024, 1280, 3])
+
+    def test_wsi_loader(self):
+        """
+        Test WSI Loader.
+        """
+
+        wsi_loader = WSILoader()
+
+        # load WSI at different magnifications
+        wsi0 = wsi_loader.process(path=os.path.join(self.image_path, self.wsi_name),
+                                  downsample_level=0)
+        wsi1 = wsi_loader.process(path=os.path.join(self.image_path, self.wsi_name),
+                                  downsample_level=1)
+
+        # assert that output is numpy
+        self.assertTrue(isinstance(wsi0, np.ndarray))
+        self.assertTrue(isinstance(wsi1, np.ndarray))
+
+        # check image size
+        self.assertEqual(list(wsi0.shape), [10606, 13327, 3])
+        self.assertEqual(list(wsi1.shape), [2651, 3331, 3])
 
     def test_graph_loader(self):
         """

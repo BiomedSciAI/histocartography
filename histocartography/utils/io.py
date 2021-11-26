@@ -130,6 +130,12 @@ def download_test_data(out_dir):
         'https://ibm.box.com/shared/static/jkut7hsigpg278xsoh764bguwehuwd5f.jpg',
         fname)
 
+    fname = os.path.join(out_dir, 'images', '3937.svs')
+    download_box_link(
+        'https://ibm.box.com/shared/static/283j9ywn3prq3wmhehvamruu0elpfpkx.svs',
+        fname
+    )
+
     # 4. download nuclei maps:
     fname = os.path.join(out_dir, 'nuclei_maps', '283_dcis_4.h5')
     download_box_link(

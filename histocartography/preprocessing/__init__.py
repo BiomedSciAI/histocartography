@@ -12,6 +12,7 @@ from .graph_builders import KNNGraphBuilder
 
 # io
 from .io import ImageLoader
+from .io import WSILoader
 from .io import DGLGraphLoader
 from .io import H5Loader
 
@@ -50,6 +51,7 @@ __all__ = [
     'RAGGraphBuilder',
     'KNNGraphBuilder',
     'ImageLoader',
+    'WSILoader',
     'DGLGraphLoader',
     'H5Loader',
     'NucleiConceptExtractor',

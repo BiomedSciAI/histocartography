@@ -6,6 +6,7 @@
 [![codecov](https://codecov.io/gh/histocartography/histocartography/branch/main/graph/badge.svg?token=OILOGEBP0Q)](https://codecov.io/gh/histocartography/histocartography)
 [![PyPI version](https://badge.fury.io/py/histocartography.svg)](https://badge.fury.io/py/histocartography)
 ![GitHub](https://img.shields.io/github/license/histocartography/histocartography)
+[![Downloads](https://pepy.tech/badge/histocartography)](https://pepy.tech/project/histocartography)
 
 **[Documentation](https://histocartography.github.io/histocartography/)**
 | **[Paper](https://arxiv.org/pdf/2107.10073.pdf)** 

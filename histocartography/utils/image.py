@@ -1,8 +1,6 @@
 import math
 import numpy as np
 import cv2
-import os
-import glob
 
 
 STEP_SIZE = [164, 164]
@@ -42,3 +40,28 @@ def extract_patches_from_image(image, im_h, im_w):
             # left, bottom, right, top
             coords.append([col, row, col + STEP_SIZE[0], row + STEP_SIZE[1]])
     return sub_patches, coords
+
+
+def augment_in_hsv(rgb_img, r_h, r_s, r_v):
+    rgb_img = np.array(rgb_img)
+    dim = rgb_img.shape
+    out = np.empty((dim[0], dim[1], dim[2]))
+
+    hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+    hsv_img = np.array(hsv_img, dtype=np.float64)
+    hsv_img[:, :, 0] = ((hsv_img[:, :, 0].astype(np.float32) / 180.0) * 255.0)
+
+    temp = np.empty((dim[0], dim[1], dim[2]))
+    temp[:, :, 0] = hsv_img[:, :, 0] * r_h
+    temp[:, :, 1] = hsv_img[:, :, 1] * r_s
+    temp[:, :, 2] = hsv_img[:, :, 2] * r_v
+
+    temp[:, :, 0] = ((np.mod(temp[:, :, 0], 255).astype(np.float32) / 255.0) * (360 / 2))
+    temp[:, :, 1] = np.clip(temp[:, :, 1], 0, 255)
+    temp[:, :, 2] = np.clip(temp[:, :, 2], 0, 255)
+
+    temp = temp.astype(np.uint8)
+    out[:, :, :] = cv2.cvtColor(temp, cv2.COLOR_HSV2RGB)
+
+    out = out.astype(np.uint8)
+    return out

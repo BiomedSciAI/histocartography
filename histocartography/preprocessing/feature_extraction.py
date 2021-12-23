@@ -16,6 +16,7 @@ import torch
 import torchvision
 from histocartography.preprocessing.tissue_mask import GaussianTissueMask
 from histocartography.utils import dynamic_import_from
+from histocartography.utils.image import augment_in_hsv
 from scipy.stats import skew
 from skimage.feature import greycomatrix, greycoprops
 from skimage.filters.rank import entropy as Entropy
@@ -1183,6 +1184,8 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
     def __init__(
         self,
         tissue_thresh: float = 0.1,
+        hsv_augment: bool = False,
+        seed: int = 1,
         **kwargs
     ) -> None:
         """
@@ -1193,6 +1196,8 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
         """
         super().__init__(**kwargs)
         self.tissue_thresh = tissue_thresh
+        self.hsv_augment = hsv_augment
+        np.random.seed(seed)
 
     def _collate_patches(self, batch):
         """Patch collate function"""
@@ -1226,6 +1231,15 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
             mask = self._downsample(mask, self.downsample_factor)
         mask = np.expand_dims(mask, axis=2)
 
+        # set hsv color augmentation if desired
+        if self.hsv_augment:
+            h = round(np.random.uniform(0.95, 1.05), 2)
+            s = round(np.random.uniform(0.90, 1.10), 2)
+            v = round(np.random.uniform(0.90, 1.10), 2)
+            aug = transforms.Lambda(lambda x, r_h=h, r_s=s, r_v=v: augment_in_hsv(x, r_h=r_h, r_s=r_s, r_v=r_v))
+        else:
+            aug = None
+
         # create dataloader for image and corresponding mask patches
         masked_patch_dataset = MaskedGridPatchDataset(image=input_image,
                                                       mask=mask,
@@ -1233,7 +1247,8 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
                                                       patch_size=self.patch_size,
                                                       stride=self.stride,
                                                       mean=self.normalizer_mean,
-                                                      std=self.normalizer_std)
+                                                      std=self.normalizer_std,
+                                                      transform=aug)
         patch_loader = DataLoader(masked_patch_dataset,
                                   shuffle=False,
                                   batch_size=self.batch_size,

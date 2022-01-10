@@ -42,15 +42,22 @@ def extract_patches_from_image(image, im_h, im_w):
     return sub_patches, coords
 
 
-def augment_in_hsv(rgb_img, r_h, r_s, r_v):
+def augment_in_hsv(rgb_img):
     rgb_img = np.array(rgb_img)
     dim = rgb_img.shape
     out = np.empty((dim[0], dim[1], dim[2]))
 
+    # transform to HSV space
     hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
     hsv_img = np.array(hsv_img, dtype=np.float64)
     hsv_img[:, :, 0] = ((hsv_img[:, :, 0].astype(np.float32) / 180.0) * 255.0)
 
+    # sample random perturbations for each channel
+    r_h = round(np.random.uniform(0.75, 1.25), 2)
+    r_s = round(np.random.uniform(0.70, 1.30), 2)
+    r_v = round(np.random.uniform(0.9, 1.10), 2)
+
+    # perturb each channel
     temp = np.empty((dim[0], dim[1], dim[2]))
     temp[:, :, 0] = hsv_img[:, :, 0] * r_h
     temp[:, :, 1] = hsv_img[:, :, 1] * r_s

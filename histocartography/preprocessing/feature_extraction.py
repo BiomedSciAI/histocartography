@@ -1185,6 +1185,7 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
         self,
         tissue_thresh: float = 0.1,
         hsv_augment: bool = False,
+        flips_augment: str = None,
         seed: int = 1,
         **kwargs
     ) -> None:
@@ -1193,11 +1194,19 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
 
         Args:
             tissue_thresh (float): Minimum fraction of tissue (vs background) for a patch to be considered as valid.
+            hsv_augment (bool): True if patches should be augmented in HSV space
+            flips_augment (str): Set to "h" (horizontal), "v" (vertical), or "b" (both) if patches should be flipped
         """
         super().__init__(**kwargs)
+        np.random.seed(seed)
         self.tissue_thresh = tissue_thresh
         self.hsv_augment = hsv_augment
-        np.random.seed(seed)
+        self.flips_augment = flips_augment
+        self.transforms = _build_augmentations(
+            flips=self.flips_augment,
+            hsv=self.hsv_augment,
+            output_size=(self.patch_size, self.patch_size),
+        )
 
     def _collate_patches(self, batch):
         """Patch collate function"""
@@ -1231,15 +1240,6 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
             mask = self._downsample(mask, self.downsample_factor)
         mask = np.expand_dims(mask, axis=2)
 
-        # set hsv color augmentation if desired
-        if self.hsv_augment:
-            h = round(np.random.uniform(0.95, 1.05), 2)
-            s = round(np.random.uniform(0.90, 1.10), 2)
-            v = round(np.random.uniform(0.90, 1.10), 2)
-            aug = transforms.Lambda(lambda x, r_h=h, r_s=s, r_v=v: augment_in_hsv(x, r_h=r_h, r_s=r_s, r_v=r_v))
-        else:
-            aug = None
-
         # create dataloader for image and corresponding mask patches
         masked_patch_dataset = MaskedGridPatchDataset(image=input_image,
                                                       mask=mask,
@@ -1248,7 +1248,7 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
                                                       stride=self.stride,
                                                       mean=self.normalizer_mean,
                                                       std=self.normalizer_std,
-                                                      transform=aug)
+                                                      transform=self.transforms[0])
         patch_loader = DataLoader(masked_patch_dataset,
                                   shuffle=False,
                                   batch_size=self.batch_size,
@@ -1317,6 +1317,7 @@ def _build_augmentations(
     flips: Optional[List[Any]] = None,
     padding: Optional[int] = None,
     fill_value: Optional[int] = 255,
+    hsv: bool = False,
     output_size: Optional[Tuple] = None,
 ) -> List[Callable]:
     """Returns a list of callable augmentation functions for the given specification
@@ -1324,7 +1325,7 @@ def _build_augmentations(
     Args:
         rotations (Optional[List[int]], optional): List of rotation angles. Defaults to None.
         flips (Optional[List[Any]], optional): List of flips. Options are no rotation "n",
-            horizontal flip "h" and vertical flip "v". Defaults to None.
+            horizontal flip "h", vertical flip "v", and both "b". Defaults to None.
         padding (Optional[int], optional): Number of pixels to pad before rotation. Defaults to None.
         fill_value (Optional[int], optional): Fill value of padded pixels. Defaults to 255.
         output_size (Optional[Tuple], optional): Output size to center crop after rotation. Defaults to None.
@@ -1336,7 +1337,7 @@ def _build_augmentations(
         rotations = [0]
     if flips is None:
         flips = ["n"]
-    augmentaions = list()
+    augmentations = list()
     for angle in rotations:
         for flip in flips:
             if angle % 90 == 0:
@@ -1362,8 +1363,17 @@ def _build_augmentations(
                 t.append(
                     transforms.Lambda(
                         lambda x: transforms.functional.vflip(x)))
-            augmentaions.append(transforms.Compose(t))
-    return augmentaions
+            if flip == "b":
+                t.extend([
+                    transforms.Lambda(
+                        lambda x: transforms.functional.hflip(x)),
+                    transforms.Lambda(
+                        lambda x: transforms.functional.vflip(x))
+                ])
+            if hsv:
+                t.append(transforms.Lambda(lambda x: augment_in_hsv(x)))
+            augmentations.append(transforms.Compose(t))
+    return augmentations
 
 def _remove_modules(model: nn.Module, last_layer: str) -> nn.Module:
     """

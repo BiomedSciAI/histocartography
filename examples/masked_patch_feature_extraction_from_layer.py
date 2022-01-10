@@ -28,7 +28,9 @@ def masked_feature_extraction(image_path):
                                                patch_size=256,
                                                tissue_thresh=0.1,
                                                downsample_factor=1,
-                                               extraction_layer='layer3')
+                                               extraction_layer='layer3',
+                                               hsv_augment=True,
+                                               flips_augment='b')
 
     # 3. process all the images
     for image_path in tqdm(image_fnames):

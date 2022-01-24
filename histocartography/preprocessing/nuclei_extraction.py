@@ -12,7 +12,7 @@ import os
 from typing import Optional
 
 from skimage.measure import regionprops
-from skimage.morphology import remove_small_objects, watershed
+from skimage.morphology import remove_small_objects
 from skimage.measure import regionprops
 from skimage.morphology import remove_small_objects
 from skimage.segmentation import watershed

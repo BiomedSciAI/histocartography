@@ -125,9 +125,9 @@ A tutorial with detailed descriptions and visualizations of some of the main fun
 
 ## Papers already using this library
 
-- Hierarchical Graph Representations for Digital Pathology, Pati et al., preprint, 2021. [[pdf]](https://arxiv.org/pdf/2102.11057.pdf) [[code]]() 
-- Quantifying Explainers of Graph Neural Networks in Computational Pathology,  Jaume et al., CVPR, 2021. [[pdf]](https://arxiv.org/pdf/2011.12646.pdf) [[code]](https://github.com/histocartography/patho-quant-explainer) 
-- Learning Whole-Slide Segmentation from Inexact and Incomplete Labels using Tissue Graphs, Anklin et al., preprint, 2021. [[pdf]](https://arxiv.org/pdf/2103.03129.pdf) [[code]]() 
+- Hierarchical Graph Representations for Digital Pathology, Pati et al., Medical Image Analysis, 2021. [[pdf]](https://arxiv.org/abs/2102.11057) [[code]](https://github.com/histocartography/hact-net) 
+- Quantifying Explainers of Graph Neural Networks in Computational Pathology,  Jaume et al., CVPR, 2021. [[pdf]](https://openaccess.thecvf.com/content/CVPR2021/papers/Jaume_Quantifying_Explainers_of_Graph_Neural_Networks_in_Computational_Pathology_CVPR_2021_paper.pdf) [[code]](https://github.com/histocartography/patho-quant-explainer) 
+- Learning Whole-Slide Segmentation from Inexact and Incomplete Labels using Tissue Graphs, Anklin et al., MICCAI, 2021. [[pdf]](https://arxiv.org/abs/2103.03129) [[code]](https://github.com/histocartography/seg-gini) 
 
 If you use this library, please consider citing:
 

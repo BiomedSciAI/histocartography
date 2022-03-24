@@ -135,14 +135,17 @@ If you use this library, please consider citing:
 @inproceedings{jaume2021,
     title = {HistoCartography: A Toolkit for Graph Analytics in Digital Pathology},
     author = {Guillaume Jaume, Pushpak Pati, Valentin Anklin, Antonio Foncubierta, Maria Gabrani},
-    booktitle = {https://arxiv.org/pdf/2107.10073},
+    booktitle={MICCAI Workshop on Computational Pathology},
+    pages={117--128},
     year = {2021}
 } 
 
 @inproceedings{pati2021,
     title = {Hierarchical Graph Representations for Digital Pathology},
     author = {Pushpak Pati, Guillaume Jaume, Antonio Foncubierta, Florinda Feroce, Anna Maria Anniciello, Giosuè Scognamiglio, Nadia Brancati, Maryse Fiche, Estelle Dubruc, Daniel Riccio, Maurizio Di Bonito, Giuseppe De Pietro, Gerardo Botti, Jean-Philippe Thiran, Maria Frucci, Orcun Goksel, Maria Gabrani},
-    booktitle = {Medical Image Analysis (MEDIA)},
+    booktitle = {Medical Image Analysis (MedIA)},
+    volume={75},
+    pages={102264},
     year = {2021}
 } 
 ```

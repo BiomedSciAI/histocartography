@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
+import openslide 
 
 
 def fast_histogram(input_array: np.ndarray, nr_values: int) -> np.ndarray:
@@ -39,6 +40,29 @@ def load_image(image_path: Path) -> np.ndarray:
         logging.critical("Could not open %s", image_path)
         raise OSError(e)
     return image
+
+
+def load_wsi(image_path: str, downsample_level: int = 0) -> np.ndarray:
+    """Loads a whole-slide image (WSI) from a given path and returns it at
+    a desired downsample level as a numpy array.
+    Args:
+        image_path (str):       Path of the WSI
+        downsample_level (int): Downsampling level (not factor)
+    Returns:
+        np.ndarray: Array representation of the WSI
+    """
+    assert Path(image_path).exists()
+    try:
+        wsi = openslide.open_slide(image_path)
+        assert downsample_level < wsi.level_count
+        level_dims = wsi.level_dimensions
+        wsi = np.array(wsi.read_region(location=(0, 0),
+                                       level=downsample_level,
+                                       size=level_dims[downsample_level]).convert('RGB'))
+    except OSError as e:
+        logging.critical("Could not open %s", image_path)
+        raise OSError(e)
+    return wsi
 
 
 def save_image(image_path: Path, image: np.ndarray) -> None:

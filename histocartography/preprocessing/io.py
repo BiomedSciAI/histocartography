@@ -7,7 +7,7 @@ import numpy as np
 from dgl.data.utils import load_graphs
 
 from ..pipeline import PipelineStep
-from .utils import load_image
+from .utils import load_image, load_wsi
 from ..utils.io import h5_to_numpy 
 
 
@@ -40,6 +40,13 @@ class DGLGraphLoader(FileLoader):
         if len(graphs) == 1:
             return graphs[0]
         return graphs
+
+
+class WSILoader(FileLoader):
+    def _process(self, path: Union[str, Path], downsample_level: int = 0) -> np.ndarray:
+        image_path = str(path)  # OpenSlide cannot handle pathlib.Path
+        image = load_wsi(image_path, downsample_level)
+        return image
 
 
 class H5Loader(FileLoader):

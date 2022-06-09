@@ -357,11 +357,14 @@ class PatchFeatureExtractor:
             model = model.model
         if isinstance(model, torchvision.models.resnet.ResNet):
             return model.fc.in_features
-        else:
+        elif hasattr(model, "classifier"):
             classifier = model.classifier[-1]
             if isinstance(classifier, nn.Sequential):
                 classifier = classifier[-1]
             return classifier.in_features
+        else:
+            print('Could not feature dimension. Default to 384')
+            return 384
 
     def _get_local_model(self, path: str) -> nn.Module:
         """
@@ -421,8 +424,10 @@ class PatchFeatureExtractor:
             model = model.model
         if isinstance(model, torchvision.models.resnet.ResNet):
             model.fc = nn.Sequential()
-        else:
+        elif hasattr(model, "classifier"):
             model.classifier[-1] = nn.Sequential()
+        else:
+            print('Could not remove classifier.')
         return model
 
     def __call__(self, patch: torch.Tensor) -> torch.Tensor:
@@ -1230,9 +1235,12 @@ class MaskedGridDeepFeatureExtractor(GridDeepFeatureExtractor):
         # extract features of all patches and record which patches are (in)valid
         indices = list(all_features.keys())
         offset = 0
+
+        # @TODO: enable verbose
         for _, img_patches, mask_patches in tqdm(patch_loader,
                                                  total=len(patch_loader),
-                                                 disable=not self.verbose):
+                                                #  disable=not self.verbose
+                                                 ):
             index_filter, features = self._validate_and_extract_features(img_patches, mask_patches)
             if len(img_patches) == 1:
                 features = features.unsqueeze(dim=0)

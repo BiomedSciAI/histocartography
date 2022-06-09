@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-from skimage.filters import gaussian, threshold_otsu
+from skimage.filters import gaussian, threshold_otsu, threshold_local
 
 Image.MAX_IMAGE_PIXELS = 100000000000
 
@@ -60,6 +60,12 @@ def get_tissue_mask(
         # get threshold to keep analysis region
         try:
             thresh = threshold_otsu(thumbnail[thumbnail > 0])
+            # @TODO: adaptive thresh
+            # thumbnail = thumbnail.astype(np.uint8)
+            # print('thumbnail', thumbnail.shape)
+            # thumbnail[thumbnail < 0] = 0
+            # thresh = threshold_local(thumbnail, block_size=201, method='median')
+            # print('Thresh', thresh)
         except ValueError:  # all values are zero
             thresh = 0
 

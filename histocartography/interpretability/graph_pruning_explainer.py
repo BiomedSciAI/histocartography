@@ -16,8 +16,8 @@ from ..utils.torch import torch_to_numpy
 from ..utils import is_box_url, download_box_link
 
 
-DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-MODEL_MODULE = 'histocartography.ml'
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+MODEL_MODULE = "histocartography.ml"
 
 
 class GraphPruningExplainer(BaseExplainer):
@@ -64,19 +64,19 @@ class GraphPruningExplainer(BaseExplainer):
 
         self.node_thresh = node_thresh
         self.train_params = {
-            'num_epochs': num_epochs,
-            'lr': lr,
-            'weight_decay': weight_decay
+            "num_epochs": num_epochs,
+            "lr": lr,
+            "weight_decay": weight_decay,
         }
         self.model_params = {
-            'loss': {
-                'node_ent': entropy_loss_weight,
-                'node': size_loss_weight,
-                'ce': ce_loss_weight
+            "loss": {
+                "node_ent": entropy_loss_weight,
+                "node": size_loss_weight,
+                "ce": ce_loss_weight,
             },
-            'node_thresh': node_thresh,
-            'init': mask_init_strategy,
-            'mask_activation': mask_activation
+            "node_thresh": node_thresh,
+            "init": mask_init_strategy,
+            "mask_activation": mask_activation,
         }
 
         self.node_feats_explanation = None
@@ -91,17 +91,19 @@ class GraphPruningExplainer(BaseExplainer):
         # rebuild model by replacing DGL layers by Dense layers.
         model_name = dgl_model.__class__.__name__
         dgl_gnn_params = dgl_model.gnn_params
-        dgl_layer_type = dgl_gnn_params['layer_type']
-        assert dgl_layer_type == 'gin_layer', "Only GIN layers are supported for using GNNExplainer."
+        dgl_layer_type = dgl_gnn_params["layer_type"]
+        assert (
+            dgl_layer_type == "gin_layer"
+        ), "Only GIN layers are supported for using GNNExplainer."
         dense_gnn_params = deepcopy(dgl_gnn_params)
-        dense_gnn_params['layer_type'] = 'dense_' + dgl_layer_type
+        dense_gnn_params["layer_type"] = "dense_" + dgl_layer_type
 
         module = importlib.import_module(MODEL_MODULE)
         model = getattr(module, model_name)(
             dense_gnn_params,
             dgl_model.classification_params,
             dgl_model.node_dim,
-            num_classes=dgl_model.num_classes
+            num_classes=dgl_model.num_classes,
         )
 
         # copy weights from DGL layers to dense layers.
@@ -113,15 +115,15 @@ class GraphPruningExplainer(BaseExplainer):
                 return False
 
         for n, p in dgl_model.named_parameters():
-            split = n.split('.')
-            to_eval = 'model'
+            split = n.split(".")
+            to_eval = "model"
             for s in split:
                 if is_int(s):
-                    to_eval += '[' + s + ']'
+                    to_eval += "[" + s + "]"
                 else:
-                    to_eval += '.'
+                    to_eval += "."
                     to_eval += s
-            exec(to_eval + '=' + 'p')
+            exec(to_eval + "=" + "p")
 
         return model
 
@@ -151,7 +153,7 @@ class GraphPruningExplainer(BaseExplainer):
             x=x,
             init_probs=init_probs.to(self.device),
             model_params=self.model_params,
-            train_params=self.train_params
+            train_params=self.train_params,
         ).to(self.device)
 
         self.node_feats_explanation = x
@@ -163,15 +165,11 @@ class GraphPruningExplainer(BaseExplainer):
 
         # Init training stats
         init_probs = init_probs.numpy().squeeze()
-        loss = torch.FloatTensor([10000.])
+        loss = torch.FloatTensor([10000.0])
 
         # log description
         desc = self._set_pbar_desc()
-        pbar = tqdm(
-            range(
-                self.train_params['num_epochs']),
-            desc=desc,
-            unit='step')
+        pbar = tqdm(range(self.train_params["num_epochs"]), desc=desc, unit="step")
 
         for _ in pbar:
             logits, masked_feats = explainer()
@@ -179,9 +177,10 @@ class GraphPruningExplainer(BaseExplainer):
 
             # Compute number of non zero elements in the masked adjacency
             node_importance = explainer._get_node_feats_mask()
-            node_importance[node_importance < self.node_thresh] = 0.
-            masked_feats = masked_feats * \
-                torch.stack(masked_feats.shape[-1] * [node_importance], dim=1).unsqueeze(dim=0).to(torch.float)
+            node_importance[node_importance < self.node_thresh] = 0.0
+            masked_feats = masked_feats * torch.stack(
+                masked_feats.shape[-1] * [node_importance], dim=1
+            ).unsqueeze(dim=0).to(torch.float)
             probs = torch.nn.Softmax()(logits.cpu().squeeze()).detach().numpy()
             pred_label = torch.argmax(logits, dim=0).squeeze()
 
@@ -191,7 +190,7 @@ class GraphPruningExplainer(BaseExplainer):
                 self.probs_explanation = probs
                 self.node_importance = torch_to_numpy(node_importance)
             else:
-                print('Predicted label changed. Early stopping.')
+                print("Predicted label changed. Early stopping.")
                 break
 
             explainer.zero_grad()
@@ -244,20 +243,17 @@ class ExplainerModel(nn.Module):
         self.label = torch.argmax(init_probs, dim=1)
 
         # set model parameters
-        self.mask_act = model_params['mask_activation']
-        init_strategy = model_params['init']
+        self.mask_act = model_params["mask_activation"]
+        init_strategy = model_params["init"]
         self.mask_bias = None
         self.use_sigmoid = use_sigmoid
 
         # build learnable parameters: edge mask & feat mask (& node_mask)
         num_nodes = adj.size()[1]
         self.num_nodes = num_nodes
-        self.mask, _ = self._build_edge_mask(
-            num_nodes, init_strategy=init_strategy)
-        self.node_mask = self._build_node_mask(
-            num_nodes, init_strategy='const')
-        self.diag_mask = torch.ones(
-            num_nodes, num_nodes) - torch.eye(num_nodes)
+        self.mask, _ = self._build_edge_mask(num_nodes, init_strategy=init_strategy)
+        self.node_mask = self._build_node_mask(num_nodes, init_strategy="const")
+        self.diag_mask = torch.ones(num_nodes, num_nodes) - torch.eye(num_nodes)
         self.diag_mask = self.diag_mask.to(self.device)
 
         # group them
@@ -268,19 +264,14 @@ class ExplainerModel(nn.Module):
         # build optimizer
         self._build_optimizer(params, train_params)
 
-        self.coeffs = model_params['loss']
+        self.coeffs = model_params["loss"]
 
     def _build_optimizer(self, params, train_params):
         self.optimizer = optim.Adam(
-            params,
-            lr=train_params['lr'],
-            weight_decay=train_params['weight_decay'])
+            params, lr=train_params["lr"], weight_decay=train_params["weight_decay"]
+        )
 
-    def _build_edge_mask(
-            self,
-            num_nodes,
-            init_strategy="normal",
-            const_val=1.0):
+    def _build_edge_mask(self, num_nodes, init_strategy="normal", const_val=1.0):
         mask = nn.Parameter(torch.FloatTensor(num_nodes, num_nodes))
         if init_strategy == "normal":
             std = nn.init.calculate_gain("relu") * math.sqrt(
@@ -299,11 +290,7 @@ class ExplainerModel(nn.Module):
 
         return mask, mask_bias
 
-    def _build_node_mask(
-            self,
-            num_nodes,
-            init_strategy="normal",
-            const_val=1.0):
+    def _build_node_mask(self, num_nodes, init_strategy="normal", const_val=1.0):
         node_mask = nn.Parameter(torch.FloatTensor(num_nodes))
         if init_strategy == "normal":
             std = nn.init.calculate_gain("relu") * math.sqrt(
@@ -321,27 +308,14 @@ class ExplainerModel(nn.Module):
         elif self.mask_act == "relu":
             sym_mask = nn.ReLU()(self.mask)
         else:
-            raise ValueError('Unsupported mask activation {}. Options'
-                             'are "sigmoid", "ReLU"'.format(self.mask_act))
+            raise ValueError(
+                "Unsupported mask activation {}. Options"
+                'are "sigmoid", "ReLU"'.format(self.mask_act)
+            )
         sym_mask = (sym_mask + sym_mask.t()) / 2
         if with_zeroing:
-            sym_mask = (
-                (self.adj != 0).to(
-                    self.device).to(
-                    torch.float) *
-                sym_mask)
+            sym_mask = (self.adj != 0).to(self.device).to(torch.float) * sym_mask
         return sym_mask
-
-    def _masked_adj(self):
-        sym_mask = self._get_adj_mask()
-        adj = adj.to(self.device)
-        masked_adj = adj * sym_mask
-        if self.mask_bias:
-            bias = (self.mask_bias + self.mask_bias.t()) / 2
-            bias = nn.ReLU6()(bias * 6) / 6
-            masked_adj += (bias + bias.t()) / 2
-        masked_adj = masked_adj * self.diag_mask
-        return masked_adj
 
     def _get_node_feats_mask(self):
         if self.mask_act == "sigmoid":
@@ -349,8 +323,10 @@ class ExplainerModel(nn.Module):
         elif self.mask_act == "relu":
             node_mask = nn.ReLU()(self.node_mask)
         else:
-            raise ValueError('Unsupported mask activation {}. Options'
-                             'are "sigmoid", "ReLU"'.format(self.mask_act))
+            raise ValueError(
+                "Unsupported mask activation {}. Options"
+                'are "sigmoid", "ReLU"'.format(self.mask_act)
+            )
         return node_mask
 
     @staticmethod
@@ -359,8 +335,7 @@ class ExplainerModel(nn.Module):
 
     def _masked_node_feats(self):
         node_mask = self._get_node_feats_mask()
-        x = self.x * \
-            torch.stack(self.x.shape[-1] * [node_mask], dim=1).unsqueeze(dim=0)
+        x = self.x * torch.stack(self.x.shape[-1] * [node_mask], dim=1).unsqueeze(dim=0)
         return x
 
     def forward(self):
@@ -390,19 +365,22 @@ class ExplainerModel(nn.Module):
         # 1. cross-entropy + distillation loss
         ce_loss = F.cross_entropy(pred.unsqueeze(dim=0), self.label)
         distillation_loss = self.distillation_loss(pred.unsqueeze(dim=0))
-        alpha = torch.FloatTensor([entropy(torch.nn.Softmax()(pred).cpu().detach(
-        ).numpy())]) / torch.log(torch.FloatTensor([self.init_probs.shape[1]]))
+        alpha = torch.FloatTensor(
+            [entropy(torch.nn.Softmax()(pred).cpu().detach().numpy())]
+        ) / torch.log(torch.FloatTensor([self.init_probs.shape[1]]))
         alpha = alpha.to(self.device)
-        pred_loss = self.coeffs['ce'] * \
-            (alpha * ce_loss + (1 - alpha) * distillation_loss)
+        pred_loss = self.coeffs["ce"] * (
+            alpha * ce_loss + (1 - alpha) * distillation_loss
+        )
 
         # 2. node loss
         node_mask = self._get_node_feats_mask()
         node_loss = self.coeffs["node"] * torch.sum(node_mask)
 
         # 3. node entropy loss
-        node_ent = -node_mask * \
-            torch.log(node_mask) - (1 - node_mask) * torch.log(1 - node_mask)
+        node_ent = -node_mask * torch.log(node_mask) - (1 - node_mask) * torch.log(
+            1 - node_mask
+        )
         node_ent_loss = self.coeffs["node_ent"] * torch.mean(node_ent)
 
         # 4. sum all the losses

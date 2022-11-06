@@ -52,7 +52,7 @@ class SuperpixelTestCase(unittest.TestCase):
         self.assertEqual(len(list(superpixels.shape)),
                          2)           # mask is bi-dim
         # check number of instances
-        self.assertEqual(len(np.unique(superpixels)), 81)
+        self.assertEqual(len(np.unique(superpixels)), 79)
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -90,7 +90,7 @@ class SuperpixelTestCase(unittest.TestCase):
         self.assertEqual(len(list(superpixels.shape)),
                          2)           # mask is bi-dim
         # check number of instances
-        self.assertEqual(len(np.unique(superpixels)), 23)
+        self.assertEqual(len(np.unique(superpixels)), 26)
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -126,7 +126,7 @@ class SuperpixelTestCase(unittest.TestCase):
         self.assertEqual(len(list(superpixels.shape)),
                          2)       # mask is bi-dim
         # check number of instances
-        self.assertEqual(len(np.unique(superpixels)), 81)
+        self.assertEqual(len(np.unique(superpixels)), 79)
 
         pipeline.run(metadata=metadata, cores=2)
 

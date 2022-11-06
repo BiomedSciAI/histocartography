@@ -51,7 +51,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
         # check number of features per instance
         self.assertEqual(features.shape[1], 24)
         # check number of instances detected
-        self.assertEqual(features.shape[0], 23)
+        self.assertEqual(features.shape[0], 26)
 
         # Re-run with existing output & ensure equal
         output = pipeline.run(
@@ -82,7 +82,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
         # check number of superpixels
-        self.assertEqual(features.shape[0], 23)
+        self.assertEqual(features.shape[0], 26)
         self.assertEqual(features.shape[1], 1280)  # check number features
 
         # Re-run with existing output & ensure equal
@@ -115,7 +115,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
         # check number of superpixels
-        self.assertEqual(features.shape[0], 43)
+        self.assertEqual(features.shape[0], 41)
         self.assertEqual(features.shape[1], 1280)  # check number features
 
         # Re-run with existing output & ensure equal
@@ -147,7 +147,7 @@ class FeatureExtractionTestCase(unittest.TestCase):
 
         self.assertTrue(isinstance(features, torch.Tensor))  # check type
         # check number of superpixels
-        self.assertEqual(features.shape[0], 23)
+        self.assertEqual(features.shape[0], 26)
         # check number of augmentations
         self.assertEqual(features.shape[1], 4)
         self.assertEqual(features.shape[2], 1280)  # check number features

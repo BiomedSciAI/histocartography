@@ -168,7 +168,7 @@ class HACTModel(BaseModel):
         """
         Use the assignment matrix to agg the feats
         """
-        num_nodes_per_graph = graph.batch_num_nodes
+        num_nodes_per_graph = graph.batch_num_nodes().tolist()
         num_nodes_per_graph.insert(0, 0)
         intervals = [sum(num_nodes_per_graph[:i + 1])
                      for i in range(len(num_nodes_per_graph))]

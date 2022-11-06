@@ -68,7 +68,7 @@ def explain_cell_graphs(cell_graph_path, image_path):
         _, graph_name = os.path.split(cg_path)
         graph, _ = load_graphs(cg_path)
         graph = graph[0]
-        graph = set_graph_on_cuda(graph) if IS_CUDA else graph
+        graph = set_graph_on_cuda(graph)
 
         # b. load corresponding image
         image_path = [

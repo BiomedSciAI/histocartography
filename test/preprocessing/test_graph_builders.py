@@ -57,12 +57,12 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = output['graph']
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
-        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
+        self.assertEqual(graph.number_of_nodes(), 26)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 120)  # check number of edges
         # check assigned features
-        self.assertEqual(graph.ndata["feat"].shape, (23, 1, 1280))
+        self.assertEqual(graph.ndata["feat"].shape, (26, 1, 1280))
         # check assigned centroid
-        self.assertEqual(graph.ndata["centroid"].shape, (23, 2))
+        self.assertEqual(graph.ndata["centroid"].shape, (26, 2))
 
     def test_rag_builder_augmentation_with_pipeline_runner(self):
         """
@@ -85,12 +85,12 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = output['graph']
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
-        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
+        self.assertEqual(graph.number_of_nodes(), 26)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 120)  # check number of edges
         # check assigned features
-        self.assertEqual(graph.ndata["feat"].shape, (23, 4, 1282))
+        self.assertEqual(graph.ndata["feat"].shape, (26, 4, 1282))
         # check assigned centroid
-        self.assertEqual(graph.ndata["centroid"].shape, (23, 2))
+        self.assertEqual(graph.ndata["centroid"].shape, (26, 2))
 
     def test_rag_builder_annotation_with_pipeline_runner(self):
         """
@@ -116,16 +116,16 @@ class GraphBuilderTestCase(unittest.TestCase):
             graph.ndata['label'].numpy(), return_counts=True)
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
-        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
+        self.assertEqual(graph.number_of_nodes(), 26)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 120)  # check number of edges
         # check assigned features
-        self.assertEqual(graph.ndata["feat"].shape, (23, 1, 1282))
+        self.assertEqual(graph.ndata["feat"].shape, (26, 1, 1282))
         # check assigned centroid
-        self.assertEqual(graph.ndata["centroid"].shape, (23, 2))
+        self.assertEqual(graph.ndata["centroid"].shape, (26, 2))
         # check assigned node labels
         self.assertTrue(np.array_equal(labels, np.array([0, 1, 2, 4])))
         # check assigned node label counts
-        self.assertTrue(np.array_equal(counts, np.array([2, 9, 2, 10])))
+        self.assertTrue(np.array_equal(counts, np.array([2, 8, 2, 14])))
 
     def test_rag_builder(self):
         """
@@ -160,8 +160,8 @@ class GraphBuilderTestCase(unittest.TestCase):
         graph = rag_builder.process(superpixels, features)
 
         self.assertTrue(isinstance(graph, dgl.DGLGraph))  # check type
-        self.assertEqual(graph.number_of_nodes(), 23)  # check number of nodes
-        self.assertEqual(graph.number_of_edges(), 112)  # check number of edges
+        self.assertEqual(graph.number_of_nodes(), 26)  # check number of nodes
+        self.assertEqual(graph.number_of_edges(), 120)  # check number of edges
 
     def test_knn_builder_with_pipeline_runner(self):
         """

@@ -13,8 +13,8 @@ dependencies:
         - pandas
         - Pillow
         - PyYAML
-        - scikit_image
-        - scikit_learn
+        - scikit-image
+        - scikit-learn
         - scipy
         - seaborn
         - tqdm

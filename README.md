@@ -41,7 +41,7 @@ git clone https://github.com/histocartography/histocartography.git && cd histoca
 ```
 conda env create -f environment.yml
 ```
-To use GPUs, install GPU compatible [Pytorch](https://pytorch.org/get-started/locally/), [Torchvision](https://pytorch.org/get-started/locally/) and [DGL](https://www.dgl.ai/pages/start.html) packages according to your OS, package manager, and CUDA.
+**NOTE**: To use GPUs, install GPU compatible [Pytorch](https://pytorch.org/get-started/locally/), [Torchvision](https://pytorch.org/get-started/locally/) and [DGL](https://www.dgl.ai/pages/start.html) packages according to your OS, package manager, and CUDA.
 
 - Activate it:
 

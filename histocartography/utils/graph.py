@@ -1,7 +1,8 @@
 import networkx as nx
 import numpy as np
 import dgl
-
+import copy
+import torch
 
 def adj_to_networkx(
         adj,
@@ -115,16 +116,9 @@ def adj_to_dgl(
         node_attrs=None if len(node_keys) == 0 else node_keys)
     return graph
 
-
 def set_graph_on_cuda(graph):
-    cuda_graph = dgl.DGLGraph()
-    cuda_graph.add_nodes(graph.number_of_nodes())
-    cuda_graph.add_edges(graph.edges()[0], graph.edges()[1])
-    for key_graph, val_graph in graph.ndata.items():
-        tmp = graph.ndata[key_graph].clone()
-        cuda_graph.ndata[key_graph] = tmp.cuda()
-    for key_graph, val_graph in graph.edata.items():
-        cuda_graph.edata[key_graph] = graph.edata[key_graph].clone().cuda()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    cuda_graph = graph.to(device)
     return cuda_graph
 
 
@@ -151,9 +145,5 @@ def to_device(x):
 
 
 def copy_graph(x):
-    graph_copy = dgl.DGLGraph(graph_data=x)
-    for k, v in x.ndata.items():
-        graph_copy.ndata[k] = v.clone()
-    for k, v in x.edata.items():
-        graph_copy.edata[k] = v.clone()
+    graph_copy = copy.deepcopy(x)
     return graph_copy

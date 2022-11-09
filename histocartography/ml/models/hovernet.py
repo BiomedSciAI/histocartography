@@ -228,10 +228,9 @@ class Upsample2x(nn.Module):
         Usampling input by 2x.
         """
         super(Upsample2x, self).__init__()
-        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
     def forward(self, x):
-        x = self.upsample(x)
+        x = F.upsample(x, scale_factor=2, mode='nearest')
         return x
 
 

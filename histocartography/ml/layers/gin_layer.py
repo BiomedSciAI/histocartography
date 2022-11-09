@@ -130,7 +130,7 @@ class GINLayer(nn.Module):
         h = g.ndata[GNN_NODE_FEAT_OUT]
         if self.graph_norm:
             snorm_n = torch.FloatTensor(list(itertools.chain(
-                *[[np.sqrt(1 / n)] * n for n in g.batch_num_nodes]))).to(h.get_device())
+                *[[torch.sqrt(1 / n)] * n for n in g.batch_num_nodes()]))).to(h.get_device())
             h = h * snorm_n[:, None]
         if self.batch_norm:
             h = self.batchnorm_h(h)

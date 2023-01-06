@@ -20,13 +20,15 @@
 
 All the functionalities are grouped under a user-friendly API. 
 
-If you encounter any issue or have questions regarding the library, feel free to [open a GitHub issue](add_link). We'll do our best to address it. 
+If you encounter any issue or have questions regarding the library, feel free to [open a GitHub issue](https://github.com/BiomedSciAI/histocartography/issues/new). We'll do our best to address it. 
 
 # Installation 
 
 ## PyPI installer (recommended)
 
-`pip install histocartography`
+```
+pip install histocartography
+```
 
 ## Development setup 
 
@@ -71,7 +73,7 @@ The `histocartography` library provides a set of helpers grouped in different mo
 
 For instance, in `histocartography.preprocessing`, building a cell-graph from an H&E image is as simple as:
 
-```
+```python
 >> from histocartography.preprocessing import NucleiExtractor, DeepFeatureExtractor, KNNGraphBuilder
 >> 
 >> nuclei_detector = NucleiExtractor()
@@ -86,7 +88,7 @@ For instance, in `histocartography.preprocessing`, building a cell-graph from an
 
 The output can be then visualized with:
 
-```
+```python
 >> from histocartography.visualization import OverlayGraphVisualization, InstanceImageVisualization
 
 >> visualizer = OverlayGraphVisualization(
@@ -132,7 +134,7 @@ A tutorial with detailed descriptions and visualizations of some of the main fun
 
 If you use this library, please consider citing:
 
-```
+```bibtex
 @inproceedings{jaume2021,
     title = {HistoCartography: A Toolkit for Graph Analytics in Digital Pathology},
     author = {Guillaume Jaume, Pushpak Pati, Valentin Anklin, Antonio Foncubierta, Maria Gabrani},

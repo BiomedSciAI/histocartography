@@ -802,7 +802,6 @@ class DeepFeatureExtractor(FeatureExtractor):
             shuffle=False,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            # num_workers=0,
             collate_fn=self._collate_patches
         )
         features = torch.empty(
@@ -817,7 +816,6 @@ class DeepFeatureExtractor(FeatureExtractor):
         for instance_indices, patches in tqdm(
             image_loader, total=len(image_loader), disable=not self.verbose
         ):
-        # for instance_indices, patches in enumerate(image_loader):
             emb = self.patch_feature_extractor(patches)
             for j, key in enumerate(instance_indices):
                 if key in embeddings:

@@ -5,6 +5,9 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Optional, Tuple, Union
 
+from pathos.multiprocessing import ProcessPool as Pool
+from pathos.helpers import cpu_count
+
 import cv2
 import dgl
 import networkx as nx
@@ -22,7 +25,8 @@ from .utils import fast_histogram
 LABEL = "label"
 CENTROID = "centroid"
 FEATURES = "feat"
-
+MAX_CPU = 14
+DISCONNECT_RAG_BACKGROUND_NODES = False
 
 def two_hop_neighborhood(graph: dgl.DGLGraph) -> dgl.DGLGraph:
     """Increases the connectivity of a given graph by an additional hop
@@ -280,8 +284,31 @@ class RAGGraphBuilder(BaseGraphBuilder):
             hops, int
         ), f"Invalid hops {hops} ({type(hops)}). Must be integer >= 0"
         self.kernel_size = kernel_size
+        self.kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
         self.hops = hops
+        self.num_workers = MAX_CPU if MAX_CPU > 0 else cpu_count()
+        self.map = Pool(self.num_workers).map
+        self.instance_map = None
+        self.annotation = None
         super().__init__(**kwargs)
+
+    def _calc_node_label(self,
+                         region_label: int,
+                         # instance_map: np.ndarray,
+                         # annotation: np.ndarray,
+                         ) -> dict():
+        histogram = fast_histogram(
+            self.annotation[self.instance_map == region_label],
+            nr_values=self.nr_annotation_classes
+        )
+        mask = np.ones(len(histogram), np.bool)
+        mask[self.annotation_background_class] = 0
+        if histogram[mask].sum() == 0:
+            assignment = self.annotation_background_class
+        else:
+            histogram[self.annotation_background_class] = 0
+            assignment = np.argmax(histogram)
+        return {region_label - 1: int(assignment)}
 
     def _set_node_labels(
             self,
@@ -294,21 +321,46 @@ class RAGGraphBuilder(BaseGraphBuilder):
         ), "Cannot handle that many classes with 8-bits"
         regions = regionprops(instance_map)
         labels = torch.empty(len(regions), dtype=torch.uint8)
+        # do this in parallel... return {node idx: label}
+        # this is so ugly but works.... don't know why the iterable is not working in map for pathos mp....
+        self.instance_map = instance_map
+        self.annotation = annotation
+        iterable = [region_label for region_label in np.arange(1, len(regions) + 1)]
+        result = self.map(self._calc_node_label, iterable)
+        # combine and reshape to label tensor... could it be faster?
+        ind_dict = {k: v for dct in result for k, v in dct.items()}
+        for i in range(len(regions)):
+            labels[i] = int(ind_dict[i])
 
-        for region_label in np.arange(1, len(regions) + 1):
-            histogram = fast_histogram(
-                annotation[instance_map == region_label],
-                nr_values=self.nr_annotation_classes
-            )
-            mask = np.ones(len(histogram), np.bool)
-            mask[self.annotation_background_class] = 0
-            if histogram[mask].sum() == 0:
-                assignment = self.annotation_background_class
-            else:
-                histogram[self.annotation_background_class] = 0
-                assignment = np.argmax(histogram)
-            labels[region_label - 1] = int(assignment)
+        # for region_label in np.arange(1, len(regions) + 1):
+        #     histogram = fast_histogram(
+        #         annotation[instance_map == region_label],
+        #         nr_values=self.nr_annotation_classes
+        #     )
+        #     mask = np.ones(len(histogram), np.bool)
+        #     mask[self.annotation_background_class] = 0
+        #     if histogram[mask].sum() == 0:
+        #         assignment = self.annotation_background_class
+        #     else:
+        #         histogram[self.annotation_background_class] = 0
+        #         assignment = np.argmax(histogram)
+        #     labels[region_label - 1] = int(assignment)
+        
         graph.ndata[LABEL] = labels
+
+    def _calc_dilation_adjacency(self,
+                        instance_id: int
+                        ) -> dict():
+        mask = (self.instance_map == instance_id).astype(np.uint8)
+        dilation = cv2.dilate(mask, self.kernel, iterations=1)
+        boundary = dilation - mask
+        idx = pd.unique(self.instance_map[boundary.astype(bool)])
+        instance_id -= 1  # because instance_map id starts from 1
+        idx -= 1  # because instance_map id starts from 1
+        if DISCONNECT_RAG_BACKGROUND_NODES:
+            idx = idx[idx >= 0]  # prevents "end"/background node -1 from connecting to other nodes neighboring background
+            # Should also be able to get this behavior by setting the nth column and row to 0s
+        return {instance_id: idx}
 
     def _build_topology(
             self,
@@ -320,9 +372,19 @@ class RAGGraphBuilder(BaseGraphBuilder):
         regions = regionprops(instance_map)
         instance_ids = torch.empty(len(regions), dtype=torch.uint8)
 
-        kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
+        # kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
+        self.instance_map = instance_map
         adjacency = np.zeros(shape=(len(instance_ids), len(instance_ids)))
+        # perform dilations in parallel.... return indx: neighbors....
+        iterable = [instance_id for instance_id in np.arange(1, len(instance_ids) + 1)]
+        result = self.map(self._calc_dilation_adjacency, iterable)
+        # combine and reshape to label tensor... could it be faster?
+        neighbor_dict = {k: v for dct in result for k, v in dct.items()}
+        for i in range(len(regions)):
+            adjacency[i, neighbor_dict[i]] = 1
 
+        # construct a hashmap of indx: neighbors....
+        # make adjacency matrix?
         for instance_id in np.arange(1, len(instance_ids) + 1):
             mask = (instance_map == instance_id).astype(np.uint8)
             dilation = cv2.dilate(mask, kernel, iterations=1)
@@ -330,6 +392,7 @@ class RAGGraphBuilder(BaseGraphBuilder):
             idx = pd.unique(instance_map[boundary.astype(bool)])
             instance_id -= 1  # because instance_map id starts from 1
             idx -= 1  # because instance_map id starts from 1
+            idx = idx[idx >= 0] # remove background idx and prevents "end" node -1 from over connecting......
             adjacency[instance_id, idx] = 1
 
         edge_list = np.nonzero(adjacency)

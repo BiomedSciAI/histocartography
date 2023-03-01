@@ -385,15 +385,15 @@ class RAGGraphBuilder(BaseGraphBuilder):
 
         # construct a hashmap of indx: neighbors....
         # make adjacency matrix?
-        for instance_id in np.arange(1, len(instance_ids) + 1):
-            mask = (instance_map == instance_id).astype(np.uint8)
-            dilation = cv2.dilate(mask, kernel, iterations=1)
-            boundary = dilation - mask
-            idx = pd.unique(instance_map[boundary.astype(bool)])
-            instance_id -= 1  # because instance_map id starts from 1
-            idx -= 1  # because instance_map id starts from 1
-            idx = idx[idx >= 0] # remove background idx and prevents "end" node -1 from over connecting......
-            adjacency[instance_id, idx] = 1
+        # for instance_id in np.arange(1, len(instance_ids) + 1):
+        #     mask = (instance_map == instance_id).astype(np.uint8)
+        #     dilation = cv2.dilate(mask, kernel, iterations=1)
+        #     boundary = dilation - mask
+        #     idx = pd.unique(instance_map[boundary.astype(bool)])
+        #     instance_id -= 1  # because instance_map id starts from 1
+        #     idx -= 1  # because instance_map id starts from 1
+        #     idx = idx[idx >= 0] # remove background idx and prevents "end" node -1 from over connecting......
+        #     adjacency[instance_id, idx] = 1
 
         edge_list = np.nonzero(adjacency)
         graph.add_edges(list(edge_list[0]), list(edge_list[1]))

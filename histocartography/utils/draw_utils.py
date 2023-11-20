@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from collections.abc import Iterable
 import numpy as np
 
-plt.style.use("seaborn-whitegrid")
+plt.style.use("seaborn-v0_8-whitegrid")
 
 
 def name2rgb(color_name):

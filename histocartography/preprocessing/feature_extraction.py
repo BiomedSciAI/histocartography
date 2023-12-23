@@ -17,7 +17,7 @@ import torchvision
 from histocartography.preprocessing.tissue_mask import GaussianTissueMask
 from histocartography.utils import dynamic_import_from
 from scipy.stats import skew
-from skimage.feature import greycomatrix, greycoprops
+from skimage.feature import gaycomatrix, graycoprops
 from skimage.filters.rank import entropy as Entropy
 from skimage.measure import regionprops
 from skimage.morphology import disk
@@ -249,19 +249,19 @@ class HandcraftedFeatureExtractor(FeatureExtractor):
             ]
 
             # GLCM texture features (gray color space) [5 features]
-            glcm = greycomatrix(sp_gray, [1], [0])
+            glcm = graycomatrix(sp_gray, [1], [0])
             # Filter out the first row and column
             filt_glcm = glcm[1:, 1:, :, :]
 
-            glcm_contrast = greycoprops(filt_glcm, prop="contrast")
+            glcm_contrast = graycoprops(filt_glcm, prop="contrast")
             glcm_contrast = glcm_contrast[0, 0]
-            glcm_dissimilarity = greycoprops(filt_glcm, prop="dissimilarity")
+            glcm_dissimilarity = graycoprops(filt_glcm, prop="dissimilarity")
             glcm_dissimilarity = glcm_dissimilarity[0, 0]
-            glcm_homogeneity = greycoprops(filt_glcm, prop="homogeneity")
+            glcm_homogeneity = graycoprops(filt_glcm, prop="homogeneity")
             glcm_homogeneity = glcm_homogeneity[0, 0]
-            glcm_energy = greycoprops(filt_glcm, prop="energy")
+            glcm_energy = graycoprops(filt_glcm, prop="energy")
             glcm_energy = glcm_energy[0, 0]
-            glcm_ASM = greycoprops(filt_glcm, prop="ASM")
+            glcm_ASM = graycoprops(filt_glcm, prop="ASM")
             glcm_ASM = glcm_ASM[0, 0]
             glcm_dispersion = np.std(filt_glcm)
 
